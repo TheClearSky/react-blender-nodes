@@ -1,6 +1,8 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import dts from 'vite-plugin-dts';
 
 // https://vite.dev/config/
 import path from 'node:path';
@@ -13,7 +15,37 @@ const dirname =
 
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    dts({ rollupTypes: true, tsconfigPath: './tsconfig.app.json' }),
+  ],
+  build: {
+    //Check https://vite.dev/guide/build.html#library-mode for more info
+    lib: {
+      entry: ['src/index.ts'],
+      name: 'react-blender-nodes',
+      //We are not using the second parameter (entryName) because this is a single entry library
+      fileName: (format) => `react-blender-nodes.${format}.js`,
+      cssFileName: 'react-blender-nodes',
+      // We are building both ES and UMD formats, as a single entry library, check https://vite.dev/guide/build.html#library-mode for more info
+      formats: ['es', 'umd'],
+    },
+    rollupOptions: {
+      // externalize react and react-dom to avoid bundling them with the library, check peerDependencies in package.json
+      external: ['react', 'react-dom'],
+      output: {
+        // Provide global variables to use in the UMD build
+        // for externalized deps
+        globals: {
+          react: 'React',
+          'react-dom': 'ReactDOM',
+        },
+      },
+    },
+    sourcemap: true,
+    emptyOutDir: true,
+  },
   test: {
     projects: [
       {

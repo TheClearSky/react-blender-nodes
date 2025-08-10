@@ -40,7 +40,7 @@ function FullGraph() {
   );
 
   return (
-    <div style={{ width: '100vw', height: '100vh' }}>
+    <div className='w-[300px] h-[300px]'>
       <ReactFlow
         nodes={nodes}
         edges={edges}

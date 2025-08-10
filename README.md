@@ -1,7 +1,10 @@
 # react-blender-nodes
 
-Inspired by blender nodes, a react solution to render blender-like nodes on the
-web using react
+- Inspired by blender nodes, a react solution to render blender-like nodes on the
+web using react, check out blender's official repo [here](https://projects.blender.org/blender/blender.git).
+- Thanks to blender foundation for their awesome work and keeping blender free and open source!<br>
+- Please donate to blender foundation if you can [here](https://fund.blender.org/).
+- This project is not affiliated with blender, it's just to satisfy my curiosity on how such a project would look like.
 
 ## Project Design
 

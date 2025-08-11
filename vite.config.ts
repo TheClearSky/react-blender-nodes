@@ -20,6 +20,12 @@ export default defineConfig({
     tailwindcss(),
     dts({ rollupTypes: true, tsconfigPath: './tsconfig.app.json' }),
   ],
+  // Paths resolution
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   build: {
     //Check https://vite.dev/guide/build.html#library-mode for more info
     lib: {

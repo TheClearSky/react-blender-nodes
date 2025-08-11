@@ -8,6 +8,10 @@ import {
   type NodeChange,
   type EdgeChange,
   type Connection,
+  Background,
+  Controls,
+  MiniMap,
+  SelectionMode,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -40,7 +44,12 @@ function FullGraph() {
   );
 
   return (
-    <div className='w-[300px] h-[300px]'>
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+      }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -48,7 +57,19 @@ function FullGraph() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         fitView
-      />
+        proOptions={{
+          hideAttribution: true,
+        }}
+        colorMode='dark'
+        selectNodesOnDrag={true}
+        elevateNodesOnSelect={true}
+        elevateEdgesOnSelect={true}
+        selectionMode={SelectionMode.Partial}
+      >
+        <Controls />
+        <Background />
+        <MiniMap pannable />
+      </ReactFlow>
     </div>
   );
 }

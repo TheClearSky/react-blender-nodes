@@ -1,4 +1,4 @@
-import type { Meta } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { FullGraph } from './FullGraph';
 
@@ -8,4 +8,4 @@ const meta = {
 
 export default meta;
 
-export const Default = {};
+export const Default: StoryObj<typeof FullGraph> = {};

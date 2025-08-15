@@ -4,6 +4,22 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-main: 'DejaVu Sans', 'Roboto', sans-serif;
+
+  --color-primary-white: #e6e6e6; /* text */
+
+  --color-primary-black: #1d1d1d; /* base background */
+  --color-secondary-black: #282828; /* dark button background */
+
+  --color-primary-dark-gray: #303030; /*node background, hover dark button*/
+  --color-secondary-dark-gray: #444444; /*dark button border*/
+
+  --color-primary-gray: #545454; /*light button background*/
+
+  --color-secondary-light-gray: #656565; /*light button non priority hover*/
+  --color-primary-light-gray: #797979; /*light button priority hover*/
+
+  /* Added by shadcn  */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -108,13 +124,4 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
 }

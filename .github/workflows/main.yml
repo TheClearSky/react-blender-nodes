@@ -6,6 +6,10 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+
+    - name: Checkout to repo in current branch
+      uses: actions/checkout@v5
+    
     - name: Setup Node
       uses: actions/setup-node@v4
       with:

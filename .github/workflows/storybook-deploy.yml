@@ -9,25 +9,24 @@ jobs:
     concurrency: ci-${{github.ref}}
 
     steps:
+      - name: Checkout to repo in current branch
+        uses: actions/checkout@v5
 
-    - name: Checkout to repo in current branch
-      uses: actions/checkout@v5
-    
-    - name: Setup Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-    
-    - name: Install Dependencies
-      run: npm ci
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
 
-    - name: Build
-      run: npm run build-storybook
+      - name: Install Dependencies
+        run: npm ci
 
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: storybook-static
+      - name: Build
+        run: npm run build-storybook
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: storybook-static
 
   # Deployment job
   deploy:
@@ -40,4 +39,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-    

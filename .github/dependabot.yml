@@ -12,7 +12,7 @@ updates:
       interval: 'weekly'
 
     # Create a single PR for all npm dependencies
-    group:
+    groups:
       npmDependencies:
         patterns:
           - '*'

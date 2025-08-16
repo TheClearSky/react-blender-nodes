@@ -1,0 +1,50 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-library:
+    runs-on: ubuntu-22.04
+    concurrency: ci-${{github.ref}}
+
+    steps:
+      - name: Checkout to repo in current branch
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Library
+        run: npm run build
+
+  # TODO: Need to figure out how to deploy the library to npm
+  #     - name: Upload artifact
+  #       uses: actions/upload-pages-artifact@v3
+  #       with:
+  #         path: dist
+
+  # # Deployment job
+  # deploy-library:
+  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   environment:
+  #     name: github-pages
+  #     url: ${{ steps.deployment.outputs.page_url }}
+  #   runs-on: ubuntu-22.04
+  #   needs: build-library
+  #   permissions:
+  #     id-token: write
+  #     pages: write
+  #   steps:
+  #     - name: Deploy to GitHub Pages
+  #       uses: actions/deploy-pages@v4
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

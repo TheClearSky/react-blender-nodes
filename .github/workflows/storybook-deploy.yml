@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  build:
+  build-storybook:
     runs-on: ubuntu-22.04
     concurrency: ci-${{github.ref}}
 
@@ -23,7 +23,7 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Build
+      - name: Build Storybook
         run: npm run build-storybook
 
       - name: Upload artifact
@@ -32,13 +32,13 @@ jobs:
           path: storybook-static
 
   # Deployment job
-  deploy:
+  deploy-storybook:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-22.04
-    needs: build
+    needs: build-storybook
     permissions:
       id-token: write
       pages: write

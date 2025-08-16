@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { fn } from 'storybook/test';
 
 import { Button, type ButtonProps } from './Button';
 
@@ -12,6 +13,7 @@ const meta = {
   },
   args: {
     children: 'Button',
+    onClick: fn(),
   },
   tags: ['autodocs'],
 } satisfies Meta<ButtonProps>;

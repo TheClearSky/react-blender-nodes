@@ -16,32 +16,72 @@ export default meta;
 const nodesExample1Data: Nodes = [
   {
     id: 'n1',
-    position: { x: -200, y: 100 },
+    position: { x: -856, y: 274 },
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
     type: 'configurableNode',
+    width: 400,
     data: {
       name: 'Node 1',
-      outputs: [{ name: 'Output 1', id: 'output1' }],
-      inputs: [{ name: 'Input 1', id: 'input1' }],
+      outputs: [
+        { name: 'Output 1', id: 'output1node1' },
+        { name: 'Output 2', id: 'output2node1' },
+      ],
+      inputs: [
+        { name: 'Input 1', id: 'input1node1' },
+        { name: 'Input 2', id: 'input2node1' },
+      ],
     },
   },
   {
     id: 'n2',
-    position: { x: 200, y: 200 },
+    position: { x: 274, y: 154 },
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
     type: 'configurableNode',
+    width: 400,
     data: {
       name: 'Node 2',
-      inputs: [{ name: 'Input 2', id: 'input2' }],
-      outputs: [{ name: 'Output 2', id: 'output2' }],
+      inputs: [
+        { name: 'Input 1', id: 'input1node2' },
+        { name: 'Input 2', id: 'input2node2' },
+      ],
+      outputs: [
+        { name: 'Output 1', id: 'output1node2' },
+        { name: 'Output 2', id: 'output2node2' },
+      ],
+    },
+  },
+  {
+    id: 'n3',
+    position: { x: -100, y: 586 },
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    type: 'configurableNode',
+    width: 400,
+    data: {
+      name: 'Node 3',
+      inputs: [
+        { name: 'Input 1', id: 'input1node3' },
+        { name: 'Input 2', id: 'input2node3' },
+      ],
+      outputs: [
+        { name: 'Output 1', id: 'output1node3' },
+        { name: 'Output 2', id: 'output2node3' },
+      ],
     },
   },
 ];
 
 const edgesExample1Data: Edges = [
-  { id: 'n1-n2', source: 'n1', target: 'n2', type: 'configurabledge' },
+  {
+    id: 'n1-n2',
+    source: 'n1',
+    sourceHandle: 'output2node1',
+    target: 'n2',
+    targetHandle: 'input1node2',
+    type: 'configurabledge',
+  },
 ];
 
 export const Playground: StoryObj<typeof FullGraph> = {

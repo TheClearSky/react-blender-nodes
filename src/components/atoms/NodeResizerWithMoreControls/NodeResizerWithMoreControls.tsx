@@ -41,7 +41,7 @@ type NodeResizerWithMoreControlsProps = NodeResizerProps & {
  *export default memo(ResizableNode);
  *```
  */
-export function NodeResizerWithMoreControls({
+function NodeResizerWithMoreControls({
   nodeId,
   isVisible = true,
   handleClassName,
@@ -119,3 +119,7 @@ export function NodeResizerWithMoreControls({
     </>
   );
 }
+
+export { NodeResizerWithMoreControls };
+
+export type { NodeResizerWithMoreControlsProps };

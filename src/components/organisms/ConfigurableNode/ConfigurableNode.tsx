@@ -1,4 +1,7 @@
-import { NodeResizerWithMoreControls } from '@/components/atoms/NodeResizerWithMoreControls/NodeResizerWithMoreControls';
+import {
+  NodeResizerWithMoreControls,
+  type NodeResizerWithMoreControlsProps,
+} from '@/components/atoms/NodeResizerWithMoreControls/NodeResizerWithMoreControls';
 import { cn } from '@/utils';
 import { Position, Handle, type HandleType } from '@xyflow/react';
 import { forwardRef, type HTMLAttributes } from 'react';
@@ -38,6 +41,7 @@ type ConfigurableNodeProps = {
   inputs?: Input[];
   outputs?: Output[];
   isCurrentlyInsideReactFlow?: boolean;
+  nodeResizerProps?: NodeResizerWithMoreControlsProps;
 } & HTMLAttributes<HTMLDivElement>;
 
 type ContextAwareHandleProps = {
@@ -105,6 +109,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       outputs = [],
       isCurrentlyInsideReactFlow = false,
       className,
+      nodeResizerProps = {},
       ...props
     },
     ref,
@@ -129,7 +134,9 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
           {name}
         </div>
         <div className='min-h-[50px] rounded-b-md bg-primary-dark-gray'>
-          {isCurrentlyInsideReactFlow && <NodeResizerWithMoreControls />}
+          {isCurrentlyInsideReactFlow && (
+            <NodeResizerWithMoreControls {...nodeResizerProps} />
+          )}
           <div className='flex flex-col gap-6 py-4'>
             {outputs.map((output) => (
               <div

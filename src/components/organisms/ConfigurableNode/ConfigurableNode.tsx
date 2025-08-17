@@ -1,3 +1,4 @@
+import { NodeResizerWithMoreControls } from '@/components/atoms/NodeResizerWithMoreControls/NodeResizerWithMoreControls';
 import { cn } from '@/utils';
 import { Position, Handle, type HandleType } from '@xyflow/react';
 import { forwardRef, type HTMLAttributes } from 'react';
@@ -37,7 +38,7 @@ type ConfigurableNodeProps = {
   inputs?: Input[];
   outputs?: Output[];
   isCurrentlyInsideReactFlow?: boolean;
-};
+} & HTMLAttributes<HTMLDivElement>;
 
 type ContextAwareHandleProps = {
   type: HandleType;
@@ -103,18 +104,24 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       inputs = [],
       outputs = [],
       isCurrentlyInsideReactFlow = false,
+      className,
+      ...props
     },
     ref,
   ) => {
     return (
       <div
         tabIndex={0}
-        className='flex flex-col gap-0 rounded-md w-max border-[1.5px] border-transparent focus:border-white'
+        className={cn(
+          'flex flex-col gap-0 rounded-md w-max border-[1.5px] border-transparent focus:border-white',
+          className,
+        )}
+        {...props}
         ref={ref}
       >
         <div
           className='text-primary-white text-left text-[27px] leading-[27px] font-main \
-          py-2 px-4 transition-all rounded-t-md'
+          py-2 px-4 transition-all rounded-t-md truncate'
           style={{
             backgroundColor: headerColor,
           }}
@@ -122,13 +129,14 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
           {name}
         </div>
         <div className='min-h-[50px] rounded-b-md bg-primary-dark-gray'>
-          <div className='flex flex-col gap-6 py-4 items-end'>
+          {isCurrentlyInsideReactFlow && <NodeResizerWithMoreControls />}
+          <div className='flex flex-col gap-6 py-4'>
             {outputs.map((output) => (
               <div
                 key={output.id}
-                className='text-primary-white text-left text-[27px] leading-[27px] font-main relative px-6'
+                className='text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row justify-end'
               >
-                {output.name}
+                <div className='truncate text-right'>{output.name}</div>
                 <ContextAwareHandle
                   type='source'
                   position={Position.Right}
@@ -139,11 +147,11 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
               </div>
             ))}
           </div>
-          <div className='flex flex-col gap-6 py-4 items-start'>
+          <div className='flex flex-col gap-6 py-4'>
             {inputs.map((input) => (
               <div
                 key={input.id}
-                className='text-primary-white text-left text-[27px] leading-[27px] font-main relative px-6'
+                className='text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row'
               >
                 <ContextAwareHandle
                   type='target'
@@ -152,7 +160,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
                   color={input.handleColor}
                   isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
                 />
-                {input.name}
+                <div className='truncate'>{input.name}</div>
               </div>
             ))}
           </div>

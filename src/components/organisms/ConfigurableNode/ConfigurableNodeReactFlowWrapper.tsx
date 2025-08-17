@@ -20,7 +20,12 @@ const ConfigurableNodeReactFlowWrapper = forwardRef<
   ConfigurableNodeReactFlowWrapperProps
 >(({ data = {} }, ref) => {
   return (
-    <ConfigurableNode isCurrentlyInsideReactFlow={true} {...data} ref={ref} />
+    <ConfigurableNode
+      isCurrentlyInsideReactFlow={true}
+      className='w-full'
+      {...data}
+      ref={ref}
+    />
   );
 });
 

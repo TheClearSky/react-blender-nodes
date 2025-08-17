@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import {
   ReactFlow,
   applyNodeChanges,
@@ -12,42 +12,13 @@ import {
   Controls,
   MiniMap,
   SelectionMode,
-  Position,
+  type Edge,
+  type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ConfigurableNodeReactFlowWrapper } from '../ConfigurableNode/ConfigurableNodeReactFlowWrapper';
 import { ConfigurableEdge } from '../../atoms/ConfigurableEdge/ConfigurableEdge';
 import { ConfigurableConnection } from '@/components/atoms/ConfiguableConnection/ConfigurableConnection';
-
-const initialNodes = [
-  {
-    id: 'n1',
-    position: { x: -200, y: 100 },
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: 'configurableNode',
-    data: {
-      name: 'Node 1',
-      outputs: [{ name: 'Output 1', id: 'output1' }],
-      inputs: [{ name: 'Input 1', id: 'input1' }],
-    },
-  },
-  {
-    id: 'n2',
-    position: { x: 200, y: 200 },
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: 'configurableNode',
-    data: {
-      name: 'Node 2',
-      inputs: [{ name: 'Input 2', id: 'input2' }],
-      outputs: [{ name: 'Output 2', id: 'output2' }],
-    },
-  },
-];
-const initialEdges = [
-  { id: 'n1-n2', source: 'n1', target: 'n2', type: 'configurabledge' },
-];
 
 const nodeTypes = {
   configurableNode: ConfigurableNodeReactFlowWrapper,
@@ -57,27 +28,38 @@ const edgeTypes = {
   configurabledge: ConfigurableEdge,
 };
 
-function FullGraph() {
-  const [nodes, setNodes] =
-    useState<NonNullable<ReactFlowProps['nodes']>>(initialNodes);
-  const [edges, setEdges] =
-    useState<NonNullable<ReactFlowProps['edges']>>(initialEdges);
+type Nodes = NonNullable<ReactFlowProps['nodes']>;
+type Edges = NonNullable<ReactFlowProps['edges']>;
 
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) =>
-      setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
-    [],
-  );
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) =>
-      setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot)),
-    [],
-  );
-  const onConnect = useCallback(
-    (newConnection: Connection) =>
-      setEdges((edgesSnapshot) => addEdge(newConnection, edgesSnapshot)),
-    [],
-  );
+type FullGraphProps = {
+  nodes?: Nodes;
+  edges?: Edges;
+  setNodes?: (updater: (nodes: Nodes) => Nodes) => void;
+  setEdges?: (updater: (edges: Edges) => Edges) => void;
+  setNodesWithNoAsyncCheck?: (nodes: Node[]) => void;
+  setEdgesWithNoAsyncCheck?: (edges: Edge[]) => void;
+};
+
+function FullGraph({
+  nodes = [],
+  edges = [],
+  setNodes = () => {},
+  setEdges = () => {},
+  setNodesWithNoAsyncCheck = () => {},
+  setEdgesWithNoAsyncCheck = () => {},
+}: FullGraphProps) {
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot));
+    setNodesWithNoAsyncCheck(applyNodeChanges(changes, nodes));
+  }, []);
+  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+    setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot));
+    setEdgesWithNoAsyncCheck(applyEdgeChanges(changes, edges));
+  }, []);
+  const onConnect = useCallback((newConnection: Connection) => {
+    setEdges((edgesSnapshot) => addEdge(newConnection, edgesSnapshot));
+    setEdgesWithNoAsyncCheck(addEdge(newConnection, edges));
+  }, []);
 
   return (
     <div
@@ -94,7 +76,7 @@ function FullGraph() {
         onConnect={onConnect}
         fitView
         fitViewOptions={{
-          maxZoom: 1,
+          maxZoom: 0.5,
           minZoom: 0.1,
         }}
         maxZoom={1}
@@ -121,3 +103,5 @@ function FullGraph() {
 }
 
 export { FullGraph };
+
+export { type FullGraphProps, type Nodes, type Edges };

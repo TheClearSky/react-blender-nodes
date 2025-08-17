@@ -106,6 +106,7 @@ const SliderNumberInput = forwardRef<
           color='lightParentGroupBasedHover'
           className='h-[44px] rounded-r-none w-[30px] p-0 shrink-0'
           onClick={handleDecrement}
+          aria-label={`Decrement ${name}`}
         >
           <ChevronLeftIcon />
         </Button>
@@ -121,6 +122,7 @@ const SliderNumberInput = forwardRef<
           color='lightParentGroupBasedHover'
           className='h-[44px] rounded-l-none w-[30px] p-0 shrink-0'
           onClick={handleIncrement}
+          aria-label={`Increment ${name}`}
         >
           <ChevronRightIcon />
         </Button>

@@ -12,14 +12,50 @@ import {
   Controls,
   MiniMap,
   SelectionMode,
+  Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { ConfigurableNodeReactFlowWrapper } from '../ConfigurableNode/ConfigurableNodeReactFlowWrapper';
+import { ConfigurableEdge } from '../../atoms/ConfigurableEdge/ConfigurableEdge';
+import { ConfigurableConnection } from '@/components/atoms/ConfiguableConnection/ConfigurableConnection';
 
 const initialNodes = [
-  { id: 'n1', position: { x: 0, y: 0 }, data: { label: 'Node 1' } },
-  { id: 'n2', position: { x: 0, y: 100 }, data: { label: 'Node 2' } },
+  {
+    id: 'n1',
+    position: { x: -200, y: 100 },
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    type: 'configurableNode',
+    data: {
+      name: 'Node 1',
+      outputs: [{ name: 'Output 1', id: 'output1' }],
+      inputs: [{ name: 'Input 1', id: 'input1' }],
+    },
+  },
+  {
+    id: 'n2',
+    position: { x: 200, y: 200 },
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    type: 'configurableNode',
+    data: {
+      name: 'Node 2',
+      inputs: [{ name: 'Input 2', id: 'input2' }],
+      outputs: [{ name: 'Output 2', id: 'output2' }],
+    },
+  },
 ];
-const initialEdges = [{ id: 'n1-n2', source: 'n1', target: 'n2' }];
+const initialEdges = [
+  { id: 'n1-n2', source: 'n1', target: 'n2', type: 'configurabledge' },
+];
+
+const nodeTypes = {
+  configurableNode: ConfigurableNodeReactFlowWrapper,
+};
+
+const edgeTypes = {
+  configurabledge: ConfigurableEdge,
+};
 
 function FullGraph() {
   const [nodes, setNodes] =
@@ -57,6 +93,12 @@ function FullGraph() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         fitView
+        fitViewOptions={{
+          maxZoom: 1,
+          minZoom: 0.1,
+        }}
+        maxZoom={1}
+        minZoom={0.1}
         proOptions={{
           hideAttribution: true,
         }}
@@ -65,6 +107,10 @@ function FullGraph() {
         elevateNodesOnSelect={true}
         elevateEdgesOnSelect={true}
         selectionMode={SelectionMode.Partial}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        deleteKeyCode={['Backspace', 'Delete', 'x']}
+        connectionLineComponent={ConfigurableConnection}
       >
         <Controls />
         <Background />

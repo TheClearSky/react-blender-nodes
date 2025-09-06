@@ -18,13 +18,13 @@
     "./style.css": "./dist/react-blender-nodes.css"
   },
   "scripts": {
-    "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "pretty": "prettier --write .",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "checklist": "npm run pretty && npm run build && npm run build-storybook"
   },
   "peerDependencies": {
     "react": "^19.1.1",
@@ -36,9 +36,11 @@
     "@xyflow/react": "^12.8.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.539.0",
+    "immer": "^10.1.1",
+    "lucide-react": "^0.541.0",
     "prettier": "^3.6.2",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.1.0",
@@ -48,6 +50,7 @@
     "@storybook/addon-vitest": "^9.1.2",
     "@storybook/react-vite": "^9.1.1",
     "@tailwindcss/vite": "^4.1.11",
+    "@types/lodash": "^4.17.20",
     "@types/node": "^24.2.1",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",

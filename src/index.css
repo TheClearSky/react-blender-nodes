@@ -17,7 +17,11 @@
   --color-primary-gray: #545454; /*light button background*/
 
   --color-secondary-light-gray: #656565; /*light button non priority hover*/
+  --color-secondary-light-gray-as-transparent-overlay-over-primary-gray: #ffffff1a; /*light button non priority hover as transparent overlay over primary gray*/
   --color-primary-light-gray: #797979; /*light button priority hover*/
+  --color-primary-light-gray-as-transparent-overlay-over-primary-gray: #ffffff38; /*light button priority hover as transparent overlay over primary gray*/
+
+  --color-primary-blue: #4772b3; /*slider blue*/
 
   /* Added by shadcn  */
   --radius-sm: calc(var(--radius) - 4px);

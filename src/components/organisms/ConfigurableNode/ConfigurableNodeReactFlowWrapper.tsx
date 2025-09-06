@@ -1,19 +1,16 @@
 import { forwardRef } from 'react';
-import {
-  type Node as XyFlowNode,
-  type NodeProps as XyFlowNodeProps,
-} from '@xyflow/react';
+import { type NodeProps, type Node } from '@xyflow/react';
 import {
   type ConfigurableNodeProps,
   ConfigurableNode,
 } from './ConfigurableNode';
 
-type ConfigurableNodeReactFlowWrapperProps = XyFlowNodeProps<
-  XyFlowNode<
-    Omit<ConfigurableNodeProps, 'isCurrentlyInsideReactFlow'>,
-    'blenderLikeNode'
-  >
+type ConfigurableNodeState = Node<
+  Omit<ConfigurableNodeProps, 'isCurrentlyInsideReactFlow'>,
+  'configurableNode'
 >;
+
+type ConfigurableNodeReactFlowWrapperProps = NodeProps<ConfigurableNodeState>;
 
 const ConfigurableNodeReactFlowWrapper = forwardRef<
   HTMLDivElement,
@@ -34,4 +31,4 @@ ConfigurableNodeReactFlowWrapper.displayName =
 
 export { ConfigurableNodeReactFlowWrapper };
 
-export type { ConfigurableNodeReactFlowWrapperProps };
+export type { ConfigurableNodeReactFlowWrapperProps, ConfigurableNodeState };

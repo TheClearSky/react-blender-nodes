@@ -1,3 +1,4 @@
+import { getInputOrOutputFromNodeData } from '@/components/organisms';
 import {
   BaseEdge,
   getBezierPath,
@@ -21,17 +22,13 @@ const ConfigurableConnection = ({
   const nodeData = useNodesData(fromHandle?.nodeId || '');
 
   const handleColor = useMemo(() => {
-    if (!fromHandle?.id || !nodeData) return;
-    const inputs =
-      nodeData?.data?.inputs instanceof Array ? nodeData?.data?.inputs : [];
-    const outputs =
-      nodeData?.data?.outputs instanceof Array ? nodeData?.data?.outputs : [];
-    const allHandles = inputs.concat(outputs);
-    const handleColor = allHandles.find(
-      (handle) => handle?.id === fromHandle?.id,
-    )?.handleColor;
-    if (typeof handleColor === 'string') return handleColor;
-  }, [fromHandle?.id]);
+    if (!fromHandle?.id || !nodeData?.data) return;
+    const inputOrOutput = getInputOrOutputFromNodeData(
+      fromHandle?.id,
+      nodeData?.data,
+    );
+    return inputOrOutput?.handleColor ?? '#A1A1A1';
+  }, [fromHandle?.id, nodeData?.data]);
 
   const [edgePath] = getBezierPath({
     sourceX: fromX,

@@ -1,66 +1,104 @@
-import { useCallback } from 'react';
+import { useReducer, type ActionDispatch } from 'react';
+import { z } from 'zod';
 import {
   ReactFlow,
-  applyNodeChanges,
-  applyEdgeChanges,
-  addEdge,
-  type ReactFlowProps,
-  type NodeChange,
-  type EdgeChange,
-  type Connection,
   Background,
   Controls,
   MiniMap,
   SelectionMode,
-  type Edge,
-  type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ConfigurableNodeReactFlowWrapper } from '../ConfigurableNode/ConfigurableNodeReactFlowWrapper';
 import { ConfigurableEdge } from '../../atoms/ConfigurableEdge/ConfigurableEdge';
 import { ConfigurableConnection } from '@/components/atoms/ConfiguableConnection/ConfigurableConnection';
+import {
+  actionTypesMap,
+  mainReducer,
+  type Action,
+} from '@/utils/nodeStateManagement/mainReducer';
+import {
+  type State,
+  type SupportedUnderlyingTypes,
+} from '@/utils/nodeStateManagement/types';
 
 const nodeTypes = {
   configurableNode: ConfigurableNodeReactFlowWrapper,
 };
 
 const edgeTypes = {
-  configurabledge: ConfigurableEdge,
+  configurableEdge: ConfigurableEdge,
 };
 
-type Nodes = NonNullable<ReactFlowProps['nodes']>;
-type Edges = NonNullable<ReactFlowProps['edges']>;
-
-type FullGraphProps = {
-  nodes?: Nodes;
-  edges?: Edges;
-  setNodes?: (updater: (nodes: Nodes) => Nodes) => void;
-  setEdges?: (updater: (edges: Edges) => Edges) => void;
-  setNodesWithNoAsyncCheck?: (nodes: Node[]) => void;
-  setEdgesWithNoAsyncCheck?: (edges: Edge[]) => void;
+type FullGraphProps<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+> = {
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >;
+  dispatch: ActionDispatch<
+    [
+      action: Action<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >,
+    ]
+  >;
 };
 
-function FullGraph({
-  nodes = [],
-  edges = [],
-  setNodes = () => {},
-  setEdges = () => {},
-  setNodesWithNoAsyncCheck = () => {},
-  setEdgesWithNoAsyncCheck = () => {},
-}: FullGraphProps) {
-  const onNodesChange = useCallback((changes: NodeChange[]) => {
-    setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot));
-    setNodesWithNoAsyncCheck(applyNodeChanges(changes, nodes));
-  }, []);
-  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
-    setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot));
-    setEdgesWithNoAsyncCheck(applyEdgeChanges(changes, edges));
-  }, []);
-  const onConnect = useCallback((newConnection: Connection) => {
-    setEdges((edgesSnapshot) => addEdge(newConnection, edgesSnapshot));
-    setEdgesWithNoAsyncCheck(addEdge(newConnection, edges));
-  }, []);
+function useFullGraph<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  initialState: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+) {
+  const [state, dispatch] = useReducer(
+    mainReducer<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >,
+    initialState,
+  );
 
+  return { state, dispatch };
+}
+
+function FullGraph<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>({
+  state,
+  dispatch,
+}: FullGraphProps<
+  DataTypeUniqueId,
+  NodeTypeUniqueId,
+  UnderlyingType,
+  ComplexSchemaType
+>) {
   return (
     <div
       style={{
@@ -69,11 +107,26 @@ function FullGraph({
       }}
     >
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        nodes={state.nodes}
+        edges={state.edges}
+        onNodesChange={(changes) =>
+          dispatch({
+            type: actionTypesMap.UPDATE_NODE_BY_REACT_FLOW,
+            payload: { changes },
+          })
+        }
+        onEdgesChange={(changes) =>
+          dispatch({
+            type: actionTypesMap.UPDATE_EDGES_BY_REACT_FLOW,
+            payload: { changes },
+          })
+        }
+        onConnect={(newConnection) =>
+          dispatch({
+            type: actionTypesMap.ADD_EDGE_BY_REACT_FLOW,
+            payload: { edge: newConnection },
+          })
+        }
         fitView
         fitViewOptions={{
           maxZoom: 0.5,
@@ -93,6 +146,7 @@ function FullGraph({
         edgeTypes={edgeTypes}
         deleteKeyCode={['Backspace', 'Delete', 'x']}
         connectionLineComponent={ConfigurableConnection}
+        // onContextMenu={}
       >
         <Controls />
         <Background />
@@ -102,6 +156,6 @@ function FullGraph({
   );
 }
 
-export { FullGraph };
+export { FullGraph, useFullGraph };
 
-export { type FullGraphProps, type Nodes, type Edges };
+export { type FullGraphProps };

@@ -1,8 +1,8 @@
-import { Button } from '@/components/atoms';
-import { useClickedOutside } from '@/hooks/useClickedOutside';
+import { Button, Input } from '@/components/atoms';
 import { cn } from '@/utils/cnHelper';
+import { useDrag } from '@/hooks/useDrag';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { forwardRef, useRef, useState } from 'react';
+import { forwardRef, useEffect, useRef, useState } from 'react';
 
 type SliderNumberInputProps = {
   name?: string;
@@ -15,7 +15,7 @@ type SliderNumberInputProps = {
 };
 
 const SliderNumberInput = forwardRef<
-  HTMLInputElement | HTMLDivElement,
+  HTMLInputElement & HTMLDivElement,
   SliderNumberInputProps
 >(
   (
@@ -24,122 +24,128 @@ const SliderNumberInput = forwardRef<
   ) => {
     //Internal states
     const [valueInner, setValueInner] = useState(value ?? 0);
-    const [temporaryValueWhenClicked, setTemporaryValueWhenClicked] =
-      useState('');
     const [isClicked, setIsClicked] = useState(false);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const cumulativeDragRatio = useRef(0);
+    const lastDragTimestamp = useRef(0);
 
     //Derived states
     const valueToUse = value ?? valueInner;
-    const stepToUse = Math.abs(
-      step ??
-        (max === undefined || min === undefined
-          ? parseFloat(((valueToUse || 1) / 10).toPrecision(2))
-          : parseFloat(((max - min) / 10).toPrecision(2))),
-    );
+    const stepToUse = useRef(0);
+    useEffect(() => {
+      stepToUse.current = Math.abs(
+        step ??
+          (max === undefined || min === undefined
+            ? parseFloat((valueToUse || 1).toString())
+            : parseFloat((max - min).toString())),
+      );
+    }, [valueToUse, step, max, min]);
+
+    // Use the drag hook
+    const { isDragging, dragRef } = useDrag({
+      onMove: (movementX, _movementY, _deltaX, _deltaY, width) => {
+        const distanceRatio = movementX / (width + 60);
+        cumulativeDragRatio.current += distanceRatio;
+        if (
+          Math.abs(cumulativeDragRatio.current) > 0.05 &&
+          Date.now() - lastDragTimestamp.current > 50
+        ) {
+          lastDragTimestamp.current = Date.now();
+          handleChange(stepToUse.current * cumulativeDragRatio.current);
+          cumulativeDragRatio.current = 0;
+        }
+      },
+      onClick: handleSwitchFromSliderToInput,
+      clickThreshold: 2,
+    });
 
     //Handlers
-    function handleChange(value: number) {
-      if (min !== undefined && value <= min) {
-        value = min;
-      } else if (max !== undefined && value >= max) {
-        value = max;
-      }
-      setValueInner(value);
-      onChange(value);
+    function handleChange(difference: number) {
+      setValueInner((prev) => {
+        let newValue = prev + difference;
+        if (min !== undefined && newValue <= min) {
+          newValue = min;
+        } else if (max !== undefined && newValue >= max) {
+          newValue = max;
+        }
+        onChange(newValue);
+        return newValue;
+      });
     }
-    function handleIncrement() {
-      handleChange(valueToUse + stepToUse);
+    function handleIncrement(ratio: number = 0.1) {
+      handleChange(stepToUse.current * ratio);
     }
-    function handleDecrement() {
-      handleChange(valueToUse - stepToUse);
+    function handleDecrement(ratio: number = 0.1) {
+      handleChange(-stepToUse.current * ratio);
     }
 
     function handleSwitchFromSliderToInput() {
-      setTemporaryValueWhenClicked(valueToUse.toFixed(5).replace(/[0]+$/, ''));
       setIsClicked(true);
     }
-    function handleTemporaryValueChange(value: string) {
-      if (/[^0-9\.\-]/.test(value)) {
-        return;
-      }
-      setTemporaryValueWhenClicked(value);
-    }
-    function handleSwitchFromInputToSlider() {
-      const isNegative = temporaryValueWhenClicked.startsWith('-');
-      const textWithJustNumbersAndDecimals =
-        temporaryValueWhenClicked.replaceAll(/[^0-9\.]/g, '');
-      const firstDecimalIndex = textWithJustNumbersAndDecimals.indexOf('.');
-      let finalProcessedNumber = 0;
-
-      if (firstDecimalIndex === -1) {
-        finalProcessedNumber = Number(textWithJustNumbersAndDecimals);
-      } else {
-        const numberBeforeDecimal = textWithJustNumbersAndDecimals
-          .substring(0, firstDecimalIndex)
-          .replaceAll(/[^0-9]/g, '');
-        const numberAfterDecimal = textWithJustNumbersAndDecimals
-          .substring(firstDecimalIndex + 1)
-          .replaceAll(/[^0-9]/g, '');
-        finalProcessedNumber = Number(
-          numberBeforeDecimal + '.' + numberAfterDecimal,
-        );
-      }
-
-      if (isNegative) {
-        finalProcessedNumber = -finalProcessedNumber;
-      }
-      handleChange(finalProcessedNumber);
+    function handleSwitchFromInputToSlider(newValue: number) {
+      handleChange(newValue - valueToUse);
       setIsClicked(false);
     }
 
-    useClickedOutside(inputRef, handleSwitchFromInputToSlider);
+    const disableHoverStyles = isDragging;
+
+    const valuePercentage =
+      min !== undefined &&
+      max !== undefined &&
+      valueToUse !== undefined &&
+      max !== min
+        ? ((valueToUse - min) / (max - min)) * 100
+        : -1;
+
+    const gradient =
+      valuePercentage !== -1
+        ? `linear-gradient(90deg,#4772b3 ${valuePercentage}%, #545454 ${valuePercentage}%)`
+        : '';
+
     return !isClicked ? (
       <div
         className={cn(
-          'flex items-center gap-0 group/lightParentGroupBasedHover w-max',
+          'flex items-center gap-0 group/lightParentGroupBasedHover w-max rounded-md bg-primary-gray',
           className,
         )}
+        style={gradient !== '' ? { background: gradient } : {}}
         ref={ref}
       >
         <Button
           color='lightParentGroupBasedHover'
-          className='h-[44px] rounded-r-none w-[30px] p-0 shrink-0'
-          onClick={handleDecrement}
+          className='h-[44px] rounded-r-none w-[30px] p-0 shrink-0 bg-transparent'
+          onClick={() => handleDecrement(0.1)}
           aria-label={`Decrement ${name}`}
+          applyHoverStyles={!disableHoverStyles}
         >
           <ChevronLeftIcon />
         </Button>
         <Button
           color='lightParentGroupBasedHover'
-          className='h-[44px] rounded-none pl-1.5 pr-0 flex-1 justify-between grid grid-cols-[repeat(2,auto)]'
-          onClick={handleSwitchFromSliderToInput}
+          className='h-[44px] rounded-none pl-1.5 pr-0 flex-1 justify-between grid grid-cols-[repeat(2,auto)] bg-transparent'
+          applyHoverStyles={!disableHoverStyles}
+          ref={dragRef}
         >
           <span className='truncate text-left'>{name}</span>
           <span className='truncate'>{valueToUse.toFixed(4)}</span>
         </Button>
         <Button
           color='lightParentGroupBasedHover'
-          className='h-[44px] rounded-l-none w-[30px] p-0 shrink-0'
-          onClick={handleIncrement}
+          className='h-[44px] rounded-l-none w-[30px] p-0 shrink-0 bg-transparent'
+          onClick={() => handleIncrement(0.1)}
           aria-label={`Increment ${name}`}
+          applyHoverStyles={!disableHoverStyles}
         >
           <ChevronRightIcon />
         </Button>
       </div>
     ) : (
-      <input
-        type='text'
-        className={cn(
-          'h-[44px] rounded-md text-primary-white bg-primary-black font-main px-4 \
-        text-[27px] leading-[27px] outline-none focus-visible:!outline-none \
-        border-secondary-dark-gray border w-max min-w-0',
-          className,
-        )}
-        size={5}
-        ref={inputRef}
-        value={temporaryValueWhenClicked}
-        onChange={(e) => handleTemporaryValueChange(e.target.value)}
+      <Input
+        className='w-full'
+        placeholder={name}
+        value={valueToUse}
+        allowOnlyNumbers
+        onChange={(value) => handleSwitchFromInputToSlider(value)}
+        ref={ref}
       />
     );
   },

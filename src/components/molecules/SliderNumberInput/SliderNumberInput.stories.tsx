@@ -5,7 +5,7 @@ import {
 } from './SliderNumberInput';
 import { cn } from '@/utils/cnHelper';
 import { fn } from 'storybook/test';
-import { useArgs } from 'storybook/internal/preview-api';
+import { useArgs } from 'storybook/preview-api';
 
 const meta = {
   component: SliderNumberInput,

@@ -1,4 +1,4 @@
-import { getInputOrOutputFromNodeData } from '@/components/organisms/ConfigurableNode/ConfigurableNode';
+import { getInputOrOutputFromNodeData } from '@/components/organisms/ConfigurableNode/Conversions';
 import { cn, isCoordinateInBox } from '@/utils';
 import {
   BaseEdge,

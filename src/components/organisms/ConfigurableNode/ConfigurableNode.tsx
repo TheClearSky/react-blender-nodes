@@ -4,7 +4,9 @@ import {
 } from '@/components/atoms/NodeResizerWithMoreControls/NodeResizerWithMoreControls';
 import { cn } from '@/utils';
 import { Position, Handle, type HandleType } from '@xyflow/react';
-import { forwardRef, type HTMLAttributes } from 'react';
+import { forwardRef, type HTMLAttributes, useState } from 'react';
+import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
+import { Button } from '@/components/atoms';
 
 type Input = {
   id: string;
@@ -35,10 +37,16 @@ type Output = {
     }
 );
 
+type InputPanel = {
+  id: string;
+  name: string;
+  inputs: Input[];
+};
+
 type ConfigurableNodeProps = {
   name?: string;
   headerColor?: string;
-  inputs?: Input[];
+  inputs?: (Input | InputPanel)[];
   outputs?: Output[];
   isCurrentlyInsideReactFlow?: boolean;
   nodeResizerProps?: NodeResizerWithMoreControlsProps;
@@ -100,6 +108,86 @@ const ContextAwareHandle = forwardRef<HTMLDivElement, ContextAwareHandleProps>(
   },
 );
 
+// Helper function to render a single input
+const renderInput = (
+  input: Input,
+  isCurrentlyInsideReactFlow: boolean,
+  hide: boolean = false,
+) => (
+  <div
+    key={input.id}
+    className={cn(
+      'text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row py-3',
+      hide && 'h-0 overflow-hidden py-0',
+    )}
+  >
+    <ContextAwareHandle
+      type='target'
+      position={Position.Left}
+      id={input.id}
+      color={input.handleColor}
+      isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+    />
+    <div className='truncate'>{input.name}</div>
+  </div>
+);
+
+const renderOutput = (output: Output, isCurrentlyInsideReactFlow: boolean) => {
+  return (
+    <>
+      <div
+        key={output.id}
+        className='text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row justify-end py-3'
+      >
+        <div className='truncate text-right'>{output.name}</div>
+        <ContextAwareHandle
+          type='source'
+          position={Position.Right}
+          id={output.id}
+          color={output.handleColor}
+          isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+        />
+      </div>
+    </>
+  );
+};
+
+// Helper function to render a collapsible panel
+const renderInputPanel = (
+  panel: InputPanel,
+  isCurrentlyInsideReactFlow: boolean,
+  isOpen: boolean,
+  onToggle: () => void,
+) => (
+  <div key={panel.id} className='flex flex-col'>
+    {/* Panel header with toggle button - same spacing as regular inputs */}
+    <Button
+      onClick={onToggle}
+      className='bg-transparent border-none hover:bg-primary-gray rounded-none justify-start'
+    >
+      {/* Arrow on the left */}
+      {isOpen ? (
+        <ChevronUpIcon className='w-6 h-6 flex-shrink-0 mr-2' />
+      ) : (
+        <ChevronDownIcon className='w-6 h-6 flex-shrink-0 mr-2' />
+      )}
+      <span className='truncate'>{panel.name}</span>
+    </Button>
+
+    {/* Panel content - only render if open */}
+    <div
+      className={cn(
+        'flex flex-col bg-[#272727]',
+        !isOpen && 'h-0 overflow-hidden',
+      )}
+    >
+      {panel.inputs.map((input) =>
+        renderInput(input, isCurrentlyInsideReactFlow, !isOpen),
+      )}
+    </div>
+  </div>
+);
+
 const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
   (
     {
@@ -114,6 +202,21 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
     },
     ref,
   ) => {
+    // State for panel open/close states
+    const [openPanels, setOpenPanels] = useState<Set<string>>(new Set());
+
+    // Toggle panel open/close state
+    const togglePanel = (panelId: string) => {
+      setOpenPanels((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(panelId)) {
+          newSet.delete(panelId);
+        } else {
+          newSet.add(panelId);
+        }
+        return newSet;
+      });
+    };
     return (
       <div
         tabIndex={0}
@@ -137,39 +240,28 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
           {isCurrentlyInsideReactFlow && (
             <NodeResizerWithMoreControls {...nodeResizerProps} />
           )}
-          <div className='flex flex-col gap-6 py-4'>
-            {outputs.map((output) => (
-              <div
-                key={output.id}
-                className='text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row justify-end'
-              >
-                <div className='truncate text-right'>{output.name}</div>
-                <ContextAwareHandle
-                  type='source'
-                  position={Position.Right}
-                  id={output.id}
-                  color={output.handleColor}
-                  isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
-                />
-              </div>
-            ))}
+          <div className='flex flex-col py-4'>
+            {outputs.map((output) =>
+              renderOutput(output, isCurrentlyInsideReactFlow),
+            )}
           </div>
-          <div className='flex flex-col gap-6 py-4'>
-            {inputs.map((input) => (
-              <div
-                key={input.id}
-                className='text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row'
-              >
-                <ContextAwareHandle
-                  type='target'
-                  position={Position.Left}
-                  id={input.id}
-                  color={input.handleColor}
-                  isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
-                />
-                <div className='truncate'>{input.name}</div>
-              </div>
-            ))}
+          <div className='flex flex-col py-4'>
+            {inputs.map((input) => {
+              // Check if this is a panel or a regular input
+              if ('inputs' in input) {
+                // This is an InputPanel
+                const isOpen = openPanels.has(input.id);
+                return renderInputPanel(
+                  input,
+                  isCurrentlyInsideReactFlow,
+                  isOpen,
+                  () => togglePanel(input.id),
+                );
+              } else {
+                // This is a regular Input
+                return renderInput(input, isCurrentlyInsideReactFlow);
+              }
+            })}
           </div>
         </div>
       </div>
@@ -179,23 +271,6 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
 
 ConfigurableNode.displayName = 'ConfigurableNode';
 
-/**
- * Get the input or output for a given handle id
- * - If the handle id is not found, returns undefined
- * @param handleId - The id of the handle to get the input or output for
- * @param nodeData - The data of the node to get the input or output for
- * @returns The input or output for the given handle id
- */
-function getInputOrOutputFromNodeData(
-  handleId: string,
-  nodeData: ConfigurableNodeProps,
-) {
-  const inputs = nodeData?.inputs instanceof Array ? nodeData?.inputs : [];
-  const outputs = nodeData?.outputs instanceof Array ? nodeData?.outputs : [];
-  const allHandles = inputs.concat(outputs);
-  return allHandles.find((handle) => handle?.id === handleId);
-}
-
-export { ConfigurableNode, getInputOrOutputFromNodeData };
+export { ConfigurableNode };
 
 export type { ConfigurableNodeProps };

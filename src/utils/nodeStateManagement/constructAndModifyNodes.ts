@@ -3,6 +3,7 @@ import {
   type State,
   type SupportedUnderlyingTypes,
   type TypeOfNode,
+  type TypeOfInput,
 } from './types';
 import { Position, type XYPosition } from '@xyflow/react';
 import { generateRandomString } from '../randomGeneration';
@@ -18,7 +19,7 @@ function constructInputOrOutputOfType<
     : never = never,
 >(
   typeOfDataType:
-    | TypeOfNode<DataTypeUniqueId>['inputs'][number]
+    | TypeOfInput<DataTypeUniqueId>
     | TypeOfNode<DataTypeUniqueId>['outputs'][number],
   dataTypes: State<
     DataTypeUniqueId,
@@ -26,14 +27,12 @@ function constructInputOrOutputOfType<
     UnderlyingType,
     ComplexSchemaType
   >['dataTypes'],
-): NonNullable<
-  State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >['nodes'][number]['data']['inputs']
->[number] {
+): {
+  id: string;
+  name: string;
+  type: 'number' | 'string';
+  handleColor: string;
+} {
   const dataType = dataTypes[typeOfDataType.dataType as DataTypeUniqueId];
   const returnValue: {
     id: string;
@@ -53,6 +52,46 @@ function constructInputOrOutputOfType<
     returnValue.type = dataType.underlyingType;
   }
   return returnValue;
+}
+
+function constructInputPanelOfType<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  typeOfPanel: {
+    name: string;
+    inputs: { name: string; dataType: DataTypeUniqueId }[];
+  },
+  dataTypes: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['dataTypes'],
+): {
+  id: string;
+  name: string;
+  inputs: {
+    id: string;
+    name: string;
+    type: 'number' | 'string';
+    handleColor: string;
+  }[];
+} {
+  const panelId = generateRandomString(lengthOfIds);
+  const inputs = typeOfPanel.inputs.map((input) =>
+    constructInputOrOutputOfType(input, dataTypes),
+  );
+
+  return {
+    id: panelId,
+    name: typeOfPanel.name,
+    inputs,
+  };
 }
 
 function constructNodeOfType<
@@ -85,9 +124,18 @@ function constructNodeOfType<
   ComplexSchemaType
 >['nodes'][number] {
   const nodeTypeData = typeOfNodes[nodeType as NodeTypeUniqueId];
-  const inputs = nodeTypeData.inputs.map((input) =>
-    constructInputOrOutputOfType(input, dataTypes),
-  );
+
+  // Process inputs - can be either regular inputs or panels
+  const inputs = nodeTypeData.inputs.map((input) => {
+    if ('inputs' in input) {
+      // This is a panel
+      return constructInputPanelOfType(input, dataTypes);
+    } else {
+      // This is a regular input
+      return constructInputOrOutputOfType(input, dataTypes);
+    }
+  });
+
   const outputs = nodeTypeData.outputs.map((output) =>
     constructInputOrOutputOfType(output, dataTypes),
   );
@@ -106,4 +154,8 @@ function constructNodeOfType<
   };
 }
 
-export { constructNodeOfType, constructInputOrOutputOfType };
+export {
+  constructNodeOfType,
+  constructInputOrOutputOfType,
+  constructInputPanelOfType,
+};

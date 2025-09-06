@@ -42,6 +42,26 @@ const typeOfNodesExample1Data = {
     inputs: [{ name: 'input1', dataType: 'dataType1' }],
     outputs: [{ name: 'output1', dataType: 'dataType1' }],
   }),
+  nodeTypeWithPanels: makeTypeOfNodeWithAutoInfer<
+    keyof typeof dataTypesExample1Data
+  >({
+    name: 'nodeTypeWithPanels',
+    inputs: [
+      { name: 'directInput', dataType: 'dataType1' },
+      {
+        name: 'Advanced Settings',
+        inputs: [
+          { name: 'setting1', dataType: 'dataType2' },
+          { name: 'setting2', dataType: 'dataType1' },
+        ],
+      },
+      {
+        name: 'Debug Options',
+        inputs: [{ name: 'debugMode', dataType: 'dataType1' }],
+      },
+    ],
+    outputs: [{ name: 'result', dataType: 'dataType1' }],
+  }),
 };
 
 const nodesExample1Data: Nodes = [
@@ -140,6 +160,20 @@ export const Playground: StoryObj<typeof FullGraph> = {
             className='text-[15px] leading-[15px]'
           >
             Add node
+          </Button>
+          <Button
+            onClick={() => {
+              dispatch({
+                type: 'ADD_NODE',
+                payload: {
+                  type: 'nodeTypeWithPanels',
+                  position: { x: 200, y: 0 },
+                },
+              });
+            }}
+            className='text-[15px] leading-[15px]'
+          >
+            Add node with panels
           </Button>
           {/* <Button
             onClick={() => {

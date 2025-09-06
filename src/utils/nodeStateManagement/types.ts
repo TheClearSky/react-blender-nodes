@@ -53,16 +53,23 @@ function makeDataTypeWithAutoInfer<
   return input;
 }
 
+type TypeOfInput<DataTypeUniqueId extends string = string> = {
+  name: string;
+  dataType: DataTypeUniqueId;
+};
+
+type TypeOfInputPanel<DataTypeUniqueId extends string = string> = {
+  name: string;
+  inputs: TypeOfInput<DataTypeUniqueId>[];
+};
+
 type TypeOfNode<DataTypeUniqueId extends string = string> = {
   name: string;
-  inputs: {
-    name: string;
-    dataType: DataTypeUniqueId;
-  }[];
-  outputs: {
-    name: string;
-    dataType: DataTypeUniqueId;
-  }[];
+  inputs: (
+    | TypeOfInput<DataTypeUniqueId>
+    | TypeOfInputPanel<DataTypeUniqueId>
+  )[];
+  outputs: TypeOfInput<DataTypeUniqueId>[];
 };
 
 function makeTypeOfNodeWithAutoInfer<DataTypeUniqueId extends string = string>(
@@ -177,6 +184,8 @@ export type {
   SupportedUnderlyingTypes,
   DataType,
   TypeOfNode,
+  TypeOfInput,
+  TypeOfInputPanel,
   NodeIdToNodeType,
   State,
 };

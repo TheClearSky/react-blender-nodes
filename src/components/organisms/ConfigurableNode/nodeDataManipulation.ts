@@ -1,7 +1,7 @@
 import type {
   ConfigurableNodeProps,
-  Input,
-  InputPanel,
+  ConfigurableNodeInput,
+  ConfigurableNodeInputPanel,
 } from './ConfigurableNode';
 
 /**
@@ -35,7 +35,7 @@ function getInputOrOutputFromNodeData(
 
 function modifyInputsArrayWithoutMutating(
   handleId: string,
-  inputs: Input[],
+  inputs: ConfigurableNodeInput[],
   newValue: string | number,
 ) {
   return inputs.map((input) => {
@@ -47,7 +47,7 @@ function modifyInputsArrayWithoutMutating(
 }
 function modifyInputsOrPanelWithoutMutating(
   handleId: string,
-  inputOrPanel: Input | InputPanel,
+  inputOrPanel: ConfigurableNodeInput | ConfigurableNodeInputPanel,
   newValue: string | number,
 ) {
   return 'inputs' in inputOrPanel

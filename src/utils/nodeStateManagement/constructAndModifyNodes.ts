@@ -8,9 +8,9 @@ import {
 import { Position, type XYPosition } from '@xyflow/react';
 import { generateRandomString } from '../randomGeneration';
 import type {
-  Input,
-  InputPanel,
-  Output,
+  ConfigurableNodeInput,
+  ConfigurableNodeInputPanel,
+  ConfigurableNodeOutput,
 } from '@/components/organisms/ConfigurableNode/ConfigurableNode';
 
 const lengthOfIds = 20;
@@ -32,7 +32,7 @@ function constructInputOrOutputOfType<
     UnderlyingType,
     ComplexSchemaType
   >['dataTypes'],
-): Input | Output {
+): ConfigurableNodeInput | ConfigurableNodeOutput {
   const dataType = dataTypes[typeOfDataType.dataType as DataTypeUniqueId];
 
   if (dataType.underlyingType === 'number') {
@@ -72,11 +72,11 @@ function constructInputPanelOfType<
     UnderlyingType,
     ComplexSchemaType
   >['dataTypes'],
-): InputPanel {
+): ConfigurableNodeInputPanel {
   const panelId = generateRandomString(lengthOfIds);
   const inputs = typeOfPanel.inputs.map((input) =>
     constructInputOrOutputOfType(input, dataTypes),
-  );
+  ) as ConfigurableNodeInput[];
 
   return {
     id: panelId,

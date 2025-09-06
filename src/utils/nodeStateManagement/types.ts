@@ -56,6 +56,7 @@ function makeDataTypeWithAutoInfer<
 type TypeOfInput<DataTypeUniqueId extends string = string> = {
   name: string;
   dataType: DataTypeUniqueId;
+  allowInput?: boolean;
 };
 
 type TypeOfInputPanel<DataTypeUniqueId extends string = string> = {

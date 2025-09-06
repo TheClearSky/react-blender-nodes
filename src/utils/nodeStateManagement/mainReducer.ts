@@ -19,6 +19,7 @@ const actionTypes = [
   'UPDATE_NODE_BY_REACT_FLOW',
   'UPDATE_EDGES_BY_REACT_FLOW',
   'ADD_EDGE_BY_REACT_FLOW',
+  'UPDATE_INPUT_VALUE',
 ] as const;
 
 const actionTypesMap = {
@@ -26,6 +27,7 @@ const actionTypesMap = {
   [actionTypes[1]]: actionTypes[1],
   [actionTypes[2]]: actionTypes[2],
   [actionTypes[3]]: actionTypes[3],
+  [actionTypes[4]]: actionTypes[4],
 } as const;
 
 type Action<
@@ -64,6 +66,14 @@ type Action<
       type: typeof actionTypesMap.ADD_EDGE_BY_REACT_FLOW;
       payload: {
         edge: Connection;
+      };
+    }
+  | {
+      type: typeof actionTypesMap.UPDATE_INPUT_VALUE;
+      payload: {
+        nodeId: string;
+        inputId: string;
+        value: string | number;
       };
     };
 

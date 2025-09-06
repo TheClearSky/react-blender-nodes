@@ -150,12 +150,14 @@ const nodesExample1Data: Nodes = [
           id: 'input1node1',
           type: 'string',
           handleColor: '#45B7D1',
+          allowInput: true,
         },
         {
           name: 'Numeric Input',
           id: 'input2node1',
           type: 'number',
           handleColor: '#96CEB4',
+          allowInput: true,
         },
       ],
     },
@@ -214,7 +216,7 @@ const nodesExample1Data: Nodes = [
   },
   {
     id: 'n4',
-    position: {x: 1660, y: 588},
+    position: { x: 1660, y: 588 },
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
     type: 'configurableNode',
@@ -228,6 +230,7 @@ const nodesExample1Data: Nodes = [
           id: 'input1node4',
           type: 'string',
           handleColor: '#45B7D1',
+          allowInput: true,
         },
         {
           id: 'panel1',
@@ -238,12 +241,14 @@ const nodesExample1Data: Nodes = [
               name: 'Threshold Value',
               type: 'number',
               handleColor: '#96CEB4',
+              allowInput: true,
             },
             {
               id: 'panel1_input2',
               name: 'Configuration String',
               type: 'string',
               handleColor: '#4ECDC4',
+              allowInput: true,
             },
             {
               id: 'panel1_input3',
@@ -296,7 +301,7 @@ const nodesExample1Data: Nodes = [
   },
   {
     id: 'n3',
-    position: {x: 2000, y: 70},
+    position: { x: 2000, y: 70 },
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
     type: 'configurableNode',
@@ -403,7 +408,6 @@ export const Playground: StoryObj<typeof FullGraph> = {
       edges: edgesExample1Data,
       nodeIdToNodeType: {},
     });
-    console.log(state);
 
     return (
       <>
@@ -445,6 +449,164 @@ export const Playground: StoryObj<typeof FullGraph> = {
           </Button> */}
           <div className='text-primary-white'>
             {'<- Note: These are part of the story, not the component'}
+          </div>
+        </div>
+      </>
+    );
+  },
+};
+
+export const WithControlledInputs: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    const { state, dispatch } = useFullGraph({
+      dataTypes: dataTypesExample1Data,
+      typeOfNodes: typeOfNodesExample1Data,
+      nodes: [
+        {
+          id: 'n1',
+          position: { x: 0, y: 200 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          type: 'configurableNode',
+          width: 400,
+          data: {
+            name: 'Interactive Data Source',
+            headerColor: '#C44536',
+            outputs: [
+              {
+                name: 'Processed Output',
+                id: 'output1',
+                type: 'string',
+                handleColor: '#FF6B6B',
+              },
+            ],
+            inputs: [
+              {
+                name: 'Text Input',
+                id: 'input1',
+                type: 'string',
+                handleColor: '#45B7D1',
+                allowInput: true,
+                value: 'Interactive Text',
+                // onChange: (value: string) => {
+                //   dispatch({
+                //     type: 'UPDATE_INPUT_VALUE',
+                //     payload: { nodeId: 'n1', inputId: 'input1', value }
+                //   });
+                // }
+              },
+              {
+                name: 'Number Input',
+                id: 'input2',
+                type: 'number',
+                handleColor: '#96CEB4',
+                allowInput: true,
+                value: 42,
+                // onChange: (value: number) => {
+                //   dispatch({
+                //     type: 'UPDATE_INPUT_VALUE',
+                //     payload: { nodeId: 'n1', inputId: 'input2', value }
+                //   });
+                // }
+              },
+            ],
+          },
+        },
+        {
+          id: 'n2',
+          position: { x: 500, y: 200 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          type: 'configurableNode',
+          width: 400,
+          data: {
+            name: 'Advanced Processor',
+            headerColor: '#2D5A87',
+            inputs: [
+              {
+                name: 'Primary Input',
+                id: 'input1',
+                type: 'string',
+                handleColor: '#45B7D1',
+                allowInput: true,
+                value: 'Configuration',
+                // onChange: (value: string) => {
+                //   dispatch({
+                //     type: 'UPDATE_INPUT_VALUE',
+                //     payload: { nodeId: 'n2', inputId: 'input1', value }
+                //   });
+                // }
+              },
+              {
+                id: 'panel1',
+                name: 'Settings Panel',
+                inputs: [
+                  {
+                    name: 'Threshold',
+                    id: 'panel1_input1',
+                    type: 'number',
+                    handleColor: '#96CEB4',
+                    allowInput: true,
+                    value: 75,
+                    // onChange: (value: number) => {
+                    //   dispatch({
+                    //     type: 'UPDATE_INPUT_VALUE',
+                    //     payload: { nodeId: 'n2', inputId: 'panel1_input1', value }
+                    //   });
+                    // }
+                  },
+                  {
+                    name: 'Read-only Setting',
+                    id: 'panel1_input2',
+                    type: 'string',
+                    handleColor: '#4ECDC4',
+                    allowInput: false,
+                  },
+                ],
+              },
+            ],
+            outputs: [
+              {
+                name: 'Final Result',
+                id: 'output1',
+                type: 'string',
+                handleColor: '#FECA57',
+              },
+            ],
+          },
+        },
+      ],
+      edges: [
+        {
+          id: 'n1-n2',
+          source: 'n1',
+          sourceHandle: 'output1',
+          target: 'n2',
+          targetHandle: 'input1',
+          type: 'configurableEdge',
+        },
+      ],
+      nodeIdToNodeType: {},
+    });
+
+    return (
+      <>
+        <FullGraph state={state} dispatch={dispatch} />
+        <div className='absolute top-0 left-0 p-1 flex gap-1 items-center'>
+          <Button
+            onClick={() => {
+              dispatch({
+                type: 'ADD_NODE',
+                payload: { type: 'nodeType1', position: { x: 1000, y: 0 } },
+              });
+            }}
+            className='text-[15px] leading-[15px]'
+          >
+            Add Data Processor
+          </Button>
+          <div className='text-primary-white'>
+            {'<- Interactive inputs managed by state management'}
           </div>
         </div>
       </>

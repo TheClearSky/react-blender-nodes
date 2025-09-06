@@ -3,15 +3,24 @@ import {
   type NodeResizerWithMoreControlsProps,
 } from '@/components/atoms/NodeResizerWithMoreControls/NodeResizerWithMoreControls';
 import { cn } from '@/utils';
-import { Position, Handle, type HandleType } from '@xyflow/react';
+import {
+  Position,
+  Handle,
+  type HandleType,
+  useReactFlow,
+  useNodeId,
+} from '@xyflow/react';
 import { forwardRef, type HTMLAttributes, useState } from 'react';
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
-import { Button } from '@/components/atoms';
+import { Button, Input } from '@/components/atoms';
+import { SliderNumberInput } from '@/components/molecules';
+import { modifyInputsInNodeDataWithoutMutating } from './nodeDataManipulation';
 
 type Input = {
   id: string;
   name: string;
   handleColor?: string;
+  allowInput?: boolean;
 } & (
   | {
       type: 'string';
@@ -108,31 +117,148 @@ const ContextAwareHandle = forwardRef<HTMLDivElement, ContextAwareHandleProps>(
   },
 );
 
-// Helper function to render a single input
-const renderInput = (
-  input: Input,
-  isCurrentlyInsideReactFlow: boolean,
-  hide: boolean = false,
-) => (
-  <div
-    key={input.id}
-    className={cn(
-      'text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row py-3',
-      hide && 'h-0 overflow-hidden py-0',
-    )}
-  >
-    <ContextAwareHandle
-      type='target'
-      position={Position.Left}
-      id={input.id}
-      color={input.handleColor}
-      isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
-    />
-    <div className='truncate'>{input.name}</div>
-  </div>
-);
+type ReactFlowAwareInputProps = {
+  input: Input;
+};
 
-const renderOutput = (output: Output, isCurrentlyInsideReactFlow: boolean) => {
+const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
+  const reactflowContext = useReactFlow();
+  const nodeId = useNodeId();
+  return input.type === 'string' ? (
+    <Input
+      placeholder={input.name}
+      value={input.value}
+      onChange={(newValue) => {
+        input.onChange?.(newValue);
+        reactflowContext.setNodes((nodes) =>
+          nodes.map((currentNode) => {
+            if (currentNode.id === nodeId) {
+              return {
+                ...currentNode,
+                data: modifyInputsInNodeDataWithoutMutating(
+                  input.id,
+                  currentNode.data,
+                  newValue,
+                ),
+              };
+            }
+            return currentNode;
+          }),
+        );
+      }}
+      allowOnlyNumbers={false}
+      className='w-full'
+    />
+  ) : (
+    <SliderNumberInput
+      name={input.name}
+      value={input.value}
+      onChange={(newValue) => {
+        input.onChange?.(newValue);
+        reactflowContext.setNodes((nodes) =>
+          nodes.map((currentNode) => {
+            if (currentNode.id === nodeId) {
+              return {
+                ...currentNode,
+                data: modifyInputsInNodeDataWithoutMutating(
+                  input.id,
+                  currentNode.data,
+                  newValue,
+                ),
+              };
+            }
+            return currentNode;
+          }),
+        );
+      }}
+      className='w-full'
+    />
+  );
+};
+
+type ContextAwareInputProps = {
+  input: Input;
+  isCurrentlyInsideReactFlow: boolean;
+};
+
+const ContextAwareInput = ({
+  input,
+  isCurrentlyInsideReactFlow,
+}: ContextAwareInputProps) => {
+  if (isCurrentlyInsideReactFlow) {
+    return <ReactFlowAwareInput input={input} />;
+  }
+
+  return input.type === 'string' ? (
+    <Input
+      placeholder={input.name}
+      value={input.value}
+      onChange={input.onChange}
+      allowOnlyNumbers={false}
+      className='w-full'
+    />
+  ) : (
+    <SliderNumberInput
+      name={input.name}
+      value={input.value}
+      onChange={input.onChange}
+      className='w-full'
+    />
+  );
+};
+
+type RenderInputProps = {
+  input: Input;
+  isCurrentlyInsideReactFlow: boolean;
+  hide?: boolean;
+};
+
+// Helper function to render a single input
+const RenderInput = ({
+  input,
+  isCurrentlyInsideReactFlow,
+  hide = false,
+}: RenderInputProps) => {
+  return (
+    <div
+      key={input.id}
+      className={cn(
+        'text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row py-3',
+        hide && 'h-0 overflow-hidden py-0',
+        input.allowInput && 'py-1',
+      )}
+    >
+      <ContextAwareHandle
+        type='target'
+        position={Position.Left}
+        id={input.id}
+        color={input.handleColor}
+        isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+      />
+      <div className='flex-1 flex items-center gap-3'>
+        {!input.allowInput && <div className='truncate'>{input.name}</div>}
+        {input.allowInput && (
+          <div className='flex-1 w-full'>
+            <ContextAwareInput
+              input={input}
+              isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+type RenderOutputProps = {
+  output: Output;
+  isCurrentlyInsideReactFlow: boolean;
+};
+
+const RenderOutput = ({
+  output,
+  isCurrentlyInsideReactFlow,
+}: RenderOutputProps) => {
   return (
     <>
       <div
@@ -153,16 +279,27 @@ const renderOutput = (output: Output, isCurrentlyInsideReactFlow: boolean) => {
 };
 
 // Helper function to render a collapsible panel
-const renderInputPanel = (
-  panel: InputPanel,
-  isCurrentlyInsideReactFlow: boolean,
-  isOpen: boolean,
-  onToggle: () => void,
-) => (
+type RenderInputPanelProps = {
+  panel: InputPanel;
+  isCurrentlyInsideReactFlow: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+};
+
+const RenderInputPanel = ({
+  panel,
+  isCurrentlyInsideReactFlow,
+  isOpen,
+  onToggle,
+}: RenderInputPanelProps) => (
   <div key={panel.id} className='flex flex-col'>
     {/* Panel header with toggle button - same spacing as regular inputs */}
     <Button
-      onClick={onToggle}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onToggle();
+      }}
       className='bg-transparent border-none hover:bg-primary-gray rounded-none justify-start'
     >
       {/* Arrow on the left */}
@@ -181,9 +318,14 @@ const renderInputPanel = (
         !isOpen && 'h-0 overflow-hidden',
       )}
     >
-      {panel.inputs.map((input) =>
-        renderInput(input, isCurrentlyInsideReactFlow, !isOpen),
-      )}
+      {panel.inputs.map((input) => (
+        <RenderInput
+          key={input.id}
+          input={input}
+          isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+          hide={!isOpen}
+        />
+      ))}
     </div>
   </div>
 );
@@ -241,9 +383,13 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
             <NodeResizerWithMoreControls {...nodeResizerProps} />
           )}
           <div className='flex flex-col py-4'>
-            {outputs.map((output) =>
-              renderOutput(output, isCurrentlyInsideReactFlow),
-            )}
+            {outputs.map((output) => (
+              <RenderOutput
+                key={output.id}
+                output={output}
+                isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+              />
+            ))}
           </div>
           <div className='flex flex-col py-4'>
             {inputs.map((input) => {
@@ -251,15 +397,24 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
               if ('inputs' in input) {
                 // This is an InputPanel
                 const isOpen = openPanels.has(input.id);
-                return renderInputPanel(
-                  input,
-                  isCurrentlyInsideReactFlow,
-                  isOpen,
-                  () => togglePanel(input.id),
+                return (
+                  <RenderInputPanel
+                    key={input.id}
+                    panel={input}
+                    isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+                    isOpen={isOpen}
+                    onToggle={() => togglePanel(input.id)}
+                  />
                 );
               } else {
                 // This is a regular Input
-                return renderInput(input, isCurrentlyInsideReactFlow);
+                return (
+                  <RenderInput
+                    key={input.id}
+                    input={input}
+                    isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+                  />
+                );
               }
             })}
           </div>
@@ -273,4 +428,4 @@ ConfigurableNode.displayName = 'ConfigurableNode';
 
 export { ConfigurableNode };
 
-export type { ConfigurableNodeProps };
+export type { ConfigurableNodeProps, Input, Output, InputPanel };

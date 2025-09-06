@@ -30,6 +30,10 @@ type UseDragOptions = {
    * Whether dragging is enabled (default: true)
    */
   enabled?: boolean;
+  /**
+   * Whether to prevent the default behavior of the drag event and stop propagation
+   */
+  preventDefaultAndStopPropagation?: boolean;
 };
 
 type UseDragReturn = {
@@ -54,6 +58,7 @@ function useDrag({
   onClick,
   clickThreshold = 2,
   enabled = true,
+  preventDefaultAndStopPropagation = true,
 }: UseDragOptions = {}): UseDragReturn {
   const [isDragging, setIsDragging] = useState(false);
   const [dragElement, setDragElement] = useState<HTMLElement | null>(null);
@@ -71,6 +76,10 @@ function useDrag({
     if (!dragElement || !enabled) return;
 
     const handleMouseDown = (event: MouseEvent) => {
+      if (preventDefaultAndStopPropagation) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       initialMouseDownPosition.current = {
         x: event.clientX,
         y: event.clientY,
@@ -84,6 +93,10 @@ function useDrag({
       setIsDragging(true);
 
       const handleMouseUp = (event: MouseEvent) => {
+        if (preventDefaultAndStopPropagation) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
         document.removeEventListener('mouseup', handleMouseUp);
         document.removeEventListener('mousemove', handleMouseMove);
 
@@ -103,6 +116,10 @@ function useDrag({
       };
 
       const handleMouseMove = (event: MouseEvent) => {
+        if (preventDefaultAndStopPropagation) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
         const movementX = event.movementX;
         const movementY = event.movementY;
         const width = elementSize.current?.width || 1;
@@ -123,7 +140,14 @@ function useDrag({
     return () => {
       dragElement.removeEventListener('mousedown', handleMouseDown);
     };
-  }, [dragElement, enabled, onMove, onClick, clickThreshold]);
+  }, [
+    dragElement,
+    enabled,
+    onMove,
+    onClick,
+    clickThreshold,
+    preventDefaultAndStopPropagation,
+  ]);
 
   return {
     isDragging,

@@ -7,6 +7,11 @@ import {
 } from './types';
 import { Position, type XYPosition } from '@xyflow/react';
 import { generateRandomString } from '../randomGeneration';
+import type {
+  Input,
+  InputPanel,
+  Output,
+} from '@/components/organisms/ConfigurableNode/ConfigurableNode';
 
 const lengthOfIds = 20;
 
@@ -27,31 +32,26 @@ function constructInputOrOutputOfType<
     UnderlyingType,
     ComplexSchemaType
   >['dataTypes'],
-): {
-  id: string;
-  name: string;
-  type: 'number' | 'string';
-  handleColor: string;
-} {
+): Input | Output {
   const dataType = dataTypes[typeOfDataType.dataType as DataTypeUniqueId];
-  const returnValue: {
-    id: string;
-    name: string;
-    type: 'number' | 'string';
-    handleColor: string;
-  } = {
-    id: generateRandomString(lengthOfIds),
-    name: typeOfDataType.name,
-    type: 'string',
-    handleColor: dataType.color,
-  };
-  if (
-    dataType.underlyingType === 'number' ||
-    dataType.underlyingType === 'string'
-  ) {
-    returnValue.type = dataType.underlyingType;
+
+  if (dataType.underlyingType === 'number') {
+    return {
+      id: generateRandomString(lengthOfIds),
+      name: typeOfDataType.name,
+      handleColor: dataType.color,
+      allowInput: typeOfDataType.allowInput,
+      type: 'number' as const,
+    };
+  } else {
+    return {
+      id: generateRandomString(lengthOfIds),
+      name: typeOfDataType.name,
+      handleColor: dataType.color,
+      allowInput: typeOfDataType.allowInput,
+      type: 'string' as const,
+    };
   }
-  return returnValue;
 }
 
 function constructInputPanelOfType<
@@ -72,16 +72,7 @@ function constructInputPanelOfType<
     UnderlyingType,
     ComplexSchemaType
   >['dataTypes'],
-): {
-  id: string;
-  name: string;
-  inputs: {
-    id: string;
-    name: string;
-    type: 'number' | 'string';
-    handleColor: string;
-  }[];
-} {
+): InputPanel {
   const panelId = generateRandomString(lengthOfIds);
   const inputs = typeOfPanel.inputs.map((input) =>
     constructInputOrOutputOfType(input, dataTypes),

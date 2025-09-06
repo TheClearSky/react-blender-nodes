@@ -1,4 +1,4 @@
-import { getInputOrOutputFromNodeData } from '@/components/organisms/ConfigurableNode/Conversions';
+import { getInputOrOutputFromNodeData } from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
 import {
   BaseEdge,
   getBezierPath,

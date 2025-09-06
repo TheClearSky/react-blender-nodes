@@ -165,6 +165,15 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             handleSettingValueFromTemporaryValue();
           }
         }}
+        onMouseMove={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onBlur={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleSettingValueFromTemporaryValue();
+        }}
       />
     );
   },

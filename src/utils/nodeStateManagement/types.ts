@@ -65,6 +65,7 @@ type TypeOfInputPanel<DataTypeUniqueId extends string = string> = {
 
 type TypeOfNode<DataTypeUniqueId extends string = string> = {
   name: string;
+  headerColor?: string;
   inputs: (
     | TypeOfInput<DataTypeUniqueId>
     | TypeOfInputPanel<DataTypeUniqueId>

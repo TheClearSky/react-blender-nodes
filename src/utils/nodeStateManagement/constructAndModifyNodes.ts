@@ -148,6 +148,7 @@ function constructNodeOfType<
     width: 400,
     data: {
       name: nodeTypeData.name,
+      headerColor: nodeTypeData.headerColor,
       inputs,
       outputs,
     },

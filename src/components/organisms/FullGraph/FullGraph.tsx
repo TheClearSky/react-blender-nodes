@@ -1,4 +1,4 @@
-import { useReducer, type ActionDispatch } from 'react';
+import { useReducer, useState, useCallback, type ActionDispatch } from 'react';
 import { z } from 'zod';
 import {
   ReactFlow,
@@ -6,11 +6,16 @@ import {
   Controls,
   MiniMap,
   SelectionMode,
+  type XYPosition,
+  ReactFlowProvider,
+  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ConfigurableNodeReactFlowWrapper } from '../ConfigurableNode/ConfigurableNodeReactFlowWrapper';
 import { ConfigurableEdge } from '../../atoms/ConfigurableEdge/ConfigurableEdge';
 import { ConfigurableConnection } from '@/components/atoms/ConfiguableConnection/ConfigurableConnection';
+import { ContextMenu } from '../../molecules/ContextMenu/ContextMenu';
+import { createNodeContextMenu } from '../../molecules/ContextMenu/createNodeContextMenu';
 import {
   actionTypesMap,
   mainReducer,
@@ -83,7 +88,7 @@ function useFullGraph<
   return { state, dispatch };
 }
 
-function FullGraph<
+function FullGraphWithReactFlowProvider<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
@@ -99,6 +104,35 @@ function FullGraph<
   UnderlyingType,
   ComplexSchemaType
 >) {
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    position: XYPosition;
+  }>({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+  });
+  const { screenToFlowPosition } = useReactFlow();
+
+  // Generate context menu items dynamically from typeOfNodes
+  const contextMenuItems = createNodeContextMenu({
+    typeOfNodes: state.typeOfNodes,
+    dispatch,
+    setContextMenu,
+    contextMenuPosition: screenToFlowPosition(contextMenu.position),
+  });
+
+  const handleContextMenu = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      position: { x: event.clientX, y: event.clientY },
+    });
+  }, []);
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu({ isOpen: false, position: { x: 0, y: 0 } });
+  }, []);
+
   return (
     <div
       style={{
@@ -146,13 +180,52 @@ function FullGraph<
         edgeTypes={edgeTypes}
         deleteKeyCode={['Backspace', 'Delete', 'x']}
         connectionLineComponent={ConfigurableConnection}
-        // onContextMenu={}
+        onContextMenu={handleContextMenu}
+        onClick={handleCloseContextMenu}
       >
         <Controls />
         <Background />
         <MiniMap pannable />
       </ReactFlow>
+
+      {/* Context Menu */}
+      {contextMenu.isOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: contextMenu.position.y,
+            left: contextMenu.position.x,
+            zIndex: 10,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ContextMenu subItems={contextMenuItems} />
+        </div>
+      )}
     </div>
+  );
+}
+
+function FullGraph<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>({
+  state,
+  dispatch,
+}: FullGraphProps<
+  DataTypeUniqueId,
+  NodeTypeUniqueId,
+  UnderlyingType,
+  ComplexSchemaType
+>) {
+  return (
+    <ReactFlowProvider>
+      <FullGraphWithReactFlowProvider state={state} dispatch={dispatch} />
+    </ReactFlowProvider>
   );
 }
 

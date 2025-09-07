@@ -480,6 +480,7 @@ export const Playground: StoryObj<typeof FullGraph> = {
       edges: edgesExample1Data,
       nodeIdToNodeType: {},
     });
+    console.log('State', state);
 
     return (
       <>

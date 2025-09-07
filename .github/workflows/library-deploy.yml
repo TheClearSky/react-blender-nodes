@@ -35,6 +35,8 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-22.04
     needs: build-library
+    environment:
+      name: npm
     permissions:
       id-token: write
       contents: read

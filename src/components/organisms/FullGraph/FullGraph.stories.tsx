@@ -66,7 +66,9 @@ const typeOfNodesExample1Data = {
     ],
     outputs: [{ name: 'Final Result', dataType: 'dataType1' }],
   }),
-  inputValidator: makeTypeOfNodeWithAutoInfer<keyof typeof dataTypesExample1Data>({
+  inputValidator: makeTypeOfNodeWithAutoInfer<
+    keyof typeof dataTypesExample1Data
+  >({
     name: 'Input Validator',
     headerColor: '#C44536',
     inputs: [
@@ -92,7 +94,9 @@ const typeOfNodesExample1Data = {
       { name: 'Metadata Output', dataType: 'dataType1' },
     ],
   }),
-  dataTransformer: makeTypeOfNodeWithAutoInfer<keyof typeof dataTypesExample1Data>({
+  dataTransformer: makeTypeOfNodeWithAutoInfer<
+    keyof typeof dataTypesExample1Data
+  >({
     name: 'Data Transformer',
     headerColor: '#2D5A87',
     inputs: [

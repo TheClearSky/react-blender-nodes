@@ -14,7 +14,7 @@ const meta = {
   argTypes: {},
   decorators: [
     (Story) => (
-      <div className="flex justify-center items-center min-h-screen p-8">
+      <div className='flex justify-center items-center min-h-screen p-8'>
         <Story />
       </div>
     ),
@@ -375,9 +375,6 @@ export const AdjustableParentWidthWithFullWidth = {
 } satisfies StoryObj<
   Meta<ConfigurableNodeProps & { parentWidth: number; parentBorder: boolean }>
 >;
-
-
-
 
 export const AllHandleShapesAsInputs = {
   args: {

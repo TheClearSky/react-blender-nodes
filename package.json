@@ -1,8 +1,22 @@
 {
-  "name": "react-blender-nodes",
-  "private": true,
-  "version": "0.0.0",
+  "name": "@theclearsky/react-blender-nodes",
+  "version": "0.0.1",
   "type": "module",
+  "author": "Deepak Prasad <TheClearSky@github.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheClearSky/react-blender-nodes"
+  },
+  "homepage": "https://github.com/TheClearSky/react-blender-nodes",
+  "keywords": [
+    "react",
+    "blender",
+    "nodes",
+    "graph",
+    "editor"
+  ],
+  "description": "A React component library inspired by Blender's node editor interface, providing a flexible and customizable node-based graph editor for web applications.",
   "files": [
     "dist"
   ],
@@ -24,7 +38,7 @@
     "pretty": "prettier --write .",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "checklist": "npm run pretty && npm run build && npm run build-storybook"
+    "checklist": "npm run pretty && npm i && npm run build && npm run build-storybook"
   },
   "peerDependencies": {
     "react": "^19.1.1",

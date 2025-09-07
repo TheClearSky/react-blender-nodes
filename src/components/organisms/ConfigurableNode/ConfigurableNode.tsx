@@ -7,13 +7,14 @@ import { Position, useNodeConnections } from '@xyflow/react';
 import { forwardRef, type HTMLAttributes, useState } from 'react';
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { Button } from '@/components/atoms';
-import { ContextAwareHandle } from './ContextAwareHandle';
+import { ContextAwareHandle, type HandleShape } from './ContextAwareHandle';
 import { ContextAwareInput } from './ContextAwareInput';
 
 type ConfigurableNodeInput = {
   id: string;
   name: string;
   handleColor?: string;
+  handleShape?: HandleShape;
   allowInput?: boolean;
 } & (
   | {
@@ -31,6 +32,7 @@ type ConfigurableNodeOutput = {
   id: string;
   name: string;
   handleColor?: string;
+  handleShape?: HandleShape;
 } & (
   | {
       type: 'string';
@@ -92,6 +94,7 @@ const RenderInput = forwardRef<HTMLDivElement, RenderInputProps>(
           position={Position.Left}
           id={input.id}
           color={input.handleColor}
+          shape={input.handleShape}
           isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
         />
         <div className='flex-1 flex items-center gap-3'>
@@ -131,6 +134,7 @@ const RenderOutput = forwardRef<HTMLDivElement, RenderOutputProps>(
           position={Position.Right}
           id={output.id}
           color={output.handleColor}
+          shape={output.handleShape}
           isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
         />
       </div>

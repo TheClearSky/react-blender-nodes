@@ -7,9 +7,18 @@ import {
 } from './ConfigurableNode';
 import { cn } from '@/utils/cnHelper';
 
+import { handleShapesMap } from './ContextAwareHandle';
+
 const meta = {
   component: ConfigurableNode,
   argTypes: {},
+  decorators: [
+    (Story) => (
+      <div className="flex justify-center items-center min-h-screen p-8">
+        <Story />
+      </div>
+    ),
+  ],
   tags: ['autodocs'],
 } satisfies Meta<ConfigurableNodeProps>;
 
@@ -28,7 +37,7 @@ export const WithInputsAndOutputs = {
         id: 'input1',
         name: 'Text Input',
         type: 'string',
-        handleColor: '#45B7D1',
+        handleColor: '#00BFFF',
       },
       {
         id: 'input2',
@@ -63,7 +72,7 @@ export const WithCollapsiblePanels = {
         id: 'input1',
         name: 'Primary Input',
         type: 'string',
-        handleColor: '#45B7D1',
+        handleColor: '#00BFFF',
       },
       {
         id: 'panel1',
@@ -79,7 +88,7 @@ export const WithCollapsiblePanels = {
             id: 'panel1_input2',
             name: 'Configuration String',
             type: 'string',
-            handleColor: '#4ECDC4',
+            handleColor: '#00FFFF',
           },
           {
             id: 'panel1_input3',
@@ -134,7 +143,7 @@ export const WithInputComponents = {
         id: 'input1',
         name: 'Text Input',
         type: 'string',
-        handleColor: '#45B7D1',
+        handleColor: '#00BFFF',
         allowInput: true,
       },
       {
@@ -163,7 +172,7 @@ export const WithInputComponents = {
         id: 'output2',
         name: 'Processed Number',
         type: 'number',
-        handleColor: '#4ECDC4',
+        handleColor: '#00FFFF',
       },
     ],
   },
@@ -212,7 +221,7 @@ export const WithInputComponentsInPanels = {
         id: 'input1',
         name: 'Direct Input',
         type: 'string',
-        handleColor: '#45B7D1',
+        handleColor: '#00BFFF',
         allowInput: true,
       },
       {
@@ -230,7 +239,7 @@ export const WithInputComponentsInPanels = {
             id: 'panel1_input2',
             name: 'Config String',
             type: 'string',
-            handleColor: '#4ECDC4',
+            handleColor: '#00FFFF',
             allowInput: true,
           },
           {
@@ -326,7 +335,7 @@ export const AdjustableParentWidthWithFullWidth = {
         id: 'input1',
         name: 'Text Input',
         type: 'string',
-        handleColor: '#45B7D1',
+        handleColor: '#00BFFF',
       },
       {
         id: 'input2',
@@ -366,3 +375,245 @@ export const AdjustableParentWidthWithFullWidth = {
 } satisfies StoryObj<
   Meta<ConfigurableNodeProps & { parentWidth: number; parentBorder: boolean }>
 >;
+
+
+
+
+export const AllHandleShapesAsInputs = {
+  args: {
+    name: 'All Handle Shapes - Inputs',
+    headerColor: '#2C3E50',
+    inputs: [
+      {
+        id: 'panel1',
+        name: 'Basic Shapes',
+        inputs: [
+          {
+            id: 'input1',
+            name: 'Circle',
+            type: 'string',
+            handleColor: '#E74C3C',
+            handleShape: handleShapesMap.circle,
+            allowInput: true,
+          },
+          {
+            id: 'input2',
+            name: 'Square',
+            type: 'number',
+            handleColor: '#3498DB',
+            handleShape: handleShapesMap.square,
+            allowInput: true,
+          },
+          {
+            id: 'input3',
+            name: 'Rectangle',
+            type: 'string',
+            handleColor: '#2ECC71',
+            handleShape: handleShapesMap.rectangle,
+            allowInput: false,
+          },
+        ],
+      },
+      {
+        id: 'panel2',
+        name: 'Pattern Shapes',
+        inputs: [
+          {
+            id: 'input4',
+            name: 'List',
+            type: 'string',
+            handleColor: '#F39C12',
+            handleShape: handleShapesMap.list,
+            allowInput: true,
+          },
+          {
+            id: 'input5',
+            name: 'Grid',
+            type: 'number',
+            handleColor: '#9B59B6',
+            handleShape: handleShapesMap.grid,
+            allowInput: true,
+          },
+          {
+            id: 'input6',
+            name: 'Cross',
+            type: 'string',
+            handleColor: '#1ABC9C',
+            handleShape: handleShapesMap.cross,
+            allowInput: false,
+          },
+        ],
+      },
+      {
+        id: 'panel3',
+        name: 'Geometric Shapes',
+        inputs: [
+          {
+            id: 'input7',
+            name: 'Diamond',
+            type: 'string',
+            handleColor: '#E67E22',
+            handleShape: handleShapesMap.diamond,
+            allowInput: true,
+          },
+          {
+            id: 'input8',
+            name: 'Trapezium',
+            type: 'number',
+            handleColor: '#34495E',
+            handleShape: handleShapesMap.trapezium,
+            allowInput: true,
+          },
+          {
+            id: 'input9',
+            name: 'Hexagon',
+            type: 'string',
+            handleColor: '#16A085',
+            handleShape: handleShapesMap.hexagon,
+            allowInput: false,
+          },
+        ],
+      },
+      {
+        id: 'panel4',
+        name: 'Special Shapes',
+        inputs: [
+          {
+            id: 'input10',
+            name: 'Star',
+            type: 'string',
+            handleColor: '#F1C40F',
+            handleShape: handleShapesMap.star,
+            allowInput: true,
+          },
+          {
+            id: 'input11',
+            name: 'Zigzag',
+            type: 'number',
+            handleColor: '#E91E63',
+            handleShape: handleShapesMap.zigzag,
+            allowInput: true,
+          },
+          {
+            id: 'input12',
+            name: 'Sparkle',
+            type: 'string',
+            handleColor: '#FF9800',
+            handleShape: handleShapesMap.sparkle,
+            allowInput: false,
+          },
+          {
+            id: 'input13',
+            name: 'Parallelogram',
+            type: 'number',
+            handleColor: '#607D8B',
+            handleShape: handleShapesMap.parallelogram,
+            allowInput: true,
+          },
+        ],
+      },
+    ],
+    outputs: [],
+  },
+} satisfies Story;
+
+export const AllHandleShapesAsOutputs = {
+  args: {
+    name: 'All Handle Shapes - Outputs',
+    headerColor: '#2C3E50',
+    inputs: [],
+    outputs: [
+      {
+        id: 'output1',
+        name: 'Circle Output',
+        type: 'string',
+        handleColor: '#E74C3C',
+        handleShape: handleShapesMap.circle,
+      },
+      {
+        id: 'output2',
+        name: 'Square Output',
+        type: 'number',
+        handleColor: '#3498DB',
+        handleShape: handleShapesMap.square,
+      },
+      {
+        id: 'output3',
+        name: 'Rectangle Output',
+        type: 'string',
+        handleColor: '#2ECC71',
+        handleShape: handleShapesMap.rectangle,
+      },
+      {
+        id: 'output4',
+        name: 'List Output',
+        type: 'string',
+        handleColor: '#F39C12',
+        handleShape: handleShapesMap.list,
+      },
+      {
+        id: 'output5',
+        name: 'Grid Output',
+        type: 'number',
+        handleColor: '#9B59B6',
+        handleShape: handleShapesMap.grid,
+      },
+      {
+        id: 'output6',
+        name: 'Cross Output',
+        type: 'string',
+        handleColor: '#1ABC9C',
+        handleShape: handleShapesMap.cross,
+      },
+      {
+        id: 'output7',
+        name: 'Diamond Output',
+        type: 'string',
+        handleColor: '#E67E22',
+        handleShape: handleShapesMap.diamond,
+      },
+      {
+        id: 'output8',
+        name: 'Trapezium Output',
+        type: 'number',
+        handleColor: '#34495E',
+        handleShape: handleShapesMap.trapezium,
+      },
+      {
+        id: 'output9',
+        name: 'Hexagon Output',
+        type: 'string',
+        handleColor: '#16A085',
+        handleShape: handleShapesMap.hexagon,
+      },
+      {
+        id: 'output10',
+        name: 'Star Output',
+        type: 'string',
+        handleColor: '#F1C40F',
+        handleShape: handleShapesMap.star,
+      },
+      {
+        id: 'output11',
+        name: 'Zigzag Output',
+        type: 'number',
+        handleColor: '#E91E63',
+        handleShape: handleShapesMap.zigzag,
+      },
+      {
+        id: 'output12',
+        name: 'Sparkle Output',
+        type: 'string',
+        handleColor: '#FF9800',
+        handleShape: handleShapesMap.sparkle,
+      },
+      {
+        id: 'output13',
+        name: 'Parallelogram Output',
+        type: 'number',
+        handleColor: '#607D8B',
+        handleShape: handleShapesMap.parallelogram,
+      },
+    ],
+  },
+} satisfies Story;

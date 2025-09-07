@@ -57,11 +57,57 @@ const buttonVariants = cva(
   },
 );
 
+/**
+ * Props for the Button component
+ *
+ * Extends the standard button element props with custom styling variants
+ * and composition capabilities.
+ */
 type ButtonProps = ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & {
+    /** Whether to render as a child component using Radix Slot */
     asChild?: boolean;
   };
 
+/**
+ * A customizable button component with Blender-inspired styling
+ *
+ * This button component provides multiple color variants and hover states
+ * that match the Blender node editor aesthetic. It supports composition
+ * through the asChild prop and includes proper accessibility features.
+ *
+ * Features:
+ * - Multiple color variants (dark, lightNonPriority, lightPriority)
+ * - Configurable hover styles
+ * - Composition support with Radix Slot
+ * - Full TypeScript support
+ * - Accessibility features
+ *
+ * @param props - The component props
+ * @param ref - Forwarded ref to the button element
+ * @returns JSX element containing the button
+ *
+ * @example
+ * ```tsx
+ * // Basic button
+ * <Button onClick={handleClick}>Click me</Button>
+ *
+ * // Button with custom color
+ * <Button color="lightPriority" onClick={handleSubmit}>
+ *   Submit
+ * </Button>
+ *
+ * // Button as child component
+ * <Button asChild>
+ *   <Link to="/dashboard">Go to Dashboard</Link>
+ * </Button>
+ *
+ * // Button without hover styles
+ * <Button applyHoverStyles={false} disabled>
+ *   Disabled Button
+ * </Button>
+ * ```
+ */
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, color, asChild = false, applyHoverStyles, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';

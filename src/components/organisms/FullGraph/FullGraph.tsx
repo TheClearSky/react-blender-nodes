@@ -34,6 +34,14 @@ const edgeTypes = {
   configurableEdge: ConfigurableEdge,
 };
 
+/**
+ * Props for the FullGraph component
+ *
+ * @template DataTypeUniqueId - Unique identifier type for data types
+ * @template NodeTypeUniqueId - Unique identifier type for node types
+ * @template UnderlyingType - Supported underlying data types ('string' | 'number' | 'complex')
+ * @template ComplexSchemaType - Zod schema type for complex data types
+ */
 type FullGraphProps<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
@@ -42,12 +50,14 @@ type FullGraphProps<
     ? z.ZodType
     : never = never,
 > = {
+  /** The current state of the graph including nodes, edges, and type definitions */
   state: State<
     DataTypeUniqueId,
     NodeTypeUniqueId,
     UnderlyingType,
     ComplexSchemaType
   >;
+  /** Dispatch function for updating the graph state */
   dispatch: ActionDispatch<
     [
       action: Action<
@@ -60,6 +70,81 @@ type FullGraphProps<
   >;
 };
 
+/**
+ * Custom hook for managing the full graph state with reducer
+ *
+ * This hook provides state management for the entire graph including nodes, edges,
+ * data types, and node type definitions. It uses a reducer pattern for predictable
+ * state updates.
+ *
+ * @template DataTypeUniqueId - Unique identifier type for data types
+ * @template NodeTypeUniqueId - Unique identifier type for node types
+ * @template UnderlyingType - Supported underlying data types ('string' | 'number' | 'complex')
+ * @template ComplexSchemaType - Zod schema type for complex data types
+ * @param initialState - The initial state of the graph
+ * @returns Object containing the current state and dispatch function
+ *
+ * @example
+ * ```tsx
+ * import {
+ *   useFullGraph,
+ *   makeStateWithAutoInfer,
+ *   makeNodeIdToNodeTypeWithAutoInfer,
+ *   makeTypeOfNodeWithAutoInfer,
+ *   makeDataTypeWithAutoInfer
+ * } from 'react-blender-nodes';
+ *
+ * // Define data types with auto-infer for type safety
+ * const dataTypes = {
+ *   stringType: makeDataTypeWithAutoInfer({
+ *     name: 'String',
+ *     underlyingType: 'string',
+ *     color: '#4A90E2',
+ *   }),
+ *   numberType: makeDataTypeWithAutoInfer({
+ *     name: 'Number',
+ *     underlyingType: 'number',
+ *     color: '#E74C3C',
+ *   }),
+ * };
+ *
+ * // Define node types with auto-infer for type safety
+ * const typeOfNodes = {
+ *   inputNode: makeTypeOfNodeWithAutoInfer({
+ *     name: 'Input Node',
+ *     headerColor: '#C44536',
+ *     inputs: [
+ *       { name: 'Input', dataType: 'stringType', allowInput: true }
+ *     ],
+ *     outputs: [
+ *       { name: 'Output', dataType: 'stringType' }
+ *     ],
+ *   }),
+ * };
+ *
+ * // Define node ID to type mapping with auto-infer
+ * const nodeIdToNodeType = makeNodeIdToNodeTypeWithAutoInfer({
+ *   'node-1': 'inputNode',
+ * });
+ *
+ * // Create state with auto-infer for complete type safety
+ * const initialState = makeStateWithAutoInfer({
+ *   dataTypes,
+ *   typeOfNodes,
+ *   nodeIdToNodeType,
+ *   nodes: [],
+ *   edges: [],
+ * });
+ *
+ * const { state, dispatch } = useFullGraph(initialState);
+ *
+ * // Add a new node (type-safe!)
+ * dispatch({
+ *   type: 'ADD_NODE',
+ *   payload: { type: 'inputNode', position: { x: 100, y: 100 } },
+ * });
+ * ```
+ */
 function useFullGraph<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
@@ -88,6 +173,19 @@ function useFullGraph<
   return { state, dispatch };
 }
 
+/**
+ * Internal component that provides the actual graph functionality
+ *
+ * This component handles the ReactFlow integration and context menu functionality.
+ * It's wrapped by the main FullGraph component to provide ReactFlowProvider context.
+ *
+ * @template DataTypeUniqueId - Unique identifier type for data types
+ * @template NodeTypeUniqueId - Unique identifier type for node types
+ * @template UnderlyingType - Supported underlying data types ('string' | 'number' | 'complex')
+ * @template ComplexSchemaType - Zod schema type for complex data types
+ * @param props - The component props
+ * @returns JSX element containing the graph editor
+ */
 function FullGraphWithReactFlowProvider<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
@@ -206,6 +304,100 @@ function FullGraphWithReactFlowProvider<
   );
 }
 
+/**
+ * Main graph editor component inspired by Blender's node editor
+ *
+ * This is the primary component for creating interactive node-based graph editors.
+ * It provides a complete ReactFlow-based interface with custom nodes, edges, and
+ * context menu functionality for adding new nodes.
+ *
+ * Features:
+ * - Pan, zoom, and select nodes with intuitive controls
+ * - Drag and drop node connections
+ * - Right-click context menu for adding new nodes
+ * - Custom node types with configurable inputs and outputs
+ * - Real-time node manipulation and state management
+ *
+ * @template DataTypeUniqueId - Unique identifier type for data types
+ * @template NodeTypeUniqueId - Unique identifier type for node types
+ * @template UnderlyingType - Supported underlying data types ('string' | 'number' | 'complex')
+ * @template ComplexSchemaType - Zod schema type for complex data types
+ * @param props - The component props
+ * @returns JSX element containing the complete graph editor
+ *
+ * @example
+ * ```tsx
+ * import {
+ *   FullGraph,
+ *   useFullGraph,
+ *   makeStateWithAutoInfer,
+ *   makeNodeIdToNodeTypeWithAutoInfer,
+ *   makeTypeOfNodeWithAutoInfer,
+ *   makeDataTypeWithAutoInfer
+ * } from 'react-blender-nodes';
+ *
+ * function MyNodeEditor() {
+ *   // Define data types with auto-infer for type safety
+ *   const dataTypes = {
+ *     stringType: makeDataTypeWithAutoInfer({
+ *       name: 'String',
+ *       underlyingType: 'string',
+ *       color: '#4A90E2',
+ *     }),
+ *     numberType: makeDataTypeWithAutoInfer({
+ *       name: 'Number',
+ *       underlyingType: 'number',
+ *       color: '#E74C3C',
+ *     }),
+ *   };
+ *
+ *   // Define node types with auto-infer for type safety
+ *   const typeOfNodes = {
+ *     inputNode: makeTypeOfNodeWithAutoInfer({
+ *       name: 'Input Node',
+ *       headerColor: '#C44536',
+ *       inputs: [
+ *         { name: 'Input', dataType: 'stringType', allowInput: true }
+ *       ],
+ *       outputs: [
+ *         { name: 'Output', dataType: 'stringType' }
+ *       ],
+ *     }),
+ *     outputNode: makeTypeOfNodeWithAutoInfer({
+ *       name: 'Output Node',
+ *       headerColor: '#2D5A87',
+ *       inputs: [
+ *         { name: 'Input', dataType: 'stringType' }
+ *       ],
+ *       outputs: [],
+ *     }),
+ *   };
+ *
+ *   // Define node ID to type mapping with auto-infer
+ *   const nodeIdToNodeType = makeNodeIdToNodeTypeWithAutoInfer({
+ *     'node-1': 'inputNode',
+ *     'node-2': 'outputNode',
+ *   });
+ *
+ *   // Create state with auto-infer for complete type safety
+ *   const initialState = makeStateWithAutoInfer({
+ *     dataTypes,
+ *     typeOfNodes,
+ *     nodeIdToNodeType,
+ *     nodes: [],
+ *     edges: [],
+ *   });
+ *
+ *   const { state, dispatch } = useFullGraph(initialState);
+ *
+ *   return (
+ *     <div style={{ height: '600px', width: '100%' }}>
+ *       <FullGraph state={state} dispatch={dispatch} />
+ *     </div>
+ *   );
+ * }
+ * ```
+ */
 function FullGraph<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,

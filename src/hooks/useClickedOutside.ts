@@ -1,6 +1,54 @@
 import { isCoordinateInBox, type Coordinate } from '@/utils';
 import { useCallback, useEffect, type RefObject } from 'react';
 
+/**
+ * Custom hook for detecting clicks outside of a specified element
+ *
+ * This hook provides functionality to detect when a user clicks outside of a
+ * specified element, commonly used for closing dropdowns, modals, or other
+ * overlay components.
+ *
+ * @template T - The type of HTML element being referenced
+ * @param ref - Reference to the element to monitor (can be RefObject or direct element)
+ * @param callback - Function to call when a click outside is detected
+ * @param checkDescendants - Whether to check if the click target is a descendant of the ref element (default: true)
+ * @param checkCoordinates - Whether to use coordinate-based checking instead of DOM hierarchy (default: false)
+ *
+ * @example
+ * ```tsx
+ * function Dropdown() {
+ *   const [isOpen, setIsOpen] = useState(false);
+ *   const dropdownRef = useRef<HTMLDivElement>(null);
+ *
+ *   useClickedOutside(dropdownRef, () => {
+ *     setIsOpen(false);
+ *   });
+ *
+ *   return (
+ *     <div ref={dropdownRef}>
+ *       {isOpen && <div>Dropdown content</div>}
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Using coordinate-based checking for more precise control
+ * function Modal() {
+ *   const modalRef = useRef<HTMLDivElement>(null);
+ *
+ *   useClickedOutside(
+ *     modalRef,
+ *     () => closeModal(),
+ *     false, // Don't check descendants
+ *     true   // Use coordinate checking
+ *   );
+ *
+ *   return <div ref={modalRef}>Modal content</div>;
+ * }
+ * ```
+ */
 function useClickedOutside<T extends HTMLElement>(
   ref: RefObject<T | null> | T | null,
   callback: () => void,

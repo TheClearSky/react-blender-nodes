@@ -2,6 +2,7 @@ import { cn } from '@/utils';
 import { Position, Handle, type HandleType } from '@xyflow/react';
 import { forwardRef, type HTMLAttributes } from 'react';
 
+/** Available handle shapes for node inputs and outputs */
 const handleShapes = [
   'circle',
   'square',
@@ -18,6 +19,7 @@ const handleShapes = [
   'parallelogram',
 ] as const;
 
+/** Map of handle shapes for type-safe access */
 const handleShapesMap = {
   [handleShapes[0]]: handleShapes[0],
   [handleShapes[1]]: handleShapes[1],
@@ -34,14 +36,24 @@ const handleShapesMap = {
   [handleShapes[12]]: handleShapes[12],
 } as const;
 
+/** Type representing all available handle shapes */
 type HandleShape = (typeof handleShapesMap)[keyof typeof handleShapesMap];
 
+/**
+ * Props for the ContextAwareHandle component
+ */
 type ContextAwareHandleProps = {
+  /** Type of handle (source or target) */
   type: HandleType;
+  /** Position of the handle on the node */
   position: Position;
+  /** Unique identifier for the handle */
   id: string;
+  /** Color of the handle */
   color?: string;
+  /** Shape of the handle */
   shape?: HandleShape;
+  /** Whether the handle is currently inside a ReactFlow context */
   isCurrentlyInsideReactFlow?: boolean;
 } & HTMLAttributes<HTMLDivElement>;
 
@@ -254,6 +266,58 @@ const renderHandleShape = (
   }
 };
 
+/**
+ * A context-aware handle component for node inputs and outputs
+ *
+ * This component renders handles (connection points) for nodes with support for
+ * various shapes and automatic ReactFlow integration. It can render as either
+ * a ReactFlow Handle when inside a ReactFlow context or as a standalone element
+ * for preview purposes.
+ *
+ * Features:
+ * - 13+ custom handle shapes (circle, square, diamond, star, etc.)
+ * - Automatic ReactFlow integration
+ * - Custom colors and styling
+ * - Border support for clip-path shapes
+ * - Type-safe shape definitions
+ *
+ * @param props - The component props
+ * @param ref - Forwarded ref to the handle element
+ * @returns JSX element containing the handle
+ *
+ * @example
+ * ```tsx
+ * // Basic handle
+ * <ContextAwareHandle
+ *   type="target"
+ *   position={Position.Left}
+ *   id="input1"
+ *   color="#00BFFF"
+ *   shape="circle"
+ *   isCurrentlyInsideReactFlow={true}
+ * />
+ *
+ * // Custom shape handle
+ * <ContextAwareHandle
+ *   type="source"
+ *   position={Position.Right}
+ *   id="output1"
+ *   color="#FECA57"
+ *   shape="diamond"
+ *   isCurrentlyInsideReactFlow={true}
+ * />
+ *
+ * // Preview handle (outside ReactFlow)
+ * <ContextAwareHandle
+ *   type="target"
+ *   position={Position.Left}
+ *   id="preview-input"
+ *   color="#96CEB4"
+ *   shape="star"
+ *   isCurrentlyInsideReactFlow={false}
+ * />
+ * ```
+ */
 const ContextAwareHandle = forwardRef<HTMLDivElement, ContextAwareHandleProps>(
   (
     {

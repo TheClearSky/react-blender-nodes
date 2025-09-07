@@ -3,171 +3,334 @@
 A React component library inspired by Blender's node editor interface, providing
 a flexible and customizable node-based graph editor for web applications.
 
+![React Blender Nodes Banner](./docs/screenshots/banner.png)
+
 ## 🎯 Overview
 
-React Blender Nodes is a React library that recreates the iconic Blender node
-editor experience on the web. Built with modern React patterns and TypeScript,
-it offers a complete solution for creating interactive node-based interfaces
-with support for custom nodes, connections, and real-time manipulation.
+React Blender Nodes recreates the iconic Blender node editor experience on the
+web. Built with modern React patterns and TypeScript, it offers a complete
+solution for creating interactive node-based interfaces with support for custom
+nodes, connections, and real-time manipulation.
 
 ## ✨ Features
 
-- **Blender-inspired UI**: Authentic node editor experience with dark theme and
-  familiar interactions
-- **Fully Customizable Nodes**: Create nodes with custom inputs, outputs, and
-  styling
-- **Interactive Graph Editor**: Pan, zoom, select, and manipulate nodes with
-  intuitive controls
-- **TypeScript Support**: Full type safety with comprehensive type definitions
-- **Storybook Integration**: Interactive component documentation and testing
-- **Modular Architecture**: Atomic design pattern with reusable components
-- **Modern React**: Built with React 19+ and modern hooks patterns
+### 🎨 Blender-Inspired Interface
+
+![Blender Interface](./docs/screenshots/blender-interface.png)
+
+- Authentic dark theme matching Blender's node editor
+- Familiar interactions and visual design
+- Smooth animations and transitions
+
+### 🔧 Customizable Nodes
+
+![Customizable Nodes](./docs/screenshots/customizable-nodes.png)
+
+- Dynamic inputs and outputs with custom shapes
+- Collapsible input panels for complex configurations
+- Interactive input components (text, number sliders)
+- Custom handle shapes (circle, square, diamond, star, etc.)
+
+### 🎮 Interactive Graph Editor
+
+![Interactive Graph](./docs/screenshots/interactive-graph.png)
+
+- Pan, zoom, and select nodes with intuitive controls
+- Drag and drop node connections
+- Context menu for adding new nodes
+- Real-time node manipulation
+
+### 🎯 Advanced Features
+
+![Advanced Features](./docs/screenshots/advanced-features.png)
+
+- **Handle Shapes**: 13+ custom handle shapes including geometric and artistic
+  designs
+- **Input Components**: Built-in text and number inputs with validation
+- **Panel System**: Collapsible panels for organizing complex node inputs
+- **State Management**: Integrated reducer for managing graph state
+- **TypeScript Support**: Full type safety with comprehensive definitions
 
 ## 🚀 Quick Start
 
+### Installation
+
 ```bash
-npm install react-blender-nodes
+npm install @theclearsky/react-blender-nodes
 ```
 
+### Basic Usage
+
 ```tsx
-import { FullGraph } from 'react-blender-nodes';
+import {
+  FullGraph,
+  useFullGraph,
+  makeStateWithAutoInfer,
+  makeNodeIdToNodeTypeWithAutoInfer,
+  makeTypeOfNodeWithAutoInfer,
+  makeDataTypeWithAutoInfer,
+} from 'react-blender-nodes';
 import 'react-blender-nodes/style.css';
 
-function App() {
-  const nodes = [
-    {
-      id: '1',
-      type: 'configurableNode',
-      position: { x: 100, y: 100 },
-      data: {
-        name: 'Input Node',
-        outputs: [{ id: 'output-1', name: 'Value', type: 'number' }],
-      },
-    },
-  ];
+function MyNodeEditor() {
+  // Define data types with auto-infer for type safety
+  const dataTypes = {
+    stringType: makeDataTypeWithAutoInfer({
+      name: 'String',
+      underlyingType: 'string',
+      color: '#4A90E2',
+    }),
+    numberType: makeDataTypeWithAutoInfer({
+      name: 'Number',
+      underlyingType: 'number',
+      color: '#7ED321',
+    }),
+  };
+
+  // Define node types with auto-infer for type safety
+  const typeOfNodes = {
+    inputNode: makeTypeOfNodeWithAutoInfer({
+      name: 'Input Node',
+      headerColor: '#C44536',
+      inputs: [
+        { name: 'Text Input', dataType: 'stringType', allowInput: true },
+        { name: 'Number Input', dataType: 'numberType', allowInput: true },
+      ],
+      outputs: [{ name: 'Output', dataType: 'stringType' }],
+    }),
+  };
+
+  // Define node ID to type mapping with auto-infer
+  const nodeIdToNodeType = makeNodeIdToNodeTypeWithAutoInfer({});
+
+  // Create state with auto-infer for complete type safety
+  const initialState = makeStateWithAutoInfer({
+    dataTypes,
+    typeOfNodes,
+    nodeIdToNodeType,
+    nodes: [],
+    edges: [],
+  });
+
+  const { state, dispatch } = useFullGraph(initialState);
 
   return (
-    <div style={{ height: '500px' }}>
-      <FullGraph nodes={nodes} edges={[]} />
+    <div style={{ height: '600px', width: '100%' }}>
+      <FullGraph state={state} dispatch={dispatch} />
     </div>
   );
 }
 ```
 
-## 📁 Project Structure
+### 🔒 Type Safety with Auto-Infer Helpers
 
-```
-react-blender-nodes/
-├── src/
-│   ├── components/                 # Component library organized by atomic design
-│   │   ├── atoms/                  # Basic building blocks (buttons, handles, etc.)
-│   │   │   ├── Button/             # Reusable button component
-│   │   │   ├── ConfigurableConnection/ # Node connection line component
-│   │   │   ├── ConfigurableEdge/   # Edge/connection rendering component
-│   │   │   └── NodeResizerWithMoreControls/ # Node resizing controls
-│   │   ├── molecules/              # Composed components (input groups, controls)
-│   │   │   └── SliderNumberInput/  # Combined slider and number input
-│   │   └── organisms/              # Complex components (full nodes, graph)
-│   │       ├── ConfigurableNode/   # Main node component with inputs/outputs
-│   │       └── FullGraph/          # Complete graph editor with ReactFlow
-│   ├── hooks/                      # Custom React hooks
-│   │   ├── useClickedOutside.ts    # Click outside detection hook
-│   │   └── index.ts                # Hook exports
-│   ├── utils/                      # Utility functions and helpers
-│   │   ├── nodeStateManagement/    # State management for node operations
-│   │   │   ├── mainReducer.ts      # Main state reducer
-│   │   │   └── types.ts            # State management types
-│   │   ├── cnHelper.ts             # Class name utility (tailwind-merge)
-│   │   ├── geometry.ts             # Geometric calculations
-│   │   └── index.ts                # Utility exports
-│   ├── @types/                     # TypeScript type definitions
-│   │   └── globals.d.ts            # Global type declarations
-│   ├── index.ts                    # Main library entry point
-│   └── index.css                   # Global styles and CSS variables
-├── dist/                           # Built library files (generated)
-├── storybook-static/               # Built Storybook documentation (generated)
-├── .storybook/                     # Storybook configuration
-├── .github/                        # GitHub workflows and templates
-├── node_modules/                   # Dependencies (generated)
-├── package.json                    # Project configuration and dependencies
-├── vite.config.ts                  # Vite bundler configuration
-├── tsconfig.json                   # TypeScript configuration
-├── components.json                 # Shadcn/ui component configuration
-├── eslint.config.js               # ESLint linting rules
-└── .prettierrc                    # Code formatting configuration
+The auto-infer helper functions are **essential** for type safety in React
+Blender Nodes. They ensure TypeScript can properly validate type references
+throughout your graph system:
+
+- **`makeDataTypeWithAutoInfer`**: Validates data type definitions
+- **`makeTypeOfNodeWithAutoInfer`**: Validates node type definitions and
+  dataType references
+- **`makeNodeIdToNodeTypeWithAutoInfer`**: Validates node ID to type mappings
+- **`makeStateWithAutoInfer`**: Provides complete type inference for the entire
+  state
+
+**Why use them?**
+
+- ✅ **Compile-time validation**: Catch errors before runtime
+- ✅ **IDE support**: Better autocomplete and IntelliSense
+- ✅ **Refactoring safety**: TypeScript ensures consistency when renaming types
+- ✅ **Runtime safety**: Prevents invalid type references
+
+**Without auto-infer helpers:**
+
+```tsx
+// ❌ No type validation - errors only caught at runtime
+const dataTypes = {
+  stringType: { name: 'String', underlyingType: 'string', color: '#4A90E2' },
+};
 ```
 
-## 🧩 Component Architecture
+**With auto-infer helpers:**
 
-### Atomic Design Pattern
+```tsx
+// ✅ Full type validation - errors caught at compile time
+const dataTypes = {
+  stringType: makeDataTypeWithAutoInfer({
+    name: 'String',
+    underlyingType: 'string',
+    color: '#4A90E2',
+  }),
+};
+```
 
-This library follows the atomic design methodology:
+## 📖 Usage Examples
 
-- **Atoms**: Basic UI elements that cannot be broken down further (Button,
-  Handle, Edge)
-- **Molecules**: Simple groups of atoms functioning together (SliderNumberInput)
-- **Organisms**: Complex UI components composed of molecules and atoms
-  (ConfigurableNode, FullGraph)
+### Custom Node with Panels
 
-### Key Components
+```tsx
+const customNode = {
+  id: 'advanced-node',
+  type: 'configurableNode',
+  position: { x: 100, y: 100 },
+  data: {
+    name: 'Advanced Processor',
+    headerColor: '#2D5A87',
+    inputs: [
+      {
+        id: 'direct-input',
+        name: 'Direct Input',
+        type: 'string',
+        handleColor: '#00BFFF',
+        allowInput: true,
+      },
+      {
+        id: 'settings-panel',
+        name: 'Settings Panel',
+        inputs: [
+          {
+            id: 'threshold',
+            name: 'Threshold',
+            type: 'number',
+            handleColor: '#96CEB4',
+            allowInput: true,
+            handleShape: 'diamond',
+          },
+          {
+            id: 'config',
+            name: 'Configuration',
+            type: 'string',
+            handleColor: '#00FFFF',
+            allowInput: true,
+            handleShape: 'star',
+          },
+        ],
+      },
+    ],
+    outputs: [
+      {
+        id: 'result',
+        name: 'Result',
+        type: 'string',
+        handleColor: '#FECA57',
+        handleShape: 'hexagon',
+      },
+    ],
+  },
+};
+```
 
-- **FullGraph**: The main graph editor component with pan, zoom, and node
-  management
-- **ConfigurableNode**: Customizable node component with dynamic inputs and
-  outputs
-- **SliderNumberInput**: Combined slider and number input for precise value
-  control
-- **NodeResizerWithMoreControls**: Enhanced node resizing with additional
-  controls
+### Handle Shapes Showcase
 
-## 🛠️ Development
+```tsx
+// Available handle shapes
+const handleShapes = [
+  'circle', // Default circular handle
+  'square', // Square handle
+  'rectangle', // Tall rectangle
+  'diamond', // 45° rotated square
+  'hexagon', // Regular hexagon
+  'star', // 5-pointed star
+  'cross', // Plus/cross shape
+  'list', // Three horizontal bars
+  'grid', // 2x2 grid of squares
+  'trapezium', // Trapezoid shape
+  'zigzag', // Zigzag pattern
+  'sparkle', // Sparkle effect
+  'parallelogram', // Parallelogram shape
+];
+```
 
-```bash
-# Install dependencies
-npm install
+### Context Menu Integration
 
-# Start development server
-npm run dev
+```tsx
+// Right-click anywhere on the graph to open context menu
+// Automatically generates "Add Node" menu with all available node types
+// Clicking a node type adds it at the cursor position
+```
 
-# Run Storybook
-npm run storybook
+## 🎨 Styling
 
-# Build library
-npm run build
+The library uses Tailwind CSS for styling and provides a dark theme that matches
+Blender's aesthetic:
 
-# Run linting
-npm run lint
+```css
+/* Import the default styles */
+@import 'react-blender-nodes/style.css';
 
-# Format code
-npm run pretty
+/* Customize colors using CSS variables */
+:root {
+  --primary-black: #181818;
+  --primary-dark-gray: #272727;
+  --primary-gray: #3f3f3f;
+  --primary-white: #ffffff;
+}
 ```
 
 ## 📚 Documentation
 
-Interactive component documentation is available via Storybook:
+### Interactive Documentation
+
+Explore all components with live examples:
 
 ```bash
 npm run storybook
 ```
 
-Visit `http://localhost:6006` to explore all components with live examples and
-controls.
+Visit `http://localhost:6006` to see:
 
-## 🎨 Styling
+- Component playgrounds
+- Interactive controls
+- Usage examples
+- Handle shape demonstrations
 
-The library uses:
+### Component API
 
-- **Tailwind CSS** for utility-first styling
-- **React flow** for nodes base
+#### FullGraph
+
+The main graph editor component with full ReactFlow integration.
+
+```tsx
+interface FullGraphProps {
+  state: State;
+  dispatch: Dispatch;
+}
+```
+
+#### ConfigurableNode
+
+Customizable node component with dynamic inputs and outputs.
+
+```tsx
+interface ConfigurableNodeProps {
+  name?: string;
+  headerColor?: string;
+  inputs?: (ConfigurableNodeInput | ConfigurableNodeInputPanel)[];
+  outputs?: ConfigurableNodeOutput[];
+  isCurrentlyInsideReactFlow?: boolean;
+}
+```
+
+## 🔗 Links
+
+- [📖 Storybook Documentation](https://theclearsky.github.io/react-blender-nodes/?path=/story/components-organisms-fullgraph--playground)
+- [📦 NPM Package](https://www.npmjs.com/package/@theclearsky/react-blender-nodes)
+- [🐛 Report Issues](https://github.com/TheClearSky/react-blender-nodes/issues)
+- [💡 Request Features](https://github.com/TheClearSky/react-blender-nodes/discussions)
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our contributing guidelines and ensure
-all tests pass before submitting a PR.
+We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md)
+for details on:
+
+- Setting up the development environment
+- Code style and conventions
+- Submitting pull requests
+- Reporting issues
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](./LICENSE) for details.
 
 ## 🙏 Acknowledgments
 
@@ -180,7 +343,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 > Blender useful, consider
 > [donating to support their work](https://fund.blender.org/).
 
-## 🔗 Links
+---
 
-- [Blender Official Repository](https://projects.blender.org/blender/blender.git)
-- [Support Blender Foundation](https://fund.blender.org/)
+Made with ❤️ for the Blender and React communities

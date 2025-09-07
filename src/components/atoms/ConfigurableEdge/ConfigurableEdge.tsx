@@ -13,10 +13,48 @@ import {
 } from '@xyflow/react';
 import { forwardRef, useMemo, useState } from 'react';
 
+/** State type for configurable edges */
 type ConfigurableEdgeState = Edge<{}, 'configurableEdge'>;
 
+/** Props for the ConfigurableEdge component */
 type ConfigurableEdgeProps = EdgeProps<ConfigurableEdgeState>;
 
+/**
+ * A configurable edge component with gradient colors and viewport optimization
+ *
+ * This component renders edges between nodes with automatic color gradients
+ * based on the source and target handle colors. It includes viewport optimization
+ * to reduce rendering overhead for edges outside the visible area.
+ *
+ * Features:
+ * - Automatic gradient colors based on handle colors
+ * - Viewport optimization for performance
+ * - Bezier curve rendering
+ * - ReactFlow integration
+ * - Custom styling and animations
+ *
+ * @param props - The component props
+ * @param _ - Unused ref parameter
+ * @returns JSX element containing the configurable edge
+ *
+ * @example
+ * ```tsx
+ * // Edge with automatic gradient colors
+ * <ConfigurableEdge
+ *   id="edge1"
+ *   sourceX={100}
+ *   sourceY={50}
+ *   targetX={200}
+ *   targetY={50}
+ *   sourcePosition={Position.Right}
+ *   targetPosition={Position.Left}
+ *   source="node1"
+ *   target="node2"
+ *   sourceHandleId="output1"
+ *   targetHandleId="input1"
+ * />
+ * ```
+ */
 const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
   (
     {

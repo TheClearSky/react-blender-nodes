@@ -2,19 +2,38 @@ import { cn } from '@/utils';
 import { useState, type ReactNode } from 'react';
 import { ChevronRightIcon } from 'lucide-react';
 
+/**
+ * Configuration for a context menu item
+ *
+ * Defines a single item in the context menu with optional submenu, icon, and actions.
+ * Supports nested submenus for hierarchical menu structures.
+ */
 type ContextMenuItem = {
+  /** Unique identifier for the menu item */
   id: string;
+  /** Display text for the menu item */
   label: string;
+  /** Optional icon to display next to the label */
   icon?: ReactNode;
+  /** Optional array of submenu items for nested menus */
   subItems?: ContextMenuItem[];
+  /** Callback function when the item is clicked */
   onClick?: () => void;
+  /** Optional keyboard shortcut text to display */
   shortcut?: string;
+  /** Whether to show a separator line before this item */
   separator?: boolean;
 };
 
+/**
+ * Props for the ContextMenu component
+ */
 type ContextMenuProps = {
+  /** Array of menu items to display */
   subItems: ContextMenuItem[];
+  /** Additional CSS classes */
   className?: string;
+  /** Optional callback when any item is clicked */
   onItemClick?: (item: ContextMenuItem) => void;
 };
 
@@ -103,6 +122,76 @@ const ContextMenuSubmenu = ({
   );
 };
 
+/**
+ * A context menu component with nested submenu support
+ *
+ * This component provides a hierarchical context menu system with support for
+ * nested submenus, icons, keyboard shortcuts, and separators. It features
+ * hover-based submenu activation and Blender-inspired dark theme styling.
+ *
+ * Features:
+ * - Nested submenu support with unlimited depth
+ * - Icon and keyboard shortcut display
+ * - Separator lines for visual grouping
+ * - Hover-based submenu activation
+ * - Dark theme styling matching Blender's aesthetic
+ * - TypeScript support with full type safety
+ *
+ * @param props - The component props
+ * @returns JSX element containing the context menu
+ *
+ * @example
+ * ```tsx
+ * // Basic context menu
+ * <ContextMenu
+ *   subItems={[
+ *     {
+ *       id: 'copy',
+ *       label: 'Copy',
+ *       icon: <CopyIcon className="w-4 h-4" />,
+ *       shortcut: 'Ctrl+C',
+ *       onClick: () => handleCopy(),
+ *     },
+ *     {
+ *       id: 'paste',
+ *       label: 'Paste',
+ *       icon: <PasteIcon className="w-4 h-4" />,
+ *       shortcut: 'Ctrl+V',
+ *       onClick: () => handlePaste(),
+ *       separator: true,
+ *     },
+ *   ]}
+ * />
+ *
+ * // Nested submenu
+ * <ContextMenu
+ *   subItems={[
+ *     {
+ *       id: 'edit',
+ *       label: 'Edit',
+ *       icon: <EditIcon className="w-4 h-4" />,
+ *       subItems: [
+ *         {
+ *           id: 'cut',
+ *           label: 'Cut',
+ *           onClick: () => handleCut(),
+ *         },
+ *         {
+ *           id: 'copy',
+ *           label: 'Copy',
+ *           onClick: () => handleCopy(),
+ *         },
+ *         {
+ *           id: 'paste',
+ *           label: 'Paste',
+ *           onClick: () => handlePaste(),
+ *         },
+ *       ],
+ *     },
+ *   ]}
+ * />
+ * ```
+ */
 export const ContextMenu = ({
   subItems,
   className,

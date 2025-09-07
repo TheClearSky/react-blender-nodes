@@ -11,35 +11,68 @@ import type {
 } from '@xyflow/react';
 import { cn } from '@/utils';
 
+/**
+ * Props for the NodeResizerWithMoreControls component
+ */
 type NodeResizerWithMoreControlsProps = NodeResizerProps & {
+  /** Array of line positions for resize controls */
   linePosition?: ControlLinePosition[];
+  /** Array of handle positions for resize controls */
   handlePosition?: ControlPosition[];
+  /** Direction of resize operation */
   resizeDirection?: ResizeControlDirection;
 };
 
 /**
- * The `<NodeResizer />` component can be used to add a resize functionality to your
- * nodes. It renders draggable controls around the node to resize in all directions.
- * @public
+ * Enhanced node resizer component with customizable controls
+ *
+ * This component extends the standard ReactFlow NodeResizer with additional
+ * customization options for line and handle positions. It provides fine-grained
+ * control over which resize controls are displayed and how they behave.
+ *
+ * Features:
+ * - Customizable line and handle positions
+ * - Direction-specific resize controls
+ * - Min/max width and height constraints
+ * - Aspect ratio preservation
+ * - Auto-scaling support
+ * - Custom styling options
+ *
+ * @param props - The component props
+ * @returns JSX element containing the node resizer controls
  *
  * @example
- *```jsx
- *import { memo } from 'react';
- *import { Handle, Position, NodeResizer } from '@xyflow/react';
+ * ```tsx
+ * // Basic resizer with default controls
+ * <NodeResizerWithMoreControls
+ *   minWidth={100}
+ *   minHeight={50}
+ *   maxWidth={500}
+ *   maxHeight={300}
+ * />
  *
- *function ResizableNode({ data }) {
- *  return (
- *    <>
- *      <NodeResizer minWidth={100} minHeight={30} />
- *      <Handle type="target" position={Position.Left} />
- *      <div style={{ padding: 10 }}>{data.label}</div>
- *      <Handle type="source" position={Position.Right} />
- *    </>
- *  );
- *};
+ * // Custom line positions only
+ * <NodeResizerWithMoreControls
+ *   linePosition={['left', 'right']}
+ *   minWidth={100}
+ *   minHeight={50}
+ * />
  *
- *export default memo(ResizableNode);
- *```
+ * // Custom handle positions
+ * <NodeResizerWithMoreControls
+ *   handlePosition={['top-left', 'bottom-right']}
+ *   minWidth={100}
+ *   minHeight={50}
+ * />
+ *
+ * // Horizontal-only resizing
+ * <NodeResizerWithMoreControls
+ *   resizeDirection="horizontal"
+ *   linePosition={['left', 'right']}
+ *   minWidth={100}
+ *   maxWidth={500}
+ * />
+ * ```
  */
 function NodeResizerWithMoreControls({
   nodeId,

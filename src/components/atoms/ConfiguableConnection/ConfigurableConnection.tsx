@@ -8,8 +8,34 @@ import {
 } from '@xyflow/react';
 import { useMemo } from 'react';
 
+/** Props for the ConfigurableConnection component */
 type ConfigurableConnectionProps = {} & ConnectionLineComponentProps;
 
+/**
+ * A configurable connection line component for ReactFlow
+ *
+ * This component renders the connection line that appears when dragging from
+ * a handle to create a new connection. It automatically uses the color of
+ * the source handle for consistent visual feedback.
+ *
+ * Features:
+ * - Automatic color matching from source handle
+ * - Bezier curve rendering
+ * - ReactFlow integration
+ * - Visual feedback during connection creation
+ *
+ * @param props - The component props
+ * @returns JSX element containing the connection line
+ *
+ * @example
+ * ```tsx
+ * // Used as connectionLineComponent in ReactFlow
+ * <ReactFlow
+ *   connectionLineComponent={ConfigurableConnection}
+ *   // ... other props
+ * />
+ * ```
+ */
 const ConfigurableConnection = ({
   fromX,
   fromY,

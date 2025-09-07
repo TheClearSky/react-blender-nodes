@@ -4,16 +4,75 @@ import { useDrag } from '@/hooks/useDrag';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { forwardRef, useEffect, useRef, useState } from 'react';
 
+/**
+ * Props for the SliderNumberInput component
+ */
 type SliderNumberInputProps = {
+  /** Display name for the input */
   name?: string;
+  /** Current numeric value */
   value?: number;
+  /** Callback when the value changes */
   onChange?: (value: number) => void;
+  /** Additional CSS classes */
   className?: string;
+  /** Minimum allowed value */
   min?: number;
+  /** Maximum allowed value */
   max?: number;
+  /** Step size for value changes */
   step?: number;
 };
 
+/**
+ * A combined slider and number input component with drag functionality
+ *
+ * This component provides an intuitive way to input and adjust numeric values
+ * through both dragging and direct input. It features a slider interface with
+ * increment/decrement buttons and switches to a text input when clicked.
+ *
+ * Features:
+ * - Drag-to-adjust functionality with visual feedback
+ * - Increment/decrement buttons for precise control
+ * - Click-to-edit mode with text input
+ * - Min/max value constraints
+ * - Customizable step size
+ * - Blender-inspired dark theme styling
+ *
+ * @param props - The component props
+ * @param ref - Forwarded ref to the component
+ * @returns JSX element containing the slider number input
+ *
+ * @example
+ * ```tsx
+ * // Basic usage
+ * <SliderNumberInput
+ *   name="Price"
+ *   value={10.5}
+ *   onChange={(value) => setPrice(value)}
+ * />
+ *
+ * // With constraints
+ * <SliderNumberInput
+ *   name="Temperature"
+ *   value={25}
+ *   min={0}
+ *   max={100}
+ *   step={0.5}
+ *   onChange={(value) => setTemperature(value)}
+ * />
+ *
+ * // Controlled component
+ * const [value, setValue] = useState(42);
+ * <SliderNumberInput
+ *   name="Count"
+ *   value={value}
+ *   onChange={setValue}
+ *   min={0}
+ *   max={1000}
+ * />
+ * ```
+ */
 const SliderNumberInput = forwardRef<
   HTMLInputElement & HTMLDivElement,
   SliderNumberInputProps

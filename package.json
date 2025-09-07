@@ -1,6 +1,6 @@
 {
   "name": "@theclearsky/react-blender-nodes",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "author": "Deepak Prasad <TheClearSky@github.com>",
   "license": "MIT",
@@ -34,10 +34,15 @@
   "scripts": {
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "preview": "vite preview",
     "pretty": "prettier --write .",
+    "pretty:check": "prettier --check .",
+    "type-check": "tsc --noEmit",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
     "checklist": "npm run pretty && npm i && npm run build && npm run build-storybook"
   },
   "peerDependencies": {

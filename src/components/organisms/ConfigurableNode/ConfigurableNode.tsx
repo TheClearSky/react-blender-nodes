@@ -10,50 +10,99 @@ import { Button } from '@/components/atoms';
 import { ContextAwareHandle, type HandleShape } from './ContextAwareHandle';
 import { ContextAwareInput } from './ContextAwareInput';
 
+/**
+ * Configuration for a node input
+ *
+ * Defines an input socket on a node with optional interactive input component.
+ * Supports both string and number types with type-specific onChange handlers.
+ */
 type ConfigurableNodeInput = {
+  /** Unique identifier for the input */
   id: string;
+  /** Display name for the input */
   name: string;
+  /** Color of the input handle/socket */
   handleColor?: string;
+  /** Shape of the input handle (circle, square, diamond, etc.) */
   handleShape?: HandleShape;
+  /** Whether to show an interactive input component when not connected */
   allowInput?: boolean;
 } & (
   | {
+      /** String input type */
       type: 'string';
+      /** Current value of the input */
       value?: string;
+      /** Callback when the input value changes */
       onChange?: (value: string) => void;
     }
   | {
+      /** Number input type */
       type: 'number';
+      /** Current value of the input */
       value?: number;
+      /** Callback when the input value changes */
       onChange?: (value: number) => void;
     }
 );
+
+/**
+ * Configuration for a node output
+ *
+ * Defines an output socket on a node that can be connected to inputs.
+ */
 type ConfigurableNodeOutput = {
+  /** Unique identifier for the output */
   id: string;
+  /** Display name for the output */
   name: string;
+  /** Color of the output handle/socket */
   handleColor?: string;
+  /** Shape of the output handle (circle, square, diamond, etc.) */
   handleShape?: HandleShape;
 } & (
   | {
+      /** String output type */
       type: 'string';
     }
   | {
+      /** Number output type */
       type: 'number';
     }
 );
 
+/**
+ * Configuration for a collapsible input panel
+ *
+ * Groups multiple inputs together in a collapsible panel for better organization.
+ */
 type ConfigurableNodeInputPanel = {
+  /** Unique identifier for the panel */
   id: string;
+  /** Display name for the panel */
   name: string;
+  /** Array of inputs contained in this panel */
   inputs: ConfigurableNodeInput[];
 };
 
+/**
+ * Props for the ConfigurableNode component
+ *
+ * Defines the complete configuration for a customizable node with inputs, outputs,
+ * and optional panels. Supports both standalone usage and ReactFlow integration.
+ */
 type ConfigurableNodeProps = {
+  /** Display name of the node */
   name?: string;
+  /** Background color of the node header */
   headerColor?: string;
+  /** Array of inputs and input panels */
   inputs?: (ConfigurableNodeInput | ConfigurableNodeInputPanel)[];
+  /** Array of output sockets */
   outputs?: ConfigurableNodeOutput[];
+  /** Whether the node is currently inside a ReactFlow context */
   isCurrentlyInsideReactFlow?: boolean;
+  /** Props for the node resizer component */
   nodeResizerProps?: NodeResizerWithMoreControlsProps;
 } & HTMLAttributes<HTMLDivElement>;
 
@@ -195,6 +244,80 @@ const RenderInputPanel = forwardRef<HTMLDivElement, RenderInputPanelProps>(
 
 RenderInputPanel.displayName = 'RenderInputPanel';
 
+/**
+ * A customizable node component inspired by Blender's node editor
+ *
+ * This component creates a node with configurable inputs, outputs, and collapsible panels.
+ * It supports both standalone usage and ReactFlow integration with automatic handle
+ * management and interactive input components.
+ *
+ * Features:
+ * - Customizable header with color and name
+ * - Dynamic inputs and outputs with custom handle shapes
+ * - Collapsible input panels for organization
+ * - Interactive input components (text/number) when not connected
+ * - ReactFlow integration with automatic handle positioning
+ * - Node resizing controls when inside ReactFlow
+ *
+ * @param props - The component props
+ * @param ref - Forwarded ref to the root div element
+ * @returns JSX element containing the configurable node
+ *
+ * @example
+ * ```tsx
+ * // Basic node with inputs and outputs
+ * <ConfigurableNode
+ *   name="Data Processor"
+ *   headerColor="#C44536"
+ *   inputs={[
+ *     {
+ *       id: 'input1',
+ *       name: 'Text Input',
+ *       type: 'string',
+ *       handleColor: '#00BFFF',
+ *       handleShape: 'circle',
+ *       allowInput: true,
+ *     },
+ *   ]}
+ *   outputs={[
+ *     {
+ *       id: 'output1',
+ *       name: 'Result',
+ *       type: 'string',
+ *       handleColor: '#FECA57',
+ *       handleShape: 'square',
+ *     },
+ *   ]}
+ * />
+ *
+ * // Node with collapsible panels
+ * <ConfigurableNode
+ *   name="Advanced Node"
+ *   headerColor="#2D5A87"
+ *   inputs={[
+ *     {
+ *       id: 'direct-input',
+ *       name: 'Direct Input',
+ *       type: 'string',
+ *       allowInput: true,
+ *     },
+ *     {
+ *       id: 'settings-panel',
+ *       name: 'Settings Panel',
+ *       inputs: [
+ *         {
+ *           id: 'threshold',
+ *           name: 'Threshold',
+ *           type: 'number',
+ *           handleShape: 'diamond',
+ *           allowInput: true,
+ *         },
+ *       ],
+ *     },
+ *   ]}
+ * />
+ * ```
+ */
 const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
   (
     {

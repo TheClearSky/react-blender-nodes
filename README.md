@@ -5,53 +5,25 @@ a flexible and customizable node-based graph editor for web applications.
 
 ![React Blender Nodes Banner](./docs/screenshots/banner.png)
 
-## 🎯 Overview
+## Quick Links
+
+- [![Storybook](https://img.shields.io/badge/Storybook-FF4785?style=for-the-badge&logo=storybook&logoColor=white)](https://theclearsky.github.io/react-blender-nodes/?path=/story/components-organisms-fullgraph--playground) -
+  Interactive examples and component playground
+- [![NPM](https://img.shields.io/badge/NPM-%23CB3837.svg?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/@theclearsky/react-blender-nodes) -
+  Install and use in your project
+- [![GitHub Issues](https://img.shields.io/badge/GitHub-Issues-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/TheClearSky/react-blender-nodes/issues) -
+  Report bugs and issues
+- [![GitHub Discussions](https://img.shields.io/badge/GitHub-Discussions-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/TheClearSky/react-blender-nodes/discussions) -
+  Request features and discuss ideas
+
+## Overview
 
 React Blender Nodes recreates the iconic Blender node editor experience on the
 web. Built with modern React patterns and TypeScript, it offers a complete
 solution for creating interactive node-based interfaces with support for custom
 nodes, connections, and real-time manipulation.
 
-## ✨ Features
-
-### 🎨 Blender-Inspired Interface
-
-![Blender Interface](./docs/screenshots/blender-interface.png)
-
-- Authentic dark theme matching Blender's node editor
-- Familiar interactions and visual design
-- Smooth animations and transitions
-
-### 🔧 Customizable Nodes
-
-![Customizable Nodes](./docs/screenshots/customizable-nodes.png)
-
-- Dynamic inputs and outputs with custom shapes
-- Collapsible input panels for complex configurations
-- Interactive input components (text, number sliders)
-- Custom handle shapes (circle, square, diamond, star, etc.)
-
-### 🎮 Interactive Graph Editor
-
-![Interactive Graph](./docs/screenshots/interactive-graph.png)
-
-- Pan, zoom, and select nodes with intuitive controls
-- Drag and drop node connections
-- Context menu for adding new nodes
-- Real-time node manipulation
-
-### 🎯 Advanced Features
-
-![Advanced Features](./docs/screenshots/advanced-features.png)
-
-- **Handle Shapes**: 13+ custom handle shapes including geometric and artistic
-  designs
-- **Input Components**: Built-in text and number inputs with validation
-- **Panel System**: Collapsible panels for organizing complex node inputs
-- **State Management**: Integrated reducer for managing graph state
-- **TypeScript Support**: Full type safety with comprehensive definitions
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -122,7 +94,7 @@ function MyNodeEditor() {
 }
 ```
 
-### 🔒 Type Safety with Auto-Infer Helpers
+### Type Safety with Auto-Infer Helpers
 
 The auto-infer helper functions are **essential** for type safety in React
 Blender Nodes. They ensure TypeScript can properly validate type references
@@ -164,7 +136,46 @@ const dataTypes = {
 };
 ```
 
-## 📖 Usage Examples
+## Features
+
+### 🎨 Blender-Inspired Interface
+
+![Blender Interface](./docs/screenshots/blender-interface.png)
+
+- Authentic dark theme matching Blender's node editor
+- Familiar interactions and visual design
+- Smooth animations and transitions
+
+### 🔧 Customizable Nodes
+
+![Customizable Nodes](./docs/screenshots/customizable-nodes.png)
+
+- Dynamic inputs and outputs with custom shapes
+- Collapsible input panels for complex configurations
+- Interactive input components (text, number sliders)
+- Custom handle shapes (circle, square, diamond, star, etc.)
+
+### 🎮 Interactive Graph Editor
+
+![Interactive Graph](./docs/screenshots/interactive-graph.png)
+
+- Pan, zoom, and select nodes with intuitive controls
+- Drag and drop node connections
+- Context menu for adding new nodes
+- Real-time node manipulation
+
+### 🎯 Advanced Features
+
+![Advanced Features](./docs/screenshots/advanced-features.png)
+
+- **Handle Shapes**: 13+ custom handle shapes including geometric and artistic
+  designs
+- **Input Components**: Built-in text and number inputs with validation
+- **Panel System**: Collapsible panels for organizing complex node inputs
+- **State Management**: Integrated reducer for managing graph state
+- **TypeScript Support**: Full type safety with comprehensive definitions
+
+## Usage Examples
 
 ### Custom Node with Panels
 

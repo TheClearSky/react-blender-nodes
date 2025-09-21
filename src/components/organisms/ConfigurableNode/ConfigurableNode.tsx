@@ -2,13 +2,14 @@ import {
   NodeResizerWithMoreControls,
   type NodeResizerWithMoreControlsProps,
 } from '@/components/atoms/NodeResizerWithMoreControls/NodeResizerWithMoreControls';
-import { cn } from '@/utils';
+import { cn, type DataType, type SupportedUnderlyingTypes } from '@/utils';
 import { Position, useNodeConnections } from '@xyflow/react';
 import { forwardRef, type HTMLAttributes, useState } from 'react';
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { Button } from '@/components/atoms';
 import { ContextAwareHandle, type HandleShape } from './ContextAwareHandle';
 import { ContextAwareInput } from './ContextAwareInput';
+import { z } from 'zod';
 
 /**
  * Configuration for a node input
@@ -16,7 +17,13 @@ import { ContextAwareInput } from './ContextAwareInput';
  * Defines an input socket on a node with optional interactive input component.
  * Supports both string and number types with type-specific onChange handlers.
  */
-type ConfigurableNodeInput = {
+type ConfigurableNodeInput<
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+  DataTypeUniqueId extends string = string,
+> = {
   /** Unique identifier for the input */
   id: string;
   /** Display name for the input */
@@ -27,6 +34,17 @@ type ConfigurableNodeInput = {
   handleShape?: HandleShape;
   /** Whether to show an interactive input component when not connected */
   allowInput?: boolean;
+
+  /** Data type of the input, used by full graph */
+  dataType?: {
+    dataTypeObject: DataType<UnderlyingType, ComplexSchemaType>;
+    dataTypeUniqueId: DataTypeUniqueId;
+  };
+  /** Inferred data type of the input (only when type inference is enabled and datatype is inferredFromConnection and connected), used by full graph */
+  inferredDataType?: {
+    dataTypeObject: DataType<UnderlyingType, ComplexSchemaType>;
+    dataTypeUniqueId: DataTypeUniqueId;
+  } | null;
 } & (
   | {
       /** String input type */
@@ -51,7 +69,13 @@ type ConfigurableNodeInput = {
  *
  * Defines an output socket on a node that can be connected to inputs.
  */
-type ConfigurableNodeOutput = {
+type ConfigurableNodeOutput<
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+  DataTypeUniqueId extends string = string,
+> = {
   /** Unique identifier for the output */
   id: string;
   /** Display name for the output */
@@ -60,6 +84,17 @@ type ConfigurableNodeOutput = {
   handleColor?: string;
   /** Shape of the output handle (circle, square, diamond, etc.) */
   handleShape?: HandleShape;
+
+  /** Data type of the output, used by full graph */
+  dataType?: {
+    dataTypeObject: DataType<UnderlyingType, ComplexSchemaType>;
+    dataTypeUniqueId: DataTypeUniqueId;
+  };
+  /** Inferred data type of the output (only when type inference is enabled and datatype is inferredFromConnection and connected), used by full graph */
+  inferredDataType?: {
+    dataTypeObject: DataType<UnderlyingType, ComplexSchemaType>;
+    dataTypeUniqueId: DataTypeUniqueId;
+  } | null;
 } & (
   | {
       /** String output type */
@@ -76,13 +111,23 @@ type ConfigurableNodeOutput = {
  *
  * Groups multiple inputs together in a collapsible panel for better organization.
  */
-type ConfigurableNodeInputPanel = {
+type ConfigurableNodeInputPanel<
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+  DataTypeUniqueId extends string = string,
+> = {
   /** Unique identifier for the panel */
   id: string;
   /** Display name for the panel */
   name: string;
   /** Array of inputs contained in this panel */
-  inputs: ConfigurableNodeInput[];
+  inputs: ConfigurableNodeInput<
+    UnderlyingType,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >[];
 };
 
 /**
@@ -91,23 +136,50 @@ type ConfigurableNodeInputPanel = {
  * Defines the complete configuration for a customizable node with inputs, outputs,
  * and optional panels. Supports both standalone usage and ReactFlow integration.
  */
-type ConfigurableNodeProps = {
+type ConfigurableNodeProps<
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+  DataTypeUniqueId extends string = string,
+> = {
   /** Display name of the node */
   name?: string;
   /** Background color of the node header */
   headerColor?: string;
   /** Array of inputs and input panels */
-  inputs?: (ConfigurableNodeInput | ConfigurableNodeInputPanel)[];
+  inputs?: (
+    | ConfigurableNodeInput<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>
+    | ConfigurableNodeInputPanel<
+        UnderlyingType,
+        ComplexSchemaType,
+        DataTypeUniqueId
+      >
+  )[];
   /** Array of output sockets */
-  outputs?: ConfigurableNodeOutput[];
+  outputs?: ConfigurableNodeOutput<
+    UnderlyingType,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >[];
   /** Whether the node is currently inside a ReactFlow context */
   isCurrentlyInsideReactFlow?: boolean;
   /** Props for the node resizer component */
   nodeResizerProps?: NodeResizerWithMoreControlsProps;
 } & HTMLAttributes<HTMLDivElement>;
 
-type RenderInputProps = {
-  input: ConfigurableNodeInput;
+type RenderInputProps<
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+  DataTypeUniqueId extends string = string,
+> = {
+  input: ConfigurableNodeInput<
+    UnderlyingType,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >;
   isCurrentlyInsideReactFlow: boolean;
   hide?: boolean;
 };
@@ -164,8 +236,18 @@ const RenderInput = forwardRef<HTMLDivElement, RenderInputProps>(
 
 RenderInput.displayName = 'RenderInput';
 
-type RenderOutputProps = {
-  output: ConfigurableNodeOutput;
+type RenderOutputProps<
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+  DataTypeUniqueId extends string = string,
+> = {
+  output: ConfigurableNodeOutput<
+    UnderlyingType,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >;
   isCurrentlyInsideReactFlow: boolean;
 };
 
@@ -194,8 +276,18 @@ const RenderOutput = forwardRef<HTMLDivElement, RenderOutputProps>(
 RenderOutput.displayName = 'RenderOutput';
 
 // Helper function to render a collapsible panel
-type RenderInputPanelProps = {
-  panel: ConfigurableNodeInputPanel;
+type RenderInputPanelProps<
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+  DataTypeUniqueId extends string = string,
+> = {
+  panel: ConfigurableNodeInputPanel<
+    UnderlyingType,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >;
   isCurrentlyInsideReactFlow: boolean;
   isOpen: boolean;
   onToggle: () => void;
@@ -352,6 +444,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
         tabIndex={0}
         className={cn(
           'flex flex-col gap-0 rounded-md w-max border-[1.5px] border-transparent focus:border-white',
+          'in-[.selected]:border-white', //in-[.selected]:text-white is handled by the parent (inside react flow)
           className,
         )}
         {...props}

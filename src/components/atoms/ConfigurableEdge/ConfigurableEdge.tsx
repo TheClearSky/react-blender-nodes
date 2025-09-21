@@ -1,17 +1,14 @@
 import { getInputOrOutputFromNodeData } from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
-import { cn, isCoordinateInBox } from '@/utils';
+import { cn } from '@/utils';
 import {
   BaseEdge,
   getBezierPath,
   useNodesData,
-  useOnViewportChange,
-  useReactFlow,
   useStoreApi,
   type EdgeProps,
   type Edge,
-  type Viewport,
 } from '@xyflow/react';
-import { forwardRef, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 
 /** State type for configurable edges */
 type ConfigurableEdgeState = Edge<{}, 'configurableEdge'>;
@@ -78,50 +75,45 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
       targetPosition,
     });
 
-    const reactflowStore = useStoreApi();
-    const { flowToScreenPosition } = useReactFlow();
+    const store = useStoreApi();
 
-    const [viewport, setViewport] = useState({
-      viewportXDebounced: 0,
-      viewportYDebounced: 0,
-      viewportZoomDebounced: 0,
-    });
+    const [isInViewport, setIsInViewport] = useState(true);
 
-    useOnViewportChange({
-      onEnd: (viewport: Viewport) => {
-        setViewport({
-          viewportXDebounced: viewport.x,
-          viewportYDebounced: viewport.y,
-          viewportZoomDebounced: viewport.zoom,
-        });
-      },
-    });
+    const domIntersectionObserver = useRef<IntersectionObserver>(null);
 
-    const isInViewport = useMemo(() => {
-      const { domNode } = reactflowStore.getState();
-      const domRect = domNode?.getBoundingClientRect();
-      if (!domRect) return false;
-      const sourceScreenPosition = flowToScreenPosition({
-        x: sourceX,
-        y: sourceY,
-      });
-      const targetScreenPosition = flowToScreenPosition({
-        x: targetX,
-        y: targetY,
-      });
-      return (
-        isCoordinateInBox(sourceScreenPosition, domRect) ||
-        isCoordinateInBox(targetScreenPosition, domRect)
+    useEffect(() => {
+      const domNode = store.getState().domNode;
+      if (!domNode) return;
+      const currentElement = document.getElementById(id);
+      if (!currentElement) return;
+
+      // Create intersection observer
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries.find((entry) => entry.target.id === id);
+          if (!entry) return;
+          setIsInViewport((_) => entry.isIntersecting);
+        },
+        {
+          root: domNode,
+          threshold: 1, // Trigger when 100% visible
+          rootMargin: '20px',
+        },
       );
-    }, [
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
-      viewport.viewportXDebounced,
-      viewport.viewportYDebounced,
-      viewport.viewportZoomDebounced,
-    ]);
+
+      observer.observe(currentElement);
+
+      // Store observer in ref for cleanup
+      domIntersectionObserver.current = observer;
+
+      // Cleanup function
+      return () => {
+        if (domIntersectionObserver.current) {
+          domIntersectionObserver.current.disconnect();
+          domIntersectionObserver.current = null;
+        }
+      };
+    }, [store.getState().domNode]);
 
     const sourceNodeData = useNodesData(props.source || '');
 
@@ -175,7 +167,9 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
             '!stroke-7 in-[g.selected]:brightness-150',
             !isInViewport && 'opacity-25',
           )}
-          style={{ stroke: `url(#${`linear-gradient-edge-${id}`})` }}
+          style={{
+            stroke: `url(#${`linear-gradient-edge-${id}`})`,
+          }}
           focusable={true}
         />
       </>

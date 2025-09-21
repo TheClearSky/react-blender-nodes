@@ -12,6 +12,8 @@ import type {
   ConfigurableNodeInputPanel,
   ConfigurableNodeOutput,
 } from '@/components/organisms/ConfigurableNode/ConfigurableNode';
+import type { HandleIndices } from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
+import type { ConfigurableNodeReactFlowWrapperProps } from '@/components/organisms/ConfigurableNode/ConfigurableNodeReactFlowWrapper';
 
 const lengthOfIds = 20;
 
@@ -61,33 +63,57 @@ function constructInputOrOutputOfType<
     ? z.ZodType
     : never = never,
 >(
-  typeOfDataType:
+  typeOfDataTypeInNode:
     | TypeOfInput<DataTypeUniqueId>
     | TypeOfNode<DataTypeUniqueId>['outputs'][number],
-  dataTypes: State<
+  allDataTypes: State<
     DataTypeUniqueId,
     NodeTypeUniqueId,
     UnderlyingType,
     ComplexSchemaType
   >['dataTypes'],
-): ConfigurableNodeInput | ConfigurableNodeOutput {
-  const dataType = dataTypes[typeOfDataType.dataType as DataTypeUniqueId];
+):
+  | ConfigurableNodeInput<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>
+  | ConfigurableNodeOutput<
+      UnderlyingType,
+      ComplexSchemaType,
+      DataTypeUniqueId
+    > {
+  const matchingDataTypeFromAllDataTypes =
+    allDataTypes[typeOfDataTypeInNode.dataType];
 
-  if (dataType.underlyingType === 'number') {
+  const resultantAllowInput =
+    typeOfDataTypeInNode.allowInput ??
+    matchingDataTypeFromAllDataTypes.allowInput;
+
+  if (matchingDataTypeFromAllDataTypes.underlyingType === 'number') {
     return {
       id: generateRandomString(lengthOfIds),
-      name: typeOfDataType.name,
-      handleColor: dataType.color,
-      allowInput: typeOfDataType.allowInput,
+      name: typeOfDataTypeInNode.name,
+      handleColor: matchingDataTypeFromAllDataTypes.color,
+      allowInput: resultantAllowInput,
       type: 'number' as const,
+      handleShape: matchingDataTypeFromAllDataTypes.shape,
+      dataType: {
+        dataTypeObject: matchingDataTypeFromAllDataTypes,
+        dataTypeUniqueId: typeOfDataTypeInNode.dataType,
+      },
     };
   } else {
     return {
       id: generateRandomString(lengthOfIds),
-      name: typeOfDataType.name,
-      handleColor: dataType.color,
-      allowInput: typeOfDataType.allowInput,
+      name: typeOfDataTypeInNode.name,
+      handleColor: matchingDataTypeFromAllDataTypes.color,
+      allowInput:
+        matchingDataTypeFromAllDataTypes.underlyingType === 'string'
+          ? resultantAllowInput
+          : false,
       type: 'string' as const,
+      handleShape: matchingDataTypeFromAllDataTypes.shape,
+      dataType: {
+        dataTypeObject: matchingDataTypeFromAllDataTypes,
+        dataTypeUniqueId: typeOfDataTypeInNode.dataType,
+      },
     };
   }
 }
@@ -144,25 +170,29 @@ function constructInputPanelOfType<
     ? z.ZodType
     : never = never,
 >(
-  typeOfPanel: {
+  typeOfPanelInNode: {
     name: string;
     inputs: { name: string; dataType: DataTypeUniqueId }[];
   },
-  dataTypes: State<
+  allDataTypes: State<
     DataTypeUniqueId,
     NodeTypeUniqueId,
     UnderlyingType,
     ComplexSchemaType
   >['dataTypes'],
-): ConfigurableNodeInputPanel {
+): ConfigurableNodeInputPanel<
+  UnderlyingType,
+  ComplexSchemaType,
+  DataTypeUniqueId
+> {
   const panelId = generateRandomString(lengthOfIds);
-  const inputs = typeOfPanel.inputs.map((input) =>
-    constructInputOrOutputOfType(input, dataTypes),
-  ) as ConfigurableNodeInput[];
+  const inputs = typeOfPanelInNode.inputs.map((input) =>
+    constructInputOrOutputOfType(input, allDataTypes),
+  );
 
   return {
     id: panelId,
-    name: typeOfPanel.name,
+    name: typeOfPanelInNode.name,
     inputs,
   };
 }
@@ -232,7 +262,7 @@ function constructNodeOfType<
     ? z.ZodType
     : never = never,
 >(
-  dataTypes: State<
+  allDataTypes: State<
     DataTypeUniqueId,
     NodeTypeUniqueId,
     UnderlyingType,
@@ -253,21 +283,21 @@ function constructNodeOfType<
   UnderlyingType,
   ComplexSchemaType
 >['nodes'][number] {
-  const nodeTypeData = typeOfNodes[nodeType as NodeTypeUniqueId];
+  const nodeTypeData = typeOfNodes[nodeType];
 
   // Process inputs - can be either regular inputs or panels
   const inputs = nodeTypeData.inputs.map((input) => {
     if ('inputs' in input) {
       // This is a panel
-      return constructInputPanelOfType(input, dataTypes);
+      return constructInputPanelOfType(input, allDataTypes);
     } else {
       // This is a regular input
-      return constructInputOrOutputOfType(input, dataTypes);
+      return constructInputOrOutputOfType(input, allDataTypes);
     }
   });
 
   const outputs = nodeTypeData.outputs.map((output) =>
-    constructInputOrOutputOfType(output, dataTypes),
+    constructInputOrOutputOfType(output, allDataTypes),
   );
   return {
     id: nodeId,
@@ -282,11 +312,81 @@ function constructNodeOfType<
       inputs,
       outputs,
     },
-  };
+    //The types typescript complains about are internally set by ReactFlow, we don't need to set them here
+    //This is perfectly fine, refer to: https://reactflow.dev/examples/nodes/add-node-on-edge-drop
+  } as ConfigurableNodeReactFlowWrapperProps<
+    UnderlyingType,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >;
+}
+
+/**
+ * Constructs the type of a handle from indices
+ *
+ * This function constructs the type of a handle from indices, handling both regular inputs and inputs within panels.
+ *
+ * @param allDataTypes - The all data types
+ * @param nodeType - The node type
+ * @param typeOfNodes - The type of nodes
+ * @param indices - The indices of the handle
+ * @returns The type of the handle
+ */
+function constructTypeOfHandleFromIndices<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  allDataTypes: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['dataTypes'],
+  nodeType: NodeTypeUniqueId,
+  typeOfNodes: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['typeOfNodes'],
+  indices: HandleIndices | undefined,
+):
+  | ConfigurableNodeInput<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>
+  | ConfigurableNodeOutput<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>
+  | undefined {
+  const nodeTypeData = typeOfNodes[nodeType];
+
+  if (!indices) {
+    return undefined;
+  }
+  if (indices.type === 'input') {
+    const inputOrPanel = nodeTypeData?.inputs?.[indices.index1];
+    if (!inputOrPanel) {
+      return undefined;
+    }
+    if (indices.index2 !== undefined && 'inputs' in inputOrPanel) {
+      return constructInputOrOutputOfType(
+        inputOrPanel.inputs?.[indices.index2],
+        allDataTypes,
+      );
+    } else if (indices.index2 === undefined && !('inputs' in inputOrPanel)) {
+      return constructInputOrOutputOfType(inputOrPanel, allDataTypes);
+    }
+  } else {
+    return constructInputOrOutputOfType(
+      nodeTypeData?.outputs?.[indices.index1],
+      allDataTypes,
+    );
+  }
 }
 
 export {
   constructNodeOfType,
   constructInputOrOutputOfType,
   constructInputPanelOfType,
+  constructTypeOfHandleFromIndices,
 };

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Nodes, Edges } from '@/components/organisms/FullGraph/types';
+import type { HandleShape } from '@/components/organisms/ConfigurableNode/ContextAwareHandle';
 
 /**
  * Array of supported underlying data types
@@ -68,6 +69,10 @@ type DataType<
       complexSchema: ComplexSchemaType;
       /** Color used for visual representation */
       color: string;
+      /** Shape of the handle */
+      shape?: HandleShape;
+      /** Whether this input allows direct user input */
+      allowInput?: boolean;
     }
   : {
       /** Display name of the data type */
@@ -78,6 +83,10 @@ type DataType<
       complexSchema?: undefined;
       /** Color used for visual representation */
       color: string;
+      /** Shape of the handle */
+      shape?: HandleShape;
+      /** Whether this input allows direct user input */
+      allowInput?: boolean;
     };
 
 /**
@@ -116,6 +125,25 @@ function makeDataTypeWithAutoInfer<
     : never = never,
 >(input: DataType<UnderlyingType, ComplexSchemaType>) {
   return input;
+}
+
+/**
+ * Type guard to check if a string is a valid DataTypeUniqueId
+ */
+function isValidDataTypeId<
+  DataTypeUniqueId extends string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  id: string,
+  dataTypes: Record<
+    DataTypeUniqueId,
+    DataType<UnderlyingType, ComplexSchemaType>
+  >,
+): id is DataTypeUniqueId {
+  return id in dataTypes;
 }
 
 /**
@@ -200,6 +228,16 @@ function makeTypeOfNodeWithAutoInfer<DataTypeUniqueId extends string = string>(
 }
 
 /**
+ * Type guard to check if a string is a valid NodeTypeUniqueId
+ */
+function isValidNodeTypeUniqueId<NodeTypeUniqueId extends string>(
+  id: string,
+  nodeIdToNodeType: Record<string, NodeTypeUniqueId>,
+): id is NodeTypeUniqueId {
+  return id in nodeIdToNodeType;
+}
+
+/**
  * Mapping from node IDs to their node types
  *
  * @template NodeTypeUniqueId - Unique identifier type for node types
@@ -242,6 +280,51 @@ function makeNodeIdToNodeTypeWithAutoInfer<
 }
 
 /**
+ * Mapping of allowed conversions between data types
+ *
+ * @template DataTypeUniqueId - Unique identifier type for data types
+ */
+type AllowedConversionsBetweenDataTypes<
+  DataTypeUniqueId extends string = string,
+> = Partial<
+  Record<DataTypeUniqueId, Partial<Record<DataTypeUniqueId, boolean>>>
+>;
+
+/**
+ * Helper function to create a mapping of allowed conversions between data types with automatic type inference
+ *
+ * This function is essential for type safety when creating a mapping of allowed conversions between data types.
+ * It ensures that TypeScript can properly infer and validate the types throughout your graph system,
+ * preventing runtime errors and providing better IDE support.
+ *
+ * @template DataTypeUniqueId - Unique identifier type for data types
+ * @param input - The mapping of allowed conversions between data types
+ * @returns The mapping with proper typing
+ *
+ * @example
+ * ```tsx
+ * // ✅ Type-safe - TypeScript will validate node type references
+ * const allowedConversionsBetweenDataTypes = makeAllowedConversionsBetweenDataTypesWithAutoInfer({
+ *   'inputDataType': {
+ *     'outputDataType': true,
+ *   },
+ * });
+ *
+ * // ❌ Without auto-infer - TypeScript can't validate node type references
+ * const allowedConversionsBetweenDataTypes = {
+ *   'inputDataType': {
+ *     'outputDataType': true,
+ *   },
+ * };
+ * ```
+ */
+function makeAllowedConversionsBetweenDataTypesWithAutoInfer<
+  DataTypeUniqueId extends string = string,
+>(input: AllowedConversionsBetweenDataTypes<DataTypeUniqueId>) {
+  return input;
+}
+
+/**
  * Complete state definition for the graph system
  *
  * @template DataTypeUniqueId - Unique identifier type for data types
@@ -265,11 +348,17 @@ type State<
   /** Map of node type definitions */
   typeOfNodes: Record<NodeTypeUniqueId, TypeOfNode<DataTypeUniqueId>>;
   /** Array of nodes in the graph */
-  nodes: Nodes;
+  nodes: Nodes<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>;
   /** Mapping from node IDs to their types */
   nodeIdToNodeType: NodeIdToNodeType<NodeTypeUniqueId>;
   /** Array of edges in the graph */
   edges: Edges;
+  /** Optional mapping of allowed conversions between data types */
+  allowedConversionsBetweenDataTypes?: AllowedConversionsBetweenDataTypes<DataTypeUniqueId>;
+  /** Whether to enable type inference */
+  enableTypeInference?: boolean;
+  /** Whether to enable complex type checking */
+  enableComplexTypeChecking?: boolean;
 };
 
 /**
@@ -337,60 +426,16 @@ function makeStateWithAutoInfer<
   return input;
 }
 
-// example usage
-// const dataTypes = {
-//   dataType1: makeDataTypeWithAutoInfer({
-//     name: 'string',
-//     underlyingType: 'complex',
-//     complexSchema: z.string(),
-//     color: 'red',
-//   }),
-//   dataType2: makeDataTypeWithAutoInfer({
-//     name: 'number',
-//     underlyingType: 'inferFromConnection',
-//     color: 'blue',
-//   }),
-// };
-
-// const typeOfNodes = {
-//   nodeType1: makeTypeOfNodeWithAutoInfer<keyof typeof dataTypes>({
-//     name: 'string',
-//     inputs: [
-//       { name: 'input1', dataType: 'dataType1' },
-//       { name: 'input2', dataType: 'dataType2' },
-//     ],
-//     outputs: [{ name: 'output1', dataType: 'dataType1' }],
-//   }),
-//   nodeType2: makeTypeOfNodeWithAutoInfer<keyof typeof dataTypes>({
-//     name: 'number',
-//     inputs: [{ name: 'input1', dataType: 'dataType2' }],
-//     outputs: [{ name: 'output1', dataType: 'dataType1' }],
-//   }),
-// };
-
-// const nodeIdToNodeType = makeNodeIdToNodeTypeWithAutoInfer<
-//   keyof typeof typeOfNodes
-// >({
-//   node1: 'nodeType1',
-//   nodeTypeLol: 'nodeType2',
-//   nodeTypeLol2: 'nodeType2',
-// });
-
-// const state = makeStateWithAutoInfer({
-//   dataTypes,
-//   typeOfNodes,
-//   nodeIdToNodeType,
-//   nodes: [],
-//   edges: [],
-// });
-
 export {
   isSupportedUnderlyingType,
   makeDataTypeWithAutoInfer,
   makeTypeOfNodeWithAutoInfer,
   makeNodeIdToNodeTypeWithAutoInfer,
+  makeAllowedConversionsBetweenDataTypesWithAutoInfer,
   makeStateWithAutoInfer,
   supportedUnderlyingTypesMap,
+  isValidDataTypeId,
+  isValidNodeTypeUniqueId,
 };
 export type {
   SupportedUnderlyingTypes,

@@ -1,18 +1,39 @@
 import { forwardRef } from 'react';
-import { type NodeProps, type Node } from '@xyflow/react';
+import { type NodeProps, type Node, type XYPosition } from '@xyflow/react';
 import {
   type ConfigurableNodeProps,
   ConfigurableNode,
 } from './ConfigurableNode';
+import type { SupportedUnderlyingTypes } from '@/utils';
+import { z } from 'zod';
 
 /** State type for configurable nodes in ReactFlow */
-type ConfigurableNodeState = Node<
-  Omit<ConfigurableNodeProps, 'isCurrentlyInsideReactFlow'>,
+type ConfigurableNodeState<
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+  DataTypeUniqueId extends string = string,
+> = Node<
+  Omit<
+    ConfigurableNodeProps<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>,
+    'isCurrentlyInsideReactFlow'
+  >,
   'configurableNode'
 >;
 
 /** Props for the ConfigurableNodeReactFlowWrapper component */
-type ConfigurableNodeReactFlowWrapperProps = NodeProps<ConfigurableNodeState>;
+type ConfigurableNodeReactFlowWrapperProps<
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+  DataTypeUniqueId extends string = string,
+> = NodeProps<
+  ConfigurableNodeState<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>
+> & {
+  position: XYPosition;
+};
 
 /**
  * ReactFlow wrapper for the ConfigurableNode component
@@ -59,7 +80,7 @@ type ConfigurableNodeReactFlowWrapperProps = NodeProps<ConfigurableNodeState>;
  */
 const ConfigurableNodeReactFlowWrapper = forwardRef<
   HTMLDivElement,
-  ConfigurableNodeReactFlowWrapperProps
+  Omit<ConfigurableNodeReactFlowWrapperProps, 'position'>
 >(({ data = {} }, ref) => {
   return (
     <ConfigurableNode

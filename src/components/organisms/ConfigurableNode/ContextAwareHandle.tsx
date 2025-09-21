@@ -214,20 +214,13 @@ const renderHandleShape = (
       return (
         <div
           className={cn('w-6 h-6', className)}
-          style={
-            {
-              ...colorStyle,
-              '--a': '90deg',
-              '--s': '24px',
-              '--b': '4px',
-              width: 'calc(var(--b) + var(--s)/(2*tan(var(--a)/2)))',
-              minHeight: '24px',
-              '--_g':
-                '100% var(--s) repeat-y conic-gradient(from calc(90deg - var(--a)/2) at left, #0000, #000 1deg calc(var(--a) - 1deg), #0000 var(--a))',
-              mask: 'var(--b) 50%/var(--_g) exclude, 0 50%/var(--_g)',
-              border: '2px solid black',
-            } as React.CSSProperties
-          }
+          style={{
+            ...colorStyle,
+            width: 'calc(4px + 24px/(2*tan(90deg/2)))',
+            minHeight: '24px',
+            mask: '4px 50%/100% 24px repeat-y conic-gradient(from calc(90deg - 90deg/2) at left, #0000, #000 1deg calc(90deg - 1deg), #0000 90deg) exclude, 0 50%/100% 24px repeat-y conic-gradient(from calc(90deg - 90deg/2) at left, #0000, #000 1deg calc(90deg - 1deg), #0000 90deg)',
+            border: '2px solid black',
+          }}
         />
       );
 
@@ -235,13 +228,11 @@ const renderHandleShape = (
       return (
         <div
           className={cn('w-6 h-6', className)}
-          style={
-            {
-              ...colorStyle,
-              mask: 'radial-gradient(#0000 71%, #000 72%) 10000% 10000%/99.5% 99.5%',
-              border: '2px solid black',
-            } as React.CSSProperties
-          }
+          style={{
+            ...colorStyle,
+            mask: 'radial-gradient(#0000 71%, #000 72%) 10000% 10000%/99.5% 99.5%',
+            border: '2px solid black',
+          }}
         />
       );
 
@@ -348,7 +339,7 @@ const ContextAwareHandle = forwardRef<HTMLDivElement, ContextAwareHandleProps>(
           {...props}
           ref={ref}
         >
-          <div className='pointer-events-none'>
+          <div className={cn('pointer-events-none flex justify-center')}>
             {renderHandleShape(shape, color || '#A1A1A1', className)}
           </div>
         </Handle>

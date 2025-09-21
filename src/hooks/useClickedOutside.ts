@@ -66,7 +66,11 @@ function useClickedOutside<T extends HTMLElement>(
       }
       let allChecksPassed = true;
       // Check if the target is a descendant of the ref, if not, the callback is called
-      if (checkDescendants && !currentRef.contains(event.target as Node)) {
+      if (
+        checkDescendants &&
+        event.target instanceof Node &&
+        !currentRef.contains(event.target)
+      ) {
         allChecksPassed = false;
       }
       // Check if the target is inside the ref, if not, the callback is called

@@ -52,7 +52,10 @@ function convertStringToNumber(inputNumberAsString: string) {
  * @returns The sanitized number as a string
  */
 function sanitizeNumberToShowAsText(value: number, numberOfDecimals: number) {
-  return value.toFixed(numberOfDecimals).replace(/[0]+$/, '');
+  return value
+    .toFixed(numberOfDecimals)
+    .replace(/[0]+$/, '')
+    .replace(/\.$/, '');
 }
 
 export { convertStringToNumber, sanitizeNumberToShowAsText };

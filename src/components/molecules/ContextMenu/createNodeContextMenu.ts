@@ -1,17 +1,21 @@
 import { PlusIcon } from 'lucide-react';
 import { createElement, type ActionDispatch } from 'react';
 import type { ContextMenuItem } from './ContextMenu';
-import type { State } from '@/utils/nodeStateManagement/types';
+import type {
+  State,
+  SupportedUnderlyingTypes,
+} from '@/utils/nodeStateManagement/types';
 import { type XYPosition } from '@xyflow/react';
-import type { Action } from '@/utils/nodeStateManagement/mainReducer';
+import {
+  actionTypesMap,
+  type Action,
+} from '@/utils/nodeStateManagement/mainReducer';
+import { z } from 'zod';
 
 type CreateNodeContextMenuProps<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
-  UnderlyingType extends 'string' | 'number' | 'complex' =
-    | 'string'
-    | 'number'
-    | 'complex',
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? any
     : never = never,
@@ -47,12 +51,9 @@ type CreateNodeContextMenuProps<
 function createNodeContextMenu<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
-  UnderlyingType extends 'string' | 'number' | 'complex' =
-    | 'string'
-    | 'number'
-    | 'complex',
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
   ComplexSchemaType extends UnderlyingType extends 'complex'
-    ? any
+    ? z.ZodType
     : never = never,
 >({
   typeOfNodes,
@@ -65,10 +66,10 @@ function createNodeContextMenu<
   UnderlyingType,
   ComplexSchemaType
 >): ContextMenuItem[] {
-  // Get all node type names and create menu items
-  const nodeTypeKeys: NodeTypeUniqueId[] = Object.keys(
-    typeOfNodes,
-  ) as NodeTypeUniqueId[];
+  // Get all node type names and create menu items, also preserve the type of the keys
+  const nodeTypeKeys = Object.keys(typeOfNodes) as Array<
+    keyof typeof typeOfNodes
+  >;
 
   if (nodeTypeKeys.length === 0) {
     return [];
@@ -80,7 +81,7 @@ function createNodeContextMenu<
     onClick: () => {
       // Dispatch the ADD_NODE action
       dispatch({
-        type: 'ADD_NODE',
+        type: actionTypesMap.ADD_NODE_AND_SELECT,
         payload: {
           type: nodeTypeId,
           position: contextMenuPosition,

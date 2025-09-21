@@ -39,7 +39,7 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
                 data: modifyInputsInNodeDataWithoutMutating(
                   input.id,
                   currentNode.data,
-                  newValue,
+                  { value: newValue },
                 ),
               };
             }
@@ -64,7 +64,7 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
                 data: modifyInputsInNodeDataWithoutMutating(
                   input.id,
                   currentNode.data,
-                  newValue,
+                  { value: newValue },
                 ),
               };
             }

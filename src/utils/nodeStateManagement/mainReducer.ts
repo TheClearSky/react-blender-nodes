@@ -4,7 +4,10 @@ import { produce } from 'immer';
 import { generateRandomString } from '../randomGeneration';
 import { constructNodeOfType } from './constructAndModifyNodes';
 import {
-  addEdge,
+  addEdgeWithTypeChecking,
+  removeEdgeWithTypeChecking,
+} from './constructAndModifyHandles';
+import {
   applyEdgeChanges,
   applyNodeChanges,
   type Connection,
@@ -18,6 +21,7 @@ const lengthOfIds = 20;
 /** Available action types for the graph state reducer */
 const actionTypes = [
   'ADD_NODE',
+  'ADD_NODE_AND_SELECT',
   'UPDATE_NODE_BY_REACT_FLOW',
   'UPDATE_EDGES_BY_REACT_FLOW',
   'ADD_EDGE_BY_REACT_FLOW',
@@ -31,6 +35,7 @@ const actionTypesMap = {
   [actionTypes[2]]: actionTypes[2],
   [actionTypes[3]]: actionTypes[3],
   [actionTypes[4]]: actionTypes[4],
+  [actionTypes[5]]: actionTypes[5],
 } as const;
 
 /**
@@ -65,11 +70,30 @@ type Action<
       };
     }
   | {
+      /** Add a new node to the graph and select it */
+      type: typeof actionTypesMap.ADD_NODE_AND_SELECT;
+      payload: {
+        /** Type of node to add */
+        type: State<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >['nodeIdToNodeType'][string];
+        /** Position where to place the node */
+        position: XYPosition;
+      };
+    }
+  | {
       /** Update nodes based on ReactFlow changes */
       type: typeof actionTypesMap.UPDATE_NODE_BY_REACT_FLOW;
       payload: {
         /** Array of node changes from ReactFlow */
-        changes: NodeChanges;
+        changes: NodeChanges<
+          UnderlyingType,
+          ComplexSchemaType,
+          DataTypeUniqueId
+        >;
       };
     }
   | {
@@ -221,6 +245,28 @@ function mainReducer<
             position,
           );
           newState.nodes.push(node);
+          newState.nodeIdToNodeType[nodeId] = nodeType;
+          break;
+        case actionTypesMap.ADD_NODE_AND_SELECT:
+          const nodeTypeAndSelect = action.payload.type;
+          const nodeIdAndSelect = generateRandomString(lengthOfIds);
+          const positionAndSelect = action.payload.position;
+
+          const nodeAndSelect: (typeof newState.nodes)[number] =
+            constructNodeOfType(
+              newState.dataTypes,
+              nodeTypeAndSelect,
+              newState.typeOfNodes,
+              nodeIdAndSelect,
+              positionAndSelect,
+            );
+          newState.nodes = newState.nodes.map((node) => ({
+            ...node,
+            selected: false,
+          }));
+          //Set the node to selected
+          newState.nodes.push({ ...nodeAndSelect, selected: true });
+          newState.nodeIdToNodeType[nodeIdAndSelect] = nodeTypeAndSelect;
           break;
         case actionTypesMap.UPDATE_NODE_BY_REACT_FLOW:
           const nodeChanges = action.payload.changes;
@@ -228,16 +274,51 @@ function mainReducer<
           break;
         case actionTypesMap.UPDATE_EDGES_BY_REACT_FLOW:
           const edgeChanges = action.payload.changes;
-          newState.edges = applyEdgeChanges(edgeChanges, newState.edges);
+          for (const edgeChange of edgeChanges) {
+            if (edgeChange.type !== 'remove') {
+              newState.edges = applyEdgeChanges([edgeChange], newState.edges);
+              continue;
+            }
+            const { id: edgeId } = edgeChange;
+            const edge = newState.edges.find((edge) => edge.id === edgeId);
+            if (!edge) {
+              continue;
+            }
+            const removedEdgeResult = removeEdgeWithTypeChecking(
+              edge,
+              newState,
+              edgeChange,
+            );
+            if (!removedEdgeResult.validation.isValid) {
+              continue;
+            }
+            newState.edges = removedEdgeResult.updatedEdges;
+            newState.nodes = removedEdgeResult.updatedNodes;
+          }
+
           break;
         case actionTypesMap.ADD_EDGE_BY_REACT_FLOW:
           const newEdge = action.payload.edge;
-          const edgeChangesOfNewEdge: (typeof newState.edges)[number] = {
-            ...newEdge,
-            type: 'configurableEdge',
-            id: generateRandomString(lengthOfIds),
-          };
-          newState.edges = addEdge(edgeChangesOfNewEdge, newState.edges);
+
+          const { sourceHandle, targetHandle, source, target } = newEdge;
+
+          if (!source || !target || !sourceHandle || !targetHandle) {
+            break;
+          }
+
+          // Use the addEdgeWithTypeChecking function
+          const addedEdgeResult = addEdgeWithTypeChecking(
+            source,
+            sourceHandle,
+            target,
+            targetHandle,
+            newState,
+          );
+          if (!addedEdgeResult.validation.isValid) {
+            break;
+          }
+          newState.edges = addedEdgeResult.updatedEdges;
+          newState.nodes = addedEdgeResult.updatedNodes;
           break;
       }
     },

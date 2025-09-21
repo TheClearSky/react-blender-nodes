@@ -7,8 +7,8 @@ import {
   makeDataTypeWithAutoInfer,
   makeTypeOfNodeWithAutoInfer,
 } from '@/utils/nodeStateManagement/types';
-import { Button } from '@/components/atoms';
 import { handleShapesMap } from '@/components/organisms/ConfigurableNode/ContextAwareHandle';
+import state1 from './PlaygroundState1.json';
 
 const meta = {
   component: FullGraph,
@@ -16,516 +16,315 @@ const meta = {
 
 export default meta;
 
-const dataTypesExample1Data = {
-  dataType1: makeDataTypeWithAutoInfer({
-    name: 'String Data',
+const exampleDataTypes = {
+  rawData: makeDataTypeWithAutoInfer({
+    name: 'Raw Data',
     underlyingType: 'string',
-    color: '#4A90E2',
+    color: '#00BFFF',
+    shape: handleShapesMap.square,
   }),
-  dataType2: makeDataTypeWithAutoInfer({
-    name: 'Number Data',
+  validationRules: makeDataTypeWithAutoInfer({
+    name: 'Validation Rules',
+    underlyingType: 'string',
+    color: '#96CEB4',
+  }),
+  validatedData: makeDataTypeWithAutoInfer({
+    name: 'Validated Data',
+    underlyingType: 'string',
+    color: '#00FFFF',
+    shape: handleShapesMap.list,
+  }),
+  validationStatus: makeDataTypeWithAutoInfer({
+    name: 'Validation Status',
+    underlyingType: 'string',
+    color: '#FECA57',
+  }),
+  errorMessages: makeDataTypeWithAutoInfer({
+    name: 'Error Messages',
+    underlyingType: 'string',
+    color: '#FF6B6B',
+    shape: handleShapesMap.rectangle,
+  }),
+  primaryOutput: makeDataTypeWithAutoInfer({
+    name: 'Primary Output',
     underlyingType: 'number',
-    color: '#7ED321',
+    color: '#FF6B6B',
+    shape: handleShapesMap.grid,
+  }),
+  secondaryOutput: makeDataTypeWithAutoInfer({
+    name: 'Secondary Output',
+    underlyingType: 'number',
+    color: '#00FFFF',
+  }),
+  metadataOutput: makeDataTypeWithAutoInfer({
+    name: 'Metadata Output',
+    underlyingType: 'string',
+    color: '#FECA57',
+  }),
+  textInput: makeDataTypeWithAutoInfer({
+    name: 'Text Input',
+    underlyingType: 'string',
+    color: '#00BFFF',
+    shape: handleShapesMap.rectangle,
+  }),
+  numericInput: makeDataTypeWithAutoInfer({
+    name: 'Numeric Input',
+    underlyingType: 'number',
+    color: '#96CEB4',
+  }),
+  inputString: makeDataTypeWithAutoInfer({
+    name: 'Input String',
+    underlyingType: 'string',
+    color: '#00BFFF',
+    shape: handleShapesMap.diamond,
+  }),
+  inputNumber: makeDataTypeWithAutoInfer({
+    name: 'Input Number',
+    underlyingType: 'number',
+    color: '#96CEB4',
+    shape: handleShapesMap.hexagon,
+  }),
+  configInput: makeDataTypeWithAutoInfer({
+    name: 'Config Input',
+    underlyingType: 'string',
+    color: '#00FFFF',
+  }),
+  transformedString: makeDataTypeWithAutoInfer({
+    name: 'Transformed String',
+    underlyingType: 'string',
+    color: '#FECA57',
+    shape: handleShapesMap.square,
+  }),
+  transformedNumber: makeDataTypeWithAutoInfer({
+    name: 'Transformed Number',
+    underlyingType: 'number',
+    color: '#FF9FF3',
+    shape: handleShapesMap.star,
+  }),
+  statusOutput: makeDataTypeWithAutoInfer({
+    name: 'Status Output',
+    underlyingType: 'string',
+    color: '#A8E6CF',
+    shape: handleShapesMap.cross,
+  }),
+  primaryInput: makeDataTypeWithAutoInfer({
+    name: 'Primary Input',
+    underlyingType: 'string',
+    color: '#00BFFF',
+    shape: handleShapesMap.diamond,
+  }),
+  thresholdValue: makeDataTypeWithAutoInfer({
+    name: 'Threshold Value',
+    underlyingType: 'number',
+    color: '#96CEB4',
+    shape: handleShapesMap.trapezium,
+    allowInput: true,
+  }),
+  configurationString: makeDataTypeWithAutoInfer({
+    name: 'Configuration String',
+    underlyingType: 'string',
+    color: '#00FFFF',
+    allowInput: true,
+  }),
+  maxIterations: makeDataTypeWithAutoInfer({
+    name: 'Max Iterations',
+    underlyingType: 'number',
+    color: '#FF6B6B',
+    shape: handleShapesMap.cross,
+  }),
+  debugMode: makeDataTypeWithAutoInfer({
+    name: 'Debug Mode',
+    underlyingType: 'string',
+    color: '#FECA57',
+  }),
+  verboseLogging: makeDataTypeWithAutoInfer({
+    name: 'Verbose Logging',
+    underlyingType: 'string',
+    color: '#FF9FF3',
+  }),
+  secondaryInput: makeDataTypeWithAutoInfer({
+    name: 'Secondary Input',
+    underlyingType: 'number',
+    color: '#A8E6CF',
+  }),
+  finalResult: makeDataTypeWithAutoInfer({
+    name: 'Final Result',
+    underlyingType: 'string',
+    color: '#FFD93D',
+  }),
+  debugOutput: makeDataTypeWithAutoInfer({
+    name: 'Debug Output',
+    underlyingType: 'string',
+    color: '#FF6B6B',
+  }),
+  finalInput: makeDataTypeWithAutoInfer({
+    name: 'Final Input',
+    underlyingType: 'string',
+    color: '#FECA57',
+    shape: handleShapesMap.sparkle,
+  }),
+  resultInput: makeDataTypeWithAutoInfer({
+    name: 'Result Input',
+    underlyingType: 'number',
+    color: '#FF9FF3',
+    shape: handleShapesMap.parallelogram,
+  }),
+  statusInput: makeDataTypeWithAutoInfer({
+    name: 'Status Input',
+    underlyingType: 'string',
+    color: '#A8E6CF',
+    shape: handleShapesMap.zigzag,
+  }),
+  finalOutput: makeDataTypeWithAutoInfer({
+    name: 'Final Output',
+    underlyingType: 'string',
+    color: '#A8E6CF',
+  }),
+  resultOutput: makeDataTypeWithAutoInfer({
+    name: 'Result Output',
+    underlyingType: 'number',
+    color: '#FFD93D',
+  }),
+  inferredDataType: makeDataTypeWithAutoInfer({
+    name: 'Inferred Data',
+    underlyingType: 'inferFromConnection',
+    color: '#FF6B6B',
+  }),
+  secondInferredDataType: makeDataTypeWithAutoInfer({
+    name: 'Second Inferred Data',
+    underlyingType: 'inferFromConnection',
+    color: '#A98AD9',
+    shape: handleShapesMap.diamond,
+  }),
+  thirdInferredDataType: makeDataTypeWithAutoInfer({
+    name: 'Third Inferred Data',
+    underlyingType: 'inferFromConnection',
+    color: '#08B49F',
+    shape: handleShapesMap.diamond,
   }),
 };
 
-const typeOfNodesExample1Data = {
-  nodeType1: makeTypeOfNodeWithAutoInfer<keyof typeof dataTypesExample1Data>({
-    name: 'Data Processor',
-    headerColor: '#C44536',
-    inputs: [
-      { name: 'Text Input', dataType: 'dataType1' },
-      { name: 'Numeric Input', dataType: 'dataType2' },
-    ],
-    outputs: [{ name: 'Processed Output', dataType: 'dataType1' }],
-  }),
-  nodeType2: makeTypeOfNodeWithAutoInfer<keyof typeof dataTypesExample1Data>({
-    name: 'String Transformer',
-    headerColor: '#2D5A87',
-    inputs: [{ name: 'Input String', dataType: 'dataType1' }],
-    outputs: [{ name: 'Transformed String', dataType: 'dataType1' }],
-  }),
-  nodeTypeWithPanels: makeTypeOfNodeWithAutoInfer<
-    keyof typeof dataTypesExample1Data
-  >({
-    name: 'Advanced Node',
-    headerColor: '#B8860B',
-    inputs: [
-      { name: 'Direct Input', dataType: 'dataType1' },
-      {
-        name: 'Advanced Settings',
-        inputs: [
-          { name: 'Setting One', dataType: 'dataType2' },
-          { name: 'Setting Two', dataType: 'dataType1' },
-        ],
-      },
-      {
-        name: 'Debug Options',
-        inputs: [{ name: 'Debug Mode', dataType: 'dataType1' }],
-      },
-    ],
-    outputs: [{ name: 'Final Result', dataType: 'dataType1' }],
-  }),
-  inputValidator: makeTypeOfNodeWithAutoInfer<
-    keyof typeof dataTypesExample1Data
-  >({
+const exampleTypeOfNodes = {
+  inputValidator: makeTypeOfNodeWithAutoInfer<keyof typeof exampleDataTypes>({
     name: 'Input Validator',
     headerColor: '#C44536',
     inputs: [
-      { name: 'Raw Data', dataType: 'dataType1' },
-      { name: 'Validation Rules', dataType: 'dataType1' },
+      { name: 'Raw Data', dataType: 'rawData' },
+      { name: 'Validation Rules', dataType: 'validationRules' },
     ],
     outputs: [
-      { name: 'Validated Data', dataType: 'dataType1' },
-      { name: 'Validation Status', dataType: 'dataType1' },
-      { name: 'Error Messages', dataType: 'dataType1' },
+      { name: 'Validated Data', dataType: 'validatedData' },
+      { name: 'Validation Status', dataType: 'validationStatus' },
+      { name: 'Error Messages', dataType: 'errorMessages' },
     ],
   }),
-  dataSource: makeTypeOfNodeWithAutoInfer<keyof typeof dataTypesExample1Data>({
+  dataSource: makeTypeOfNodeWithAutoInfer<keyof typeof exampleDataTypes>({
     name: 'Data Source',
     headerColor: '#C44536',
     inputs: [
-      { name: 'Text Input', dataType: 'dataType1', allowInput: true },
-      { name: 'Numeric Input', dataType: 'dataType2', allowInput: true },
+      { name: 'Text Input', dataType: 'textInput' },
+      { name: 'Numeric Input', dataType: 'numericInput' },
     ],
     outputs: [
-      { name: 'Primary Output', dataType: 'dataType2' },
-      { name: 'Secondary Output', dataType: 'dataType2' },
-      { name: 'Metadata Output', dataType: 'dataType1' },
+      { name: 'Primary Output', dataType: 'primaryOutput' },
+      { name: 'Secondary Output', dataType: 'secondaryOutput' },
+      { name: 'Metadata Output', dataType: 'metadataOutput' },
     ],
   }),
-  dataTransformer: makeTypeOfNodeWithAutoInfer<
-    keyof typeof dataTypesExample1Data
-  >({
+  dataTransformer: makeTypeOfNodeWithAutoInfer<keyof typeof exampleDataTypes>({
     name: 'Data Transformer',
     headerColor: '#2D5A87',
     inputs: [
-      { name: 'Input String', dataType: 'dataType1' },
-      { name: 'Input Number', dataType: 'dataType2' },
-      { name: 'Config Input', dataType: 'dataType1' },
+      { name: 'Input String', dataType: 'inputString' },
+      { name: 'Input Number', dataType: 'inputNumber' },
+      { name: 'Config Input', dataType: 'configInput' },
     ],
     outputs: [
-      { name: 'Transformed String', dataType: 'dataType1' },
-      { name: 'Transformed Number', dataType: 'dataType2' },
-      { name: 'Status Output', dataType: 'dataType1' },
+      { name: 'Transformed String', dataType: 'transformedString' },
+      { name: 'Transformed Number', dataType: 'transformedNumber' },
+      { name: 'Status Output', dataType: 'statusOutput' },
     ],
   }),
-  dataSink: makeTypeOfNodeWithAutoInfer<keyof typeof dataTypesExample1Data>({
-    name: 'Data Sink',
-    headerColor: '#B8860B',
-    inputs: [
-      { name: 'Final Input', dataType: 'dataType1' },
-      { name: 'Result Input', dataType: 'dataType2' },
-      { name: 'Status Input', dataType: 'dataType1' },
-    ],
-    outputs: [
-      { name: 'Final Output', dataType: 'dataType1' },
-      { name: 'Debug Output', dataType: 'dataType1' },
-    ],
-  }),
-};
-
-const nodesExample1Data: Nodes = [
-  {
-    id: 'n5',
-    position: { x: -150, y: 440 },
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: 'configurableNode',
-    width: 400,
-    data: {
-      name: 'Input Validator',
-      headerColor: '#C44536',
-      inputs: [
-        {
-          name: 'Raw Data',
-          id: 'input1node5',
-          type: 'string',
-          handleColor: '#00BFFF',
-          handleShape: handleShapesMap.square,
-        },
-        {
-          name: 'Validation Rules',
-          id: 'input2node5',
-          type: 'string',
-          handleColor: '#96CEB4',
-        },
-      ],
-      outputs: [
-        {
-          name: 'Validated Data',
-          id: 'output1node5',
-          type: 'string',
-          handleColor: '#00FFFF',
-          handleShape: handleShapesMap.list,
-        },
-        {
-          name: 'Validation Status',
-          id: 'output2node5',
-          type: 'string',
-          handleColor: '#FECA57',
-        },
-        {
-          name: 'Error Messages',
-          id: 'output3node5',
-          type: 'string',
-          handleColor: '#FF6B6B',
-          handleShape: handleShapesMap.rectangle,
-        },
-      ],
-    },
-  },
-  {
-    id: 'n1',
-    position: { x: 400, y: -20 },
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: 'configurableNode',
-    width: 400,
-    data: {
-      name: 'Data Source',
-      headerColor: '#C44536',
-      outputs: [
-        {
-          name: 'Primary Output',
-          id: 'output1node1',
-          type: 'number',
-          handleColor: '#FF6B6B',
-          handleShape: handleShapesMap.grid,
-        },
-        {
-          name: 'Secondary Output',
-          id: 'output2node1',
-          type: 'number',
-          handleColor: '#00FFFF',
-        },
-        {
-          name: 'Metadata Output',
-          id: 'output3node1',
-          type: 'string',
-          handleColor: '#FECA57',
-        },
-      ],
-      inputs: [
-        {
-          name: 'Text Input',
-          id: 'input1node1',
-          type: 'string',
-          handleColor: '#00BFFF',
-          handleShape: handleShapesMap.rectangle,
-          allowInput: true,
-        },
-        {
-          name: 'Numeric Input',
-          id: 'input2node1',
-          type: 'number',
-          handleColor: '#96CEB4',
-          allowInput: true,
-        },
-      ],
-    },
-  },
-  {
-    id: 'n2',
-    position: { x: 1000, y: 200 },
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: 'configurableNode',
-    width: 400,
-    data: {
-      name: 'Data Transformer',
-      headerColor: '#2D5A87',
-      inputs: [
-        {
-          name: 'Input String',
-          id: 'input1node2',
-          type: 'string',
-          handleColor: '#00BFFF',
-          handleShape: handleShapesMap.diamond,
-        },
-        {
-          name: 'Input Number',
-          id: 'input2node2',
-          type: 'number',
-          handleColor: '#96CEB4',
-          handleShape: handleShapesMap.hexagon,
-        },
-        {
-          name: 'Config Input',
-          id: 'input3node2',
-          type: 'string',
-          handleColor: '#00FFFF',
-        },
-      ],
-      outputs: [
-        {
-          name: 'Transformed String',
-          id: 'output1node2',
-          type: 'string',
-          handleColor: '#FECA57',
-          handleShape: handleShapesMap.square,
-        },
-        {
-          name: 'Transformed Number',
-          id: 'output2node2',
-          type: 'number',
-          handleColor: '#FF9FF3',
-          handleShape: handleShapesMap.star,
-        },
-        {
-          name: 'Status Output',
-          id: 'output3node2',
-          type: 'string',
-          handleColor: '#A8E6CF',
-          handleShape: handleShapesMap.cross,
-        },
-      ],
-    },
-  },
-  {
-    id: 'n4',
-    position: { x: 1660, y: 588 },
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: 'configurableNode',
-    width: 400,
-    data: {
+  advancedProcessor: makeTypeOfNodeWithAutoInfer<keyof typeof exampleDataTypes>(
+    {
       name: 'Advanced Processor',
       headerColor: '#B8860B',
       inputs: [
+        { name: 'Primary Input', dataType: 'primaryInput' },
         {
-          name: 'Primary Input',
-          id: 'input1node4',
-          type: 'string',
-          handleColor: '#00BFFF',
-          allowInput: true,
-        },
-        {
-          id: 'panel1',
           name: 'Advanced Settings',
           inputs: [
-            {
-              id: 'panel1_input1',
-              name: 'Threshold Value',
-              type: 'number',
-              handleColor: '#96CEB4',
-              handleShape: handleShapesMap.trapezium,
-              allowInput: true,
-            },
-            {
-              id: 'panel1_input2',
-              name: 'Configuration String',
-              type: 'string',
-              handleColor: '#00FFFF',
-              allowInput: true,
-            },
-            {
-              id: 'panel1_input3',
-              name: 'Max Iterations',
-              type: 'number',
-              handleColor: '#FF6B6B',
-            },
+            { name: 'Threshold Value', dataType: 'thresholdValue' },
+            { name: 'Configuration String', dataType: 'configurationString' },
+            { name: 'Max Iterations', dataType: 'maxIterations' },
           ],
         },
         {
-          id: 'panel2',
           name: 'Debug Options',
           inputs: [
-            {
-              id: 'panel2_input1',
-              name: 'Debug Mode',
-              type: 'string',
-              handleColor: '#FECA57',
-            },
-            {
-              id: 'panel2_input2',
-              name: 'Verbose Logging',
-              type: 'string',
-              handleColor: '#FF9FF3',
-            },
+            { name: 'Debug Mode', dataType: 'debugMode' },
+            { name: 'Verbose Logging', dataType: 'verboseLogging' },
           ],
         },
-        {
-          id: 'input2',
-          name: 'Secondary Input',
-          type: 'number',
-          handleColor: '#A8E6CF',
-        },
+        { name: 'Secondary Input', dataType: 'secondaryInput' },
       ],
       outputs: [
-        {
-          id: 'output1',
-          name: 'Final Result',
-          type: 'string',
-          handleColor: '#FFD93D',
-        },
-        {
-          id: 'output2',
-          name: 'Debug Output',
-          type: 'string',
-          handleColor: '#FF6B6B',
-        },
+        { name: 'Final Result', dataType: 'finalResult' },
+        { name: 'Debug Output', dataType: 'debugOutput' },
       ],
     },
-  },
-  {
-    id: 'n3',
-    position: { x: 2000, y: 70 },
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: 'configurableNode',
-    width: 400,
-    data: {
-      name: 'Data Sink',
-      headerColor: '#B8860B',
-      inputs: [
-        {
-          name: 'Final Input',
-          id: 'input1node3',
-          type: 'string',
-          handleColor: '#FECA57',
-          handleShape: handleShapesMap.sparkle,
-        },
-        {
-          name: 'Result Input',
-          id: 'input2node3',
-          type: 'number',
-          handleColor: '#FF9FF3',
-          handleShape: handleShapesMap.parallelogram,
-        },
-        {
-          name: 'Status Input',
-          id: 'input3node3',
-          type: 'string',
-          handleColor: '#A8E6CF',
-          handleShape: handleShapesMap.zigzag,
-        },
-      ],
-      outputs: [
-        {
-          name: 'Final Output',
-          id: 'output1node3',
-          type: 'string',
-          handleColor: '#A8E6CF',
-        },
-        {
-          name: 'Result Output',
-          id: 'output2node3',
-          type: 'number',
-          handleColor: '#FFD93D',
-        },
-      ],
-    },
-  },
-];
-
-const edgesExample1Data: Edges = [
-  {
-    id: 'n1-n2',
-    source: 'n1',
-    sourceHandle: 'output2node1',
-    target: 'n2',
-    targetHandle: 'input1node2',
-    type: 'configurableEdge',
-  },
-  {
-    id: 'n2-n3',
-    source: 'n2',
-    sourceHandle: 'output1node2',
-    target: 'n3',
-    targetHandle: 'input1node3',
-    type: 'configurableEdge',
-  },
-  {
-    id: 'n2-n3-2',
-    source: 'n2',
-    sourceHandle: 'output2node2',
-    target: 'n3',
-    targetHandle: 'input2node3',
-    type: 'configurableEdge',
-  },
-  {
-    id: 'n2-n4',
-    source: 'n2',
-    sourceHandle: 'output3node2',
-    target: 'n4',
-    targetHandle: 'input1node4',
-    type: 'configurableEdge',
-  },
-  {
-    id: 'n5-n1',
-    source: 'n5',
-    sourceHandle: 'output1node5',
-    target: 'n1',
-    targetHandle: 'input1node1',
-    type: 'configurableEdge',
-  },
-  {
-    id: 'n5-n2',
-    source: 'n5',
-    sourceHandle: 'output2node5',
-    target: 'n2',
-    targetHandle: 'input3node2',
-    type: 'configurableEdge',
-  },
-];
+  ),
+  dataSink: makeTypeOfNodeWithAutoInfer<keyof typeof exampleDataTypes>({
+    name: 'Data Sink',
+    headerColor: '#B8860B',
+    inputs: [
+      { name: 'Final Input', dataType: 'finalInput' },
+      { name: 'Result Input', dataType: 'resultInput' },
+      { name: 'Status Input', dataType: 'statusInput' },
+    ],
+    outputs: [
+      { name: 'Final Output', dataType: 'finalOutput' },
+      { name: 'Result Output', dataType: 'resultOutput' },
+    ],
+  }),
+  inferNode: makeTypeOfNodeWithAutoInfer<keyof typeof exampleDataTypes>({
+    name: 'Infer Node',
+    headerColor: '#FF6B6B',
+    inputs: [
+      { name: 'Inferred Data Input', dataType: 'inferredDataType' },
+      {
+        name: 'Second Inferred Data Input',
+        dataType: 'secondInferredDataType',
+      },
+      {
+        name: 'Second Inferred Data Input 2',
+        dataType: 'secondInferredDataType',
+      },
+    ],
+    outputs: [
+      { name: 'Inferred Data Output', dataType: 'inferredDataType' },
+      { name: 'Inferred Data Output 2', dataType: 'inferredDataType' },
+      { name: 'Third Inferred Data Output', dataType: 'thirdInferredDataType' },
+      {
+        name: 'Third Inferred Data Output 2',
+        dataType: 'thirdInferredDataType',
+      },
+    ],
+  }),
+};
 
 export const Playground: StoryObj<typeof FullGraph> = {
   args: {},
   render: () => {
     const { state, dispatch } = useFullGraph({
-      dataTypes: dataTypesExample1Data,
-      typeOfNodes: typeOfNodesExample1Data,
-      nodes: nodesExample1Data,
-      edges: edgesExample1Data,
-      nodeIdToNodeType: {},
+      dataTypes: exampleDataTypes,
+      typeOfNodes: exampleTypeOfNodes,
+      nodes: state1.nodes as Nodes,
+      edges: state1.edges as Edges,
+      nodeIdToNodeType: state1.nodeIdToNodeType,
     });
-    console.log('State', state);
 
-    return (
-      <>
-        <FullGraph state={state} dispatch={dispatch} />
-        <div className='absolute top-0 left-0 p-1 flex gap-1 items-center'>
-          <Button
-            onClick={() => {
-              dispatch({
-                type: 'ADD_NODE',
-                payload: { type: 'nodeType1', position: { x: 0, y: 0 } },
-              });
-            }}
-            className='text-[15px] leading-[15px]'
-          >
-            Add Data Processor
-          </Button>
-          <Button
-            onClick={() => {
-              dispatch({
-                type: 'ADD_NODE',
-                payload: {
-                  type: 'nodeTypeWithPanels',
-                  position: { x: 200, y: 0 },
-                },
-              });
-            }}
-            className='text-[15px] leading-[15px]'
-          >
-            Add Advanced Node
-          </Button>
-          {/* <Button
-            onClick={() => {
-              setNodesInner(nodes ?? []);
-              setEdgesInner(edges ?? []);
-            }}
-            className='text-[15px] leading-[15px]'
-          >
-            Update graph from args
-          </Button> */}
-          <div className='text-primary-white'>
-            {'<- Note: These are part of the story, not the component'}
-          </div>
-        </div>
-      </>
-    );
+    return <FullGraph state={state} dispatch={dispatch} />;
   },
 };
 
@@ -533,8 +332,8 @@ export const WithControlledInputs: StoryObj<typeof FullGraph> = {
   args: {},
   render: () => {
     const { state, dispatch } = useFullGraph({
-      dataTypes: dataTypesExample1Data,
-      typeOfNodes: typeOfNodesExample1Data,
+      dataTypes: exampleDataTypes,
+      typeOfNodes: exampleTypeOfNodes,
       nodes: [
         {
           id: 'n1',
@@ -562,12 +361,6 @@ export const WithControlledInputs: StoryObj<typeof FullGraph> = {
                 handleColor: '#00BFFF',
                 allowInput: true,
                 value: 'Interactive Text',
-                // onChange: (value: string) => {
-                //   dispatch({
-                //     type: 'UPDATE_INPUT_VALUE',
-                //     payload: { nodeId: 'n1', inputId: 'input1', value }
-                //   });
-                // }
               },
               {
                 name: 'Number Input',
@@ -576,12 +369,6 @@ export const WithControlledInputs: StoryObj<typeof FullGraph> = {
                 handleColor: '#96CEB4',
                 allowInput: true,
                 value: 42,
-                // onChange: (value: number) => {
-                //   dispatch({
-                //     type: 'UPDATE_INPUT_VALUE',
-                //     payload: { nodeId: 'n1', inputId: 'input2', value }
-                //   });
-                // }
               },
             ],
           },
@@ -604,12 +391,6 @@ export const WithControlledInputs: StoryObj<typeof FullGraph> = {
                 handleColor: '#00BFFF',
                 allowInput: true,
                 value: 'Configuration',
-                // onChange: (value: string) => {
-                //   dispatch({
-                //     type: 'UPDATE_INPUT_VALUE',
-                //     payload: { nodeId: 'n2', inputId: 'input1', value }
-                //   });
-                // }
               },
               {
                 id: 'panel1',
@@ -622,12 +403,6 @@ export const WithControlledInputs: StoryObj<typeof FullGraph> = {
                     handleColor: '#96CEB4',
                     allowInput: true,
                     value: 75,
-                    // onChange: (value: number) => {
-                    //   dispatch({
-                    //     type: 'UPDATE_INPUT_VALUE',
-                    //     payload: { nodeId: 'n2', inputId: 'panel1_input1', value }
-                    //   });
-                    // }
                   },
                   {
                     name: 'Read-only Setting',
@@ -663,27 +438,7 @@ export const WithControlledInputs: StoryObj<typeof FullGraph> = {
       nodeIdToNodeType: {},
     });
 
-    return (
-      <>
-        <FullGraph state={state} dispatch={dispatch} />
-        <div className='absolute top-0 left-0 p-1 flex gap-1 items-center'>
-          <Button
-            onClick={() => {
-              dispatch({
-                type: 'ADD_NODE',
-                payload: { type: 'nodeType1', position: { x: 1000, y: 0 } },
-              });
-            }}
-            className='text-[15px] leading-[15px]'
-          >
-            Add Data Processor
-          </Button>
-          <div className='text-primary-white'>
-            {'<- Interactive inputs managed by state management'}
-          </div>
-        </div>
-      </>
-    );
+    return <FullGraph state={state} dispatch={dispatch} />;
   },
 };
 
@@ -691,8 +446,8 @@ export const WithHandleShapes: StoryObj<typeof FullGraph> = {
   args: {},
   render: () => {
     const { state, dispatch } = useFullGraph({
-      dataTypes: dataTypesExample1Data,
-      typeOfNodes: typeOfNodesExample1Data,
+      dataTypes: exampleDataTypes,
+      typeOfNodes: exampleTypeOfNodes,
       nodes: [
         {
           id: 'shape-showcase-1',
@@ -878,40 +633,66 @@ export const WithHandleShapes: StoryObj<typeof FullGraph> = {
       nodeIdToNodeType: {},
     });
 
+    return <FullGraph state={state} dispatch={dispatch} />;
+  },
+};
+
+export const WithTypeCheckingAndConversions: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    // Create initial state with allowed conversions
+    const { state, dispatch } = useFullGraph({
+      dataTypes: exampleDataTypes,
+      typeOfNodes: exampleTypeOfNodes,
+      nodes: [],
+      edges: [],
+      nodeIdToNodeType: {},
+      // Define allowed conversions between data types
+      allowedConversionsBetweenDataTypes: {
+        validatedData: {
+          textInput: true,
+        },
+      },
+      enableComplexTypeChecking: true,
+      enableTypeInference: true,
+    });
+
     return (
-      <>
-        <FullGraph state={state} dispatch={dispatch} />
-        <div className='absolute top-0 left-0 p-1 flex gap-1 items-center'>
-          <Button
-            onClick={() => {
-              dispatch({
-                type: 'ADD_NODE',
-                payload: { type: 'nodeType1', position: { x: 1800, y: 0 } },
-              });
+      <div
+        style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div
+          style={{
+            padding: '10px',
+            backgroundColor: '#1a1a1a',
+            color: 'white',
+            borderBottom: '1px solid #333',
+          }}
+        >
+          <h3 style={{ margin: '0 0 10px 0' }}>
+            Type Checking & Conversion Demo
+          </h3>
+          <p style={{ margin: '0', fontSize: '14px', opacity: 0.8 }}>
+            This demo shows type checking and conversion capabilities.
+            Connections will be added automatically:
+          </p>
+          <ul
+            style={{
+              margin: '5px 0 0 0',
+              paddingLeft: '20px',
+              fontSize: '12px',
+              opacity: 0.7,
             }}
-            className='text-[15px] leading-[15px]'
           >
-            Add Data Processor
-          </Button>
-          <Button
-            onClick={() => {
-              dispatch({
-                type: 'ADD_NODE',
-                payload: {
-                  type: 'nodeTypeWithPanels',
-                  position: { x: 1800, y: 200 },
-                },
-              });
-            }}
-            className='text-[15px] leading-[15px]'
-          >
-            Add Advanced Node
-          </Button>
-          <div className='text-primary-white'>
-            {'<- Handle shapes working in ReactFlow! Try connecting the nodes.'}
-          </div>
+            <li>String → Infer Type (with type inference)</li>
+            <li>Infer Type → String (maintains inferred type)</li>
+            <li>Number → Number (direct connection)</li>
+          </ul>
         </div>
-      </>
+        <div style={{ flex: 1 }}>
+          <FullGraph state={state} dispatch={dispatch} />
+        </div>
+      </div>
     );
   },
 };

@@ -169,7 +169,7 @@ const dataTypes = {
 
 ### 🧠 Smart Type System & Validation + Advanced Features
 
-![Smart Type System And Advanced Features](./docs/screenshots/smart-type-system-and-advanced-features.mp4)
+https://github.com/user-attachments/assets/72d9384a-e9ca-4223-906a-dc422fb66f49
 
 - **Intelligent Type Inference**: Automatically infer node types from
   connections
@@ -414,6 +414,9 @@ for details on:
 - Code style and conventions
 - Submitting pull requests
 - Reporting issues
+
+
+
 
 ## 📄 License
 

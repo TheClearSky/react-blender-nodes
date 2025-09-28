@@ -60,12 +60,7 @@ type Action<
       type: typeof actionTypesMap.ADD_NODE;
       payload: {
         /** Type of node to add */
-        type: State<
-          DataTypeUniqueId,
-          NodeTypeUniqueId,
-          UnderlyingType,
-          ComplexSchemaType
-        >['nodeIdToNodeType'][string];
+        type: NodeTypeUniqueId;
         /** Position where to place the node */
         position: XYPosition;
       };
@@ -75,12 +70,7 @@ type Action<
       type: typeof actionTypesMap.ADD_NODE_AND_SELECT;
       payload: {
         /** Type of node to add */
-        type: State<
-          DataTypeUniqueId,
-          NodeTypeUniqueId,
-          UnderlyingType,
-          ComplexSchemaType
-        >['nodeIdToNodeType'][string];
+        type: NodeTypeUniqueId;
         /** Position where to place the node */
         position: XYPosition;
       };
@@ -92,6 +82,7 @@ type Action<
         /** Array of node changes from ReactFlow */
         changes: NodeChanges<
           UnderlyingType,
+          NodeTypeUniqueId,
           ComplexSchemaType,
           DataTypeUniqueId
         >;
@@ -146,7 +137,6 @@ type Action<
  * import {
  *   mainReducer,
  *   makeStateWithAutoInfer,
- *   makeNodeIdToNodeTypeWithAutoInfer,
  *   makeTypeOfNodeWithAutoInfer,
  *   makeDataTypeWithAutoInfer
  * } from 'react-blender-nodes';
@@ -169,14 +159,9 @@ type Action<
  *   }),
  * };
  *
- * const nodeIdToNodeType = makeNodeIdToNodeTypeWithAutoInfer({
- *   'node-1': 'inputNode',
- * });
- *
  * const state = makeStateWithAutoInfer({
  *   dataTypes,
  *   typeOfNodes,
- *   nodeIdToNodeType,
  *   nodes: [],
  *   edges: [],
  * });
@@ -246,7 +231,6 @@ function mainReducer<
             position,
           );
           newState.nodes.push(node);
-          newState.nodeIdToNodeType[nodeId] = nodeType;
           break;
         case actionTypesMap.ADD_NODE_AND_SELECT:
           const nodeTypeAndSelect = action.payload.type;
@@ -267,7 +251,6 @@ function mainReducer<
           }));
           //Set the node to selected
           newState.nodes.push({ ...nodeAndSelect, selected: true });
-          newState.nodeIdToNodeType[nodeIdAndSelect] = nodeTypeAndSelect;
           break;
         case actionTypesMap.UPDATE_NODE_BY_REACT_FLOW:
           const nodeChanges = action.payload.changes;

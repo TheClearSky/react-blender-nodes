@@ -67,7 +67,12 @@ function addEdgeWithTypeChecking<
     ComplexSchemaType
   >,
 ): {
-  updatedNodes: Nodes<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>;
+  updatedNodes: Nodes<
+    UnderlyingType,
+    NodeTypeUniqueId,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >;
   updatedEdges: Edges;
   validation: ConnectionValidationResult;
 } {
@@ -185,7 +190,6 @@ function addEdgeWithTypeChecking<
       );
     validation = validationTemp;
   }
-  console.log('validation', validation);
 
   return {
     updatedNodes,
@@ -239,7 +243,12 @@ function removeEdgeWithTypeChecking<
   >,
   removedEdgeChange: EdgeChange<ConfigurableEdgeState>,
 ): {
-  updatedNodes: Nodes<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>;
+  updatedNodes: Nodes<
+    UnderlyingType,
+    NodeTypeUniqueId,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >;
   updatedEdges: Edges;
   validation: ConnectionValidationResult;
 } {

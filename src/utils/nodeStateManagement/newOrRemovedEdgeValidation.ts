@@ -62,11 +62,13 @@ function inferTypesAfterEdgeAddition<
 
   const sourceHandle = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >(sourceHandleIndex, state.nodes[sourceNodeIndex].data);
   const targetHandle = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >(targetHandleIndex, state.nodes[targetNodeIndex].data);
@@ -128,15 +130,20 @@ function inferTypesAfterEdgeAddition<
       const updatedNodes = [...state.nodes];
       updatedNodes[targetNodeIndex] = {
         ...state.nodes[targetNodeIndex],
-        data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating(
+        data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >(
           state.nodes[targetNodeIndex].data,
           sourceHandleIndex,
           sourceHandleDataType.dataTypeUniqueId,
           //Infer as connected node's type + connected handle's INFERRED type
           {
             dataTypeToInferAs: sourceHandleInferredDataType.dataTypeUniqueId,
-            connectedNodeType:
-              state.nodeIdToNodeType[state.nodes[sourceNodeIndex].id],
+            connectedNodeType: state.nodes[sourceNodeIndex].data
+              .nodeTypeUniqueId as NodeTypeUniqueId,
             resetInferredType: false,
           },
           state.dataTypes,
@@ -152,15 +159,20 @@ function inferTypesAfterEdgeAddition<
       const updatedNodes = [...state.nodes];
       updatedNodes[sourceNodeIndex] = {
         ...state.nodes[sourceNodeIndex],
-        data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating(
+        data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >(
           state.nodes[sourceNodeIndex].data,
           targetHandleIndex,
           targetHandleDataType.dataTypeUniqueId,
           //Infer as connected node's type + connected handle's INFERRED type
           {
             dataTypeToInferAs: targetHandleInferredDataType.dataTypeUniqueId,
-            connectedNodeType:
-              state.nodeIdToNodeType[state.nodes[targetNodeIndex].id],
+            connectedNodeType: state.nodes[targetNodeIndex].data
+              .nodeTypeUniqueId as NodeTypeUniqueId,
             resetInferredType: false,
           },
           state.dataTypes,
@@ -188,15 +200,20 @@ function inferTypesAfterEdgeAddition<
     const updatedNodes = [...state.nodes];
     updatedNodes[sourceNodeIndex] = {
       ...state.nodes[sourceNodeIndex],
-      data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating(
+      data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >(
         state.nodes[sourceNodeIndex].data,
         targetHandleIndex,
         sourceHandleDataType.dataTypeUniqueId,
         //Infer as connected node's type + connected handle's NON-INFERRED type
         {
           dataTypeToInferAs: targetHandleDataType.dataTypeUniqueId,
-          connectedNodeType:
-            state.nodeIdToNodeType[state.nodes[targetNodeIndex].id],
+          connectedNodeType: state.nodes[targetNodeIndex].data
+            .nodeTypeUniqueId as NodeTypeUniqueId,
           resetInferredType: false,
         },
         state.dataTypes,
@@ -222,15 +239,20 @@ function inferTypesAfterEdgeAddition<
     const updatedNodes = [...state.nodes];
     updatedNodes[targetNodeIndex] = {
       ...state.nodes[targetNodeIndex],
-      data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating(
+      data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >(
         state.nodes[targetNodeIndex].data,
         sourceHandleIndex,
         targetHandleDataType.dataTypeUniqueId,
         //Infer as connected node's type + connected handle's NON-INFERRED type
         {
           dataTypeToInferAs: sourceHandleDataType.dataTypeUniqueId,
-          connectedNodeType:
-            state.nodeIdToNodeType[state.nodes[sourceNodeIndex].id],
+          connectedNodeType: state.nodes[sourceNodeIndex].data
+            .nodeTypeUniqueId as NodeTypeUniqueId,
           resetInferredType: false,
         },
         state.dataTypes,
@@ -287,11 +309,13 @@ function checkComplexTypeCompatibilityAfterEdgeAddition<
 
   const sourceHandle = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >(sourceHandleIndex, state.nodes[sourceNodeIndex].data);
   const targetHandle = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >(targetHandleIndex, state.nodes[targetNodeIndex].data);
@@ -404,11 +428,13 @@ function checkTypeConversionCompatibilityAfterEdgeAddition<
 
   const sourceHandle = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >(sourceHandleIndex, state.nodes[sourceNodeIndex].data);
   const targetHandle = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >(targetHandleIndex, state.nodes[targetNodeIndex].data);
@@ -503,11 +529,13 @@ function inferTypesAfterEdgeRemoval<
 
   const sourceHandle = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >(sourceHandleIndex, sourceNode.data);
   const targetHandle = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >(targetHandleIndex, targetNode.data);
@@ -587,15 +615,20 @@ function inferTypesAfterEdgeRemoval<
       updatedNodes = [...state.nodes];
       updatedNodes[sourceNodeIndex] = {
         ...state.nodes[sourceNodeIndex],
-        data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating(
+        data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >(
           state.nodes[sourceNodeIndex].data,
           sourceHandleIndex,
           sourceHandleDataType.dataTypeUniqueId,
           //RESET INFERRED TYPE
           {
             dataTypeToInferAs: sourceHandleDataType.dataTypeUniqueId,
-            connectedNodeType:
-              state.nodeIdToNodeType[state.nodes[sourceNodeIndex].id],
+            connectedNodeType: state.nodes[sourceNodeIndex].data
+              .nodeTypeUniqueId as NodeTypeUniqueId,
             resetInferredType: true,
           },
           state.dataTypes,
@@ -652,15 +685,20 @@ function inferTypesAfterEdgeRemoval<
       updatedNodes = [...state.nodes];
       updatedNodes[targetNodeIndex] = {
         ...state.nodes[targetNodeIndex],
-        data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating(
+        data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >(
           state.nodes[targetNodeIndex].data,
           targetHandleIndex,
           targetHandleDataType.dataTypeUniqueId,
           //RESET INFERRED TYPE
           {
             dataTypeToInferAs: targetHandleDataType.dataTypeUniqueId,
-            connectedNodeType:
-              state.nodeIdToNodeType[state.nodes[targetNodeIndex].id],
+            connectedNodeType: state.nodes[targetNodeIndex].data
+              .nodeTypeUniqueId as NodeTypeUniqueId,
             resetInferredType: true,
           },
           state.dataTypes,

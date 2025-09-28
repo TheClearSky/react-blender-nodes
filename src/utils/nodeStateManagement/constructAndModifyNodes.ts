@@ -13,7 +13,6 @@ import type {
   ConfigurableNodeOutput,
 } from '@/components/organisms/ConfigurableNode/ConfigurableNode';
 import type { HandleIndices } from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
-import type { ConfigurableNodeReactFlowWrapperProps } from '@/components/organisms/ConfigurableNode/ConfigurableNodeReactFlowWrapper';
 
 const lengthOfIds = 20;
 
@@ -220,7 +219,6 @@ function constructInputPanelOfType<
  * import {
  *   constructNodeOfType,
  *   makeStateWithAutoInfer,
- *   makeNodeIdToNodeTypeWithAutoInfer,
  *   makeTypeOfNodeWithAutoInfer,
  *   makeDataTypeWithAutoInfer
  * } from 'react-blender-nodes';
@@ -311,14 +309,9 @@ function constructNodeOfType<
       headerColor: nodeTypeData.headerColor,
       inputs,
       outputs,
+      nodeTypeUniqueId: nodeType,
     },
-    //The types typescript complains about are internally set by ReactFlow, we don't need to set them here
-    //This is perfectly fine, refer to: https://reactflow.dev/examples/nodes/add-node-on-edge-drop
-  } as ConfigurableNodeReactFlowWrapperProps<
-    UnderlyingType,
-    ComplexSchemaType,
-    DataTypeUniqueId
-  >;
+  };
 }
 
 /**

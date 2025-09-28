@@ -391,7 +391,8 @@
             "type": "string",
             "handleShape": "rectangle"
           }
-        ]
+        ],
+        "nodeTypeUniqueId": "inputValidator"
       },
       "selected": true,
       "measured": {
@@ -448,7 +449,8 @@
             "handleColor": "#FECA57",
             "type": "string"
           }
-        ]
+        ],
+        "nodeTypeUniqueId": "dataSource"
       },
       "selected": false,
       "measured": {
@@ -514,7 +516,8 @@
             "type": "string",
             "handleShape": "cross"
           }
-        ]
+        ],
+        "nodeTypeUniqueId": "dataTransformer"
       },
       "selected": false,
       "measured": {
@@ -611,7 +614,8 @@
             "handleColor": "#FF6B6B",
             "type": "string"
           }
-        ]
+        ],
+        "nodeTypeUniqueId": "advancedProcessor"
       },
       "selected": false,
       "measured": {
@@ -669,7 +673,8 @@
             "handleColor": "#FFD93D",
             "type": "number"
           }
-        ]
+        ],
+        "nodeTypeUniqueId": "dataSink"
       },
       "selected": false,
       "measured": {
@@ -728,12 +733,5 @@
       "targetHandle": "hu8h5w7hgxjo5ls3m7qd",
       "type": "configurableEdge"
     }
-  ],
-  "nodeIdToNodeType": {
-    "redgelklo4i4akazjp36": "inputValidator",
-    "lcovh29jq7s2ncr6547h": "dataSource",
-    "p7cshagzn631vv93wyb8": "dataTransformer",
-    "y9v7clcaex2hzsa9qs3y": "advancedProcessor",
-    "vigrw9dw4qy9rdm5o5nd": "dataSink"
-  }
+  ]
 }

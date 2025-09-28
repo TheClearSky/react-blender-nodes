@@ -23,6 +23,7 @@ type NodeOptionalKeys =
  */
 type Nodes<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -30,6 +31,7 @@ type Nodes<
 > = Optional<
   ConfigurableNodeReactFlowWrapperProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
@@ -46,6 +48,7 @@ type Edges = ConfigurableEdgeState[];
  */
 type NodeChanges<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -54,6 +57,7 @@ type NodeChanges<
   Optional<
     ConfigurableNodeReactFlowWrapperProps<
       UnderlyingType,
+      NodeTypeUniqueId,
       ComplexSchemaType,
       DataTypeUniqueId
     >,

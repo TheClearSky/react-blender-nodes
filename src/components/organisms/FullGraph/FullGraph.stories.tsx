@@ -380,7 +380,6 @@ export const Playground: StoryObj<typeof FullGraph> = {
       typeOfNodes: exampleTypeOfNodes,
       nodes: state1.nodes as Nodes,
       edges: state1.edges as Edges,
-      nodeIdToNodeType: state1.nodeIdToNodeType,
     });
 
     return <FullGraph state={state} dispatch={dispatch} />;
@@ -494,7 +493,6 @@ export const WithControlledInputs: StoryObj<typeof FullGraph> = {
           type: 'configurableEdge',
         },
       ],
-      nodeIdToNodeType: {},
     });
 
     return <FullGraph state={state} dispatch={dispatch} />;
@@ -689,7 +687,6 @@ export const WithHandleShapes: StoryObj<typeof FullGraph> = {
           type: 'configurableEdge',
         },
       ],
-      nodeIdToNodeType: {},
     });
 
     return <FullGraph state={state} dispatch={dispatch} />;
@@ -705,7 +702,6 @@ export const WithTypeCheckingAndConversions: StoryObj<typeof FullGraph> = {
       typeOfNodes: exampleTypeOfNodes,
       nodes: [],
       edges: [],
-      nodeIdToNodeType: {},
       // Define allowed conversions between data types
       allowedConversionsBetweenDataTypes: {
         validatedData: {
@@ -765,7 +761,6 @@ export const WithCycleChecking: StoryObj<typeof FullGraph> = {
       typeOfNodes: exampleTypeOfNodes,
       nodes: [],
       edges: [],
-      nodeIdToNodeType: {},
       //Enable cycle checking
       enableCycleChecking: true,
     });

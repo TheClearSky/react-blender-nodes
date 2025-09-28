@@ -189,6 +189,8 @@ type TypeOfNode<DataTypeUniqueId extends string = string> = {
   )[];
   /** Array of outputs */
   outputs: TypeOfInput<DataTypeUniqueId>[];
+
+  subtree?: {};
 };
 
 /**
@@ -224,58 +226,6 @@ type TypeOfNode<DataTypeUniqueId extends string = string> = {
 function makeTypeOfNodeWithAutoInfer<DataTypeUniqueId extends string = string>(
   input: TypeOfNode<DataTypeUniqueId>,
 ) {
-  return input;
-}
-
-/**
- * Type guard to check if a string is a valid NodeTypeUniqueId
- */
-function isValidNodeTypeUniqueId<NodeTypeUniqueId extends string>(
-  id: string,
-  nodeIdToNodeType: Record<string, NodeTypeUniqueId>,
-): id is NodeTypeUniqueId {
-  return id in nodeIdToNodeType;
-}
-
-/**
- * Mapping from node IDs to their node types
- *
- * @template NodeTypeUniqueId - Unique identifier type for node types
- */
-type NodeIdToNodeType<NodeTypeUniqueId extends string = string> = Record<
-  string,
-  NodeTypeUniqueId
->;
-
-/**
- * Helper function to create a node ID to node type mapping with automatic type inference
- *
- * This function is essential for type safety when mapping node IDs to their types.
- * It ensures that TypeScript can validate that all node type references are valid,
- * preventing runtime errors when dispatching actions and providing better IDE support.
- *
- * @template NodeTypeUniqueId - Unique identifier type for node types
- * @param input - The node ID to node type mapping
- * @returns The mapping with proper typing
- *
- * @example
- * ```tsx
- * // ✅ Type-safe - TypeScript will validate node type references
- * const nodeIdToNodeType = makeNodeIdToNodeTypeWithAutoInfer({
- *   'node-1': 'inputNode',
- *   'node-2': 'outputNode',
- * });
- *
- * // ❌ Without auto-infer - TypeScript can't validate node type references
- * const nodeIdToNodeType = {
- *   'node-1': 'inputNode',
- *   'node-2': 'outputNode',
- * };
- * ```
- */
-function makeNodeIdToNodeTypeWithAutoInfer<
-  NodeTypeUniqueId extends string = string,
->(input: NodeIdToNodeType<NodeTypeUniqueId>) {
   return input;
 }
 
@@ -348,9 +298,12 @@ type State<
   /** Map of node type definitions */
   typeOfNodes: Record<NodeTypeUniqueId, TypeOfNode<DataTypeUniqueId>>;
   /** Array of nodes in the graph */
-  nodes: Nodes<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>;
-  /** Mapping from node IDs to their types */
-  nodeIdToNodeType: NodeIdToNodeType<NodeTypeUniqueId>;
+  nodes: Nodes<
+    UnderlyingType,
+    NodeTypeUniqueId,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >;
   /** Array of edges in the graph */
   edges: Edges;
   /**
@@ -435,7 +388,6 @@ type State<
  *       outputs: []
  *     })
  *   },
- *   nodeIdToNodeType: makeNodeIdToNodeTypeWithAutoInfer({}),
  *   nodes: [],
  *   edges: [],
  * });
@@ -445,7 +397,6 @@ type State<
  *   dataTypes: { stringType: { name: 'String', underlyingType: 'string', color: '#4A90E2' } },
  *   typeOfNodes: { inputNode: { name: 'Input', inputs: [], outputs: [] } },
  *   nodes: [],
- *   nodeIdToNodeType: {},
  *   edges: [],
  * };
  * ```
@@ -472,12 +423,10 @@ export {
   isSupportedUnderlyingType,
   makeDataTypeWithAutoInfer,
   makeTypeOfNodeWithAutoInfer,
-  makeNodeIdToNodeTypeWithAutoInfer,
   makeAllowedConversionsBetweenDataTypesWithAutoInfer,
   makeStateWithAutoInfer,
   supportedUnderlyingTypesMap,
   isValidDataTypeId,
-  isValidNodeTypeUniqueId,
 };
 export type {
   SupportedUnderlyingTypes,
@@ -485,6 +434,5 @@ export type {
   TypeOfNode,
   TypeOfInput,
   TypeOfInputPanel,
-  NodeIdToNodeType,
   State,
 };

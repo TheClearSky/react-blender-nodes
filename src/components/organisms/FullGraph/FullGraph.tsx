@@ -98,7 +98,6 @@ type FullGraphProps<
  * import {
  *   useFullGraph,
  *   makeStateWithAutoInfer,
- *   makeNodeIdToNodeTypeWithAutoInfer,
  *   makeTypeOfNodeWithAutoInfer,
  *   makeDataTypeWithAutoInfer
  * } from 'react-blender-nodes';
@@ -131,16 +130,10 @@ type FullGraphProps<
  *   }),
  * };
  *
- * // Define node ID to type mapping with auto-infer
- * const nodeIdToNodeType = makeNodeIdToNodeTypeWithAutoInfer({
- *   'node-1': 'inputNode',
- * });
- *
  * // Create state with auto-infer for complete type safety
  * const initialState = makeStateWithAutoInfer({
  *   dataTypes,
  *   typeOfNodes,
- *   nodeIdToNodeType,
  *   nodes: [],
  *   edges: [],
  * });
@@ -385,7 +378,6 @@ function FullGraphWithReactFlowProvider<
  *   FullGraph,
  *   useFullGraph,
  *   makeStateWithAutoInfer,
- *   makeNodeIdToNodeTypeWithAutoInfer,
  *   makeTypeOfNodeWithAutoInfer,
  *   makeDataTypeWithAutoInfer
  * } from 'react-blender-nodes';
@@ -427,17 +419,10 @@ function FullGraphWithReactFlowProvider<
  *     }),
  *   };
  *
- *   // Define node ID to type mapping with auto-infer
- *   const nodeIdToNodeType = makeNodeIdToNodeTypeWithAutoInfer({
- *     'node-1': 'inputNode',
- *     'node-2': 'outputNode',
- *   });
- *
  *   // Create state with auto-infer for complete type safety
  *   const initialState = makeStateWithAutoInfer({
  *     dataTypes,
  *     typeOfNodes,
- *     nodeIdToNodeType,
  *     nodes: [],
  *     edges: [],
  *   });

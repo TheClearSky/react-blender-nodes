@@ -37,6 +37,7 @@ type HandleIndices =
  */
 function getHandleIndicesFromNodeData<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -45,6 +46,7 @@ function getHandleIndicesFromNodeData<
   handleId: string,
   nodeData: ConfigurableNodeProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
@@ -103,6 +105,7 @@ function getHandleIndicesFromNodeData<
  */
 function getInputOrOutputFromNodeDataFromIndices<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -111,6 +114,7 @@ function getInputOrOutputFromNodeDataFromIndices<
   indices: HandleIndices | undefined,
   nodeData: ConfigurableNodeProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
@@ -158,6 +162,7 @@ function getInputOrOutputFromNodeDataFromIndices<
  */
 function getInputOrOutputFromNodeData<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -166,6 +171,7 @@ function getInputOrOutputFromNodeData<
   handleId: string,
   nodeData: ConfigurableNodeProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
@@ -341,6 +347,7 @@ function modifyInputsOrPanelWithoutMutating<
  */
 function modifyInputsInNodeDataWithoutMutating<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -349,6 +356,7 @@ function modifyInputsInNodeDataWithoutMutating<
   handleId: string,
   nodeData: ConfigurableNodeProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
@@ -371,6 +379,7 @@ function modifyInputsInNodeDataWithoutMutating<
 
 function modifyInputsInNodeDataWithoutMutatingUsingHandleIndices<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -379,13 +388,19 @@ function modifyInputsInNodeDataWithoutMutatingUsingHandleIndices<
   handleIndices: HandleIndices,
   nodeData: ConfigurableNodeProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
   updates: Partial<
     ConfigurableNodeInput<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>
   >,
-): ConfigurableNodeProps<UnderlyingType, ComplexSchemaType, DataTypeUniqueId> {
+): ConfigurableNodeProps<
+  UnderlyingType,
+  NodeTypeUniqueId,
+  ComplexSchemaType,
+  DataTypeUniqueId
+> {
   if (handleIndices.type != 'input') {
     return nodeData;
   }
@@ -394,6 +409,7 @@ function modifyInputsInNodeDataWithoutMutatingUsingHandleIndices<
     | ConfigurableNodeInput<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>
     | undefined = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >(handleIndices, nodeData);
@@ -460,6 +476,7 @@ function modifyInputsInNodeDataWithoutMutatingUsingHandleIndices<
  */
 function modifyOutputsInNodeDataWithoutMutatingUsingHandleIndices<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -468,13 +485,19 @@ function modifyOutputsInNodeDataWithoutMutatingUsingHandleIndices<
   handleIndices: HandleIndices,
   nodeData: ConfigurableNodeProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
   updates: Partial<
     ConfigurableNodeOutput<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>
   >,
-): ConfigurableNodeProps<UnderlyingType, ComplexSchemaType, DataTypeUniqueId> {
+): ConfigurableNodeProps<
+  UnderlyingType,
+  NodeTypeUniqueId,
+  ComplexSchemaType,
+  DataTypeUniqueId
+> {
   if (handleIndices.type != 'output') {
     return nodeData;
   }
@@ -486,6 +509,7 @@ function modifyOutputsInNodeDataWithoutMutatingUsingHandleIndices<
       >
     | undefined = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >(handleIndices, nodeData);
@@ -515,6 +539,7 @@ function modifyOutputsInNodeDataWithoutMutatingUsingHandleIndices<
  */
 function modifyOutputsInNodeDataWithoutMutating<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -523,6 +548,7 @@ function modifyOutputsInNodeDataWithoutMutating<
   handleId: string,
   nodeData: ConfigurableNodeProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
@@ -550,6 +576,7 @@ function modifyOutputsInNodeDataWithoutMutating<
  */
 function getAllInputsFromNodeData<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -557,6 +584,7 @@ function getAllInputsFromNodeData<
 >(
   nodeData: ConfigurableNodeProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
@@ -604,6 +632,7 @@ function getAllInputsFromNodeData<
  */
 function getAllOutputsFromNodeData<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -611,6 +640,7 @@ function getAllOutputsFromNodeData<
 >(
   nodeData: ConfigurableNodeProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
@@ -649,6 +679,7 @@ function getAllOutputsFromNodeData<
  */
 function getAllInputsAndOutputsFromNodeData<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -656,6 +687,7 @@ function getAllInputsAndOutputsFromNodeData<
 >(
   nodeData: ConfigurableNodeProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
@@ -705,6 +737,7 @@ function inferTypeOnHandleOfIndicesWithoutMutating<
 >(
   nodeData: ConfigurableNodeProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
@@ -727,7 +760,12 @@ function inferTypeOnHandleOfIndicesWithoutMutating<
     UnderlyingType,
     ComplexSchemaType
   >['typeOfNodes'],
-): ConfigurableNodeProps<UnderlyingType, ComplexSchemaType, DataTypeUniqueId> {
+): ConfigurableNodeProps<
+  UnderlyingType,
+  NodeTypeUniqueId,
+  ComplexSchemaType,
+  DataTypeUniqueId
+> {
   const constructedHandle = dataTypeToInferAsAndTypeOfConnectedNode
     ? constructTypeOfHandleFromIndices(
         allDataTypes,
@@ -747,6 +785,7 @@ function inferTypeOnHandleOfIndicesWithoutMutating<
   if (handleIndices.type === 'input') {
     return modifyInputsInNodeDataWithoutMutatingUsingHandleIndices<
       UnderlyingType,
+      NodeTypeUniqueId,
       ComplexSchemaType,
       DataTypeUniqueId
     >(handleIndices, nodeData, {
@@ -770,6 +809,7 @@ function inferTypeOnHandleOfIndicesWithoutMutating<
   } else {
     return modifyOutputsInNodeDataWithoutMutatingUsingHandleIndices<
       UnderlyingType,
+      NodeTypeUniqueId,
       ComplexSchemaType,
       DataTypeUniqueId
     >(handleIndices, nodeData, {
@@ -803,6 +843,7 @@ function inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
 >(
   nodeData: ConfigurableNodeProps<
     UnderlyingType,
+    NodeTypeUniqueId,
     ComplexSchemaType,
     DataTypeUniqueId
   >,
@@ -825,7 +866,12 @@ function inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
     UnderlyingType,
     ComplexSchemaType
   >['typeOfNodes'],
-): ConfigurableNodeProps<UnderlyingType, ComplexSchemaType, DataTypeUniqueId> {
+): ConfigurableNodeProps<
+  UnderlyingType,
+  NodeTypeUniqueId,
+  ComplexSchemaType,
+  DataTypeUniqueId
+> {
   const { inputsAndIndices, outputsAndIndices } =
     getAllInputsAndOutputsFromNodeData(nodeData);
 

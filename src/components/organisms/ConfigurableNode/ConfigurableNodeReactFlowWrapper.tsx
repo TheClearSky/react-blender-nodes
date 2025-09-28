@@ -10,13 +10,19 @@ import { z } from 'zod';
 /** State type for configurable nodes in ReactFlow */
 type ConfigurableNodeState<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
   DataTypeUniqueId extends string = string,
 > = Node<
   Omit<
-    ConfigurableNodeProps<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>,
+    ConfigurableNodeProps<
+      UnderlyingType,
+      NodeTypeUniqueId,
+      ComplexSchemaType,
+      DataTypeUniqueId
+    >,
     'isCurrentlyInsideReactFlow'
   >,
   'configurableNode'
@@ -25,12 +31,18 @@ type ConfigurableNodeState<
 /** Props for the ConfigurableNodeReactFlowWrapper component */
 type ConfigurableNodeReactFlowWrapperProps<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
   DataTypeUniqueId extends string = string,
 > = NodeProps<
-  ConfigurableNodeState<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>
+  ConfigurableNodeState<
+    UnderlyingType,
+    NodeTypeUniqueId,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >
 > & {
   position: XYPosition;
 };

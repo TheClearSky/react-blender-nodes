@@ -41,7 +41,6 @@ import {
   FullGraph,
   useFullGraph,
   makeStateWithAutoInfer,
-  makeNodeIdToNodeTypeWithAutoInfer,
   makeTypeOfNodeWithAutoInfer,
   makeDataTypeWithAutoInfer,
 } from 'react-blender-nodes';
@@ -75,14 +74,10 @@ function MyNodeEditor() {
     }),
   };
 
-  // Define node ID to type mapping with auto-infer
-  const nodeIdToNodeType = makeNodeIdToNodeTypeWithAutoInfer({});
-
   // Create state with auto-infer for complete type safety
   const initialState = makeStateWithAutoInfer({
     dataTypes,
     typeOfNodes,
-    nodeIdToNodeType,
     nodes: [],
     edges: [],
   });
@@ -106,7 +101,6 @@ throughout your graph system:
 - **`makeDataTypeWithAutoInfer`**: Validates data type definitions
 - **`makeTypeOfNodeWithAutoInfer`**: Validates node type definitions and
   dataType references
-- **`makeNodeIdToNodeTypeWithAutoInfer`**: Validates node ID to type mappings
 - **`makeStateWithAutoInfer`**: Provides complete type inference for the entire
   state
 
@@ -240,7 +234,6 @@ const initialState = makeStateWithAutoInfer({
       outputs: [{ name: 'Result', dataType: 'stringType' }],
     }),
   },
-  nodeIdToNodeType: makeNodeIdToNodeTypeWithAutoInfer({}),
   nodes: [],
   edges: [],
   // Enable smart validation features
@@ -414,9 +407,6 @@ for details on:
 - Code style and conventions
 - Submitting pull requests
 - Reporting issues
-
-
-
 
 ## 📄 License
 

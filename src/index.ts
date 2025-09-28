@@ -10,7 +10,6 @@
  *   FullGraph,
  *   useFullGraph,
  *   makeStateWithAutoInfer,
- *   makeNodeIdToNodeTypeWithAutoInfer,
  *   makeTypeOfNodeWithAutoInfer,
  *   makeDataTypeWithAutoInfer
  * } from 'react-blender-nodes';
@@ -53,17 +52,10 @@
  *     }),
  *   };
  *
- *   // Define node ID to type mapping with auto-infer
- *   const nodeIdToNodeType = makeNodeIdToNodeTypeWithAutoInfer({
- *     'node-1': 'inputNode',
- *     'node-2': 'outputNode',
- *   });
- *
  *   // Create state with auto-infer for complete type safety
  *   const initialState = makeStateWithAutoInfer({
  *     dataTypes,
  *     typeOfNodes,
- *     nodeIdToNodeType,
  *     nodes: [],
  *     edges: [],
  *   });

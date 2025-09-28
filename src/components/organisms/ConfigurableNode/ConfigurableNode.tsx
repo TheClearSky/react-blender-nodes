@@ -138,6 +138,7 @@ type ConfigurableNodeInputPanel<
  */
 type ConfigurableNodeProps<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
   ComplexSchemaType extends UnderlyingType extends 'complex'
     ? z.ZodType
     : never = never,
@@ -166,6 +167,8 @@ type ConfigurableNodeProps<
   isCurrentlyInsideReactFlow?: boolean;
   /** Props for the node resizer component */
   nodeResizerProps?: NodeResizerWithMoreControlsProps;
+  /** Node type unique id */
+  nodeTypeUniqueId?: NodeTypeUniqueId;
 } & HTMLAttributes<HTMLDivElement>;
 
 type RenderInputProps<

@@ -7,6 +7,7 @@ import {
   inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating,
 } from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
 import { getConnectedEdges } from '@xyflow/react';
+import { getResultantDataTypeOfHandleConsideringInferredType } from './constructAndModifyHandles';
 
 /**
  * Type for connection validation result
@@ -248,6 +249,222 @@ function inferTypesAfterEdgeAddition<
   };
 }
 
+function checkComplexTypeCompatibilityAfterEdgeAddition<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+  sourceNodeIndex: number,
+  targetNodeIndex: number,
+  sourceHandleIndex: HandleIndices,
+  targetHandleIndex: HandleIndices,
+  newEdge: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['edges'][number],
+): {
+  validation: ConnectionValidationResult;
+} {
+  if (!newEdge.sourceHandle || !newEdge.targetHandle) {
+    return {
+      validation: {
+        isValid: false,
+        reason: 'Source or target handle not found',
+      },
+    };
+  }
+
+  const sourceHandle = getInputOrOutputFromNodeDataFromIndices<
+    UnderlyingType,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >(sourceHandleIndex, state.nodes[sourceNodeIndex].data);
+  const targetHandle = getInputOrOutputFromNodeDataFromIndices<
+    UnderlyingType,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >(targetHandleIndex, state.nodes[targetNodeIndex].data);
+
+  const resultantSourceHandleDataType =
+    getResultantDataTypeOfHandleConsideringInferredType(sourceHandle);
+  const resultantTargetHandleDataType =
+    getResultantDataTypeOfHandleConsideringInferredType(targetHandle);
+
+  if (!resultantSourceHandleDataType || !resultantTargetHandleDataType) {
+    return {
+      validation: {
+        isValid: false,
+        reason: 'Source or target handle data type not found',
+      },
+    };
+  }
+
+  const isSourceHandleComplex =
+    resultantSourceHandleDataType?.dataTypeObject.underlyingType === 'complex';
+  const isTargetHandleComplex =
+    resultantTargetHandleDataType?.dataTypeObject.underlyingType === 'complex';
+
+  //No compatibility check needed, none are complex types
+  if (!isSourceHandleComplex && !isTargetHandleComplex) {
+    return {
+      validation: { isValid: true },
+    };
+  }
+
+  //One of them is complex, one is not
+  if (
+    //!== is basically xor for boolean
+    isSourceHandleComplex !== isTargetHandleComplex
+  ) {
+    return {
+      validation: {
+        isValid: false,
+        reason: "Can't connect complex types with non-complex types",
+      },
+    };
+  }
+
+  //Both are complex
+  if (isSourceHandleComplex && isTargetHandleComplex) {
+    //Check if they are the same type
+    //Either the data types are exactly the same, or the complex schemas are exactly the same
+    const areTheComplexTypesSame =
+      resultantSourceHandleDataType.dataTypeUniqueId ===
+        resultantTargetHandleDataType.dataTypeUniqueId ||
+      JSON.stringify(
+        resultantSourceHandleDataType.dataTypeObject.complexSchema,
+      ) ===
+        JSON.stringify(
+          resultantTargetHandleDataType.dataTypeObject.complexSchema,
+        );
+    if (!areTheComplexTypesSame) {
+      return {
+        validation: {
+          isValid: false,
+          reason: "Can't connect complex types with different types",
+        },
+      };
+    }
+    return {
+      validation: { isValid: true },
+    };
+  }
+
+  return {
+    validation: { isValid: true },
+  };
+}
+
+function checkTypeConversionCompatibilityAfterEdgeAddition<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+  sourceNodeIndex: number,
+  targetNodeIndex: number,
+  sourceHandleIndex: HandleIndices,
+  targetHandleIndex: HandleIndices,
+  newEdge: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['edges'][number],
+): {
+  validation: ConnectionValidationResult;
+} {
+  if (!newEdge.sourceHandle || !newEdge.targetHandle) {
+    return {
+      validation: {
+        isValid: false,
+        reason: 'Source or target handle not found',
+      },
+    };
+  }
+
+  const sourceHandle = getInputOrOutputFromNodeDataFromIndices<
+    UnderlyingType,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >(sourceHandleIndex, state.nodes[sourceNodeIndex].data);
+  const targetHandle = getInputOrOutputFromNodeDataFromIndices<
+    UnderlyingType,
+    ComplexSchemaType,
+    DataTypeUniqueId
+  >(targetHandleIndex, state.nodes[targetNodeIndex].data);
+
+  const resultantSourceHandleDataType =
+    getResultantDataTypeOfHandleConsideringInferredType(sourceHandle);
+  const resultantTargetHandleDataType =
+    getResultantDataTypeOfHandleConsideringInferredType(targetHandle);
+
+  if (!resultantSourceHandleDataType || !resultantTargetHandleDataType) {
+    return {
+      validation: {
+        isValid: false,
+        reason: 'Source or target handle data type not found',
+      },
+    };
+  }
+
+  const areTheTypesTheSame =
+    resultantSourceHandleDataType.dataTypeUniqueId ===
+    resultantTargetHandleDataType.dataTypeUniqueId;
+
+  if (areTheTypesTheSame) {
+    return {
+      validation: { isValid: true },
+    };
+  }
+
+  const isConversionExplicitlyAllowed =
+    state.allowedConversionsBetweenDataTypes?.[
+      resultantSourceHandleDataType.dataTypeUniqueId
+    ]?.[resultantTargetHandleDataType.dataTypeUniqueId];
+
+  const areBothComplex =
+    resultantSourceHandleDataType.dataTypeObject.underlyingType === 'complex' &&
+    resultantTargetHandleDataType.dataTypeObject.underlyingType === 'complex';
+
+  const isConversionSupported =
+    isConversionExplicitlyAllowed ||
+    (areBothComplex &&
+      state.allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking);
+
+  if (!isConversionSupported) {
+    return {
+      validation: {
+        isValid: false,
+        reason: `${resultantSourceHandleDataType.dataTypeUniqueId} to ${resultantTargetHandleDataType.dataTypeUniqueId} conversion is not allowed`,
+      },
+    };
+  }
+
+  return {
+    validation: { isValid: true },
+  };
+}
+
 function inferTypesAfterEdgeRemoval<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
@@ -458,4 +675,9 @@ function inferTypesAfterEdgeRemoval<
   };
 }
 
-export { inferTypesAfterEdgeAddition, inferTypesAfterEdgeRemoval };
+export {
+  inferTypesAfterEdgeAddition,
+  inferTypesAfterEdgeRemoval,
+  checkComplexTypeCompatibilityAfterEdgeAddition,
+  checkTypeConversionCompatibilityAfterEdgeAddition,
+};

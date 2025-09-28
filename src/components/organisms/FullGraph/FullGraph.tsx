@@ -25,6 +25,15 @@ import {
   type State,
   type SupportedUnderlyingTypes,
 } from '@/utils/nodeStateManagement/types';
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  useDismiss,
+  useInteractions,
+} from '@floating-ui/react';
 
 const nodeTypes = {
   configurableNode: ConfigurableNodeReactFlowWrapper,
@@ -211,6 +220,27 @@ function FullGraphWithReactFlowProvider<
   });
   const { screenToFlowPosition } = useReactFlow();
 
+  // Floating UI setup for context menu
+  const { refs, floatingStyles, context } = useFloating({
+    open: contextMenu.isOpen,
+    onOpenChange: (open) => {
+      if (!open) {
+        setContextMenu({ isOpen: false, position: { x: 0, y: 0 } });
+      }
+    },
+    placement: 'bottom-start',
+    middleware: [
+      offset(5),
+      flip({ fallbackPlacements: ['top-start'] }),
+      shift({ padding: 8 }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
+
+  // Dismiss interactions for context menu
+  const dismiss = useDismiss(context);
+  const { getFloatingProps } = useInteractions([dismiss]);
+
   // Generate context menu items dynamically from typeOfNodes
   const contextMenuItems = createNodeContextMenu({
     typeOfNodes: state.typeOfNodes,
@@ -219,13 +249,34 @@ function FullGraphWithReactFlowProvider<
     contextMenuPosition: screenToFlowPosition(contextMenu.position),
   });
 
-  const handleContextMenu = useCallback((event: React.MouseEvent) => {
-    event.preventDefault();
-    setContextMenu({
-      isOpen: true,
-      position: { x: event.clientX, y: event.clientY },
-    });
-  }, []);
+  const handleContextMenu = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      const position = { x: event.clientX, y: event.clientY };
+
+      // Set the reference element position for floating UI with proper dimensions
+      if (refs.setReference) {
+        refs.setReference({
+          getBoundingClientRect: () => ({
+            x: position.x,
+            y: position.y,
+            width: 1,
+            height: 1,
+            top: position.y,
+            right: position.x + 1,
+            bottom: position.y + 1,
+            left: position.x,
+          }),
+        });
+      }
+
+      setContextMenu({
+        isOpen: true,
+        position,
+      });
+    },
+    [refs],
+  );
 
   const handleCloseContextMenu = useCallback(() => {
     setContextMenu({ isOpen: false, position: { x: 0, y: 0 } });
@@ -289,13 +340,16 @@ function FullGraphWithReactFlowProvider<
       {/* Context Menu */}
       {contextMenu.isOpen && (
         <div
+          ref={refs.setFloating}
           style={{
-            position: 'absolute',
-            top: contextMenu.position.y,
-            left: contextMenu.position.x,
-            zIndex: 10,
+            ...floatingStyles,
+            // Prevent scrollbar during positioning
+            contain: 'layout',
+            willChange: 'transform',
           }}
+          className='z-50'
           onClick={(e) => e.stopPropagation()}
+          {...getFloatingProps()}
         >
           <ContextMenu subItems={contextMenuItems} />
         </div>

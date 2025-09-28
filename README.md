@@ -21,7 +21,10 @@ a flexible and customizable node-based graph editor for web applications.
 React Blender Nodes recreates the iconic Blender node editor experience on the
 web. Built with modern React patterns and TypeScript, it offers a complete
 solution for creating interactive node-based interfaces with support for custom
-nodes, connections, and real-time manipulation.
+nodes, connections, and real-time manipulation. Features an intelligent type
+system with automatic inference, complex data validation, and comprehensive
+connection validation to ensure your node graphs are always type-safe and
+error-free.
 
 ## Quick Start
 
@@ -164,18 +167,91 @@ const dataTypes = {
 - Context menu for adding new nodes
 - Real-time node manipulation
 
-### 🎯 Advanced Features
+### 🧠 Smart Type System & Validation + Advanced Features
 
-![Advanced Features](./docs/screenshots/advanced-features.png)
+![Smart Type System And Advanced Features](./docs/screenshots/smart-type-system-and-advanced-features.mp4)
 
-- **Handle Shapes**: 13+ custom handle shapes including geometric and artistic
-  designs
-- **Input Components**: Built-in text and number inputs with validation
-- **Panel System**: Collapsible panels for organizing complex node inputs
+- **Intelligent Type Inference**: Automatically infer node types from
+  connections
+  - Dynamic type resolution as you build your graph
+  - Real-time type updates when connections change
+  - Support for `inferFromConnection` data types
+- **Advanced Type Validation**: Comprehensive type checking system
+  - **Complex Type Checking**: Zod schema validation for complex data structures
+  - **Type Conversion Control**: Fine-grained control over allowed type
+    conversions
+  - **Cycle Detection**: Prevent infinite loops in your node graphs
+- **Multiple Data Types**: Support for diverse data structures
+  - Basic types: `string`, `number`
+  - Complex types: Custom objects with Zod schemas
+  - Special types: `inferFromConnection`, `noEquivalent`
+- **Runtime Safety**: Catch type errors before they break your application
+  - Connection validation with detailed error messages
+  - Automatic type propagation across connected nodes
+  - Schema compatibility checking for complex types
 - **State Management**: Integrated reducer for managing graph state
 - **TypeScript Support**: Full type safety with comprehensive definitions
 
 ## Usage Examples
+
+### Smart Type System with Validation
+
+```tsx
+import { z } from 'zod';
+
+// Define complex data types with Zod schemas
+const userSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string().email(),
+});
+
+const dataTypes = {
+  stringType: makeDataTypeWithAutoInfer({
+    name: 'String',
+    underlyingType: 'string',
+    color: '#4A90E2',
+  }),
+  userType: makeDataTypeWithAutoInfer({
+    name: 'User',
+    underlyingType: 'complex',
+    complexSchema: userSchema,
+    color: '#7ED321',
+  }),
+  inferredType: makeDataTypeWithAutoInfer({
+    name: 'Inferred',
+    underlyingType: 'inferFromConnection',
+    color: '#FF6B6B',
+  }),
+};
+
+// Enable advanced validation features
+const initialState = makeStateWithAutoInfer({
+  dataTypes,
+  typeOfNodes: {
+    userInput: makeTypeOfNodeWithAutoInfer({
+      name: 'User Input',
+      inputs: [{ name: 'User Data', dataType: 'userType' }],
+      outputs: [{ name: 'Output', dataType: 'inferredType' }],
+    }),
+    stringProcessor: makeTypeOfNodeWithAutoInfer({
+      name: 'String Processor',
+      inputs: [{ name: 'Input', dataType: 'inferredType' }],
+      outputs: [{ name: 'Result', dataType: 'stringType' }],
+    }),
+  },
+  nodeIdToNodeType: makeNodeIdToNodeTypeWithAutoInfer({}),
+  nodes: [],
+  edges: [],
+  // Enable smart validation features
+  enableTypeInference: true,
+  enableComplexTypeChecking: true,
+  enableCycleChecking: true,
+  allowedConversionsBetweenDataTypes: {
+    userType: { stringType: true }, // Allow user to string conversion
+  },
+});
+```
 
 ### Custom Node with Panels
 

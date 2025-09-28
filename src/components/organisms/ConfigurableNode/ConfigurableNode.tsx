@@ -218,7 +218,7 @@ const RenderInput = forwardRef<HTMLDivElement, RenderInputProps>(
           shape={input.handleShape}
           isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
         />
-        <div className='flex-1 flex items-center gap-3'>
+        <div className='flex-1 flex items-center gap-3 w-full'>
           {!shouldShowInput && <div className='truncate'>{input.name}</div>}
           {shouldShowInput && (
             <div className='flex-1 w-full'>

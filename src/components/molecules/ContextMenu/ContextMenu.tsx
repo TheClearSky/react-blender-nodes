@@ -1,6 +1,16 @@
 import { cn } from '@/utils';
 import { useState, type ReactNode } from 'react';
 import { ChevronRightIcon } from 'lucide-react';
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  useHover,
+  useInteractions,
+  safePolygon,
+} from '@floating-ui/react';
 
 /**
  * Configuration for a context menu item
@@ -46,7 +56,7 @@ const ContextMenuSubmenu = ({
   onItemClick?: (item: ContextMenuItem) => void;
   className?: string;
 }) => {
-  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+  const [, setHoveredItemId] = useState<string | null>(null);
 
   const handleItemClick = (item: ContextMenuItem) => {
     if (item.onClick) {
@@ -65,60 +75,128 @@ const ContextMenuSubmenu = ({
       )}
     >
       {subItems.map((item, index) => (
-        <li key={item.id} className='relative'>
-          {item.separator && index > 0 && (
-            <div className='border-t border-gray-600 m-0' />
-          )}
-          <div
-            className={cn(
-              'flex items-center justify-between gap-2 px-3 py-1.25 hover:bg-[#3F3F3F] cursor-pointer',
-              'transition-colors duration-150',
-            )}
-            onClick={() => handleItemClick(item)}
-            onMouseEnter={() => setHoveredItemId(item.id)}
-            onMouseLeave={() => setHoveredItemId(null)}
-          >
-            <div className='flex items-center gap-2'>
-              {item.icon && (
-                <span className='text-primary-white w-3 h-3 flex items-center justify-center'>
-                  {item.icon}
-                </span>
-              )}
-              <span className='text-sm leading-3.5 text-primary-white font-main'>
-                {item.label}
-              </span>
-            </div>
-            <div className='flex items-center gap-2'>
-              {item.shortcut && (
-                <span className='text-sm leading-3.5 text-gray-400 font-mono'>
-                  {item.shortcut}
-                </span>
-              )}
-              {item.subItems && item.subItems.length > 0 && (
-                <ChevronRightIcon className='w-3 h-3 text-gray-400' />
-              )}
-            </div>
-          </div>
-
-          {/* Submenu */}
-          {item.subItems &&
-            item.subItems.length > 0 &&
-            hoveredItemId === item.id && (
-              <div
-                className='absolute left-full top-0 z-50'
-                onMouseEnter={() => setHoveredItemId(item.id)}
-                onMouseLeave={() => setHoveredItemId(null)}
-              >
-                <ContextMenuSubmenu
-                  subItems={item.subItems}
-                  onItemClick={onItemClick}
-                  className='ml-1'
-                />
-              </div>
-            )}
-        </li>
+        <ContextMenuItemComponent
+          key={item.id}
+          item={item}
+          index={index}
+          onItemClick={handleItemClick}
+          onItemClickCallback={onItemClick}
+          setHoveredItemId={setHoveredItemId}
+        />
       ))}
     </ul>
+  );
+};
+
+/**
+ * Individual context menu item component with floating UI submenu support
+ */
+const ContextMenuItemComponent = ({
+  item,
+  index,
+  onItemClick,
+  onItemClickCallback,
+  setHoveredItemId,
+}: {
+  item: ContextMenuItem;
+  index: number;
+  onItemClick: (item: ContextMenuItem) => void;
+  onItemClickCallback?: (item: ContextMenuItem) => void;
+  setHoveredItemId: (id: string | null) => void;
+}) => {
+  const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
+
+  // Floating UI setup for submenu
+  const { refs, floatingStyles, context } = useFloating({
+    open: isSubmenuOpen,
+    onOpenChange: setIsSubmenuOpen,
+    placement: 'right-start',
+    middleware: [
+      offset(5),
+      flip({ fallbackPlacements: ['left-start'] }),
+      shift({ padding: 8 }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
+
+  // Hover interactions with safePolygon to keep submenu open during transitions
+  const hover = useHover(context, {
+    handleClose: safePolygon(),
+    delay: { open: 75, close: 75 },
+  });
+
+  const { getReferenceProps, getFloatingProps } = useInteractions([hover]);
+
+  const handleMouseEnter = () => {
+    setHoveredItemId(item.id);
+    if (item.subItems && item.subItems.length > 0) {
+      setIsSubmenuOpen(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    // Don't immediately close - let floating UI handle it with safePolygon
+  };
+
+  return (
+    <li className='relative'>
+      {item.separator && index > 0 && (
+        <div className='border-t border-gray-600 m-0' />
+      )}
+      <div
+        ref={refs.setReference}
+        className={cn(
+          'flex items-center justify-between gap-2 px-3 py-1.25 hover:bg-[#3F3F3F] cursor-pointer',
+          'transition-colors duration-150',
+        )}
+        onClick={() => onItemClick(item)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        {...getReferenceProps()}
+      >
+        <div className='flex items-center gap-2'>
+          {item.icon && (
+            <span className='text-primary-white w-3 h-3 flex items-center justify-center'>
+              {item.icon}
+            </span>
+          )}
+          <span className='text-sm leading-3.5 text-primary-white font-main'>
+            {item.label}
+          </span>
+        </div>
+        <div className='flex items-center gap-2'>
+          {item.shortcut && (
+            <span className='text-sm leading-3.5 text-gray-400 font-mono'>
+              {item.shortcut}
+            </span>
+          )}
+          {item.subItems && item.subItems.length > 0 && (
+            <ChevronRightIcon className='w-3 h-3 text-gray-400' />
+          )}
+        </div>
+      </div>
+
+      {/* Floating UI Submenu */}
+      {item.subItems && item.subItems.length > 0 && isSubmenuOpen && (
+        <div
+          ref={refs.setFloating}
+          style={{
+            ...floatingStyles,
+            // Prevent scrollbar during positioning
+            contain: 'layout',
+            willChange: 'transform',
+          }}
+          className='z-50'
+          {...getFloatingProps()}
+        >
+          <ContextMenuSubmenu
+            subItems={item.subItems}
+            onItemClick={onItemClickCallback}
+            className='ml-1'
+          />
+        </div>
+      )}
+    </li>
   );
 };
 

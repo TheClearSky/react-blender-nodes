@@ -6,6 +6,7 @@ import { constructNodeOfType } from './constructAndModifyNodes';
 import {
   addEdgeWithTypeChecking,
   removeEdgeWithTypeChecking,
+  willAddingEdgeCreateCycle,
 } from './constructAndModifyHandles';
 import {
   applyEdgeChanges,
@@ -301,6 +302,13 @@ function mainReducer<
           const newEdge = action.payload.edge;
 
           const { sourceHandle, targetHandle, source, target } = newEdge;
+
+          if (
+            newState.enableCycleChecking &&
+            willAddingEdgeCreateCycle(newState, source, target)
+          ) {
+            break;
+          }
 
           if (!source || !target || !sourceHandle || !targetHandle) {
             break;

@@ -9,6 +9,7 @@ import {
 } from '@/utils/nodeStateManagement/types';
 import { handleShapesMap } from '@/components/organisms/ConfigurableNode/ContextAwareHandle';
 import state1 from './PlaygroundState1.json';
+import { z } from 'zod';
 
 const meta = {
   component: FullGraph,
@@ -188,7 +189,8 @@ const exampleDataTypes = {
   inferredDataType: makeDataTypeWithAutoInfer({
     name: 'Inferred Data',
     underlyingType: 'inferFromConnection',
-    color: '#FF6B6B',
+    color: '#C06062',
+    shape: handleShapesMap.list,
   }),
   secondInferredDataType: makeDataTypeWithAutoInfer({
     name: 'Second Inferred Data',
@@ -201,6 +203,35 @@ const exampleDataTypes = {
     underlyingType: 'inferFromConnection',
     color: '#08B49F',
     shape: handleShapesMap.diamond,
+  }),
+  complexDataType: makeDataTypeWithAutoInfer({
+    name: 'Complex Data',
+    underlyingType: 'complex',
+    color: '#59BE26',
+    complexSchema: z.object({
+      name: z.string(),
+      age: z.number(),
+    }),
+    shape: handleShapesMap.trapezium,
+  }),
+  complexDataType2: makeDataTypeWithAutoInfer({
+    name: 'Complex Data 2',
+    underlyingType: 'complex',
+    color: '#C40E1E',
+    complexSchema: z.object({
+      name: z.string(),
+      age: z.number(),
+    }),
+    shape: handleShapesMap.trapezium,
+  }),
+  complexDataType3: makeDataTypeWithAutoInfer({
+    name: 'Complex Data 3',
+    underlyingType: 'complex',
+    color: '#DCEF88',
+    complexSchema: z.object({
+      name: z.string(),
+    }),
+    shape: handleShapesMap.trapezium,
   }),
 };
 
@@ -289,7 +320,7 @@ const exampleTypeOfNodes = {
   }),
   inferNode: makeTypeOfNodeWithAutoInfer<keyof typeof exampleDataTypes>({
     name: 'Infer Node',
-    headerColor: '#FF6B6B',
+    headerColor: '#AB3126',
     inputs: [
       { name: 'Inferred Data Input', dataType: 'inferredDataType' },
       {
@@ -309,6 +340,34 @@ const exampleTypeOfNodes = {
         name: 'Third Inferred Data Output 2',
         dataType: 'thirdInferredDataType',
       },
+    ],
+  }),
+  complexDataTypeNode: makeTypeOfNodeWithAutoInfer<
+    keyof typeof exampleDataTypes
+  >({
+    name: 'Complex Data Type Node',
+    headerColor: '#A64622',
+    inputs: [
+      { name: 'Complex Input Of Type 1', dataType: 'complexDataType' },
+      { name: 'Complex Input Of Type 2', dataType: 'complexDataType2' },
+    ],
+    outputs: [
+      { name: 'Complex Output Of Type 2', dataType: 'complexDataType2' },
+      { name: 'Complex Output Of Type 1', dataType: 'complexDataType' },
+    ],
+  }),
+  complexDataTypeNode2: makeTypeOfNodeWithAutoInfer<
+    keyof typeof exampleDataTypes
+  >({
+    name: 'Complex Data Type Node 2',
+    headerColor: '#A64622',
+    inputs: [
+      { name: 'Complex Input Of Type 3', dataType: 'complexDataType3' },
+      { name: 'Complex Input Of Type 2', dataType: 'complexDataType2' },
+    ],
+    outputs: [
+      { name: 'Complex Output Of Type 2', dataType: 'complexDataType2' },
+      { name: 'Complex Output Of Type 3', dataType: 'complexDataType3' },
     ],
   }),
 };
@@ -653,6 +712,7 @@ export const WithTypeCheckingAndConversions: StoryObj<typeof FullGraph> = {
           textInput: true,
         },
       },
+      allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking: true,
       enableComplexTypeChecking: true,
       enableTypeInference: true,
     });
@@ -688,6 +748,45 @@ export const WithTypeCheckingAndConversions: StoryObj<typeof FullGraph> = {
             <li>Infer Type → String (maintains inferred type)</li>
             <li>Number → Number (direct connection)</li>
           </ul>
+        </div>
+        <div style={{ flex: 1 }}>
+          <FullGraph state={state} dispatch={dispatch} />
+        </div>
+      </div>
+    );
+  },
+};
+
+export const WithCycleChecking: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    const { state, dispatch } = useFullGraph({
+      dataTypes: exampleDataTypes,
+      typeOfNodes: exampleTypeOfNodes,
+      nodes: [],
+      edges: [],
+      nodeIdToNodeType: {},
+      //Enable cycle checking
+      enableCycleChecking: true,
+    });
+
+    return (
+      <div
+        style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div
+          style={{
+            padding: '10px',
+            backgroundColor: '#1a1a1a',
+            color: 'white',
+            borderBottom: '1px solid #333',
+          }}
+        >
+          <h3 style={{ margin: '0 0 10px 0' }}>Cycle Checking Demo</h3>
+          <p style={{ margin: '0', fontSize: '14px', opacity: 0.8 }}>
+            This demo shows cycle checking, it won't allow a connection that
+            creates a cycle
+          </p>
         </div>
         <div style={{ flex: 1 }}>
           <FullGraph state={state} dispatch={dispatch} />

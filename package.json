@@ -1,6 +1,6 @@
 {
   "name": "@theclearsky/react-blender-nodes",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "type": "module",
   "author": "Deepak Prasad <TheClearSky@github.com>",
   "license": "MIT",
@@ -50,6 +50,7 @@
     "react-dom": "^19.1.1"
   },
   "dependencies": {
+    "@floating-ui/react": "^0.27.16",
     "@fontsource/dejavu-sans": "^5.2.5",
     "@radix-ui/react-slot": "^1.2.3",
     "@xyflow/react": "^12.8.4",

@@ -353,12 +353,54 @@ type State<
   nodeIdToNodeType: NodeIdToNodeType<NodeTypeUniqueId>;
   /** Array of edges in the graph */
   edges: Edges;
-  /** Optional mapping of allowed conversions between data types */
+  /**
+   * Optional mapping of allowed conversions between data types
+   * - When not provided, all conversions are allowed
+   * - If provided, only the conversions that are explicitly allowed will be allowed (happens even with empty object)
+   * - By default, it will not allow conversion between complex types unless explicitly allowed here (even if complex type checking is enabled)
+   * - If you want to allow conversion between complex types unless disallowed by complex type checking, you can set `allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking` to true
+   *
+   * @default undefined
+   */
   allowedConversionsBetweenDataTypes?: AllowedConversionsBetweenDataTypes<DataTypeUniqueId>;
-  /** Whether to enable type inference */
+  /**
+   * Whether to allow conversion between complex types unless disallowed by complex type checking
+   * - If not provided, is considered disabled
+   * - Only takes effect if complex type checking is enabled (`allowedConversionsBetweenDataTypes` is provided)
+   * - If enabled, it will allow conversion between complex types unless disallowed by complex type checking
+   * - If disabled, it will not allow conversion between complex types unless explicitly allowed by `allowedConversionsBetweenDataTypes`, even if complex type checking is enabled
+   *
+   * @default undefined
+   */
+  allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking?: boolean;
+  /**
+   * Whether to enable type inference
+   * - If not provided, is considered disabled
+   * - When disabled, the types of the nodes are not inferred from the connections
+   * - When enabled, the types of the nodes are inferred from the connections and reset when edges are removed
+   *
+   * @default undefined
+   */
   enableTypeInference?: boolean;
-  /** Whether to enable complex type checking */
+  /**
+   * Whether to enable complex type checking
+   * - If not provided, is considered disabled
+   * - When disabled, the complex types are not checked for compatibility, all connections are allowed
+   * - When enabled, the complex types are checked for compatibility, and connections are not allowed if the complex types are not compatible
+   * - Complex types are compatible if they are the same type or if they have exactly the same schema
+   *
+   * @default undefined
+   */
   enableComplexTypeChecking?: boolean;
+  /**
+   * Whether to enable cycle checking
+   * - If not provided, is considered disabled
+   * - When disabled, the cycles are not checked, all connections are allowed
+   * - When enabled, the cycles are checked, and connections are not allowed if they create a cycle
+   *
+   * @default undefined
+   */
+  enableCycleChecking?: boolean;
 };
 
 /**

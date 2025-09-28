@@ -1,15 +1,26 @@
-import type { State, SupportedUnderlyingTypes } from './types';
+import type { DataType, State, SupportedUnderlyingTypes } from './types';
 import type { z } from 'zod';
 import type { Nodes, Edges } from '@/components/organisms/FullGraph/types';
 import {
+  checkComplexTypeCompatibilityAfterEdgeAddition,
+  checkTypeConversionCompatibilityAfterEdgeAddition,
   inferTypesAfterEdgeRemoval,
   type ConnectionValidationResult,
 } from './newOrRemovedEdgeValidation';
-import { addEdge, applyEdgeChanges, type EdgeChange } from '@xyflow/react';
+import {
+  addEdge,
+  applyEdgeChanges,
+  getOutgoers,
+  type EdgeChange,
+} from '@xyflow/react';
 import { generateRandomString } from '../randomGeneration';
 import { getHandleIndicesFromNodeData } from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
 import { inferTypesAfterEdgeAddition } from './newOrRemovedEdgeValidation';
 import type { ConfigurableEdgeState } from '@/components/atoms/ConfigurableEdge/ConfigurableEdge';
+import type {
+  ConfigurableNodeInput,
+  ConfigurableNodeOutput,
+} from '@/components/organisms/ConfigurableNode/ConfigurableNode';
 
 /** Length of generated random IDs for edges */
 const lengthOfIds = 20;
@@ -148,6 +159,33 @@ function addEdgeWithTypeChecking<
     updatedNodes = updatedNodesTemp;
     validation = validationTemp;
   }
+
+  if (state.enableComplexTypeChecking && validation.isValid) {
+    const { validation: validationTemp } =
+      checkComplexTypeCompatibilityAfterEdgeAddition(
+        { ...state, nodes: updatedNodes },
+        sourceNodeIndex,
+        targetNodeIndex,
+        sourceHandleIndex,
+        targetHandleIndex,
+        newEdge,
+      );
+    validation = validationTemp;
+  }
+
+  if (state.allowedConversionsBetweenDataTypes && validation.isValid) {
+    const { validation: validationTemp } =
+      checkTypeConversionCompatibilityAfterEdgeAddition(
+        { ...state, nodes: updatedNodes },
+        sourceNodeIndex,
+        targetNodeIndex,
+        sourceHandleIndex,
+        targetHandleIndex,
+        newEdge,
+      );
+    validation = validationTemp;
+  }
+  console.log('validation', validation);
 
   return {
     updatedNodes,
@@ -309,4 +347,104 @@ function removeEdgeWithTypeChecking<
   };
 }
 
-export { addEdgeWithTypeChecking, removeEdgeWithTypeChecking };
+function getResultantDataTypeOfHandleConsideringInferredType<
+  DataTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  handle:
+    | ConfigurableNodeInput<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>
+    | ConfigurableNodeOutput<
+        UnderlyingType,
+        ComplexSchemaType,
+        DataTypeUniqueId
+      >
+    | undefined,
+):
+  | {
+      dataTypeObject: DataType<UnderlyingType, ComplexSchemaType>;
+      dataTypeUniqueId: DataTypeUniqueId;
+    }
+  | undefined {
+  const handleMainDataType = handle?.dataType;
+  const handleInferredDataType = handle?.inferredDataType;
+
+  if (!handleMainDataType) {
+    return undefined;
+  }
+  if (
+    handleMainDataType.dataTypeObject.underlyingType !== 'inferFromConnection'
+  ) {
+    return handleMainDataType;
+  }
+  return handleInferredDataType || undefined;
+}
+
+/**
+ * Checks if adding an edge will create a cycle in the graph
+ *
+ * @template DataTypeUniqueId - Unique identifier type for data types
+ * @template NodeTypeUniqueId - Unique identifier type for node types
+ * @template UnderlyingType - Supported underlying data types
+ * @template ComplexSchemaType - Zod schema type for complex data types
+ * @param state - The current graph state
+ * @param newEdge - The edge to check
+ * @returns Whether the edge will create a cycle
+ */
+function willAddingEdgeCreateCycle<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+  sourceNodeId: string,
+  targetNodeId: string,
+): boolean {
+  //Find target node
+  const target = state.nodes.find((node) => node.id === targetNodeId);
+
+  //Cycle cannot be created if target node is not found
+  if (!target) return false;
+
+  //Self connection is a cycle
+  if (target.id === sourceNodeId) return true;
+
+  //Check if there is a cycle, this is typical DFS traversal to find a cycle
+  const hasCycle = (
+    node: (typeof state.nodes)[number],
+    visited = new Set(),
+  ) => {
+    //Already visited, ignore
+    if (visited.has(node.id)) return false;
+
+    //Mark as visited, lets process it
+    visited.add(node.id);
+
+    //For every outgoer of the node, check if it is the source node or if it has a cycle (recursively)
+    for (const outgoer of getOutgoers(node, state.nodes, state.edges)) {
+      if (outgoer.id === sourceNodeId) return true;
+      if (hasCycle(outgoer, visited)) return true;
+    }
+    //None of the outgoers is the source node and none of them have a cycle, so no cycle (from this node atleast)
+    return false;
+  };
+
+  return hasCycle(target);
+}
+
+export {
+  addEdgeWithTypeChecking,
+  removeEdgeWithTypeChecking,
+  getResultantDataTypeOfHandleConsideringInferredType,
+  willAddingEdgeCreateCycle,
+};

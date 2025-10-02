@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { fn } from 'storybook/test';
 import { useState } from 'react';
 import { ContextMenu } from './ContextMenu';
 import {
@@ -40,26 +41,26 @@ export const Playground = {
         id: 'link-to-viewer',
         label: 'Link to Viewer',
         icon: <EyeIcon className='w-4 h-4' />,
-        onClick: () => console.log('Linking to viewer'),
+        onClick: fn(),
       },
       {
         id: 'copy',
         label: 'Copy',
         icon: <CopyIcon className='w-4 h-4' />,
-        onClick: () => console.log('Copying'),
+        onClick: fn(),
       },
       {
         id: 'paste',
         label: 'Paste',
         icon: <ClipboardIcon className='w-4 h-4' />,
-        onClick: () => console.log('Pasting'),
+        onClick: fn(),
       },
       {
         id: 'duplicate',
         label: 'Duplicate',
         icon: <FileIcon className='w-4 h-4' />,
         shortcut: 'Shift D',
-        onClick: () => console.log('Duplicating'),
+        onClick: fn(),
         separator: true,
       },
       {
@@ -67,14 +68,14 @@ export const Playground = {
         label: 'Delete',
         icon: <XIcon className='w-4 h-4' />,
         shortcut: 'X',
-        onClick: () => console.log('Deleting'),
+        onClick: fn(),
         separator: true,
       },
       {
         id: 'dissolve',
         label: 'Dissolve',
         shortcut: 'Ctrl X',
-        onClick: () => console.log('Dissolving'),
+        onClick: fn(),
         separator: true,
       },
       {
@@ -82,32 +83,32 @@ export const Playground = {
         label: 'Make Group',
         icon: <FolderIcon className='w-4 h-4' />,
         shortcut: 'Ctrl G',
-        onClick: () => console.log('Making group'),
+        onClick: fn(),
         separator: true,
       },
       {
         id: 'insert-into-group',
         label: 'Insert Into Group',
-        onClick: () => console.log('Inserting into group'),
+        onClick: fn(),
         separator: true,
       },
       {
         id: 'join-in-new-frame',
         label: 'Join in New Frame',
-        onClick: () => console.log('Joining in new frame'),
+        onClick: fn(),
       },
       {
         id: 'remove-from-frame',
         label: 'Remove from Frame',
         shortcut: 'Alt P',
-        onClick: () => console.log('Removing from frame'),
+        onClick: fn(),
         separator: true,
       },
       {
         id: 'rename',
         label: 'Rename...',
         shortcut: 'F2',
-        onClick: () => console.log('Renaming'),
+        onClick: fn(),
         separator: true,
       },
       {
@@ -117,12 +118,12 @@ export const Playground = {
           {
             id: 'select-all',
             label: 'Select All',
-            onClick: () => console.log('Selecting all'),
+            onClick: fn(),
           },
           {
             id: 'select-none',
             label: 'Select None',
-            onClick: () => console.log('Selecting none'),
+            onClick: fn(),
           },
         ],
       },
@@ -133,12 +134,12 @@ export const Playground = {
           {
             id: 'show-all',
             label: 'Show All',
-            onClick: () => console.log('Showing all'),
+            onClick: fn(),
           },
           {
             id: 'hide-selected',
             label: 'Hide Selected',
-            onClick: () => console.log('Hiding selected'),
+            onClick: fn(),
           },
         ],
         separator: true,
@@ -147,7 +148,7 @@ export const Playground = {
         id: 'online-manual',
         label: 'Online Manual',
         icon: <GlobeIcon className='w-4 h-4' />,
-        onClick: () => console.log('Opening online manual'),
+        onClick: fn(),
       },
     ],
   },
@@ -170,13 +171,13 @@ export const WithIcons = {
                 id: 'users',
                 label: 'Users',
                 icon: <FileIcon className='w-4 h-4' />,
-                onClick: () => console.log('Opening users table'),
+                onClick: fn(),
               },
               {
                 id: 'products',
                 label: 'Products',
                 icon: <FileIcon className='w-4 h-4' />,
-                onClick: () => console.log('Opening products table'),
+                onClick: fn(),
               },
             ],
           },
@@ -189,7 +190,7 @@ export const WithIcons = {
                 id: 'user-view',
                 label: 'User View',
                 icon: <FileIcon className='w-4 h-4' />,
-                onClick: () => console.log('Opening user view'),
+                onClick: fn(),
               },
             ],
           },
@@ -207,12 +208,12 @@ export const WithIcons = {
               {
                 id: 'theme',
                 label: 'Theme',
-                onClick: () => console.log('Opening theme settings'),
+                onClick: fn(),
               },
               {
                 id: 'colors',
                 label: 'Colors',
-                onClick: () => console.log('Opening color settings'),
+                onClick: fn(),
               },
             ],
           },
@@ -223,12 +224,12 @@ export const WithIcons = {
               {
                 id: 'general',
                 label: 'General',
-                onClick: () => console.log('Opening general preferences'),
+                onClick: fn(),
               },
               {
                 id: 'advanced',
                 label: 'Advanced',
-                onClick: () => console.log('Opening advanced preferences'),
+                onClick: fn(),
               },
             ],
           },
@@ -256,19 +257,19 @@ export const DeepNesting = {
                   {
                     id: 'level4a',
                     label: 'Level 4A',
-                    onClick: () => console.log('Level 4A clicked'),
+                    onClick: fn(),
                   },
                   {
                     id: 'level4b',
                     label: 'Level 4B',
-                    onClick: () => console.log('Level 4B clicked'),
+                    onClick: fn(),
                   },
                 ],
               },
               {
                 id: 'level3b',
                 label: 'Level 3B',
-                onClick: () => console.log('Level 3B clicked'),
+                onClick: fn(),
               },
             ],
           },
@@ -279,12 +280,12 @@ export const DeepNesting = {
               {
                 id: 'level3c',
                 label: 'Level 3C',
-                onClick: () => console.log('Level 3C clicked'),
+                onClick: fn(),
               },
               {
                 id: 'level3d',
                 label: 'Level 3D',
-                onClick: () => console.log('Level 3D clicked'),
+                onClick: fn(),
               },
             ],
           },
@@ -305,17 +306,17 @@ export const ActionsMenu = {
           {
             id: 'new-project',
             label: 'New Project',
-            onClick: () => console.log('Creating new project'),
+            onClick: fn(),
           },
           {
             id: 'new-file',
             label: 'New File',
-            onClick: () => console.log('Creating new file'),
+            onClick: fn(),
           },
           {
             id: 'new-folder',
             label: 'New Folder',
-            onClick: () => console.log('Creating new folder'),
+            onClick: fn(),
           },
         ],
       },
@@ -327,17 +328,17 @@ export const ActionsMenu = {
           {
             id: 'rename',
             label: 'Rename',
-            onClick: () => console.log('Renaming item'),
+            onClick: fn(),
           },
           {
             id: 'duplicate',
             label: 'Duplicate',
-            onClick: () => console.log('Duplicating item'),
+            onClick: fn(),
           },
           {
             id: 'move',
             label: 'Move',
-            onClick: () => console.log('Moving item'),
+            onClick: fn(),
           },
         ],
       },
@@ -345,7 +346,7 @@ export const ActionsMenu = {
         id: 'delete',
         label: 'Delete',
         icon: <TrashIcon className='w-4 h-4' />,
-        onClick: () => console.log('Deleting item'),
+        onClick: fn(),
       },
     ],
   },
@@ -433,7 +434,7 @@ export const InteractiveExample = {
         {lastAction && (
           <div className='mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md'>
             <p className='text-sm text-blue-800'>
-              Last action: <strong>{lastAction}</strong>
+              Last fn: <strong>{lastAction}</strong>
             </p>
           </div>
         )}

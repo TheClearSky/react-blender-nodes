@@ -13,6 +13,7 @@ import {
   applyNodeChanges,
   type Connection,
   type XYPosition,
+  type Viewport,
 } from '@xyflow/react';
 import type { EdgeChanges, NodeChanges } from '@/components';
 
@@ -27,6 +28,7 @@ const actionTypes = [
   'UPDATE_EDGES_BY_REACT_FLOW',
   'ADD_EDGE_BY_REACT_FLOW',
   'UPDATE_INPUT_VALUE',
+  'OPEN_NODE_GROUP',
 ] as const;
 
 /** Map of action types for type-safe action dispatching */
@@ -37,6 +39,7 @@ const actionTypesMap = {
   [actionTypes[3]]: actionTypes[3],
   [actionTypes[4]]: actionTypes[4],
   [actionTypes[5]]: actionTypes[5],
+  [actionTypes[6]]: actionTypes[6],
 } as const;
 
 /**
@@ -115,6 +118,25 @@ type Action<
         /** New value for the input */
         value: string | number;
       };
+    }
+  | {
+      /** Open a node group and push it onto the openedNodeGroupStack */
+      type: typeof actionTypesMap.OPEN_NODE_GROUP;
+      payload:
+        | {
+            //nodeId is used to calculate nodeType, this is instance opening
+            /** ID of the node to open */
+            nodeId: string;
+            /** Current viewport when opening the group */
+            viewport: Viewport;
+          }
+        | {
+            //This has no nodeId, we are opening the original node group
+            /** Type of node to open */
+            nodeType: NodeTypeUniqueId;
+            /** Current viewport when opening the group */
+            viewport: Viewport;
+          };
     };
 
 /**
@@ -310,6 +332,54 @@ function mainReducer<
           }
           newState.edges = addedEdgeResult.updatedEdges;
           newState.nodes = addedEdgeResult.updatedNodes;
+          break;
+        case actionTypesMap.OPEN_NODE_GROUP:
+          const openViewport = action.payload.viewport;
+
+          //If nodeId is provided, we are opening an instance of the node group
+          if ('nodeId' in action.payload) {
+            const openNodeId = action.payload.nodeId;
+            // Find the node to get its type
+            const nodeToOpen = newState.nodes.find(
+              (node) => node.id === openNodeId,
+            );
+            if (!nodeToOpen) {
+              break;
+            }
+            const nodeType = nodeToOpen.data.nodeTypeUniqueId;
+            if (!nodeType) {
+              break;
+            }
+            const nodeTypeToOpen = newState.typeOfNodes[nodeType];
+            if (!nodeTypeToOpen || !nodeTypeToOpen.subtree) {
+              //Not a valid node group
+              break;
+            }
+            //Push the node group onto the stack (instance opening)
+            newState.openedNodeGroupStack = [
+              ...(newState.openedNodeGroupStack || []),
+              {
+                nodeType: nodeType,
+                nodeId: openNodeId,
+                viewport: openViewport,
+              },
+            ];
+          } else {
+            //Push the node group onto the stack (original opening hence has no nodeId)
+            const nodeType = action.payload.nodeType;
+            const nodeTypeToOpen = newState.typeOfNodes[nodeType];
+            if (!nodeTypeToOpen || !nodeTypeToOpen.subtree) {
+              //Not a valid node group
+              break;
+            }
+            newState.openedNodeGroupStack = [
+              ...(newState.openedNodeGroupStack || []),
+              {
+                nodeType: nodeType,
+                viewport: openViewport,
+              },
+            ];
+          }
           break;
       }
     },

@@ -9,6 +9,7 @@ import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { Button } from '@/components/atoms';
 import { ContextAwareHandle, type HandleShape } from './ContextAwareHandle';
 import { ContextAwareInput } from './ContextAwareInput';
+import { ContextAwareOpenButton } from './ContextAwareOpenButton';
 import { z } from 'zod';
 
 /**
@@ -169,6 +170,12 @@ type ConfigurableNodeProps<
   nodeResizerProps?: NodeResizerWithMoreControlsProps;
   /** Node type unique id */
   nodeTypeUniqueId?: NodeTypeUniqueId;
+  /**
+   * Whether to show the node open button (square mouse pointer icon)
+   * - Used by full graph for node groups
+   * @default false
+   */
+  showNodeOpenButton?: boolean;
 } & HTMLAttributes<HTMLDivElement>;
 
 type RenderInputProps<
@@ -423,6 +430,8 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       isCurrentlyInsideReactFlow = false,
       className,
       nodeResizerProps = {},
+      nodeTypeUniqueId,
+      showNodeOpenButton = false,
       ...props
     },
     ref,
@@ -455,12 +464,16 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       >
         <div
           className='text-primary-white text-left text-[27px] leading-[27px] font-main \
-          py-2 px-4 transition-all rounded-t-md truncate'
+          px-4 transition-all rounded-t-md truncate flex justify-between items-center'
           style={{
             backgroundColor: headerColor,
           }}
         >
-          {name}
+          <p className='truncate py-2'>{name}</p>
+          <ContextAwareOpenButton
+            showButton={showNodeOpenButton}
+            isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+          />
         </div>
         <div className='min-h-[50px] rounded-b-md bg-primary-dark-gray'>
           {isCurrentlyInsideReactFlow && (

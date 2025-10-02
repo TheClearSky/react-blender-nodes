@@ -64,7 +64,12 @@ function constructInputOrOutputOfType<
 >(
   typeOfDataTypeInNode:
     | TypeOfInput<DataTypeUniqueId>
-    | TypeOfNode<DataTypeUniqueId>['outputs'][number],
+    | TypeOfNode<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >['outputs'][number],
   allDataTypes: State<
     DataTypeUniqueId,
     NodeTypeUniqueId,
@@ -310,6 +315,7 @@ function constructNodeOfType<
       inputs,
       outputs,
       nodeTypeUniqueId: nodeType,
+      showNodeOpenButton: nodeTypeData.subtree !== undefined,
     },
   };
 }

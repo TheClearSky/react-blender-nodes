@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Nodes, Edges } from '@/components/organisms/FullGraph/types';
 import type { HandleShape } from '@/components/organisms/ConfigurableNode/ContextAwareHandle';
+import type { Viewport } from '@xyflow/react';
 
 /**
  * Array of supported underlying data types
@@ -177,7 +178,14 @@ type TypeOfInputPanel<DataTypeUniqueId extends string = string> = {
  *
  * @template DataTypeUniqueId - Unique identifier type for data types
  */
-type TypeOfNode<DataTypeUniqueId extends string = string> = {
+type TypeOfNode<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+> = {
   /** Display name of the node type */
   name: string;
   /** Color used for the node header */
@@ -189,8 +197,38 @@ type TypeOfNode<DataTypeUniqueId extends string = string> = {
   )[];
   /** Array of outputs */
   outputs: TypeOfInput<DataTypeUniqueId>[];
-
-  subtree?: {};
+  /** Subtree of the node type (if this exists, this is a node group) */
+  subtree?: {
+    nodes: State<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >['nodes'];
+    edges: State<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >['edges'];
+    /**
+     * Number of references to this node group
+     * This subtree can only be edited or deleted if there are no references to it
+     */
+    numberOfReferences: number;
+    /**
+     * Input node id of the node group
+     * - It is used to connect the node group to the rest of the graph
+     * - Not allowed to be deleted or duplicated, must always be one
+     */
+    inputNodeId: string;
+    /**
+     * Output node id of the node group
+     * - It is used to connect the node group to the rest of the graph
+     * - Not allowed to be deleted or duplicated, must always be one
+     */
+    outputNodeId: string;
+  };
 };
 
 /**
@@ -223,8 +261,20 @@ type TypeOfNode<DataTypeUniqueId extends string = string> = {
  * };
  * ```
  */
-function makeTypeOfNodeWithAutoInfer<DataTypeUniqueId extends string = string>(
-  input: TypeOfNode<DataTypeUniqueId>,
+function makeTypeOfNodeWithAutoInfer<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  input: TypeOfNode<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
 ) {
   return input;
 }
@@ -290,13 +340,29 @@ type State<
     ? z.ZodType
     : never = never,
 > = {
+  openedNodeGroupStack?: {
+    nodeType: NodeTypeUniqueId;
+    /**
+     * If not provided, it means that this node group isn't instantiated yet and we are editing the original node group
+     */
+    nodeId?: string;
+    viewport: Viewport;
+  }[];
   /** Map of data type definitions */
   dataTypes: Record<
     DataTypeUniqueId,
     DataType<UnderlyingType, ComplexSchemaType>
   >;
   /** Map of node type definitions */
-  typeOfNodes: Record<NodeTypeUniqueId, TypeOfNode<DataTypeUniqueId>>;
+  typeOfNodes: Record<
+    NodeTypeUniqueId,
+    TypeOfNode<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >
+  >;
   /** Array of nodes in the graph */
   nodes: Nodes<
     UnderlyingType,

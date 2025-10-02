@@ -31,7 +31,7 @@ type HandleIndices =
  * ```tsx
  * const indices = getHandleIndicesFromNodeData('input-123', nodeData);
  * if (indices) {
- *   console.log('Found handle indices:', indices);
+ *   // Do something with the indices
  * }
  * ```
  */
@@ -99,7 +99,7 @@ function getHandleIndicesFromNodeData<
  * ```tsx
  * const handle = getInputOrOutputFromNodeDataFromIndices(indices, nodeData);
  * if (handle) {
- *   console.log('Found handle:', handle.name);
+ *   // Do something with the handle
  * }
  * ```
  */
@@ -156,7 +156,7 @@ function getInputOrOutputFromNodeDataFromIndices<
  * ```tsx
  * const handle = getInputOrOutputFromNodeData('input-123', nodeData);
  * if (handle) {
- *   console.log('Found handle:', handle.name);
+ *   // Do something with the handle
  * }
  * ```
  */

@@ -1,4 +1,10 @@
-import { useReducer, useState, useCallback, type ActionDispatch } from 'react';
+import {
+  useReducer,
+  useState,
+  useCallback,
+  type ActionDispatch,
+  createContext,
+} from 'react';
 import { z } from 'zod';
 import {
   ReactFlow,
@@ -351,6 +357,11 @@ function FullGraphWithReactFlowProvider<
   );
 }
 
+const FullGraphContext = createContext<{
+  allProps: FullGraphProps;
+}>(null!); //the not-null assertion (null!) is because-
+// we are creating a context that is always provided (right below)
+
 /**
  * Main graph editor component inspired by Blender's node editor
  *
@@ -455,11 +466,14 @@ function FullGraph<
 >) {
   return (
     <ReactFlowProvider>
-      <FullGraphWithReactFlowProvider state={state} dispatch={dispatch} />
+      {/* @ts-ignore - this is because useContext can't infer types, issue highlighted here: https://stackoverflow.com/questions/51448291/how-to-create-a-generic-react-component-with-a-typed-context-provider */}
+      <FullGraphContext.Provider value={{ allProps: { state, dispatch } }}>
+        <FullGraphWithReactFlowProvider state={state} dispatch={dispatch} />
+      </FullGraphContext.Provider>
     </ReactFlowProvider>
   );
 }
 
-export { FullGraph, useFullGraph };
+export { FullGraph, useFullGraph, FullGraphContext };
 
 export { type FullGraphProps };

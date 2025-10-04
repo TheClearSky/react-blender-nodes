@@ -383,9 +383,118 @@ function constructTypeOfHandleFromIndices<
   }
 }
 
+function getCurrentNodesAndEdgesFromState<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+): {
+  nodes: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['nodes'];
+  edges: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['edges'];
+} {
+  const topOpenedNodeGroup =
+    state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
+  if (!topOpenedNodeGroup) {
+    return { nodes: state.nodes, edges: state.edges };
+  }
+  const subtree = state.typeOfNodes[topOpenedNodeGroup.nodeType].subtree;
+  if (!subtree) {
+    return { nodes: state.nodes, edges: state.edges };
+  }
+  return { nodes: subtree.nodes, edges: subtree.edges };
+}
+
+function setCurrentNodesAndEdgesToStateWithMutatingState<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: Pick<
+    State<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >,
+    'nodes' | 'edges' | 'typeOfNodes' | 'openedNodeGroupStack' | 'dataTypes'
+  >,
+  nodes?: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['nodes'],
+  edges?: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['edges'],
+): State<
+  DataTypeUniqueId,
+  NodeTypeUniqueId,
+  UnderlyingType,
+  ComplexSchemaType
+> {
+  const topOpenedNodeGroup =
+    state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
+  if (!topOpenedNodeGroup) {
+    if (nodes) {
+      state.nodes = [...nodes];
+    }
+    if (edges) {
+      state.edges = [...edges];
+    }
+    return state;
+  }
+  const subtree = state.typeOfNodes[topOpenedNodeGroup.nodeType].subtree;
+  const references =
+    state.typeOfNodes[topOpenedNodeGroup.nodeType].subtree?.numberOfReferences;
+  if (!subtree || references !== 0) {
+    if (nodes) {
+      state.nodes = [...nodes];
+    }
+    if (edges) {
+      state.edges = [...edges];
+    }
+    return state;
+  }
+  if (nodes) {
+    subtree.nodes = [...nodes];
+  }
+  if (edges) {
+    subtree.edges = [...edges];
+  }
+  return state;
+}
+
 export {
   constructNodeOfType,
   constructInputOrOutputOfType,
   constructInputPanelOfType,
   constructTypeOfHandleFromIndices,
+  getCurrentNodesAndEdgesFromState,
+  setCurrentNodesAndEdgesToStateWithMutatingState,
 };

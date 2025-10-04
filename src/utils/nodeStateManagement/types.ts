@@ -340,19 +340,28 @@ type State<
     ? z.ZodType
     : never = never,
 > = {
-  openedNodeGroupStack?: {
-    nodeType: NodeTypeUniqueId;
-    /**
-     * If not provided, it means that this node group isn't instantiated yet and we are editing the original node group
-     */
-    nodeId?: string;
-    viewport: Viewport;
-  }[];
+  openedNodeGroupStack?: //Opening the original node group case
+  (
+    | {
+        nodeType: NodeTypeUniqueId;
+      }
+    //Opening the instance of the node group case
+    | {
+        nodeType: NodeTypeUniqueId;
+        /**
+         * If not provided, it means that this node group isn't instantiated yet and we are editing the original node group
+         */
+        nodeId: string;
+        previousViewport: Viewport;
+      }
+  )[];
   /** Map of data type definitions */
   dataTypes: Record<
     DataTypeUniqueId,
     DataType<UnderlyingType, ComplexSchemaType>
   >;
+  /** Current viewport of the graph */
+  viewport?: Viewport;
   /** Map of node type definitions */
   typeOfNodes: Record<
     NodeTypeUniqueId,

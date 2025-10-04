@@ -235,11 +235,20 @@ function removeEdgeWithTypeChecking<
     UnderlyingType,
     ComplexSchemaType
   >['edges'][number],
-  state: State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
+  state: Pick<
+    State<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >,
+    | 'nodes'
+    | 'edges'
+    | 'enableTypeInference'
+    | 'enableComplexTypeChecking'
+    | 'allowedConversionsBetweenDataTypes'
+    | 'dataTypes'
+    | 'typeOfNodes'
   >,
   removedEdgeChange: EdgeChange<ConfigurableEdgeState>,
 ): {

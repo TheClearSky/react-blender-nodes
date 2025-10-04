@@ -10,6 +10,7 @@ import {
 import { handleShapesMap } from '@/components/organisms/ConfigurableNode/ContextAwareHandle';
 import state1 from './PlaygroundState1.json';
 import { z } from 'zod';
+import { standardDataTypes, standardNodeTypes } from '@/utils';
 
 const meta = {
   component: FullGraph,
@@ -233,6 +234,7 @@ const exampleDataTypes = {
     }),
     shape: handleShapesMap.trapezium,
   }),
+  ...standardDataTypes,
 };
 
 const exampleTypeOfNodes = {
@@ -370,6 +372,7 @@ const exampleTypeOfNodes = {
       { name: 'Complex Output Of Type 3', dataType: 'complexDataType3' },
     ],
   }),
+  ...standardNodeTypes,
 };
 
 export const Playground: StoryObj<typeof FullGraph> = {

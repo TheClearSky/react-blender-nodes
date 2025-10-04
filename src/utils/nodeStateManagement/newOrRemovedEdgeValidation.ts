@@ -8,6 +8,7 @@ import {
 } from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
 import { getConnectedEdges } from '@xyflow/react';
 import { getResultantDataTypeOfHandleConsideringInferredType } from './constructAndModifyHandles';
+import { constructTypeOfHandleFromIndices } from './constructAndModifyNodes';
 
 /**
  * Type for connection validation result
@@ -137,17 +138,12 @@ function inferTypesAfterEdgeAddition<
           ComplexSchemaType
         >(
           state.nodes[targetNodeIndex].data,
-          sourceHandleIndex,
-          sourceHandleDataType.dataTypeUniqueId,
-          //Infer as connected node's type + connected handle's INFERRED type
+          targetHandleDataType.dataTypeUniqueId,
           {
-            dataTypeToInferAs: sourceHandleInferredDataType.dataTypeUniqueId,
-            connectedNodeType: state.nodes[sourceNodeIndex].data
-              .nodeTypeUniqueId as NodeTypeUniqueId,
+            //Infer as connected node's type + connected handle's INFERRED type
+            handle: sourceHandle,
             resetInferredType: false,
           },
-          state.dataTypes,
-          state.typeOfNodes,
         ),
       };
       return {
@@ -166,17 +162,12 @@ function inferTypesAfterEdgeAddition<
           ComplexSchemaType
         >(
           state.nodes[sourceNodeIndex].data,
-          targetHandleIndex,
-          targetHandleDataType.dataTypeUniqueId,
-          //Infer as connected node's type + connected handle's INFERRED type
+          sourceHandleDataType.dataTypeUniqueId,
           {
-            dataTypeToInferAs: targetHandleInferredDataType.dataTypeUniqueId,
-            connectedNodeType: state.nodes[targetNodeIndex].data
-              .nodeTypeUniqueId as NodeTypeUniqueId,
+            //Infer as connected node's type + connected handle's INFERRED type
+            handle: targetHandle,
             resetInferredType: false,
           },
-          state.dataTypes,
-          state.typeOfNodes,
         ),
       };
       return {
@@ -207,17 +198,12 @@ function inferTypesAfterEdgeAddition<
         ComplexSchemaType
       >(
         state.nodes[sourceNodeIndex].data,
-        targetHandleIndex,
         sourceHandleDataType.dataTypeUniqueId,
         //Infer as connected node's type + connected handle's NON-INFERRED type
         {
-          dataTypeToInferAs: targetHandleDataType.dataTypeUniqueId,
-          connectedNodeType: state.nodes[targetNodeIndex].data
-            .nodeTypeUniqueId as NodeTypeUniqueId,
+          handle: targetHandle,
           resetInferredType: false,
         },
-        state.dataTypes,
-        state.typeOfNodes,
       ),
     };
     return {
@@ -246,17 +232,12 @@ function inferTypesAfterEdgeAddition<
         ComplexSchemaType
       >(
         state.nodes[targetNodeIndex].data,
-        sourceHandleIndex,
         targetHandleDataType.dataTypeUniqueId,
-        //Infer as connected node's type + connected handle's NON-INFERRED type
         {
-          dataTypeToInferAs: sourceHandleDataType.dataTypeUniqueId,
-          connectedNodeType: state.nodes[sourceNodeIndex].data
-            .nodeTypeUniqueId as NodeTypeUniqueId,
+          //Infer as connected node's type + connected handle's NON-INFERRED type
+          handle: sourceHandle,
           resetInferredType: false,
         },
-        state.dataTypes,
-        state.typeOfNodes,
       ),
     };
     return {
@@ -499,11 +480,14 @@ function inferTypesAfterEdgeRemoval<
     ? z.ZodType
     : never = never,
 >(
-  state: State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
+  state: Pick<
+    State<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >,
+    'nodes' | 'edges' | 'dataTypes' | 'typeOfNodes'
   >,
   sourceNodeIndex: number,
   targetNodeIndex: number,
@@ -612,27 +596,28 @@ function inferTypesAfterEdgeRemoval<
 
     if (!isAnyOneOfThemConnected) {
       //Reset inferred type
-      updatedNodes = [...state.nodes];
+      updatedNodes = [...updatedNodes];
       updatedNodes[sourceNodeIndex] = {
-        ...state.nodes[sourceNodeIndex],
+        ...updatedNodes[sourceNodeIndex],
         data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
           DataTypeUniqueId,
           NodeTypeUniqueId,
           UnderlyingType,
           ComplexSchemaType
         >(
-          state.nodes[sourceNodeIndex].data,
-          sourceHandleIndex,
+          updatedNodes[sourceNodeIndex].data,
           sourceHandleDataType.dataTypeUniqueId,
-          //RESET INFERRED TYPE
           {
-            dataTypeToInferAs: sourceHandleDataType.dataTypeUniqueId,
-            connectedNodeType: state.nodes[sourceNodeIndex].data
-              .nodeTypeUniqueId as NodeTypeUniqueId,
+            //RESET INFERRED TYPE as original handle
+            handle: constructTypeOfHandleFromIndices(
+              state.dataTypes,
+              updatedNodes[sourceNodeIndex].data
+                .nodeTypeUniqueId as NodeTypeUniqueId,
+              state.typeOfNodes,
+              sourceHandleIndex,
+            ),
             resetInferredType: true,
           },
-          state.dataTypes,
-          state.typeOfNodes,
         ),
       };
     }
@@ -682,27 +667,28 @@ function inferTypesAfterEdgeRemoval<
 
     if (!isAnyOneOfThemConnected) {
       //Reset inferred type
-      updatedNodes = [...state.nodes];
+      updatedNodes = [...updatedNodes];
       updatedNodes[targetNodeIndex] = {
-        ...state.nodes[targetNodeIndex],
+        ...updatedNodes[targetNodeIndex],
         data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
           DataTypeUniqueId,
           NodeTypeUniqueId,
           UnderlyingType,
           ComplexSchemaType
         >(
-          state.nodes[targetNodeIndex].data,
-          targetHandleIndex,
+          updatedNodes[targetNodeIndex].data,
           targetHandleDataType.dataTypeUniqueId,
-          //RESET INFERRED TYPE
           {
-            dataTypeToInferAs: targetHandleDataType.dataTypeUniqueId,
-            connectedNodeType: state.nodes[targetNodeIndex].data
-              .nodeTypeUniqueId as NodeTypeUniqueId,
+            //RESET INFERRED TYPE as original handle
+            handle: constructTypeOfHandleFromIndices(
+              state.dataTypes,
+              updatedNodes[targetNodeIndex].data
+                .nodeTypeUniqueId as NodeTypeUniqueId,
+              state.typeOfNodes,
+              targetHandleIndex,
+            ),
             resetInferredType: true,
           },
-          state.dataTypes,
-          state.typeOfNodes,
         ),
       };
     }

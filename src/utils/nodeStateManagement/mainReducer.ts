@@ -2,7 +2,11 @@ import { type State, type SupportedUnderlyingTypes } from './types';
 import { z } from 'zod';
 import { produce } from 'immer';
 import { generateRandomString } from '../randomGeneration';
-import { constructNodeOfType } from './constructAndModifyNodes';
+import {
+  constructNodeOfType,
+  getCurrentNodesAndEdgesFromState,
+  setCurrentNodesAndEdgesToStateWithMutatingState,
+} from './constructAndModifyNodes';
 import {
   addEdgeWithTypeChecking,
   removeEdgeWithTypeChecking,
@@ -13,8 +17,10 @@ import {
   applyNodeChanges,
   type Connection,
   type XYPosition,
+  type Viewport,
 } from '@xyflow/react';
 import type { EdgeChanges, NodeChanges } from '@/components';
+import { standardNodeTypeNamesMap } from './standardNodes';
 
 /** Length of generated random IDs for nodes */
 const lengthOfIds = 20;
@@ -27,6 +33,9 @@ const actionTypes = [
   'UPDATE_EDGES_BY_REACT_FLOW',
   'ADD_EDGE_BY_REACT_FLOW',
   'UPDATE_INPUT_VALUE',
+  'OPEN_NODE_GROUP',
+  'ADD_NODE_GROUP',
+  'SET_VIEWPORT',
 ] as const;
 
 /** Map of action types for type-safe action dispatching */
@@ -37,6 +46,9 @@ const actionTypesMap = {
   [actionTypes[3]]: actionTypes[3],
   [actionTypes[4]]: actionTypes[4],
   [actionTypes[5]]: actionTypes[5],
+  [actionTypes[6]]: actionTypes[6],
+  [actionTypes[7]]: actionTypes[7],
+  [actionTypes[8]]: actionTypes[8],
 } as const;
 
 /**
@@ -114,6 +126,33 @@ type Action<
         inputId: string;
         /** New value for the input */
         value: string | number;
+      };
+    }
+  | {
+      /** Open a node group and push it onto the openedNodeGroupStack */
+      type: typeof actionTypesMap.OPEN_NODE_GROUP;
+      payload:
+        | {
+            //nodeId is used to calculate nodeType, this is instance opening
+            /** ID of the node to open */
+            nodeId: string;
+          }
+        | {
+            //This has no nodeId, we are opening the original node group
+            /** Type of node to open */
+            nodeType: NodeTypeUniqueId;
+          };
+    }
+  | {
+      /** Add a new node group to the graph */
+      type: typeof actionTypesMap.ADD_NODE_GROUP;
+    }
+  | {
+      /** Set the viewport of the graph */
+      type: typeof actionTypesMap.SET_VIEWPORT;
+      payload: {
+        /** Current viewport of the graph */
+        viewport: Viewport;
       };
     };
 
@@ -230,7 +269,10 @@ function mainReducer<
             nodeId,
             position,
           );
-          newState.nodes.push(node);
+          newState = setCurrentNodesAndEdgesToStateWithMutatingState(newState, [
+            ...getCurrentNodesAndEdgesFromState(newState).nodes,
+            node,
+          ]);
           break;
         case actionTypesMap.ADD_NODE_AND_SELECT:
           const nodeTypeAndSelect = action.payload.type;
@@ -245,39 +287,67 @@ function mainReducer<
               nodeIdAndSelect,
               positionAndSelect,
             );
-          newState.nodes = newState.nodes.map((node) => ({
-            ...node,
-            selected: false,
-          }));
+          newState = setCurrentNodesAndEdgesToStateWithMutatingState(
+            newState,
+            getCurrentNodesAndEdgesFromState(newState).nodes.map((node) => ({
+              ...node,
+              selected: false,
+            })),
+          );
           //Set the node to selected
-          newState.nodes.push({ ...nodeAndSelect, selected: true });
+          newState = setCurrentNodesAndEdgesToStateWithMutatingState(newState, [
+            ...getCurrentNodesAndEdgesFromState(newState).nodes,
+            { ...nodeAndSelect, selected: true },
+          ]);
           break;
         case actionTypesMap.UPDATE_NODE_BY_REACT_FLOW:
           const nodeChanges = action.payload.changes;
-          newState.nodes = applyNodeChanges(nodeChanges, newState.nodes);
+          newState = setCurrentNodesAndEdgesToStateWithMutatingState(
+            newState,
+            applyNodeChanges(
+              nodeChanges,
+              getCurrentNodesAndEdgesFromState(newState).nodes,
+            ),
+          );
           break;
         case actionTypesMap.UPDATE_EDGES_BY_REACT_FLOW:
           const edgeChanges = action.payload.changes;
           for (const edgeChange of edgeChanges) {
             if (edgeChange.type !== 'remove') {
-              newState.edges = applyEdgeChanges([edgeChange], newState.edges);
+              newState = setCurrentNodesAndEdgesToStateWithMutatingState(
+                newState,
+                undefined,
+                applyEdgeChanges(
+                  [edgeChange],
+                  getCurrentNodesAndEdgesFromState(newState).edges,
+                ),
+              );
               continue;
             }
             const { id: edgeId } = edgeChange;
-            const edge = newState.edges.find((edge) => edge.id === edgeId);
+            const edge = getCurrentNodesAndEdgesFromState(newState).edges.find(
+              (edge) => edge.id === edgeId,
+            );
             if (!edge) {
               continue;
             }
             const removedEdgeResult = removeEdgeWithTypeChecking(
               edge,
-              newState,
+              {
+                ...newState,
+                nodes: getCurrentNodesAndEdgesFromState(newState).nodes,
+                edges: getCurrentNodesAndEdgesFromState(newState).edges,
+              },
               edgeChange,
             );
             if (!removedEdgeResult.validation.isValid) {
               continue;
             }
-            newState.edges = removedEdgeResult.updatedEdges;
-            newState.nodes = removedEdgeResult.updatedNodes;
+            newState = setCurrentNodesAndEdgesToStateWithMutatingState(
+              newState,
+              removedEdgeResult.updatedNodes,
+              removedEdgeResult.updatedEdges,
+            );
           }
 
           break;
@@ -288,7 +358,15 @@ function mainReducer<
 
           if (
             newState.enableCycleChecking &&
-            willAddingEdgeCreateCycle(newState, source, target)
+            willAddingEdgeCreateCycle(
+              {
+                ...newState,
+                nodes: getCurrentNodesAndEdgesFromState(newState).nodes,
+                edges: getCurrentNodesAndEdgesFromState(newState).edges,
+              },
+              source,
+              target,
+            )
           ) {
             break;
           }
@@ -303,13 +381,111 @@ function mainReducer<
             sourceHandle,
             target,
             targetHandle,
-            newState,
+            {
+              ...newState,
+              nodes: getCurrentNodesAndEdgesFromState(newState).nodes,
+              edges: getCurrentNodesAndEdgesFromState(newState).edges,
+            },
           );
           if (!addedEdgeResult.validation.isValid) {
             break;
           }
-          newState.edges = addedEdgeResult.updatedEdges;
-          newState.nodes = addedEdgeResult.updatedNodes;
+          newState = setCurrentNodesAndEdgesToStateWithMutatingState(
+            newState,
+            addedEdgeResult.updatedNodes,
+            addedEdgeResult.updatedEdges,
+          );
+          break;
+        case actionTypesMap.OPEN_NODE_GROUP:
+          //If nodeId is provided, we are opening an instance of the node group
+          if ('nodeId' in action.payload) {
+            const openNodeId = action.payload.nodeId;
+            // Find the node to get its type
+            const nodeToOpen = newState.nodes.find(
+              (node) => node.id === openNodeId,
+            );
+            if (!nodeToOpen) {
+              break;
+            }
+            const nodeType = nodeToOpen.data.nodeTypeUniqueId;
+            if (!nodeType) {
+              break;
+            }
+            const nodeTypeToOpen = newState.typeOfNodes[nodeType];
+            if (!nodeTypeToOpen || !nodeTypeToOpen.subtree) {
+              //Not a valid node group
+              break;
+            }
+            //Push the node group onto the stack (instance opening)
+            newState.openedNodeGroupStack = [
+              ...(newState.openedNodeGroupStack || []),
+              {
+                nodeType: nodeType,
+                nodeId: openNodeId,
+                previousViewport: newState.viewport,
+              },
+            ];
+          } else {
+            //Clear the stack and push the node group onto the stack (original opening hence has no nodeId)
+            const nodeType = action.payload.nodeType;
+            const nodeTypeToOpen = newState.typeOfNodes[nodeType];
+            if (!nodeTypeToOpen || !nodeTypeToOpen.subtree) {
+              //Not a valid node group
+              break;
+            }
+            //No history
+            newState.openedNodeGroupStack = [
+              {
+                nodeType: nodeType,
+              },
+            ];
+          }
+          break;
+        case actionTypesMap.ADD_NODE_GROUP:
+          const groupNodeType = generateRandomString(lengthOfIds);
+          const groupInputNodeId = generateRandomString(lengthOfIds);
+          const groupInputNode: (typeof newState.nodes)[number] =
+            constructNodeOfType(
+              newState.dataTypes,
+              //@ts-ignore we assume standard node types are always added in state
+              standardNodeTypeNamesMap.groupInput,
+              newState.typeOfNodes,
+              groupInputNodeId,
+              { x: -500, y: 0 },
+            );
+          const groupOutputNodeId = generateRandomString(lengthOfIds);
+          const groupOutputNode: (typeof newState.nodes)[number] =
+            constructNodeOfType(
+              newState.dataTypes,
+              //@ts-ignore we assume standard node types are always added in state
+              standardNodeTypeNamesMap.groupOutput,
+              newState.typeOfNodes,
+              groupOutputNodeId,
+              { x: 500, y: 0 },
+            );
+          const nodeGroup: (typeof newState.typeOfNodes)[NodeTypeUniqueId] = {
+            name: 'Node Group',
+            headerColor: '#344621',
+            inputs: [],
+            outputs: [],
+            subtree: {
+              nodes: [groupInputNode, groupOutputNode],
+              edges: [],
+              numberOfReferences: 0,
+              inputNodeId: groupInputNodeId,
+              outputNodeId: groupOutputNodeId,
+            },
+          };
+          newState.typeOfNodes[groupNodeType as NodeTypeUniqueId] = nodeGroup;
+          newState.openedNodeGroupStack = [
+            {
+              nodeType: groupNodeType as NodeTypeUniqueId,
+            },
+          ];
+          newState.viewport = undefined;
+          break;
+        case actionTypesMap.SET_VIEWPORT:
+          newState.viewport = action.payload.viewport;
           break;
       }
     },

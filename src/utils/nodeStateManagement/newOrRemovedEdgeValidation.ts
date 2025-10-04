@@ -596,22 +596,22 @@ function inferTypesAfterEdgeRemoval<
 
     if (!isAnyOneOfThemConnected) {
       //Reset inferred type
-      updatedNodes = [...state.nodes];
+      updatedNodes = [...updatedNodes];
       updatedNodes[sourceNodeIndex] = {
-        ...state.nodes[sourceNodeIndex],
+        ...updatedNodes[sourceNodeIndex],
         data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
           DataTypeUniqueId,
           NodeTypeUniqueId,
           UnderlyingType,
           ComplexSchemaType
         >(
-          state.nodes[sourceNodeIndex].data,
+          updatedNodes[sourceNodeIndex].data,
           sourceHandleDataType.dataTypeUniqueId,
           {
             //RESET INFERRED TYPE as original handle
             handle: constructTypeOfHandleFromIndices(
               state.dataTypes,
-              state.nodes[sourceNodeIndex].data
+              updatedNodes[sourceNodeIndex].data
                 .nodeTypeUniqueId as NodeTypeUniqueId,
               state.typeOfNodes,
               sourceHandleIndex,
@@ -667,22 +667,22 @@ function inferTypesAfterEdgeRemoval<
 
     if (!isAnyOneOfThemConnected) {
       //Reset inferred type
-      updatedNodes = [...state.nodes];
+      updatedNodes = [...updatedNodes];
       updatedNodes[targetNodeIndex] = {
-        ...state.nodes[targetNodeIndex],
+        ...updatedNodes[targetNodeIndex],
         data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
           DataTypeUniqueId,
           NodeTypeUniqueId,
           UnderlyingType,
           ComplexSchemaType
         >(
-          state.nodes[targetNodeIndex].data,
+          updatedNodes[targetNodeIndex].data,
           targetHandleDataType.dataTypeUniqueId,
           {
             //RESET INFERRED TYPE as original handle
             handle: constructTypeOfHandleFromIndices(
               state.dataTypes,
-              state.nodes[targetNodeIndex].data
+              updatedNodes[targetNodeIndex].data
                 .nodeTypeUniqueId as NodeTypeUniqueId,
               state.typeOfNodes,
               targetHandleIndex,

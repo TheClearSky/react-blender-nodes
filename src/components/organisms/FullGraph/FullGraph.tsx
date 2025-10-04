@@ -4,6 +4,7 @@ import {
   useCallback,
   type ActionDispatch,
   createContext,
+  useMemo,
 } from 'react';
 import { z } from 'zod';
 import {
@@ -20,8 +21,9 @@ import '@xyflow/react/dist/style.css';
 import { ConfigurableNodeReactFlowWrapper } from '../ConfigurableNode/ConfigurableNodeReactFlowWrapper';
 import { ConfigurableEdge } from '../../atoms/ConfigurableEdge/ConfigurableEdge';
 import { ConfigurableConnection } from '@/components/atoms/ConfiguableConnection/ConfigurableConnection';
-import { ContextMenu } from '../../molecules/ContextMenu/ContextMenu';
 import { createNodeContextMenu } from '../../molecules/ContextMenu/createNodeContextMenu';
+import { FullGraphContextMenu } from './FullGraphContextMenu';
+import { FullGraphNodeGroupSelector } from './FullGraphNodeGroupSelector';
 import {
   actionTypesMap,
   mainReducer,
@@ -31,15 +33,7 @@ import {
   type State,
   type SupportedUnderlyingTypes,
 } from '@/utils/nodeStateManagement/types';
-import {
-  useFloating,
-  autoUpdate,
-  offset,
-  flip,
-  shift,
-  useDismiss,
-  useInteractions,
-} from '@floating-ui/react';
+import { getCurrentNodesAndEdgesFromState } from '@/utils';
 
 const nodeTypes = {
   configurableNode: ConfigurableNodeReactFlowWrapper,
@@ -148,7 +142,7 @@ type FullGraphProps<
  *
  * // Add a new node (type-safe!)
  * dispatch({
- *   type: 'ADD_NODE',
+ *   type: actionTypesMap.ADD_NODE,
  *   payload: { type: 'inputNode', position: { x: 100, y: 100 } },
  * });
  * ```
@@ -217,28 +211,25 @@ function FullGraphWithReactFlowProvider<
     isOpen: false,
     position: { x: 0, y: 0 },
   });
+
+  const nodeGroups = useMemo(() => {
+    return Object.keys(state.typeOfNodes)
+      .filter(
+        (key) =>
+          state.typeOfNodes[key as keyof typeof state.typeOfNodes].subtree !==
+          undefined,
+      )
+      .map((key) => ({
+        id: key,
+        name: state.typeOfNodes[key as keyof typeof state.typeOfNodes].name,
+      }));
+  }, [state.typeOfNodes]);
+
+  const currentNodeGroup = useMemo(() => {
+    return state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
+  }, [state.openedNodeGroupStack]);
+
   const { screenToFlowPosition } = useReactFlow();
-
-  // Floating UI setup for context menu
-  const { refs, floatingStyles, context } = useFloating({
-    open: contextMenu.isOpen,
-    onOpenChange: (open) => {
-      if (!open) {
-        setContextMenu({ isOpen: false, position: { x: 0, y: 0 } });
-      }
-    },
-    placement: 'bottom-start',
-    middleware: [
-      offset(5),
-      flip({ fallbackPlacements: ['top-start'] }),
-      shift({ padding: 8 }),
-    ],
-    whileElementsMounted: autoUpdate,
-  });
-
-  // Dismiss interactions for context menu
-  const dismiss = useDismiss(context);
-  const { getFloatingProps } = useInteractions([dismiss]);
 
   // Generate context menu items dynamically from typeOfNodes
   const contextMenuItems = createNodeContextMenu({
@@ -248,38 +239,19 @@ function FullGraphWithReactFlowProvider<
     contextMenuPosition: screenToFlowPosition(contextMenu.position),
   });
 
-  const handleContextMenu = useCallback(
-    (event: React.MouseEvent) => {
-      event.preventDefault();
-      const position = { x: event.clientX, y: event.clientY };
-
-      // Set the reference element position for floating UI with proper dimensions
-      if (refs.setReference) {
-        refs.setReference({
-          getBoundingClientRect: () => ({
-            x: position.x,
-            y: position.y,
-            width: 1,
-            height: 1,
-            top: position.y,
-            right: position.x + 1,
-            bottom: position.y + 1,
-            left: position.x,
-          }),
-        });
-      }
-
-      setContextMenu({
-        isOpen: true,
-        position,
-      });
-    },
-    [refs],
-  );
+  const handleContextMenu = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    const position = { x: event.clientX, y: event.clientY };
+    setContextMenu({ isOpen: true, position });
+  }, []);
 
   const handleCloseContextMenu = useCallback(() => {
     setContextMenu({ isOpen: false, position: { x: 0, y: 0 } });
   }, []);
+
+  const currentNodesAndEdges = useMemo(() => {
+    return getCurrentNodesAndEdgesFromState(state);
+  }, [state.nodes, state.edges, state.openedNodeGroupStack, state.typeOfNodes]);
 
   return (
     <div
@@ -287,10 +259,17 @@ function FullGraphWithReactFlowProvider<
         width: '100%',
         height: '100%',
       }}
+      className='relative'
+      key={
+        (state.openedNodeGroupStack?.length || -1).toString() +
+        '-' +
+        (state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1]
+          ?.nodeType || '')
+      }
     >
       <ReactFlow
-        nodes={state.nodes}
-        edges={state.edges}
+        nodes={currentNodesAndEdges.nodes}
+        edges={currentNodesAndEdges.edges}
         onNodesChange={(changes) =>
           dispatch({
             type: actionTypesMap.UPDATE_NODE_BY_REACT_FLOW,
@@ -330,6 +309,13 @@ function FullGraphWithReactFlowProvider<
         connectionLineComponent={ConfigurableConnection}
         onContextMenu={handleContextMenu}
         onClick={handleCloseContextMenu}
+        viewport={state.viewport}
+        onViewportChange={(viewport) =>
+          dispatch({
+            type: actionTypesMap.SET_VIEWPORT,
+            payload: { viewport },
+          })
+        }
       >
         <Controls />
         <Background />
@@ -337,22 +323,30 @@ function FullGraphWithReactFlowProvider<
       </ReactFlow>
 
       {/* Context Menu */}
-      {contextMenu.isOpen && (
-        <div
-          ref={refs.setFloating}
-          style={{
-            ...floatingStyles,
-            // Prevent scrollbar during positioning
-            contain: 'layout',
-            willChange: 'transform',
-          }}
-          className='z-50'
-          onClick={(e) => e.stopPropagation()}
-          {...getFloatingProps()}
-        >
-          <ContextMenu subItems={contextMenuItems} />
-        </div>
-      )}
+      <FullGraphContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        onClose={handleCloseContextMenu}
+        subItems={contextMenuItems}
+      />
+
+      <FullGraphNodeGroupSelector
+        nodeGroups={nodeGroups}
+        value={currentNodeGroup?.nodeType ?? ''}
+        setValue={(value) =>
+          dispatch({
+            type: actionTypesMap.OPEN_NODE_GROUP,
+            payload: {
+              nodeType: value as NodeTypeUniqueId,
+            },
+          })
+        }
+        handleAddNewGroup={() =>
+          dispatch({
+            type: actionTypesMap.ADD_NODE_GROUP,
+          })
+        }
+      />
     </div>
   );
 }

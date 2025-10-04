@@ -64,4 +64,6 @@ export {
   standardNodeTypes,
   standardDataTypeNames,
   standardNodeTypeNames,
+  standardDataTypeNamesMap,
+  standardNodeTypeNamesMap,
 };

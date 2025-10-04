@@ -1,7 +1,8 @@
 import { useContext } from 'react';
-import { useNodeId, useReactFlow } from '@xyflow/react';
+import { useNodeId } from '@xyflow/react';
 import { SquareMousePointerIcon } from 'lucide-react';
 import { FullGraphContext } from '../FullGraph/FullGraph';
+import { actionTypesMap } from '@/utils/nodeStateManagement/mainReducer';
 
 /**
  * Props for the ReactFlowAwareOpenButton component
@@ -18,18 +19,15 @@ type ReactFlowAwareOpenButtonProps = {};
  * @returns JSX element containing the open button
  */
 const ReactFlowAwareOpenButton = ({}: ReactFlowAwareOpenButtonProps) => {
-  const reactflowContext = useReactFlow();
   const fullGraphContext = useContext(FullGraphContext);
   const nodeId = useNodeId();
 
   const handleOpenNodeGroup = () => {
     if (fullGraphContext?.allProps?.dispatch && nodeId) {
-      const currentViewport = reactflowContext.getViewport();
       fullGraphContext.allProps.dispatch({
-        type: 'OPEN_NODE_GROUP',
+        type: actionTypesMap.OPEN_NODE_GROUP,
         payload: {
           nodeId,
-          viewport: currentViewport,
         },
       });
     }

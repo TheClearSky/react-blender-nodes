@@ -1,9 +1,4 @@
-import {
-  constructTypeOfHandleFromIndices,
-  type DataType,
-  type State,
-  type SupportedUnderlyingTypes,
-} from '@/utils';
+import { type SupportedUnderlyingTypes } from '@/utils';
 import type {
   ConfigurableNodeProps,
   ConfigurableNodeInput,
@@ -742,46 +737,47 @@ function inferTypeOnHandleOfIndicesWithoutMutating<
     DataTypeUniqueId
   >,
   handleIndices: HandleIndices,
-  connectedHandleIndices: HandleIndices,
-  dataTypeToInferAsAndTypeOfConnectedNode:
+  connectedHandle:
     | {
-        dataTypeToInferAs: DataTypeUniqueId;
-        connectedNodeType: NodeTypeUniqueId;
+        handle:
+          | ConfigurableNodeInput<
+              UnderlyingType,
+              ComplexSchemaType,
+              DataTypeUniqueId
+            >
+          | ConfigurableNodeOutput<
+              UnderlyingType,
+              ComplexSchemaType,
+              DataTypeUniqueId
+            >
+          | undefined;
         resetInferredType: boolean;
       }
     | undefined,
-  allDataTypes: Record<
-    DataTypeUniqueId,
-    DataType<UnderlyingType, ComplexSchemaType>
-  >,
-  typeOfNodes: State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >['typeOfNodes'],
 ): ConfigurableNodeProps<
   UnderlyingType,
   NodeTypeUniqueId,
   ComplexSchemaType,
   DataTypeUniqueId
 > {
-  const constructedHandle = dataTypeToInferAsAndTypeOfConnectedNode
-    ? constructTypeOfHandleFromIndices(
-        allDataTypes,
-        dataTypeToInferAsAndTypeOfConnectedNode.connectedNodeType,
-        typeOfNodes,
-        connectedHandleIndices,
-      )
-    : undefined;
-  let constructedHandleWithoutNameIdAndDataType:
-    | Omit<typeof constructedHandle, 'id'>
+  let connectedHandleWithoutNameIdDataTypeAndInferredDataType:
+    | Omit<
+        NonNullable<typeof connectedHandle>['handle'],
+        'id' | 'name' | 'dataType' | 'inferredDataType'
+      >
     | undefined;
-  if (constructedHandle) {
-    const { id, name, dataType, ...constructedHandleWithoutIdTemp } =
-      constructedHandle;
-    constructedHandleWithoutNameIdAndDataType = constructedHandleWithoutIdTemp;
+  if (connectedHandle?.handle) {
+    const { id, name, dataType, inferredDataType, ...restHandle } =
+      connectedHandle.handle;
+    connectedHandleWithoutNameIdDataTypeAndInferredDataType = restHandle;
   }
+  const inferredDataType =
+    (connectedHandle?.handle?.inferredDataType ||
+      connectedHandle?.handle?.dataType) &&
+    !connectedHandle?.resetInferredType
+      ? connectedHandle?.handle?.inferredDataType ||
+        connectedHandle?.handle?.dataType
+      : undefined;
   if (handleIndices.type === 'input') {
     return modifyInputsInNodeDataWithoutMutatingUsingHandleIndices<
       UnderlyingType,
@@ -789,21 +785,11 @@ function inferTypeOnHandleOfIndicesWithoutMutating<
       ComplexSchemaType,
       DataTypeUniqueId
     >(handleIndices, nodeData, {
-      inferredDataType:
-        dataTypeToInferAsAndTypeOfConnectedNode?.dataTypeToInferAs &&
-        !dataTypeToInferAsAndTypeOfConnectedNode.resetInferredType
-          ? {
-              dataTypeObject:
-                allDataTypes[
-                  dataTypeToInferAsAndTypeOfConnectedNode.dataTypeToInferAs
-                ],
-              dataTypeUniqueId:
-                dataTypeToInferAsAndTypeOfConnectedNode.dataTypeToInferAs,
-            }
-          : undefined,
-      ...(dataTypeToInferAsAndTypeOfConnectedNode?.dataTypeToInferAs &&
-      constructedHandleWithoutNameIdAndDataType
-        ? constructedHandleWithoutNameIdAndDataType
+      inferredDataType: inferredDataType,
+      ...(connectedHandle?.handle?.dataType?.dataTypeObject &&
+      connectedHandle?.handle?.dataType?.dataTypeUniqueId &&
+      connectedHandleWithoutNameIdDataTypeAndInferredDataType
+        ? connectedHandleWithoutNameIdDataTypeAndInferredDataType
         : {}),
     });
   } else {
@@ -813,21 +799,11 @@ function inferTypeOnHandleOfIndicesWithoutMutating<
       ComplexSchemaType,
       DataTypeUniqueId
     >(handleIndices, nodeData, {
-      inferredDataType:
-        dataTypeToInferAsAndTypeOfConnectedNode?.dataTypeToInferAs &&
-        !dataTypeToInferAsAndTypeOfConnectedNode.resetInferredType
-          ? {
-              dataTypeObject:
-                allDataTypes[
-                  dataTypeToInferAsAndTypeOfConnectedNode.dataTypeToInferAs
-                ],
-              dataTypeUniqueId:
-                dataTypeToInferAsAndTypeOfConnectedNode.dataTypeToInferAs,
-            }
-          : undefined,
-      ...(dataTypeToInferAsAndTypeOfConnectedNode?.dataTypeToInferAs &&
-      constructedHandleWithoutNameIdAndDataType
-        ? constructedHandleWithoutNameIdAndDataType
+      inferredDataType: inferredDataType,
+      ...(connectedHandle?.handle?.dataType?.dataTypeObject &&
+      connectedHandle?.handle?.dataType?.dataTypeUniqueId &&
+      connectedHandleWithoutNameIdDataTypeAndInferredDataType
+        ? connectedHandleWithoutNameIdDataTypeAndInferredDataType
         : {}),
     });
   }
@@ -847,25 +823,24 @@ function inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
     ComplexSchemaType,
     DataTypeUniqueId
   >,
-  connectedHandleIndices: HandleIndices,
   dataTypeToInferFor: DataTypeUniqueId,
-  dataTypeToInferAsAndTypeOfConnectedNode:
+  connectedHandle:
     | {
-        dataTypeToInferAs: DataTypeUniqueId;
-        connectedNodeType: NodeTypeUniqueId;
+        handle:
+          | ConfigurableNodeInput<
+              UnderlyingType,
+              ComplexSchemaType,
+              DataTypeUniqueId
+            >
+          | ConfigurableNodeOutput<
+              UnderlyingType,
+              ComplexSchemaType,
+              DataTypeUniqueId
+            >
+          | undefined;
         resetInferredType: boolean;
       }
     | undefined,
-  allDataTypes: Record<
-    DataTypeUniqueId,
-    DataType<UnderlyingType, ComplexSchemaType>
-  >,
-  typeOfNodes: State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >['typeOfNodes'],
 ): ConfigurableNodeProps<
   UnderlyingType,
   NodeTypeUniqueId,
@@ -883,14 +858,7 @@ function inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
         NodeTypeUniqueId,
         UnderlyingType,
         ComplexSchemaType
-      >(
-        newNodeData,
-        inputAndIndex.handleIndices,
-        connectedHandleIndices,
-        dataTypeToInferAsAndTypeOfConnectedNode,
-        allDataTypes,
-        typeOfNodes,
-      );
+      >(newNodeData, inputAndIndex.handleIndices, connectedHandle);
     }
   }
   for (const outputAndIndex of outputsAndIndices) {
@@ -902,14 +870,7 @@ function inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
         NodeTypeUniqueId,
         UnderlyingType,
         ComplexSchemaType
-      >(
-        newNodeData,
-        outputAndIndex.handleIndices,
-        connectedHandleIndices,
-        dataTypeToInferAsAndTypeOfConnectedNode,
-        allDataTypes,
-        typeOfNodes,
-      );
+      >(newNodeData, outputAndIndex.handleIndices, connectedHandle);
     }
   }
   return newNodeData;

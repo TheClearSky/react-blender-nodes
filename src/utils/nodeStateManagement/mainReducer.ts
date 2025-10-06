@@ -34,6 +34,7 @@ const actionTypes = [
   'ADD_EDGE_BY_REACT_FLOW',
   'UPDATE_INPUT_VALUE',
   'OPEN_NODE_GROUP',
+  'CLOSE_NODE_GROUP',
   'ADD_NODE_GROUP',
   'SET_VIEWPORT',
 ] as const;
@@ -49,6 +50,7 @@ const actionTypesMap = {
   [actionTypes[6]]: actionTypes[6],
   [actionTypes[7]]: actionTypes[7],
   [actionTypes[8]]: actionTypes[8],
+  [actionTypes[9]]: actionTypes[9],
 } as const;
 
 /**
@@ -142,6 +144,10 @@ type Action<
             /** Type of node to open */
             nodeType: NodeTypeUniqueId;
           };
+    }
+  | {
+      /** Close a node group and pop it from the openedNodeGroupStack */
+      type: typeof actionTypesMap.CLOSE_NODE_GROUP;
     }
   | {
       /** Add a new node group to the graph */
@@ -401,9 +407,9 @@ function mainReducer<
           if ('nodeId' in action.payload) {
             const openNodeId = action.payload.nodeId;
             // Find the node to get its type
-            const nodeToOpen = newState.nodes.find(
-              (node) => node.id === openNodeId,
-            );
+            const nodeToOpen = getCurrentNodesAndEdgesFromState(
+              newState,
+            ).nodes.find((node) => node.id === openNodeId);
             if (!nodeToOpen) {
               break;
             }
@@ -437,9 +443,29 @@ function mainReducer<
             newState.openedNodeGroupStack = [
               {
                 nodeType: nodeType,
+                previousViewport:
+                  newState.openedNodeGroupStack?.[0]?.previousViewport ||
+                  newState.viewport,
               },
             ];
           }
+          newState.viewport = undefined;
+          break;
+        case actionTypesMap.CLOSE_NODE_GROUP:
+          const lastOpenedNodeGroup =
+            newState.openedNodeGroupStack?.[
+              newState.openedNodeGroupStack.length - 1
+            ];
+          if (
+            lastOpenedNodeGroup &&
+            'previousViewport' in lastOpenedNodeGroup
+          ) {
+            newState.viewport = lastOpenedNodeGroup.previousViewport;
+          }
+          newState.openedNodeGroupStack = newState.openedNodeGroupStack?.slice(
+            0,
+            -1,
+          );
           break;
         case actionTypesMap.ADD_NODE_GROUP:
           const groupNodeType = generateRandomString(lengthOfIds);
@@ -463,8 +489,11 @@ function mainReducer<
               groupOutputNodeId,
               { x: 500, y: 0 },
             );
+          const numberOfNodeGroups = Object.keys(newState.typeOfNodes).filter(
+            (key) => newState.typeOfNodes[key as NodeTypeUniqueId].subtree,
+          ).length;
           const nodeGroup: (typeof newState.typeOfNodes)[NodeTypeUniqueId] = {
-            name: 'Node Group',
+            name: 'Node Group ' + (numberOfNodeGroups + 1).toString(),
             headerColor: '#344621',
             inputs: [],
             outputs: [],
@@ -480,6 +509,9 @@ function mainReducer<
           newState.openedNodeGroupStack = [
             {
               nodeType: groupNodeType as NodeTypeUniqueId,
+              previousViewport:
+                newState.openedNodeGroupStack?.[0]?.previousViewport ||
+                newState.viewport,
             },
           ];
           newState.viewport = undefined;

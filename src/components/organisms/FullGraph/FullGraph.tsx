@@ -5,6 +5,7 @@ import {
   type ActionDispatch,
   createContext,
   useMemo,
+  useEffect,
 } from 'react';
 import { z } from 'zod';
 import {
@@ -229,7 +230,7 @@ function FullGraphWithReactFlowProvider<
     return state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
   }, [state.openedNodeGroupStack]);
 
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, fitView } = useReactFlow();
 
   // Generate context menu items dynamically from typeOfNodes
   const contextMenuItems = createNodeContextMenu({
@@ -253,6 +254,15 @@ function FullGraphWithReactFlowProvider<
     return getCurrentNodesAndEdgesFromState(state);
   }, [state.nodes, state.edges, state.openedNodeGroupStack, state.typeOfNodes]);
 
+  useEffect(() => {
+    if (state.viewport === undefined) {
+      fitView({
+        maxZoom: 0.5,
+        minZoom: 0.1,
+      });
+    }
+  }, [state.viewport]);
+
   return (
     <div
       style={{
@@ -260,12 +270,6 @@ function FullGraphWithReactFlowProvider<
         height: '100%',
       }}
       className='relative'
-      key={
-        (state.openedNodeGroupStack?.length || -1).toString() +
-        '-' +
-        (state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1]
-          ?.nodeType || '')
-      }
     >
       <ReactFlow
         nodes={currentNodesAndEdges.nodes}
@@ -288,11 +292,6 @@ function FullGraphWithReactFlowProvider<
             payload: { edge: newConnection },
           })
         }
-        fitView
-        fitViewOptions={{
-          maxZoom: 0.5,
-          minZoom: 0.1,
-        }}
         maxZoom={1}
         minZoom={0.1}
         proOptions={{
@@ -346,6 +345,20 @@ function FullGraphWithReactFlowProvider<
             type: actionTypesMap.ADD_NODE_GROUP,
           })
         }
+        enableBackButton={(state.openedNodeGroupStack?.length || 0) > 0}
+        handleBack={() =>
+          dispatch({
+            type: actionTypesMap.CLOSE_NODE_GROUP,
+          })
+        }
+        openedNodeGroupStack={(state.openedNodeGroupStack || []).map(
+          (nodeGroup) => ({
+            id:
+              nodeGroup.nodeType +
+              ('nodeId' in nodeGroup ? nodeGroup.nodeId : ''),
+            name: state.typeOfNodes[nodeGroup.nodeType].name,
+          }),
+        )}
       />
     </div>
   );

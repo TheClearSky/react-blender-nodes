@@ -54,7 +54,7 @@ const SelectTrigger = forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      'flex h-[44px] w-full items-center justify-between rounded-md border \
+      'flex h-[44px] w-full items-center justify-between rounded-md border cursor-pointer \
       border-secondary-dark-gray bg-primary-black px-4 py-2 text-[27px] \
       leading-[27px] font-main text-primary-white data-[placeholder]:text-[#6B6B6B] \
       focus:outline-none focus-visible:ring-1 \

@@ -5,10 +5,10 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/utils/cnHelper';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 \
+  'inline-flex items-center justify-center gap-2 cursor-pointer \
   py-2 px-4 rounded-md transition-all \
   text-[27px] leading-[27px] font-main whitespace-nowrap text-primary-white \
-  disabled:cursor-not-allowed outline-none focus-visible:outline-none border',
+  disabled:cursor-not-allowed disabled:bg-secondary-dark-gray disabled:opacity-50 outline-none focus-visible:outline-none border',
   {
     variants: {
       color: {

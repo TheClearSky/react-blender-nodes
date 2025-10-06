@@ -344,6 +344,7 @@ type State<
   (
     | {
         nodeType: NodeTypeUniqueId;
+        previousViewport?: Viewport;
       }
     //Opening the instance of the node group case
     | {
@@ -352,7 +353,7 @@ type State<
          * If not provided, it means that this node group isn't instantiated yet and we are editing the original node group
          */
         nodeId: string;
-        previousViewport: Viewport;
+        previousViewport?: Viewport;
       }
   )[];
   /** Map of data type definitions */

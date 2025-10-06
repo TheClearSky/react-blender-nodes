@@ -3,6 +3,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@utility no-scrollbar {
+  @apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+}
+
 @theme inline {
   --font-main: 'DejaVu Sans', 'Roboto', sans-serif;
 

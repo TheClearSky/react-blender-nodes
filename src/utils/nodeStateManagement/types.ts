@@ -430,6 +430,16 @@ type State<
    * @default undefined
    */
   enableCycleChecking?: boolean;
+
+  /**
+   * Whether to enable recursion checking
+   * - If not provided, is considered disabled
+   * - When disabled, the recursion is not checked, all nesting of node groups is allowed
+   * - When enabled, the recursion is checked, and nesting of node groups is not allowed if it creates a recursion
+   *
+   * @default undefined
+   */
+  enableRecursionChecking?: boolean;
 };
 
 /**

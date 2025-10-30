@@ -387,16 +387,29 @@ function modifyInputsInNodeDataWithoutMutatingUsingHandleIndices<
     ComplexSchemaType,
     DataTypeUniqueId
   >,
-  updates: Partial<
-    ConfigurableNodeInput<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>
-  >,
+  updates:
+    | Partial<
+        ConfigurableNodeInput<
+          UnderlyingType,
+          ComplexSchemaType,
+          DataTypeUniqueId
+        >
+      >
+    | {
+        upsert: true;
+        input: ConfigurableNodeInput<
+          UnderlyingType,
+          ComplexSchemaType,
+          DataTypeUniqueId
+        >;
+      },
 ): ConfigurableNodeProps<
   UnderlyingType,
   NodeTypeUniqueId,
   ComplexSchemaType,
   DataTypeUniqueId
 > {
-  if (handleIndices.type != 'input') {
+  if (handleIndices.type !== 'input') {
     return nodeData;
   }
 
@@ -408,7 +421,7 @@ function modifyInputsInNodeDataWithoutMutatingUsingHandleIndices<
     ComplexSchemaType,
     DataTypeUniqueId
   >(handleIndices, nodeData);
-  if (!existingInput) {
+  if (!existingInput && !('upsert' in updates)) {
     return nodeData;
   }
   const newInput: ConfigurableNodeInput<
@@ -416,18 +429,25 @@ function modifyInputsInNodeDataWithoutMutatingUsingHandleIndices<
     ComplexSchemaType,
     DataTypeUniqueId
     //This holds true as long as a partial update isn't an invalid state
-  > = { ...existingInput, ...updates } as ConfigurableNodeInput<
-    UnderlyingType,
-    ComplexSchemaType,
-    DataTypeUniqueId
-  >;
+  > =
+    'upsert' in updates
+      ? updates.input
+      : ({ ...existingInput, ...updates } as ConfigurableNodeInput<
+          UnderlyingType,
+          ComplexSchemaType,
+          DataTypeUniqueId
+        >);
   const newInputsArray = [...(nodeData.inputs || [])];
 
   const inputOrPanel = nodeData?.inputs?.[handleIndices.index1];
-  if (!inputOrPanel) {
+  if (!inputOrPanel && !('upsert' in updates)) {
     return nodeData;
   }
-  if (handleIndices.index2 !== undefined && 'inputs' in inputOrPanel) {
+  if (
+    handleIndices.index2 !== undefined &&
+    inputOrPanel &&
+    'inputs' in inputOrPanel
+  ) {
     const newInputsSubArray = [...(inputOrPanel.inputs || [])];
     newInputsSubArray[handleIndices.index2] = newInput;
     newInputsArray[handleIndices.index1] = {
@@ -436,7 +456,7 @@ function modifyInputsInNodeDataWithoutMutatingUsingHandleIndices<
     };
   } else if (
     handleIndices.index2 === undefined &&
-    !('inputs' in inputOrPanel)
+    ('upsert' in updates || (inputOrPanel && !('inputs' in inputOrPanel)))
   ) {
     newInputsArray[handleIndices.index1] = newInput;
   }
@@ -484,16 +504,29 @@ function modifyOutputsInNodeDataWithoutMutatingUsingHandleIndices<
     ComplexSchemaType,
     DataTypeUniqueId
   >,
-  updates: Partial<
-    ConfigurableNodeOutput<UnderlyingType, ComplexSchemaType, DataTypeUniqueId>
-  >,
+  updates:
+    | Partial<
+        ConfigurableNodeOutput<
+          UnderlyingType,
+          ComplexSchemaType,
+          DataTypeUniqueId
+        >
+      >
+    | {
+        upsert: true;
+        output: ConfigurableNodeOutput<
+          UnderlyingType,
+          ComplexSchemaType,
+          DataTypeUniqueId
+        >;
+      },
 ): ConfigurableNodeProps<
   UnderlyingType,
   NodeTypeUniqueId,
   ComplexSchemaType,
   DataTypeUniqueId
 > {
-  if (handleIndices.type != 'output') {
+  if (handleIndices.type !== 'output') {
     return nodeData;
   }
   const existingOutput:
@@ -508,14 +541,21 @@ function modifyOutputsInNodeDataWithoutMutatingUsingHandleIndices<
     ComplexSchemaType,
     DataTypeUniqueId
   >(handleIndices, nodeData);
-  if (!existingOutput) {
+  if (!existingOutput && !('upsert' in updates)) {
     return nodeData;
   }
   const newOutput: ConfigurableNodeOutput<
     UnderlyingType,
     ComplexSchemaType,
     DataTypeUniqueId
-  > = { ...existingOutput, ...updates };
+  > =
+    'upsert' in updates
+      ? updates.output
+      : ({ ...existingOutput, ...updates } as ConfigurableNodeOutput<
+          UnderlyingType,
+          ComplexSchemaType,
+          DataTypeUniqueId
+        >);
   const newOutputsArray = [...(nodeData.outputs || [])];
   newOutputsArray[handleIndices.index1] = newOutput;
   const newNodeData = {
@@ -752,6 +792,8 @@ function inferTypeOnHandleOfIndicesWithoutMutating<
             >
           | undefined;
         resetInferredType: boolean;
+        overrideDataType?: boolean;
+        overrideName?: boolean;
       }
     | undefined,
 ): ConfigurableNodeProps<
@@ -786,10 +828,16 @@ function inferTypeOnHandleOfIndicesWithoutMutating<
       DataTypeUniqueId
     >(handleIndices, nodeData, {
       inferredDataType: inferredDataType,
+      ...(connectedHandle?.overrideDataType
+        ? { dataType: inferredDataType }
+        : {}),
       ...(connectedHandle?.handle?.dataType?.dataTypeObject &&
       connectedHandle?.handle?.dataType?.dataTypeUniqueId &&
       connectedHandleWithoutNameIdDataTypeAndInferredDataType
         ? connectedHandleWithoutNameIdDataTypeAndInferredDataType
+        : {}),
+      ...(connectedHandle?.overrideName && connectedHandle?.handle?.name
+        ? { name: connectedHandle.handle.name }
         : {}),
     });
   } else {
@@ -800,10 +848,16 @@ function inferTypeOnHandleOfIndicesWithoutMutating<
       DataTypeUniqueId
     >(handleIndices, nodeData, {
       inferredDataType: inferredDataType,
+      ...(connectedHandle?.overrideDataType
+        ? { dataType: inferredDataType }
+        : {}),
       ...(connectedHandle?.handle?.dataType?.dataTypeObject &&
       connectedHandle?.handle?.dataType?.dataTypeUniqueId &&
       connectedHandleWithoutNameIdDataTypeAndInferredDataType
         ? connectedHandleWithoutNameIdDataTypeAndInferredDataType
+        : {}),
+      ...(connectedHandle?.overrideName && connectedHandle?.handle?.name
+        ? { name: connectedHandle.handle.name }
         : {}),
     });
   }
@@ -839,6 +893,8 @@ function inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
             >
           | undefined;
         resetInferredType: boolean;
+        overrideDataType?: boolean;
+        overrideName?: boolean;
       }
     | undefined,
 ): ConfigurableNodeProps<

@@ -410,6 +410,8 @@ function getCurrentNodesAndEdgesFromState<
     UnderlyingType,
     ComplexSchemaType
   >['edges'];
+  inputNodeId?: string;
+  outputNodeId?: string;
 } {
   const topOpenedNodeGroup =
     state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
@@ -420,7 +422,12 @@ function getCurrentNodesAndEdgesFromState<
   if (!subtree) {
     return { nodes: state.nodes, edges: state.edges };
   }
-  return { nodes: subtree.nodes, edges: subtree.edges };
+  return {
+    nodes: subtree.nodes,
+    edges: subtree.edges,
+    inputNodeId: subtree.inputNodeId,
+    outputNodeId: subtree.outputNodeId,
+  };
 }
 
 function setCurrentNodesAndEdgesToStateWithMutatingState<
@@ -490,6 +497,253 @@ function setCurrentNodesAndEdgesToStateWithMutatingState<
   return state;
 }
 
+function getDependencyGraphBetweenNodeTypes<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: Pick<
+    State<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >,
+    'typeOfNodes'
+  >,
+): {
+  nodeToNodeDependents: Partial<
+    Record<NodeTypeUniqueId, Set<NodeTypeUniqueId>>
+  >;
+  nodeToNodeDependencies: Partial<
+    Record<NodeTypeUniqueId, Set<NodeTypeUniqueId>>
+  >;
+} {
+  const nodeToNodeDependents: Partial<
+    Record<NodeTypeUniqueId, Set<NodeTypeUniqueId>>
+  > = {};
+  const nodeToNodeDependencies: Partial<
+    Record<NodeTypeUniqueId, Set<NodeTypeUniqueId>>
+  > = {};
+  for (const nodeType of Object.keys(state.typeOfNodes)) {
+    const nodeTypeData = state.typeOfNodes[nodeType as NodeTypeUniqueId];
+    const subtree = nodeTypeData.subtree;
+    if (!subtree || subtree.nodes.length === 0) {
+      continue;
+    }
+    for (const node of subtree.nodes) {
+      const nodeTypeOfDependency = node.data.nodeTypeUniqueId;
+      if (!nodeTypeOfDependency) {
+        continue;
+      }
+      nodeToNodeDependencies[nodeType as NodeTypeUniqueId] =
+        nodeToNodeDependencies[nodeType as NodeTypeUniqueId] || new Set();
+      nodeToNodeDependencies[nodeType as NodeTypeUniqueId]?.add(
+        nodeTypeOfDependency,
+      );
+      nodeToNodeDependents[nodeTypeOfDependency] =
+        nodeToNodeDependents[nodeTypeOfDependency] || new Set();
+      nodeToNodeDependents[nodeTypeOfDependency]?.add(
+        nodeType as NodeTypeUniqueId,
+      );
+    }
+  }
+  return { nodeToNodeDependents, nodeToNodeDependencies };
+}
+
+/**
+ * Gets the direct dependents of a node type
+ * - Basically, it returns the node types that are directly dependent on the given node type
+ * - Doesn't include itself
+ *
+ * @param stateOrNodeToNodeDependents - The state or the node to node dependents
+ * @param nodeType - The node type
+ * @returns The direct dependents of the node type as a set
+ */
+function getDirectDependentsOfNodeType<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  stateOrNodeToNodeDependents:
+    | Pick<
+        State<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >,
+        'typeOfNodes'
+      >
+    | Partial<Record<NodeTypeUniqueId, Set<NodeTypeUniqueId>>>,
+  nodeType: NodeTypeUniqueId,
+): Set<NodeTypeUniqueId> {
+  const nodeToNodeDependents =
+    'typeOfNodes' in stateOrNodeToNodeDependents
+      ? getDependencyGraphBetweenNodeTypes(stateOrNodeToNodeDependents)
+          .nodeToNodeDependents
+      : stateOrNodeToNodeDependents;
+  return nodeToNodeDependents[nodeType] || new Set();
+}
+
+/**
+ * Gets the direct dependencies of a node type
+ * - Basically, it returns the node types that this node type directly depends on
+ * - Doesn't include itself
+ *
+ * @param stateOrNodeToNodeDependencies - The state or the node to node dependencies
+ * @param nodeType - The node type
+ * @returns The direct dependencies of the node type as a set
+ */
+function getDirectDependenciesOfNodeType<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  stateOrNodeToNodeDependencies:
+    | Pick<
+        State<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >,
+        'typeOfNodes'
+      >
+    | Partial<Record<NodeTypeUniqueId, Set<NodeTypeUniqueId>>>,
+  nodeType: NodeTypeUniqueId,
+): Set<NodeTypeUniqueId> {
+  const nodeToNodeDependencies =
+    'typeOfNodes' in stateOrNodeToNodeDependencies
+      ? getDependencyGraphBetweenNodeTypes(stateOrNodeToNodeDependencies)
+          .nodeToNodeDependencies
+      : stateOrNodeToNodeDependencies;
+  return nodeToNodeDependencies[nodeType] || new Set();
+}
+
+/**
+ * Gets all the dependents of a node type recursively
+ * - Basically, it returns the node types that are dependent on the given node type and all their dependents recursively
+ * - Includes itself
+ *
+ * @param stateOrNodeToNodeDependents - The state or the node to node dependents
+ * @param nodeType - The node type
+ * @returns All dependents of the node type as a set
+ */
+function getAllDependentsOfNodeTypeRecursively<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  stateOrNodeToNodeDependents:
+    | Pick<
+        State<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >,
+        'typeOfNodes'
+      >
+    | Partial<Record<NodeTypeUniqueId, Set<NodeTypeUniqueId>>>,
+  nodeType: NodeTypeUniqueId,
+): Set<NodeTypeUniqueId> {
+  const nodeToNodeDependents =
+    'typeOfNodes' in stateOrNodeToNodeDependents
+      ? getDependencyGraphBetweenNodeTypes(stateOrNodeToNodeDependents)
+          .nodeToNodeDependents
+      : stateOrNodeToNodeDependents;
+  const setOfAllDependents = new Set<NodeTypeUniqueId>();
+  const queue = [nodeType];
+  while (queue.length > 0) {
+    const currentNodeType = queue.shift();
+    if (!currentNodeType) {
+      continue;
+    }
+    setOfAllDependents.add(currentNodeType);
+    const directDependents = getDirectDependentsOfNodeType(
+      nodeToNodeDependents,
+      currentNodeType,
+    );
+    for (const dependent of directDependents) {
+      if (setOfAllDependents.has(dependent)) {
+        continue;
+      }
+      queue.push(dependent);
+    }
+  }
+  return setOfAllDependents;
+}
+
+/**
+ * Gets all the dependencies of a node type recursively
+ * - Basically, it returns the node types that this node type directly depends on and all their dependencies recursively
+ * - Includes itself
+ *
+ * @param stateOrNodeToNodeDependencies - The state or the node to node dependencies
+ * @param nodeType - The node type
+ * @returns All dependencies of the node type as a set
+ */
+function getAllDependenciesOfNodeTypeRecursively<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  stateOrNodeToNodeDependencies:
+    | Pick<
+        State<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >,
+        'typeOfNodes'
+      >
+    | Partial<Record<NodeTypeUniqueId, Set<NodeTypeUniqueId>>>,
+  nodeType: NodeTypeUniqueId,
+): Set<NodeTypeUniqueId> {
+  const nodeToNodeDependencies =
+    'typeOfNodes' in stateOrNodeToNodeDependencies
+      ? getDependencyGraphBetweenNodeTypes(stateOrNodeToNodeDependencies)
+          .nodeToNodeDependencies
+      : stateOrNodeToNodeDependencies;
+  const setOfAllDependencies = new Set<NodeTypeUniqueId>();
+  const queue = [nodeType];
+  while (queue.length > 0) {
+    const currentNodeType = queue.shift();
+    if (!currentNodeType) {
+      continue;
+    }
+    setOfAllDependencies.add(currentNodeType);
+    const directDependencies = getDirectDependenciesOfNodeType(
+      nodeToNodeDependencies,
+      currentNodeType,
+    );
+    for (const dependency of directDependencies) {
+      if (setOfAllDependencies.has(dependency)) {
+        continue;
+      }
+      queue.push(dependency);
+    }
+  }
+  return setOfAllDependencies;
+}
+
 export {
   constructNodeOfType,
   constructInputOrOutputOfType,
@@ -497,4 +751,9 @@ export {
   constructTypeOfHandleFromIndices,
   getCurrentNodesAndEdgesFromState,
   setCurrentNodesAndEdgesToStateWithMutatingState,
+  getDependencyGraphBetweenNodeTypes,
+  getDirectDependentsOfNodeType,
+  getDirectDependenciesOfNodeType,
+  getAllDependentsOfNodeTypeRecursively,
+  getAllDependenciesOfNodeTypeRecursively,
 };

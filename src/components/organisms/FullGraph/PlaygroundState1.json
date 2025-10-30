@@ -167,6 +167,159 @@
       "name": "Result Output",
       "underlyingType": "number",
       "color": "#FFD93D"
+    },
+    "inferredDataType": {
+      "name": "Inferred Data",
+      "underlyingType": "inferFromConnection",
+      "color": "#C06062",
+      "shape": "list"
+    },
+    "secondInferredDataType": {
+      "name": "Second Inferred Data",
+      "underlyingType": "inferFromConnection",
+      "color": "#A98AD9",
+      "shape": "diamond"
+    },
+    "thirdInferredDataType": {
+      "name": "Third Inferred Data",
+      "underlyingType": "inferFromConnection",
+      "color": "#08B49F",
+      "shape": "diamond"
+    },
+    "complexDataType": {
+      "name": "Complex Data",
+      "underlyingType": "complex",
+      "color": "#59BE26",
+      "complexSchema": {
+        "~standard": {
+          "vendor": "zod",
+          "version": 1
+        },
+        "def": {
+          "type": "object",
+          "shape": {
+            "name": {
+              "~standard": {
+                "vendor": "zod",
+                "version": 1
+              },
+              "def": {
+                "type": "string"
+              },
+              "type": "string",
+              "format": null,
+              "minLength": null,
+              "maxLength": null
+            },
+            "age": {
+              "~standard": {
+                "vendor": "zod",
+                "version": 1
+              },
+              "def": {
+                "type": "number",
+                "checks": []
+              },
+              "type": "number",
+              "minValue": null,
+              "maxValue": null,
+              "isInt": false,
+              "isFinite": true,
+              "format": null
+            }
+          }
+        },
+        "type": "object"
+      },
+      "shape": "trapezium"
+    },
+    "complexDataType2": {
+      "name": "Complex Data 2",
+      "underlyingType": "complex",
+      "color": "#C40E1E",
+      "complexSchema": {
+        "~standard": {
+          "vendor": "zod",
+          "version": 1
+        },
+        "def": {
+          "type": "object",
+          "shape": {
+            "name": {
+              "~standard": {
+                "vendor": "zod",
+                "version": 1
+              },
+              "def": {
+                "type": "string"
+              },
+              "type": "string",
+              "format": null,
+              "minLength": null,
+              "maxLength": null
+            },
+            "age": {
+              "~standard": {
+                "vendor": "zod",
+                "version": 1
+              },
+              "def": {
+                "type": "number",
+                "checks": []
+              },
+              "type": "number",
+              "minValue": null,
+              "maxValue": null,
+              "isInt": false,
+              "isFinite": true,
+              "format": null
+            }
+          }
+        },
+        "type": "object"
+      },
+      "shape": "trapezium"
+    },
+    "complexDataType3": {
+      "name": "Complex Data 3",
+      "underlyingType": "complex",
+      "color": "#DCEF88",
+      "complexSchema": {
+        "~standard": {
+          "vendor": "zod",
+          "version": 1
+        },
+        "def": {
+          "type": "object",
+          "shape": {
+            "name": {
+              "~standard": {
+                "vendor": "zod",
+                "version": 1
+              },
+              "def": {
+                "type": "string"
+              },
+              "type": "string",
+              "format": null,
+              "minLength": null,
+              "maxLength": null
+            }
+          }
+        },
+        "type": "object"
+      },
+      "shape": "trapezium"
+    },
+    "newGroupInput": {
+      "name": "New Group Input",
+      "underlyingType": "inferFromConnection",
+      "color": "#333333"
+    },
+    "newGroupOutput": {
+      "name": "New Group Output",
+      "underlyingType": "inferFromConnection",
+      "color": "#333333"
     }
   },
   "typeOfNodes": {
@@ -339,14 +492,121 @@
           "dataType": "resultOutput"
         }
       ]
+    },
+    "inferNode": {
+      "name": "Infer Node",
+      "headerColor": "#AB3126",
+      "inputs": [
+        {
+          "name": "Inferred Data Input",
+          "dataType": "inferredDataType"
+        },
+        {
+          "name": "Second Inferred Data Input",
+          "dataType": "secondInferredDataType"
+        },
+        {
+          "name": "Second Inferred Data Input 2",
+          "dataType": "secondInferredDataType"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Inferred Data Output",
+          "dataType": "inferredDataType"
+        },
+        {
+          "name": "Inferred Data Output 2",
+          "dataType": "inferredDataType"
+        },
+        {
+          "name": "Third Inferred Data Output",
+          "dataType": "thirdInferredDataType"
+        },
+        {
+          "name": "Third Inferred Data Output 2",
+          "dataType": "thirdInferredDataType"
+        }
+      ]
+    },
+    "complexDataTypeNode": {
+      "name": "Complex Data Type Node",
+      "headerColor": "#A64622",
+      "inputs": [
+        {
+          "name": "Complex Input Of Type 1",
+          "dataType": "complexDataType"
+        },
+        {
+          "name": "Complex Input Of Type 2",
+          "dataType": "complexDataType2"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Complex Output Of Type 2",
+          "dataType": "complexDataType2"
+        },
+        {
+          "name": "Complex Output Of Type 1",
+          "dataType": "complexDataType"
+        }
+      ]
+    },
+    "complexDataTypeNode2": {
+      "name": "Complex Data Type Node 2",
+      "headerColor": "#A64622",
+      "inputs": [
+        {
+          "name": "Complex Input Of Type 3",
+          "dataType": "complexDataType3"
+        },
+        {
+          "name": "Complex Input Of Type 2",
+          "dataType": "complexDataType2"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Complex Output Of Type 2",
+          "dataType": "complexDataType2"
+        },
+        {
+          "name": "Complex Output Of Type 3",
+          "dataType": "complexDataType3"
+        }
+      ]
+    },
+    "groupInput": {
+      "name": "Group Input",
+      "headerColor": "#1d1d1d",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "dataType": "newGroupInput"
+        }
+      ]
+    },
+    "groupOutput": {
+      "name": "Group Output",
+      "headerColor": "#1d1d1d",
+      "inputs": [
+        {
+          "name": "",
+          "dataType": "newGroupOutput"
+        }
+      ],
+      "outputs": []
     }
   },
+  "enableTypeInference": true,
   "nodes": [
     {
-      "id": "redgelklo4i4akazjp36",
+      "id": "pxhrfjoi4nf5xrf3ms8x",
       "position": {
-        "x": -146,
-        "y": 453
+        "x": -157,
+        "y": 454.1247863769531
       },
       "sourcePosition": "right",
       "targetPosition": "left",
@@ -357,44 +617,88 @@
         "headerColor": "#C44536",
         "inputs": [
           {
-            "id": "e6w31buqb1co5fdij147",
+            "id": "mwka4408vh0hxkykc07r",
             "name": "Raw Data",
             "handleColor": "#00BFFF",
             "type": "string",
-            "handleShape": "square"
+            "handleShape": "square",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Raw Data",
+                "underlyingType": "string",
+                "color": "#00BFFF",
+                "shape": "square"
+              },
+              "dataTypeUniqueId": "rawData"
+            }
           },
           {
-            "id": "stjqtgycrlo7sieiv27q",
+            "id": "mivv4kmo30zbocuhezl4",
             "name": "Validation Rules",
             "handleColor": "#96CEB4",
-            "type": "string"
+            "type": "string",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Validation Rules",
+                "underlyingType": "string",
+                "color": "#96CEB4"
+              },
+              "dataTypeUniqueId": "validationRules"
+            }
           }
         ],
         "outputs": [
           {
-            "id": "m9v80mnhu3a26flepnm0",
+            "id": "bq911truxn06j0lzgnhe",
             "name": "Validated Data",
             "handleColor": "#00FFFF",
             "type": "string",
-            "handleShape": "list"
+            "handleShape": "list",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Validated Data",
+                "underlyingType": "string",
+                "color": "#00FFFF",
+                "shape": "list"
+              },
+              "dataTypeUniqueId": "validatedData"
+            }
           },
           {
-            "id": "gagh965da6c4zvbm6lfd",
+            "id": "6y3yxafv82hk42dqfuya",
             "name": "Validation Status",
             "handleColor": "#FECA57",
-            "type": "string"
+            "type": "string",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Validation Status",
+                "underlyingType": "string",
+                "color": "#FECA57"
+              },
+              "dataTypeUniqueId": "validationStatus"
+            }
           },
           {
-            "id": "xqs9e5dojs41z4vfbon1",
+            "id": "xzzf9xzo0er22ddima0s",
             "name": "Error Messages",
             "handleColor": "#FF6B6B",
             "type": "string",
-            "handleShape": "rectangle"
+            "handleShape": "rectangle",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Error Messages",
+                "underlyingType": "string",
+                "color": "#FF6B6B",
+                "shape": "rectangle"
+              },
+              "dataTypeUniqueId": "errorMessages"
+            }
           }
         ],
-        "nodeTypeUniqueId": "inputValidator"
+        "nodeTypeUniqueId": "inputValidator",
+        "showNodeOpenButton": false
       },
-      "selected": true,
+      "selected": false,
       "measured": {
         "width": 400,
         "height": 365
@@ -402,10 +706,10 @@
       "dragging": false
     },
     {
-      "id": "lcovh29jq7s2ncr6547h",
+      "id": "12lxk2ejlwsm7ebfvz2b",
       "position": {
-        "x": 404,
-        "y": -5
+        "x": 421,
+        "y": 86.12478637695312
       },
       "sourcePosition": "right",
       "targetPosition": "left",
@@ -416,41 +720,84 @@
         "headerColor": "#C44536",
         "inputs": [
           {
-            "id": "ytau9nt0x377nlsul0zp",
+            "id": "cx5fyab9y9yn6cktrkxs",
             "name": "Text Input",
             "handleColor": "#00BFFF",
             "type": "string",
-            "handleShape": "rectangle"
+            "handleShape": "rectangle",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Text Input",
+                "underlyingType": "string",
+                "color": "#00BFFF",
+                "shape": "rectangle"
+              },
+              "dataTypeUniqueId": "textInput"
+            }
           },
           {
-            "id": "mgm65i58r3mg96irkko2",
+            "id": "mk1yis60ce7uwanjz26t",
             "name": "Numeric Input",
             "handleColor": "#96CEB4",
-            "type": "number"
+            "type": "number",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Numeric Input",
+                "underlyingType": "number",
+                "color": "#96CEB4"
+              },
+              "dataTypeUniqueId": "numericInput"
+            }
           }
         ],
         "outputs": [
           {
-            "id": "p4fgela9escd76afcep1",
+            "id": "8y5x8oipd6krtnyt82lj",
             "name": "Primary Output",
             "handleColor": "#FF6B6B",
             "type": "number",
-            "handleShape": "grid"
+            "handleShape": "grid",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Primary Output",
+                "underlyingType": "number",
+                "color": "#FF6B6B",
+                "shape": "grid"
+              },
+              "dataTypeUniqueId": "primaryOutput"
+            }
           },
           {
-            "id": "w808zb76rp2gxsnh700d",
+            "id": "qh2yilew8i6gp2873z59",
             "name": "Secondary Output",
             "handleColor": "#00FFFF",
-            "type": "number"
+            "type": "number",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Secondary Output",
+                "underlyingType": "number",
+                "color": "#00FFFF"
+              },
+              "dataTypeUniqueId": "secondaryOutput"
+            }
           },
           {
-            "id": "rvpedv3as7fnjesny46a",
+            "id": "0rh0sbwu696x7m9cqhvu",
             "name": "Metadata Output",
             "handleColor": "#FECA57",
-            "type": "string"
+            "type": "string",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Metadata Output",
+                "underlyingType": "string",
+                "color": "#FECA57"
+              },
+              "dataTypeUniqueId": "metadataOutput"
+            }
           }
         ],
-        "nodeTypeUniqueId": "dataSource"
+        "nodeTypeUniqueId": "dataSource",
+        "showNodeOpenButton": false
       },
       "selected": false,
       "measured": {
@@ -460,10 +807,10 @@
       "dragging": false
     },
     {
-      "id": "p7cshagzn631vv93wyb8",
+      "id": "gsnxteq9p1xouiqu28fx",
       "position": {
-        "x": 1006,
-        "y": 221
+        "x": 1001,
+        "y": 214.12478637695312
       },
       "sourcePosition": "right",
       "targetPosition": "left",
@@ -474,50 +821,104 @@
         "headerColor": "#2D5A87",
         "inputs": [
           {
-            "id": "ldxo04t8n33it1nei92x",
+            "id": "utx8his52ugxqg5j0eer",
             "name": "Input String",
             "handleColor": "#00BFFF",
             "type": "string",
-            "handleShape": "diamond"
+            "handleShape": "diamond",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Input String",
+                "underlyingType": "string",
+                "color": "#00BFFF",
+                "shape": "diamond"
+              },
+              "dataTypeUniqueId": "inputString"
+            }
           },
           {
-            "id": "vfd85bc5752p23ow9vbo",
+            "id": "zaz1ej4fr4d3mfxrzgbk",
             "name": "Input Number",
             "handleColor": "#96CEB4",
             "type": "number",
-            "handleShape": "hexagon"
+            "handleShape": "hexagon",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Input Number",
+                "underlyingType": "number",
+                "color": "#96CEB4",
+                "shape": "hexagon"
+              },
+              "dataTypeUniqueId": "inputNumber"
+            }
           },
           {
-            "id": "ss1sd7wqgspiinot2gox",
+            "id": "ax7k1ywo99ht2e0d35r8",
             "name": "Config Input",
             "handleColor": "#00FFFF",
-            "type": "string"
+            "type": "string",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Config Input",
+                "underlyingType": "string",
+                "color": "#00FFFF"
+              },
+              "dataTypeUniqueId": "configInput"
+            }
           }
         ],
         "outputs": [
           {
-            "id": "ra9rjj9eoyjmi85mobgd",
+            "id": "ekjycu69f8hrf012cy9h",
             "name": "Transformed String",
             "handleColor": "#FECA57",
             "type": "string",
-            "handleShape": "square"
+            "handleShape": "square",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Transformed String",
+                "underlyingType": "string",
+                "color": "#FECA57",
+                "shape": "square"
+              },
+              "dataTypeUniqueId": "transformedString"
+            }
           },
           {
-            "id": "7e0j2n3or9uc99p2kusr",
+            "id": "1eoyy1sxhd8lyr9he38m",
             "name": "Transformed Number",
             "handleColor": "#FF9FF3",
             "type": "number",
-            "handleShape": "star"
+            "handleShape": "star",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Transformed Number",
+                "underlyingType": "number",
+                "color": "#FF9FF3",
+                "shape": "star"
+              },
+              "dataTypeUniqueId": "transformedNumber"
+            }
           },
           {
-            "id": "j0tr8a4315o4bxls4eyj",
+            "id": "2vp9zrpw4ghc2g079g68",
             "name": "Status Output",
             "handleColor": "#A8E6CF",
             "type": "string",
-            "handleShape": "cross"
+            "handleShape": "cross",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Status Output",
+                "underlyingType": "string",
+                "color": "#A8E6CF",
+                "shape": "cross"
+              },
+              "dataTypeUniqueId": "statusOutput"
+            }
           }
         ],
-        "nodeTypeUniqueId": "dataTransformer"
+        "nodeTypeUniqueId": "dataTransformer",
+        "showNodeOpenButton": false
       },
       "selected": false,
       "measured": {
@@ -527,108 +928,10 @@
       "dragging": false
     },
     {
-      "id": "y9v7clcaex2hzsa9qs3y",
+      "id": "o4fnez6ych4sw57n648t",
       "position": {
-        "x": 1666,
-        "y": 595.2495727539062
-      },
-      "sourcePosition": "right",
-      "targetPosition": "left",
-      "type": "configurableNode",
-      "width": 400,
-      "data": {
-        "name": "Advanced Processor",
-        "headerColor": "#B8860B",
-        "inputs": [
-          {
-            "id": "qui6ng07lm9sjid1dv04",
-            "name": "Primary Input",
-            "handleColor": "#00BFFF",
-            "type": "string",
-            "handleShape": "diamond"
-          },
-          {
-            "id": "cahfxd46vlizx8fyzikx",
-            "name": "Advanced Settings",
-            "inputs": [
-              {
-                "id": "d2jan9sy7rz7kiq0ujjf",
-                "name": "Threshold Value",
-                "handleColor": "#96CEB4",
-                "allowInput": true,
-                "type": "number",
-                "handleShape": "trapezium"
-              },
-              {
-                "id": "tvjv7k79f8lxe5sqydr2",
-                "name": "Configuration String",
-                "handleColor": "#00FFFF",
-                "allowInput": true,
-                "type": "string",
-                "value": ""
-              },
-              {
-                "id": "rn786ol9pzw9xl562mcc",
-                "name": "Max Iterations",
-                "handleColor": "#FF6B6B",
-                "type": "number",
-                "handleShape": "cross"
-              }
-            ]
-          },
-          {
-            "id": "xuiqtf54uliccr4i5gmm",
-            "name": "Debug Options",
-            "inputs": [
-              {
-                "id": "loodf0h98xon48z5hy30",
-                "name": "Debug Mode",
-                "handleColor": "#FECA57",
-                "type": "string"
-              },
-              {
-                "id": "ocx0st00b2vvdtwijwlo",
-                "name": "Verbose Logging",
-                "handleColor": "#FF9FF3",
-                "type": "string"
-              }
-            ]
-          },
-          {
-            "id": "y4oiu51prv8w7w9etyt8",
-            "name": "Secondary Input",
-            "handleColor": "#A8E6CF",
-            "type": "number"
-          }
-        ],
-        "outputs": [
-          {
-            "id": "3m0c1ocieiir48hlzv4k",
-            "name": "Final Result",
-            "handleColor": "#FFD93D",
-            "type": "string"
-          },
-          {
-            "id": "cvv5ebnce7wntjo2pix5",
-            "name": "Debug Output",
-            "handleColor": "#FF6B6B",
-            "type": "string"
-          }
-        ],
-        "nodeTypeUniqueId": "advancedProcessor"
-      },
-      "selected": false,
-      "measured": {
-        "width": 400,
-        "height": 400
-      },
-      "dragging": false
-    },
-    {
-      "id": "vigrw9dw4qy9rdm5o5nd",
-      "position": {
-        "x": 2006,
-        "y": 87.24957275390625
+        "x": 1939,
+        "y": 84.12478637695312
       },
       "sourcePosition": "right",
       "targetPosition": "left",
@@ -639,47 +942,267 @@
         "headerColor": "#B8860B",
         "inputs": [
           {
-            "id": "adm52rb3cizyl0xxtxd5",
+            "id": "r2dpf4e7iottkul9imrq",
             "name": "Final Input",
             "handleColor": "#FECA57",
             "type": "string",
-            "handleShape": "sparkle"
+            "handleShape": "sparkle",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Final Input",
+                "underlyingType": "string",
+                "color": "#FECA57",
+                "shape": "sparkle"
+              },
+              "dataTypeUniqueId": "finalInput"
+            }
           },
           {
-            "id": "hu8h5w7hgxjo5ls3m7qd",
+            "id": "8e840mr5od4x5ejbsw2c",
             "name": "Result Input",
             "handleColor": "#FF9FF3",
             "type": "number",
-            "handleShape": "parallelogram"
+            "handleShape": "parallelogram",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Result Input",
+                "underlyingType": "number",
+                "color": "#FF9FF3",
+                "shape": "parallelogram"
+              },
+              "dataTypeUniqueId": "resultInput"
+            }
           },
           {
-            "id": "vqau4xrfx4vye9uii2fr",
+            "id": "f2q34hifw0zu0qg656ri",
             "name": "Status Input",
             "handleColor": "#A8E6CF",
             "type": "string",
-            "handleShape": "zigzag"
+            "handleShape": "zigzag",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Status Input",
+                "underlyingType": "string",
+                "color": "#A8E6CF",
+                "shape": "zigzag"
+              },
+              "dataTypeUniqueId": "statusInput"
+            }
           }
         ],
         "outputs": [
           {
-            "id": "fj09x6o0m4isdztac7gt",
+            "id": "yedi7ia3y09brdow8qho",
             "name": "Final Output",
             "handleColor": "#A8E6CF",
-            "type": "string"
+            "type": "string",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Final Output",
+                "underlyingType": "string",
+                "color": "#A8E6CF"
+              },
+              "dataTypeUniqueId": "finalOutput"
+            }
           },
           {
-            "id": "q5giytzlnayjl70fc29n",
+            "id": "ebww9bbxrvisst2n359y",
             "name": "Result Output",
             "handleColor": "#FFD93D",
-            "type": "number"
+            "type": "number",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Result Output",
+                "underlyingType": "number",
+                "color": "#FFD93D"
+              },
+              "dataTypeUniqueId": "resultOutput"
+            }
           }
         ],
-        "nodeTypeUniqueId": "dataSink"
+        "nodeTypeUniqueId": "dataSink",
+        "showNodeOpenButton": false
       },
       "selected": false,
       "measured": {
         "width": 400,
         "height": 365
+      },
+      "dragging": false
+    },
+    {
+      "id": "z6r6q5b7op1seuzr4yxn",
+      "position": {
+        "x": 1651,
+        "y": 556.87451171875
+      },
+      "sourcePosition": "right",
+      "targetPosition": "left",
+      "type": "configurableNode",
+      "width": 400,
+      "data": {
+        "name": "Advanced Processor",
+        "headerColor": "#B8860B",
+        "inputs": [
+          {
+            "id": "5wx9rmvw149mgyv8kznt",
+            "name": "Primary Input",
+            "handleColor": "#00BFFF",
+            "type": "string",
+            "handleShape": "diamond",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Primary Input",
+                "underlyingType": "string",
+                "color": "#00BFFF",
+                "shape": "diamond"
+              },
+              "dataTypeUniqueId": "primaryInput"
+            }
+          },
+          {
+            "id": "rku54jitu3czol4vaa8i",
+            "name": "Advanced Settings",
+            "inputs": [
+              {
+                "id": "chue3praich5r3lazb9b",
+                "name": "Threshold Value",
+                "handleColor": "#96CEB4",
+                "allowInput": true,
+                "type": "number",
+                "handleShape": "trapezium",
+                "dataType": {
+                  "dataTypeObject": {
+                    "name": "Threshold Value",
+                    "underlyingType": "number",
+                    "color": "#96CEB4",
+                    "shape": "trapezium",
+                    "allowInput": true
+                  },
+                  "dataTypeUniqueId": "thresholdValue"
+                }
+              },
+              {
+                "id": "jedfmbbs05ruj2o7ogug",
+                "name": "Configuration String",
+                "handleColor": "#00FFFF",
+                "allowInput": true,
+                "type": "string",
+                "dataType": {
+                  "dataTypeObject": {
+                    "name": "Configuration String",
+                    "underlyingType": "string",
+                    "color": "#00FFFF",
+                    "allowInput": true
+                  },
+                  "dataTypeUniqueId": "configurationString"
+                },
+                "value": ""
+              },
+              {
+                "id": "iinwx39sy20igzujxf33",
+                "name": "Max Iterations",
+                "handleColor": "#FF6B6B",
+                "type": "number",
+                "handleShape": "cross",
+                "dataType": {
+                  "dataTypeObject": {
+                    "name": "Max Iterations",
+                    "underlyingType": "number",
+                    "color": "#FF6B6B",
+                    "shape": "cross"
+                  },
+                  "dataTypeUniqueId": "maxIterations"
+                }
+              }
+            ]
+          },
+          {
+            "id": "cyfpgf25tzp8iat2ke1a",
+            "name": "Debug Options",
+            "inputs": [
+              {
+                "id": "xza6nbw7y4iq2tjc70t9",
+                "name": "Debug Mode",
+                "handleColor": "#FECA57",
+                "type": "string",
+                "dataType": {
+                  "dataTypeObject": {
+                    "name": "Debug Mode",
+                    "underlyingType": "string",
+                    "color": "#FECA57"
+                  },
+                  "dataTypeUniqueId": "debugMode"
+                }
+              },
+              {
+                "id": "80lf8r8aatqrivkaqzx6",
+                "name": "Verbose Logging",
+                "handleColor": "#FF9FF3",
+                "type": "string",
+                "dataType": {
+                  "dataTypeObject": {
+                    "name": "Verbose Logging",
+                    "underlyingType": "string",
+                    "color": "#FF9FF3"
+                  },
+                  "dataTypeUniqueId": "verboseLogging"
+                }
+              }
+            ]
+          },
+          {
+            "id": "caomt96ew29sfwojurn3",
+            "name": "Secondary Input",
+            "handleColor": "#A8E6CF",
+            "type": "number",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Secondary Input",
+                "underlyingType": "number",
+                "color": "#A8E6CF"
+              },
+              "dataTypeUniqueId": "secondaryInput"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "id": "mgv5v8j1k4rgrirtyhqy",
+            "name": "Final Result",
+            "handleColor": "#FFD93D",
+            "type": "string",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Final Result",
+                "underlyingType": "string",
+                "color": "#FFD93D"
+              },
+              "dataTypeUniqueId": "finalResult"
+            }
+          },
+          {
+            "id": "mu15r8jijtmr3vxgtbyt",
+            "name": "Debug Output",
+            "handleColor": "#FF6B6B",
+            "type": "string",
+            "dataType": {
+              "dataTypeObject": {
+                "name": "Debug Output",
+                "underlyingType": "string",
+                "color": "#FF6B6B"
+              },
+              "dataTypeUniqueId": "debugOutput"
+            }
+          }
+        ],
+        "nodeTypeUniqueId": "advancedProcessor",
+        "showNodeOpenButton": false
+      },
+      "selected": false,
+      "measured": {
+        "width": 400,
+        "height": 400
       },
       "dragging": false
     }
@@ -732,6 +1255,59 @@
       "sourceHandle": "7e0j2n3or9uc99p2kusr",
       "targetHandle": "hu8h5w7hgxjo5ls3m7qd",
       "type": "configurableEdge"
+    },
+    {
+      "id": "lltgyth067yjz585kzvh",
+      "source": "pxhrfjoi4nf5xrf3ms8x",
+      "target": "12lxk2ejlwsm7ebfvz2b",
+      "sourceHandle": "bq911truxn06j0lzgnhe",
+      "targetHandle": "cx5fyab9y9yn6cktrkxs",
+      "type": "configurableEdge"
+    },
+    {
+      "id": "g9kqznndnmgv9sychtnk",
+      "source": "pxhrfjoi4nf5xrf3ms8x",
+      "target": "gsnxteq9p1xouiqu28fx",
+      "sourceHandle": "6y3yxafv82hk42dqfuya",
+      "targetHandle": "ax7k1ywo99ht2e0d35r8",
+      "type": "configurableEdge"
+    },
+    {
+      "id": "mo4b1ezhorkrxi983xnb",
+      "source": "12lxk2ejlwsm7ebfvz2b",
+      "target": "gsnxteq9p1xouiqu28fx",
+      "sourceHandle": "qh2yilew8i6gp2873z59",
+      "targetHandle": "utx8his52ugxqg5j0eer",
+      "type": "configurableEdge"
+    },
+    {
+      "id": "mqtmsao0vk5172gbsw98",
+      "source": "gsnxteq9p1xouiqu28fx",
+      "target": "o4fnez6ych4sw57n648t",
+      "sourceHandle": "ekjycu69f8hrf012cy9h",
+      "targetHandle": "r2dpf4e7iottkul9imrq",
+      "type": "configurableEdge"
+    },
+    {
+      "id": "hwt1e9stmrj257rt0ocy",
+      "source": "gsnxteq9p1xouiqu28fx",
+      "target": "o4fnez6ych4sw57n648t",
+      "sourceHandle": "1eoyy1sxhd8lyr9he38m",
+      "targetHandle": "8e840mr5od4x5ejbsw2c",
+      "type": "configurableEdge"
+    },
+    {
+      "id": "l76t1z8ki6fwh8rwifza",
+      "source": "gsnxteq9p1xouiqu28fx",
+      "target": "z6r6q5b7op1seuzr4yxn",
+      "sourceHandle": "2vp9zrpw4ghc2g079g68",
+      "targetHandle": "5wx9rmvw149mgyv8kznt",
+      "type": "configurableEdge"
     }
-  ]
+  ],
+  "viewport": {
+    "x": 158.5,
+    "y": 59.562744140625,
+    "zoom": 0.5
+  }
 }

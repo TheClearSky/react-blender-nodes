@@ -233,12 +233,25 @@ function FullGraphWithReactFlowProvider<
   const { screenToFlowPosition, fitView } = useReactFlow();
 
   // Generate context menu items dynamically from typeOfNodes
-  const contextMenuItems = createNodeContextMenu({
-    typeOfNodes: state.typeOfNodes,
-    dispatch,
-    setContextMenu,
-    contextMenuPosition: screenToFlowPosition(contextMenu.position),
-  });
+  const contextMenuItems = useMemo(
+    () =>
+      createNodeContextMenu({
+        typeOfNodes: state.typeOfNodes,
+        dispatch,
+        setContextMenu,
+        contextMenuPosition: screenToFlowPosition(contextMenu.position),
+        currentNodeType: currentNodeGroup?.nodeType,
+        isRecursionAllowed: !state.enableRecursionChecking,
+      }),
+    [
+      state.typeOfNodes,
+      dispatch,
+      setContextMenu,
+      contextMenu.position,
+      currentNodeGroup?.nodeType,
+      state.enableRecursionChecking,
+    ],
+  );
 
   const handleContextMenu = useCallback((event: React.MouseEvent) => {
     event.preventDefault();

@@ -1,4 +1,9 @@
-import type { DataType, State, SupportedUnderlyingTypes } from './types';
+import type {
+  DataType,
+  State,
+  SupportedUnderlyingTypes,
+  TypeOfInput,
+} from './types';
 import type { z } from 'zod';
 import type { Nodes, Edges } from '@/components/organisms/FullGraph/types';
 import {
@@ -14,13 +19,26 @@ import {
   type EdgeChange,
 } from '@xyflow/react';
 import { generateRandomString } from '../randomGeneration';
-import { getHandleIndicesFromNodeData } from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
+import {
+  getHandleIndicesFromNodeData,
+  modifyInputsInNodeDataWithoutMutatingUsingHandleIndices,
+  modifyOutputsInNodeDataWithoutMutatingUsingHandleIndices,
+  type HandleIndices,
+} from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
 import { inferTypesAfterEdgeAddition } from './newOrRemovedEdgeValidation';
 import type { ConfigurableEdgeState } from '@/components/atoms/ConfigurableEdge/ConfigurableEdge';
 import type {
   ConfigurableNodeInput,
   ConfigurableNodeOutput,
 } from '@/components/organisms/ConfigurableNode/ConfigurableNode';
+import {
+  constructInputOrOutputOfType,
+  getDirectDependentsOfNodeType,
+} from './constructAndModifyNodes';
+import {
+  modifyInputsInNodeTypeDataWithoutMutatingUsingHandleIndices,
+  modifyOutputsInNodeTypeDataWithoutMutatingUsingHandleIndices,
+} from '@/components/organisms/ConfigurableNode/nodeTypeDataManipulation';
 
 /** Length of generated random IDs for edges */
 const lengthOfIds = 20;
@@ -66,6 +84,8 @@ function addEdgeWithTypeChecking<
     UnderlyingType,
     ComplexSchemaType
   >,
+  groupInputNodeId?: string,
+  groupOutputNodeId?: string,
 ): {
   updatedNodes: Nodes<
     UnderlyingType,
@@ -74,6 +94,12 @@ function addEdgeWithTypeChecking<
     DataTypeUniqueId
   >;
   updatedEdges: Edges;
+  updatedTypeOfNodes: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['typeOfNodes'];
   validation: ConnectionValidationResult;
 } {
   const newEdge = {
@@ -88,6 +114,7 @@ function addEdgeWithTypeChecking<
     return {
       updatedNodes: state.nodes,
       updatedEdges: state.edges,
+      updatedTypeOfNodes: state.typeOfNodes,
       validation: {
         isValid: false,
         reason: 'Edge already exists or was rejected by reactflow',
@@ -102,6 +129,7 @@ function addEdgeWithTypeChecking<
     return {
       updatedNodes: state.nodes,
       updatedEdges: addEdge<Edges[number]>(newEdge, state.edges),
+      updatedTypeOfNodes: state.typeOfNodes,
       validation: { isValid: true },
     };
   }
@@ -118,6 +146,7 @@ function addEdgeWithTypeChecking<
     return {
       updatedNodes: state.nodes,
       updatedEdges: state.edges,
+      updatedTypeOfNodes: state.typeOfNodes,
       validation: {
         isValid: false,
         reason: 'Source or target node not found',
@@ -141,6 +170,7 @@ function addEdgeWithTypeChecking<
     return {
       updatedNodes: state.nodes,
       updatedEdges: state.edges,
+      updatedTypeOfNodes: state.typeOfNodes,
       validation: {
         isValid: false,
         reason: 'Source or target handle not found',
@@ -149,19 +179,26 @@ function addEdgeWithTypeChecking<
   }
 
   let updatedNodes = state.nodes;
+  let updatedTypeOfNodes = state.typeOfNodes;
   let validation = { isValid: true };
 
   if (state.enableTypeInference) {
-    const { updatedNodes: updatedNodesTemp, validation: validationTemp } =
-      inferTypesAfterEdgeAddition(
-        state,
-        sourceNodeIndex,
-        targetNodeIndex,
-        sourceHandleIndex,
-        targetHandleIndex,
-        newEdge,
-      );
+    const {
+      updatedNodes: updatedNodesTemp,
+      updatedTypeOfNodes: updatedTypeOfNodesTemp,
+      validation: validationTemp,
+    } = inferTypesAfterEdgeAddition(
+      state,
+      sourceNodeIndex,
+      targetNodeIndex,
+      sourceHandleIndex,
+      targetHandleIndex,
+      newEdge,
+      groupInputNodeId,
+      groupOutputNodeId,
+    );
     updatedNodes = updatedNodesTemp;
+    updatedTypeOfNodes = updatedTypeOfNodesTemp;
     validation = validationTemp;
   }
 
@@ -194,6 +231,7 @@ function addEdgeWithTypeChecking<
   return {
     updatedNodes,
     updatedEdges: addEdge<Edges[number]>(newEdge, state.edges),
+    updatedTypeOfNodes,
     validation,
   };
 }
@@ -460,9 +498,204 @@ function willAddingEdgeCreateCycle<
   return hasCycle(target);
 }
 
+function addAnInputOrOutputToAllNodesOfANodeTypeAcrossSubtree<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  allDataTypes: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['dataTypes'],
+  subtree: Pick<
+    NonNullable<
+      State<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >['typeOfNodes'][NodeTypeUniqueId]['subtree']
+    >,
+    'nodes' | 'edges'
+  >,
+  nodeType: NodeTypeUniqueId,
+  typeOfInputOrOutput: TypeOfInput<DataTypeUniqueId>,
+  addAtIndex: HandleIndices,
+): Pick<
+  NonNullable<
+    State<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >['typeOfNodes'][NodeTypeUniqueId]['subtree']
+  >,
+  'nodes' | 'edges'
+> {
+  const newNodes: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['nodes'] = [];
+  const newEdges: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['edges'] = [];
+
+  for (const currentNode of subtree.nodes) {
+    if (currentNode.data.nodeTypeUniqueId !== nodeType) {
+      newNodes.push(currentNode);
+      continue;
+    }
+    if (addAtIndex.type === 'input') {
+      currentNode.data =
+        modifyInputsInNodeDataWithoutMutatingUsingHandleIndices(
+          addAtIndex,
+          currentNode.data,
+          {
+            upsert: true,
+            input: constructInputOrOutputOfType(
+              typeOfInputOrOutput,
+              allDataTypes,
+            ),
+          },
+        );
+    }
+    if (addAtIndex.type === 'output') {
+      currentNode.data =
+        modifyOutputsInNodeDataWithoutMutatingUsingHandleIndices(
+          addAtIndex,
+          currentNode.data,
+          {
+            upsert: true,
+            output: constructInputOrOutputOfType(
+              typeOfInputOrOutput,
+              allDataTypes,
+            ),
+          },
+        );
+    }
+    newNodes.push(currentNode);
+  }
+
+  for (const currentEdge of subtree.edges) {
+    newEdges.push(currentEdge);
+  }
+
+  return {
+    ...subtree,
+    nodes: newNodes,
+    edges: newEdges,
+  };
+}
+
+function addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+  nodeType: NodeTypeUniqueId,
+  typeOfInputOrOutput: TypeOfInput<DataTypeUniqueId>,
+  addAtIndex: HandleIndices,
+): Pick<
+  State<DataTypeUniqueId, NodeTypeUniqueId, UnderlyingType, ComplexSchemaType>,
+  'typeOfNodes' | 'nodes' | 'edges'
+> {
+  const nodeTypeData = state.typeOfNodes[nodeType];
+  if (!nodeTypeData) {
+    return state;
+  }
+
+  //Modify the node type itself
+  if (addAtIndex.type === 'input') {
+    state.typeOfNodes[nodeType] =
+      modifyInputsInNodeTypeDataWithoutMutatingUsingHandleIndices(
+        addAtIndex,
+        nodeTypeData,
+        {
+          upsert: true,
+          input: typeOfInputOrOutput,
+        },
+      );
+  }
+  if (addAtIndex.type === 'output') {
+    state.typeOfNodes[nodeType] =
+      modifyOutputsInNodeTypeDataWithoutMutatingUsingHandleIndices(
+        addAtIndex,
+        nodeTypeData,
+        {
+          upsert: true,
+          output: typeOfInputOrOutput,
+        },
+      );
+  }
+
+  //Change all direct dependents (recursive ones don't store it)
+  const dependents = getDirectDependentsOfNodeType(state, nodeType);
+  for (const dependent of dependents) {
+    const dependentNodeTypeData = state.typeOfNodes[dependent];
+    if (!dependentNodeTypeData) {
+      continue;
+    }
+    if (!dependentNodeTypeData.subtree) {
+      continue;
+    }
+    state.typeOfNodes[dependent] = {
+      ...dependentNodeTypeData,
+      //Merge changes to inputs and outputs into the dependent node type's subtree
+      subtree: {
+        ...dependentNodeTypeData.subtree,
+        ...addAnInputOrOutputToAllNodesOfANodeTypeAcrossSubtree(
+          state.dataTypes,
+          dependentNodeTypeData.subtree,
+          nodeType,
+          typeOfInputOrOutput,
+          addAtIndex,
+        ),
+      },
+    };
+  }
+
+  //Merge changes to inputs and outputs into root nodes and edges
+  const { nodes: updatedNodes, edges: updatedEdges } =
+    addAnInputOrOutputToAllNodesOfANodeTypeAcrossSubtree(
+      state.dataTypes,
+      {
+        nodes: state.nodes,
+        edges: state.edges,
+      },
+      nodeType,
+      typeOfInputOrOutput,
+      addAtIndex,
+    );
+  return {
+    typeOfNodes: state.typeOfNodes,
+    nodes: updatedNodes,
+    edges: updatedEdges,
+  };
+}
+
 export {
   addEdgeWithTypeChecking,
   removeEdgeWithTypeChecking,
   getResultantDataTypeOfHandleConsideringInferredType,
   willAddingEdgeCreateCycle,
+  addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees,
 };

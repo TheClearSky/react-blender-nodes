@@ -381,9 +381,12 @@ export const Playground: StoryObj<typeof FullGraph> = {
     const { state, dispatch } = useFullGraph({
       dataTypes: exampleDataTypes,
       typeOfNodes: exampleTypeOfNodes,
+      enableTypeInference: true,
       nodes: state1.nodes as Nodes,
       edges: state1.edges as Edges,
     });
+
+    console.log('state', JSON.stringify(state, null, 2));
 
     return <FullGraph state={state} dispatch={dispatch} />;
   },

@@ -229,7 +229,9 @@ const RenderInput = forwardRef<HTMLDivElement, RenderInputProps>(
           isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
         />
         <div className='flex-1 flex items-center gap-3 w-full'>
-          {!shouldShowInput && <div className='truncate'>{input.name}</div>}
+          {!shouldShowInput && (
+            <div className='truncate'>{input.name || '\u200B'}</div>
+          )}
           {shouldShowInput && (
             <div className='flex-1 w-full'>
               <ContextAwareInput
@@ -269,7 +271,7 @@ const RenderOutput = forwardRef<HTMLDivElement, RenderOutputProps>(
         ref={ref}
         className='text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row justify-end py-3'
       >
-        <div className='truncate text-right'>{output.name}</div>
+        <div className='truncate text-right'>{output.name || '\u200B'}</div>
         <ContextAwareHandle
           type='source'
           position={Position.Right}

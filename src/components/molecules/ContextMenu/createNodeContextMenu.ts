@@ -11,6 +11,7 @@ import {
   type Action,
 } from '@/utils/nodeStateManagement/mainReducer';
 import { z } from 'zod';
+import { getAllDependentsOfNodeTypeRecursively } from '@/utils/nodeStateManagement/constructAndModifyNodes';
 
 type CreateNodeContextMenuProps<
   DataTypeUniqueId extends string = string,
@@ -38,6 +39,16 @@ type CreateNodeContextMenuProps<
   >;
   setContextMenu: (menu: { isOpen: boolean; position: XYPosition }) => void;
   contextMenuPosition: XYPosition;
+  /**
+   * Whether to allow recursion
+   * - If not provided, is considered true
+   * - When true, the recursion is checked, and nesting of node groups is not allowed if it creates a recursion
+   * - When false, the recursion is not checked, and all nesting of node groups is allowed
+   *
+   * @default true
+   */
+  isRecursionAllowed?: boolean;
+  currentNodeType?: NodeTypeUniqueId;
 };
 
 /**
@@ -60,6 +71,8 @@ function createNodeContextMenu<
   dispatch,
   setContextMenu,
   contextMenuPosition,
+  isRecursionAllowed = true,
+  currentNodeType,
 }: CreateNodeContextMenuProps<
   DataTypeUniqueId,
   NodeTypeUniqueId,
@@ -75,23 +88,51 @@ function createNodeContextMenu<
     return [];
   }
 
-  const nodeSubItems: ContextMenuItem[] = nodeTypeKeys.map((nodeTypeId) => ({
-    id: `add-${nodeTypeId}`,
-    label: typeOfNodes[nodeTypeId].name,
-    onClick: () => {
-      // Dispatch the ADD_NODE action
-      dispatch({
-        type: actionTypesMap.ADD_NODE_AND_SELECT,
-        payload: {
-          type: nodeTypeId,
-          position: contextMenuPosition,
-        },
-      });
+  function filterNodeTypeKeys(
+    nodeTypeKeys: Array<NodeTypeUniqueId>,
+    isRecursionAllowed: boolean,
+  ): Array<NodeTypeUniqueId> {
+    if (isRecursionAllowed) {
+      return nodeTypeKeys;
+    }
+    if (!currentNodeType) {
+      return nodeTypeKeys;
+    }
+    const dependentsOfCurrentNodeGroup = getAllDependentsOfNodeTypeRecursively(
+      {
+        typeOfNodes,
+      },
+      currentNodeType,
+    );
+    return nodeTypeKeys.filter(
+      (nodeTypeId) => !dependentsOfCurrentNodeGroup.has(nodeTypeId),
+    );
+  }
 
-      // Close the context menu
-      setContextMenu({ isOpen: false, position: { x: 0, y: 0 } });
-    },
-  }));
+  const filteredNodeTypeKeys = filterNodeTypeKeys(
+    nodeTypeKeys,
+    isRecursionAllowed,
+  );
+
+  const nodeSubItems: ContextMenuItem[] = filteredNodeTypeKeys.map(
+    (nodeTypeId) => ({
+      id: `add-${nodeTypeId}`,
+      label: typeOfNodes[nodeTypeId].name,
+      onClick: () => {
+        // Dispatch the ADD_NODE action
+        dispatch({
+          type: actionTypesMap.ADD_NODE_AND_SELECT,
+          payload: {
+            type: nodeTypeId,
+            position: contextMenuPosition,
+          },
+        });
+
+        // Close the context menu
+        setContextMenu({ isOpen: false, position: { x: 0, y: 0 } });
+      },
+    }),
+  );
 
   return [
     {

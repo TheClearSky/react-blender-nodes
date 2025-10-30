@@ -362,13 +362,17 @@ function mainReducer<
 
           const { sourceHandle, targetHandle, source, target } = newEdge;
 
+          // Get current nodes and edges for cycle checking
+          const currentNodesAndEdgesForCycleCheck =
+            getCurrentNodesAndEdgesFromState(newState);
+
           if (
             newState.enableCycleChecking &&
             willAddingEdgeCreateCycle(
               {
                 ...newState,
-                nodes: getCurrentNodesAndEdgesFromState(newState).nodes,
-                edges: getCurrentNodesAndEdgesFromState(newState).edges,
+                nodes: currentNodesAndEdgesForCycleCheck.nodes,
+                edges: currentNodesAndEdgesForCycleCheck.edges,
               },
               source,
               target,
@@ -381,6 +385,10 @@ function mainReducer<
             break;
           }
 
+          // Get current nodes and edges with group node IDs
+          const currentNodesAndEdges =
+            getCurrentNodesAndEdgesFromState(newState);
+
           // Use the addEdgeWithTypeChecking function
           const addedEdgeResult = addEdgeWithTypeChecking(
             source,
@@ -389,9 +397,11 @@ function mainReducer<
             targetHandle,
             {
               ...newState,
-              nodes: getCurrentNodesAndEdgesFromState(newState).nodes,
-              edges: getCurrentNodesAndEdgesFromState(newState).edges,
+              nodes: currentNodesAndEdges.nodes,
+              edges: currentNodesAndEdges.edges,
             },
+            currentNodesAndEdges.inputNodeId,
+            currentNodesAndEdges.outputNodeId,
           );
           if (!addedEdgeResult.validation.isValid) {
             break;
@@ -401,6 +411,7 @@ function mainReducer<
             addedEdgeResult.updatedNodes,
             addedEdgeResult.updatedEdges,
           );
+          newState.typeOfNodes = addedEdgeResult.updatedTypeOfNodes;
           break;
         case actionTypesMap.OPEN_NODE_GROUP:
           //If nodeId is provided, we are opening an instance of the node group

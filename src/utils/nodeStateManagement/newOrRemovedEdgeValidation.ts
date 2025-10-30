@@ -7,8 +7,91 @@ import {
   inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating,
 } from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
 import { getConnectedEdges } from '@xyflow/react';
-import { getResultantDataTypeOfHandleConsideringInferredType } from './constructAndModifyHandles';
+import {
+  addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees,
+  getResultantDataTypeOfHandleConsideringInferredType,
+} from './constructAndModifyHandles';
 import { constructTypeOfHandleFromIndices } from './constructAndModifyNodes';
+
+function updateNodeDataWithNewDuplicateOutputHandleWithMutatingState<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+  sourceNodeIndex: number,
+  nodes: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['nodes'],
+) {
+  const newDuplicateHandle = constructTypeOfHandleFromIndices(
+    state.dataTypes,
+    nodes[sourceNodeIndex].data.nodeTypeUniqueId as NodeTypeUniqueId,
+    state.typeOfNodes,
+    { type: 'output', index1: 0, index2: undefined },
+  );
+  nodes[sourceNodeIndex] = {
+    ...nodes[sourceNodeIndex],
+    data: {
+      ...nodes[sourceNodeIndex].data,
+      outputs: [
+        ...(nodes[sourceNodeIndex].data.outputs || []),
+        ...(newDuplicateHandle ? [newDuplicateHandle] : []),
+      ],
+    },
+  };
+}
+
+function updateNodeDataWithNewDuplicateInputHandleWithMutatingState<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+  targetNodeIndex: number,
+  nodes: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['nodes'],
+) {
+  const newDuplicateHandle = constructTypeOfHandleFromIndices(
+    state.dataTypes,
+    nodes[targetNodeIndex].data.nodeTypeUniqueId as NodeTypeUniqueId,
+    state.typeOfNodes,
+    { type: 'input', index1: 0, index2: undefined },
+  );
+  nodes[targetNodeIndex] = {
+    ...nodes[targetNodeIndex],
+    data: {
+      ...nodes[targetNodeIndex].data,
+      inputs: [
+        ...(nodes[targetNodeIndex].data.inputs || []),
+        ...(newDuplicateHandle ? [newDuplicateHandle] : []),
+      ],
+    },
+  };
+}
 
 /**
  * Type for connection validation result
@@ -42,6 +125,8 @@ function inferTypesAfterEdgeAddition<
     UnderlyingType,
     ComplexSchemaType
   >['edges'][number],
+  groupInputNodeId?: string,
+  groupOutputNodeId?: string,
 ): {
   updatedNodes: State<
     DataTypeUniqueId,
@@ -49,11 +134,18 @@ function inferTypesAfterEdgeAddition<
     UnderlyingType,
     ComplexSchemaType
   >['nodes'];
+  updatedTypeOfNodes: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['typeOfNodes'];
   validation: ConnectionValidationResult;
 } {
   if (!newEdge.sourceHandle || !newEdge.targetHandle) {
     return {
       updatedNodes: state.nodes,
+      updatedTypeOfNodes: state.typeOfNodes,
       validation: {
         isValid: false,
         reason: 'Source or target handle not found',
@@ -82,12 +174,20 @@ function inferTypesAfterEdgeAddition<
   if (!sourceHandleDataType || !targetHandleDataType) {
     return {
       updatedNodes: state.nodes,
+      updatedTypeOfNodes: state.typeOfNodes,
       validation: {
         isValid: false,
         reason: 'Source or target handle data type not found',
       },
     };
   }
+
+  const isSourceNodeGroupInput =
+    Boolean(groupInputNodeId) && newEdge.source === groupInputNodeId;
+  const isTargetNodeGroupOutput =
+    Boolean(groupOutputNodeId) && newEdge.target === groupOutputNodeId;
+  const nodeGroup =
+    state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
 
   //No inference needed, none are infer types
   if (
@@ -97,6 +197,7 @@ function inferTypesAfterEdgeAddition<
   ) {
     return {
       updatedNodes: state.nodes,
+      updatedTypeOfNodes: state.typeOfNodes,
       validation: { isValid: true },
     };
   }
@@ -111,6 +212,7 @@ function inferTypesAfterEdgeAddition<
     if (!sourceHandleInferredDataType && !targetHandleInferredDataType) {
       return {
         updatedNodes: state.nodes,
+        updatedTypeOfNodes: state.typeOfNodes,
         validation: {
           isValid: false,
           reason:
@@ -123,12 +225,14 @@ function inferTypesAfterEdgeAddition<
     if (sourceHandleInferredDataType && targetHandleInferredDataType) {
       return {
         updatedNodes: state.nodes,
+        updatedTypeOfNodes: state.typeOfNodes,
         validation: { isValid: true },
       };
     }
     //One of the handles is inferred, infer the other type
     if (sourceHandleInferredDataType) {
       const updatedNodes = [...state.nodes];
+      let updatedTypeOfNodes = { ...state.typeOfNodes };
       updatedNodes[targetNodeIndex] = {
         ...state.nodes[targetNodeIndex],
         data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
@@ -143,16 +247,44 @@ function inferTypesAfterEdgeAddition<
             //Infer as connected node's type + connected handle's INFERRED type
             handle: sourceHandle,
             resetInferredType: false,
+            overrideDataType: isTargetNodeGroupOutput,
+            overrideName: isTargetNodeGroupOutput,
           },
         ),
       };
+      if (isTargetNodeGroupOutput && nodeGroup) {
+        //If a target node group's input got inferred, we need to create a duplicate input handle for further connections
+        updateNodeDataWithNewDuplicateInputHandleWithMutatingState(
+          state,
+          targetNodeIndex,
+          updatedNodes,
+        );
+        updatedTypeOfNodes =
+          addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees(
+            state,
+            nodeGroup.nodeType,
+            {
+              name: sourceHandle.name,
+              dataType: sourceHandleInferredDataType.dataTypeUniqueId,
+              allowInput:
+                sourceHandle.inferredDataType?.dataTypeObject.allowInput,
+            },
+            {
+              type: 'output',
+              index1: targetHandleIndex.index1,
+              index2: undefined,
+            },
+          ).typeOfNodes;
+      }
       return {
         updatedNodes,
+        updatedTypeOfNodes,
         validation: { isValid: true },
       };
     }
     if (targetHandleInferredDataType) {
       const updatedNodes = [...state.nodes];
+      let updatedTypeOfNodes = { ...state.typeOfNodes };
       updatedNodes[sourceNodeIndex] = {
         ...state.nodes[sourceNodeIndex],
         data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
@@ -167,11 +299,38 @@ function inferTypesAfterEdgeAddition<
             //Infer as connected node's type + connected handle's INFERRED type
             handle: targetHandle,
             resetInferredType: false,
+            overrideDataType: isSourceNodeGroupInput,
+            overrideName: isSourceNodeGroupInput,
           },
         ),
       };
+      if (isSourceNodeGroupInput && nodeGroup) {
+        //If a source node group's output got inferred, we need to create a duplicate output handle for further connections
+        updateNodeDataWithNewDuplicateOutputHandleWithMutatingState(
+          state,
+          sourceNodeIndex,
+          updatedNodes,
+        );
+        updatedTypeOfNodes =
+          addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees(
+            state,
+            nodeGroup.nodeType,
+            {
+              name: targetHandle.name,
+              dataType: targetHandleInferredDataType.dataTypeUniqueId,
+              allowInput:
+                targetHandle.inferredDataType?.dataTypeObject.allowInput,
+            },
+            {
+              type: 'input',
+              index1: sourceHandleIndex.index1,
+              index2: undefined,
+            },
+          ).typeOfNodes;
+      }
       return {
         updatedNodes,
+        updatedTypeOfNodes: updatedTypeOfNodes,
         validation: { isValid: true },
       };
     }
@@ -184,11 +343,13 @@ function inferTypesAfterEdgeAddition<
     if (sourceHandleInferredDataType) {
       return {
         updatedNodes: state.nodes,
+        updatedTypeOfNodes: state.typeOfNodes,
         validation: { isValid: true },
       };
     }
     //Not inferred, infer
     const updatedNodes = [...state.nodes];
+    let updatedTypeOfNodes = { ...state.typeOfNodes };
     updatedNodes[sourceNodeIndex] = {
       ...state.nodes[sourceNodeIndex],
       data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
@@ -203,11 +364,37 @@ function inferTypesAfterEdgeAddition<
         {
           handle: targetHandle,
           resetInferredType: false,
+          overrideDataType: isSourceNodeGroupInput,
+          overrideName: isSourceNodeGroupInput,
         },
       ),
     };
+    if (isSourceNodeGroupInput && nodeGroup) {
+      //If a source node group's output got inferred, we need to create a duplicate output handle for further connections
+      updateNodeDataWithNewDuplicateOutputHandleWithMutatingState(
+        state,
+        sourceNodeIndex,
+        updatedNodes,
+      );
+      updatedTypeOfNodes =
+        addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees(
+          state,
+          nodeGroup.nodeType,
+          {
+            name: targetHandle.name,
+            dataType: targetHandleDataType.dataTypeUniqueId,
+            allowInput: targetHandleDataType.dataTypeObject.allowInput,
+          },
+          {
+            type: 'input',
+            index1: sourceHandleIndex.index1,
+            index2: undefined,
+          },
+        ).typeOfNodes;
+    }
     return {
       updatedNodes,
+      updatedTypeOfNodes: updatedTypeOfNodes,
       validation: { isValid: true },
     };
   }
@@ -218,11 +405,13 @@ function inferTypesAfterEdgeAddition<
     if (targetHandleInferredDataType) {
       return {
         updatedNodes: state.nodes,
+        updatedTypeOfNodes: state.typeOfNodes,
         validation: { isValid: true },
       };
     }
     //Not inferred, infer
     const updatedNodes = [...state.nodes];
+    let updatedTypeOfNodes = { ...state.typeOfNodes };
     updatedNodes[targetNodeIndex] = {
       ...state.nodes[targetNodeIndex],
       data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
@@ -237,17 +426,44 @@ function inferTypesAfterEdgeAddition<
           //Infer as connected node's type + connected handle's NON-INFERRED type
           handle: sourceHandle,
           resetInferredType: false,
+          overrideDataType: isTargetNodeGroupOutput,
+          overrideName: isTargetNodeGroupOutput,
         },
       ),
     };
+    if (isTargetNodeGroupOutput && nodeGroup) {
+      //If a target node group's input got inferred, we need to create a duplicate input handle for further connections
+      updateNodeDataWithNewDuplicateInputHandleWithMutatingState(
+        state,
+        targetNodeIndex,
+        updatedNodes,
+      );
+      updatedTypeOfNodes =
+        addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees(
+          state,
+          nodeGroup.nodeType,
+          {
+            name: sourceHandle.name,
+            dataType: sourceHandleDataType.dataTypeUniqueId,
+            allowInput: sourceHandleDataType.dataTypeObject.allowInput,
+          },
+          {
+            type: 'output',
+            index1: targetHandleIndex.index1,
+            index2: undefined,
+          },
+        ).typeOfNodes;
+    }
     return {
       updatedNodes,
+      updatedTypeOfNodes: updatedTypeOfNodes,
       validation: { isValid: true },
     };
   }
 
   return {
     updatedNodes: state.nodes,
+    updatedTypeOfNodes: state.typeOfNodes,
     validation: { isValid: true },
   };
 }

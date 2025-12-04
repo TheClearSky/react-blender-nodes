@@ -1,6 +1,6 @@
 import { type NodeChange, type EdgeChange } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { type ConfigurableNodeReactFlowWrapperProps } from '../ConfigurableNode/ConfigurableNodeReactFlowWrapper';
+import { type ConfigurableNodeReactFlowWrapperProps } from '../ConfigurableNode';
 import { type ConfigurableEdgeState } from '../../atoms/ConfigurableEdge/ConfigurableEdge';
 import { type SupportedUnderlyingTypes } from '@/utils';
 import { z } from 'zod';

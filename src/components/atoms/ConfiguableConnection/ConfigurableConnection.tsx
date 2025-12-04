@@ -1,4 +1,4 @@
-import { getInputOrOutputFromNodeData } from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
+import { getHandleFromNodeDataMatchingHandleId } from '@/utils/nodeStateManagement/handles/handleGetters';
 import {
   BaseEdge,
   getBezierPath,
@@ -49,10 +49,10 @@ const ConfigurableConnection = ({
 
   const handleColor = useMemo(() => {
     if (!fromHandle?.id || !nodeData?.data) return;
-    const inputOrOutput = getInputOrOutputFromNodeData(
+    const inputOrOutput = getHandleFromNodeDataMatchingHandleId(
       fromHandle?.id,
       nodeData?.data,
-    );
+    )?.value;
     return inputOrOutput?.handleColor ?? '#A1A1A1';
   }, [fromHandle?.id, nodeData?.data]);
 

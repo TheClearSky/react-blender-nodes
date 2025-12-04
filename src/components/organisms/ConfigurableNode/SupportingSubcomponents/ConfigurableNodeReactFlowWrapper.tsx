@@ -3,7 +3,7 @@ import { type NodeProps, type Node, type XYPosition } from '@xyflow/react';
 import {
   type ConfigurableNodeProps,
   ConfigurableNode,
-} from './ConfigurableNode';
+} from './../ConfigurableNode';
 import type { SupportedUnderlyingTypes } from '@/utils';
 import { z } from 'zod';
 

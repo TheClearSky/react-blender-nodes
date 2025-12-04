@@ -4,15 +4,15 @@ import {
   type SupportedUnderlyingTypes,
   type TypeOfNode,
   type TypeOfInput,
-} from './types';
+} from '../types';
 import { Position, type XYPosition } from '@xyflow/react';
-import { generateRandomString } from '../randomGeneration';
+import { generateRandomString } from '../../randomGeneration';
 import type {
   ConfigurableNodeInput,
   ConfigurableNodeInputPanel,
   ConfigurableNodeOutput,
 } from '@/components/organisms/ConfigurableNode/ConfigurableNode';
-import type { HandleIndices } from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
+import type { HandleIndices } from '../handles/types';
 
 const lengthOfIds = 20;
 

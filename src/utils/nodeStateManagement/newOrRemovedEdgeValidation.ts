@@ -1,97 +1,21 @@
 import type { State, SupportedUnderlyingTypes } from './types';
 import type { z } from 'zod';
-import {
-  type HandleIndices,
-  getAllInputsAndOutputsFromNodeData,
-  getInputOrOutputFromNodeDataFromIndices,
-  inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating,
-} from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
+import type {
+  HandleIndices,
+  InstantiatedNonPanelTypesOfHandles,
+} from './handles/types';
 import { getConnectedEdges } from '@xyflow/react';
 import {
   addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees,
   getResultantDataTypeOfHandleConsideringInferredType,
 } from './constructAndModifyHandles';
-import { constructTypeOfHandleFromIndices } from './constructAndModifyNodes';
-
-function updateNodeDataWithNewDuplicateOutputHandleWithMutatingState<
-  DataTypeUniqueId extends string = string,
-  NodeTypeUniqueId extends string = string,
-  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
-  ComplexSchemaType extends UnderlyingType extends 'complex'
-    ? z.ZodType
-    : never = never,
->(
-  state: State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >,
-  sourceNodeIndex: number,
-  nodes: State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >['nodes'],
-) {
-  const newDuplicateHandle = constructTypeOfHandleFromIndices(
-    state.dataTypes,
-    nodes[sourceNodeIndex].data.nodeTypeUniqueId as NodeTypeUniqueId,
-    state.typeOfNodes,
-    { type: 'output', index1: 0, index2: undefined },
-  );
-  nodes[sourceNodeIndex] = {
-    ...nodes[sourceNodeIndex],
-    data: {
-      ...nodes[sourceNodeIndex].data,
-      outputs: [
-        ...(nodes[sourceNodeIndex].data.outputs || []),
-        ...(newDuplicateHandle ? [newDuplicateHandle] : []),
-      ],
-    },
-  };
-}
-
-function updateNodeDataWithNewDuplicateInputHandleWithMutatingState<
-  DataTypeUniqueId extends string = string,
-  NodeTypeUniqueId extends string = string,
-  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
-  ComplexSchemaType extends UnderlyingType extends 'complex'
-    ? z.ZodType
-    : never = never,
->(
-  state: State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >,
-  targetNodeIndex: number,
-  nodes: State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >['nodes'],
-) {
-  const newDuplicateHandle = constructTypeOfHandleFromIndices(
-    state.dataTypes,
-    nodes[targetNodeIndex].data.nodeTypeUniqueId as NodeTypeUniqueId,
-    state.typeOfNodes,
-    { type: 'input', index1: 0, index2: undefined },
-  );
-  nodes[targetNodeIndex] = {
-    ...nodes[targetNodeIndex],
-    data: {
-      ...nodes[targetNodeIndex].data,
-      inputs: [
-        ...(nodes[targetNodeIndex].data.inputs || []),
-        ...(newDuplicateHandle ? [newDuplicateHandle] : []),
-      ],
-    },
-  };
-}
+import { constructTypeOfHandleFromIndices } from './nodes/constructAndModifyNodes';
+import {
+  getAllHandlesFromNodeData,
+  getHandleFromNodeDataFromIndices,
+} from './handles/handleGetters';
+import { inferTypeAcrossTheNodeForHandleOfDataType } from './edges/typeInference';
+import { insertOrDeleteHandleInNodeDataUsingHandleIndices } from './handles/handleSetters';
 
 /**
  * Type for connection validation result
@@ -125,27 +49,19 @@ function inferTypesAfterEdgeAddition<
     UnderlyingType,
     ComplexSchemaType
   >['edges'][number],
-  groupInputNodeId?: string,
-  groupOutputNodeId?: string,
+  groupInputNodeId: string | undefined,
+  groupOutputNodeId: string | undefined,
+  unmodifiedState: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
 ): {
-  updatedNodes: State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >['nodes'];
-  updatedTypeOfNodes: State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >['typeOfNodes'];
   validation: ConnectionValidationResult;
 } {
   if (!newEdge.sourceHandle || !newEdge.targetHandle) {
     return {
-      updatedNodes: state.nodes,
-      updatedTypeOfNodes: state.typeOfNodes,
       validation: {
         isValid: false,
         reason: 'Source or target handle not found',
@@ -153,28 +69,39 @@ function inferTypesAfterEdgeAddition<
     };
   }
 
-  const sourceHandle = getInputOrOutputFromNodeDataFromIndices<
-    UnderlyingType,
+  const sourceNodeData = state.nodes[sourceNodeIndex].data;
+  const targetNodeData = state.nodes[targetNodeIndex].data;
+
+  const sourceHandle = getHandleFromNodeDataFromIndices<
+    DataTypeUniqueId,
     NodeTypeUniqueId,
-    ComplexSchemaType,
-    DataTypeUniqueId
-  >(sourceHandleIndex, state.nodes[sourceNodeIndex].data);
-  const targetHandle = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
-    NodeTypeUniqueId,
     ComplexSchemaType,
-    DataTypeUniqueId
-  >(targetHandleIndex, state.nodes[targetNodeIndex].data);
+    typeof sourceNodeData,
+    typeof sourceHandleIndex
+  >(sourceHandleIndex, sourceNodeData)?.value;
+  const targetHandle = getHandleFromNodeDataFromIndices<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType,
+    typeof targetNodeData,
+    typeof targetHandleIndex
+  >(targetHandleIndex, targetNodeData)?.value;
 
   const sourceHandleDataType = sourceHandle?.dataType;
   const targetHandleDataType = targetHandle?.dataType;
   const sourceHandleInferredDataType = sourceHandle?.inferredDataType;
   const targetHandleInferredDataType = targetHandle?.inferredDataType;
+  const isSourceHandleInferredFromConnection =
+    sourceHandleDataType?.dataTypeObject.underlyingType ===
+    'inferFromConnection';
+  const isTargetHandleInferredFromConnection =
+    targetHandleDataType?.dataTypeObject.underlyingType ===
+    'inferFromConnection';
 
   if (!sourceHandleDataType || !targetHandleDataType) {
     return {
-      updatedNodes: state.nodes,
-      updatedTypeOfNodes: state.typeOfNodes,
       validation: {
         isValid: false,
         reason: 'Source or target handle data type not found',
@@ -191,28 +118,36 @@ function inferTypesAfterEdgeAddition<
 
   //No inference needed, none are infer types
   if (
-    sourceHandleDataType.dataTypeObject.underlyingType !==
-      'inferFromConnection' &&
-    targetHandleDataType.dataTypeObject.underlyingType !== 'inferFromConnection'
+    !isSourceHandleInferredFromConnection &&
+    !isTargetHandleInferredFromConnection
   ) {
     return {
-      updatedNodes: state.nodes,
-      updatedTypeOfNodes: state.typeOfNodes,
       validation: { isValid: true },
     };
   }
 
+  let indexOfNodeToUpdate: number | undefined;
+  let dataTypeToInferFor: DataTypeUniqueId | undefined;
+  let connectedHandle:
+    | InstantiatedNonPanelTypesOfHandles<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >
+    | undefined;
+  let resetInferredType: boolean = false;
+  let overrideDataType: boolean = false;
+  let overrideName: boolean = false;
+
   //Both are infer types
   if (
-    sourceHandleDataType.dataTypeObject.underlyingType ===
-      'inferFromConnection' &&
-    targetHandleDataType.dataTypeObject.underlyingType === 'inferFromConnection'
+    isSourceHandleInferredFromConnection &&
+    isTargetHandleInferredFromConnection
   ) {
     //None of the handles are inferred, impossible to infer
     if (!sourceHandleInferredDataType && !targetHandleInferredDataType) {
       return {
-        updatedNodes: state.nodes,
-        updatedTypeOfNodes: state.typeOfNodes,
         validation: {
           isValid: false,
           reason:
@@ -222,248 +157,182 @@ function inferTypesAfterEdgeAddition<
     }
     //Both of the handles are inferred, no inference needed
     //(checking type compatibility is not job of inference, will be done in a separate step)
-    if (sourceHandleInferredDataType && targetHandleInferredDataType) {
+    else if (sourceHandleInferredDataType && targetHandleInferredDataType) {
       return {
-        updatedNodes: state.nodes,
-        updatedTypeOfNodes: state.typeOfNodes,
         validation: { isValid: true },
       };
     }
     //One of the handles is inferred, infer the other type
-    if (sourceHandleInferredDataType) {
-      const updatedNodes = [...state.nodes];
-      let updatedTypeOfNodes = { ...state.typeOfNodes };
-      updatedNodes[targetNodeIndex] = {
-        ...state.nodes[targetNodeIndex],
-        data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
-          DataTypeUniqueId,
-          NodeTypeUniqueId,
-          UnderlyingType,
-          ComplexSchemaType
-        >(
-          state.nodes[targetNodeIndex].data,
-          targetHandleDataType.dataTypeUniqueId,
-          {
-            //Infer as connected node's type + connected handle's INFERRED type
-            handle: sourceHandle,
-            resetInferredType: false,
-            overrideDataType: isTargetNodeGroupOutput,
-            overrideName: isTargetNodeGroupOutput,
-          },
-        ),
-      };
-      if (isTargetNodeGroupOutput && nodeGroup) {
-        //If a target node group's input got inferred, we need to create a duplicate input handle for further connections
-        updateNodeDataWithNewDuplicateInputHandleWithMutatingState(
-          state,
-          targetNodeIndex,
-          updatedNodes,
-        );
-        updatedTypeOfNodes =
-          addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees(
-            state,
-            nodeGroup.nodeType,
-            {
-              name: sourceHandle.name,
-              dataType: sourceHandleInferredDataType.dataTypeUniqueId,
-              allowInput:
-                sourceHandle.inferredDataType?.dataTypeObject.allowInput,
-            },
-            {
-              type: 'output',
-              index1: targetHandleIndex.index1,
-              index2: undefined,
-            },
-          ).typeOfNodes;
-      }
-      return {
-        updatedNodes,
-        updatedTypeOfNodes,
-        validation: { isValid: true },
-      };
-    }
-    if (targetHandleInferredDataType) {
-      const updatedNodes = [...state.nodes];
-      let updatedTypeOfNodes = { ...state.typeOfNodes };
-      updatedNodes[sourceNodeIndex] = {
-        ...state.nodes[sourceNodeIndex],
-        data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
-          DataTypeUniqueId,
-          NodeTypeUniqueId,
-          UnderlyingType,
-          ComplexSchemaType
-        >(
-          state.nodes[sourceNodeIndex].data,
-          sourceHandleDataType.dataTypeUniqueId,
-          {
-            //Infer as connected node's type + connected handle's INFERRED type
-            handle: targetHandle,
-            resetInferredType: false,
-            overrideDataType: isSourceNodeGroupInput,
-            overrideName: isSourceNodeGroupInput,
-          },
-        ),
-      };
-      if (isSourceNodeGroupInput && nodeGroup) {
-        //If a source node group's output got inferred, we need to create a duplicate output handle for further connections
-        updateNodeDataWithNewDuplicateOutputHandleWithMutatingState(
-          state,
-          sourceNodeIndex,
-          updatedNodes,
-        );
-        updatedTypeOfNodes =
-          addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees(
-            state,
-            nodeGroup.nodeType,
-            {
-              name: targetHandle.name,
-              dataType: targetHandleInferredDataType.dataTypeUniqueId,
-              allowInput:
-                targetHandle.inferredDataType?.dataTypeObject.allowInput,
-            },
-            {
-              type: 'input',
-              index1: sourceHandleIndex.index1,
-              index2: undefined,
-            },
-          ).typeOfNodes;
-      }
-      return {
-        updatedNodes,
-        updatedTypeOfNodes: updatedTypeOfNodes,
-        validation: { isValid: true },
-      };
+    else if (sourceHandleInferredDataType) {
+      indexOfNodeToUpdate = targetNodeIndex;
+      dataTypeToInferFor = targetHandleDataType.dataTypeUniqueId;
+      connectedHandle = sourceHandle;
+      resetInferredType = false;
+      overrideDataType = isTargetNodeGroupOutput;
+      overrideName = isTargetNodeGroupOutput;
+    } else if (targetHandleInferredDataType) {
+      indexOfNodeToUpdate = sourceNodeIndex;
+      dataTypeToInferFor = sourceHandleDataType.dataTypeUniqueId;
+      connectedHandle = targetHandle;
+      resetInferredType = false;
+      overrideDataType = isSourceNodeGroupInput;
+      overrideName = isSourceNodeGroupInput;
     }
   }
   //One of the handles is infer type, infer if needed
-  if (
-    sourceHandleDataType.dataTypeObject.underlyingType === 'inferFromConnection'
-  ) {
+  else if (isSourceHandleInferredFromConnection) {
     //Already inferred
     if (sourceHandleInferredDataType) {
       return {
-        updatedNodes: state.nodes,
-        updatedTypeOfNodes: state.typeOfNodes,
+        // updatedNodes: state.nodes,
+        // updatedTypeOfNodes: state.typeOfNodes,
         validation: { isValid: true },
       };
     }
     //Not inferred, infer
-    const updatedNodes = [...state.nodes];
-    let updatedTypeOfNodes = { ...state.typeOfNodes };
-    updatedNodes[sourceNodeIndex] = {
-      ...state.nodes[sourceNodeIndex],
-      data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
-        DataTypeUniqueId,
-        NodeTypeUniqueId,
-        UnderlyingType,
-        ComplexSchemaType
-      >(
-        state.nodes[sourceNodeIndex].data,
-        sourceHandleDataType.dataTypeUniqueId,
-        //Infer as connected node's type + connected handle's NON-INFERRED type
-        {
-          handle: targetHandle,
-          resetInferredType: false,
-          overrideDataType: isSourceNodeGroupInput,
-          overrideName: isSourceNodeGroupInput,
-        },
-      ),
-    };
-    if (isSourceNodeGroupInput && nodeGroup) {
-      //If a source node group's output got inferred, we need to create a duplicate output handle for further connections
-      updateNodeDataWithNewDuplicateOutputHandleWithMutatingState(
-        state,
-        sourceNodeIndex,
-        updatedNodes,
-      );
-      updatedTypeOfNodes =
-        addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees(
-          state,
-          nodeGroup.nodeType,
-          {
-            name: targetHandle.name,
-            dataType: targetHandleDataType.dataTypeUniqueId,
-            allowInput: targetHandleDataType.dataTypeObject.allowInput,
-          },
-          {
-            type: 'input',
-            index1: sourceHandleIndex.index1,
-            index2: undefined,
-          },
-        ).typeOfNodes;
-    }
-    return {
-      updatedNodes,
-      updatedTypeOfNodes: updatedTypeOfNodes,
-      validation: { isValid: true },
-    };
-  }
-  if (
-    targetHandleDataType.dataTypeObject.underlyingType === 'inferFromConnection'
-  ) {
+    indexOfNodeToUpdate = sourceNodeIndex;
+    dataTypeToInferFor = sourceHandleDataType.dataTypeUniqueId;
+    connectedHandle = targetHandle;
+    resetInferredType = false;
+    overrideDataType = isSourceNodeGroupInput;
+    overrideName = isSourceNodeGroupInput;
+  } else if (isTargetHandleInferredFromConnection) {
     //Already inferred
     if (targetHandleInferredDataType) {
       return {
-        updatedNodes: state.nodes,
-        updatedTypeOfNodes: state.typeOfNodes,
+        // updatedNodes: state.nodes,
+        // updatedTypeOfNodes: state.typeOfNodes,
         validation: { isValid: true },
       };
     }
     //Not inferred, infer
-    const updatedNodes = [...state.nodes];
-    let updatedTypeOfNodes = { ...state.typeOfNodes };
-    updatedNodes[targetNodeIndex] = {
-      ...state.nodes[targetNodeIndex],
-      data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
-        DataTypeUniqueId,
-        NodeTypeUniqueId,
-        UnderlyingType,
-        ComplexSchemaType
-      >(
-        state.nodes[targetNodeIndex].data,
-        targetHandleDataType.dataTypeUniqueId,
-        {
-          //Infer as connected node's type + connected handle's NON-INFERRED type
-          handle: sourceHandle,
-          resetInferredType: false,
-          overrideDataType: isTargetNodeGroupOutput,
-          overrideName: isTargetNodeGroupOutput,
-        },
-      ),
-    };
-    if (isTargetNodeGroupOutput && nodeGroup) {
-      //If a target node group's input got inferred, we need to create a duplicate input handle for further connections
-      updateNodeDataWithNewDuplicateInputHandleWithMutatingState(
-        state,
-        targetNodeIndex,
-        updatedNodes,
-      );
-      updatedTypeOfNodes =
-        addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees(
-          state,
-          nodeGroup.nodeType,
-          {
-            name: sourceHandle.name,
-            dataType: sourceHandleDataType.dataTypeUniqueId,
-            allowInput: sourceHandleDataType.dataTypeObject.allowInput,
-          },
-          {
-            type: 'output',
-            index1: targetHandleIndex.index1,
-            index2: undefined,
-          },
-        ).typeOfNodes;
-    }
+    indexOfNodeToUpdate = targetNodeIndex;
+    dataTypeToInferFor = targetHandleDataType.dataTypeUniqueId;
+    connectedHandle = sourceHandle;
+    resetInferredType = false;
+    overrideDataType = isTargetNodeGroupOutput;
+    overrideName = isTargetNodeGroupOutput;
+  }
+
+  if (
+    indexOfNodeToUpdate === undefined ||
+    dataTypeToInferFor === undefined ||
+    connectedHandle === undefined
+  ) {
     return {
-      updatedNodes,
-      updatedTypeOfNodes: updatedTypeOfNodes,
-      validation: { isValid: true },
+      // updatedNodes: state.nodes,
+      // updatedTypeOfNodes: state.typeOfNodes,
+      validation: {
+        isValid: false,
+        reason:
+          'Index of node to update, data type to infer for, or connected handle not found',
+      },
     };
   }
 
+  inferTypeAcrossTheNodeForHandleOfDataType<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >(state.nodes[indexOfNodeToUpdate].data, dataTypeToInferFor, {
+    //Infer as connected node's type + connected handle's NON-INFERRED type
+    handle: connectedHandle,
+    resetInferredType: resetInferredType,
+    overrideDataType: overrideDataType,
+    overrideName: overrideName,
+  });
+  //!== is basically xor for boolean, we are checking if one is true and the other is false
+  //Since we should only do this if one of them is an end connection
+  //There can never be an infer connection straight from group input to group output, because information is missing
+  if (
+    nodeGroup &&
+    (isSourceHandleInferredFromConnection && isSourceNodeGroupInput) !==
+      (isTargetHandleInferredFromConnection && isTargetNodeGroupOutput)
+  ) {
+    const indexOfNodeToUpdateInGroup = isTargetNodeGroupOutput
+      ? targetNodeIndex
+      : sourceNodeIndex;
+    const inputOrOutputType = isTargetNodeGroupOutput ? 'input' : 'output';
+    //If an output or input node group's output or input got inferred, we need to create a duplicate output or input handle for further connections
+    const newDuplicateHandle = constructTypeOfHandleFromIndices(
+      state.dataTypes,
+      state.nodes[indexOfNodeToUpdateInGroup].data
+        .nodeTypeUniqueId as NodeTypeUniqueId,
+      state.typeOfNodes,
+      { type: inputOrOutputType, index1: 0, index2: undefined },
+    );
+    const handleToAddName = isTargetNodeGroupOutput
+      ? targetHandle.name
+      : sourceHandle.name;
+    const handleToAddDataType = isTargetNodeGroupOutput
+      ? targetHandle.inferredDataType?.dataTypeUniqueId
+      : sourceHandle.inferredDataType?.dataTypeUniqueId;
+    const handleToAddAllowInput = isTargetNodeGroupOutput
+      ? targetHandle.inferredDataType?.dataTypeObject.allowInput
+      : sourceHandle.inferredDataType?.dataTypeObject.allowInput;
+    if (!handleToAddName || !handleToAddDataType) {
+      console.log(
+        'a',
+        JSON.stringify(targetHandle, null, 2),
+        JSON.stringify(sourceHandle, null, 2),
+        handleToAddName,
+        handleToAddDataType,
+        handleToAddAllowInput,
+      );
+      return {
+        validation: {
+          isValid: false,
+          reason: 'Handle to add name, data type, or allow input not found',
+        },
+      };
+    }
+    if (!newDuplicateHandle) {
+      console.log('b');
+      return {
+        validation: {
+          isValid: false,
+          reason: 'New duplicate handle not found',
+        },
+      };
+    }
+    insertOrDeleteHandleInNodeDataUsingHandleIndices<
+      UnderlyingType,
+      NodeTypeUniqueId,
+      ComplexSchemaType,
+      DataTypeUniqueId
+    >(
+      state.nodes[indexOfNodeToUpdateInGroup].data,
+      {
+        type: inputOrOutputType,
+        index1: -1,
+        index2: undefined,
+      },
+      0,
+      newDuplicateHandle,
+      true,
+      'after',
+    );
+
+    addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees(
+      unmodifiedState,
+      nodeGroup.nodeType,
+      {
+        name: handleToAddName,
+        dataType: handleToAddDataType,
+        allowInput: handleToAddAllowInput,
+      },
+      {
+        type: isTargetNodeGroupOutput ? 'output' : 'input',
+        index1: -1,
+        index2: undefined,
+      },
+      'after',
+    );
+  }
   return {
-    updatedNodes: state.nodes,
-    updatedTypeOfNodes: state.typeOfNodes,
+    // updatedNodes: state.nodes,
+    // updatedTypeOfNodes: state.typeOfNodes,
     validation: { isValid: true },
   };
 }
@@ -504,18 +373,25 @@ function checkComplexTypeCompatibilityAfterEdgeAddition<
     };
   }
 
-  const sourceHandle = getInputOrOutputFromNodeDataFromIndices<
-    UnderlyingType,
+  const sourceNodeData = state.nodes[sourceNodeIndex].data;
+  const targetNodeData = state.nodes[targetNodeIndex].data;
+
+  const sourceHandle = getHandleFromNodeDataFromIndices<
+    DataTypeUniqueId,
     NodeTypeUniqueId,
-    ComplexSchemaType,
-    DataTypeUniqueId
-  >(sourceHandleIndex, state.nodes[sourceNodeIndex].data);
-  const targetHandle = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
-    NodeTypeUniqueId,
     ComplexSchemaType,
-    DataTypeUniqueId
-  >(targetHandleIndex, state.nodes[targetNodeIndex].data);
+    typeof sourceNodeData,
+    typeof sourceHandleIndex
+  >(sourceHandleIndex, sourceNodeData)?.value;
+  const targetHandle = getHandleFromNodeDataFromIndices<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType,
+    typeof targetNodeData,
+    typeof targetHandleIndex
+  >(targetHandleIndex, targetNodeData)?.value;
 
   const resultantSourceHandleDataType =
     getResultantDataTypeOfHandleConsideringInferredType(sourceHandle);
@@ -623,18 +499,25 @@ function checkTypeConversionCompatibilityAfterEdgeAddition<
     };
   }
 
-  const sourceHandle = getInputOrOutputFromNodeDataFromIndices<
-    UnderlyingType,
+  const sourceNodeData = state.nodes[sourceNodeIndex].data;
+  const targetNodeData = state.nodes[targetNodeIndex].data;
+
+  const sourceHandle = getHandleFromNodeDataFromIndices<
+    DataTypeUniqueId,
     NodeTypeUniqueId,
-    ComplexSchemaType,
-    DataTypeUniqueId
-  >(sourceHandleIndex, state.nodes[sourceNodeIndex].data);
-  const targetHandle = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
-    NodeTypeUniqueId,
     ComplexSchemaType,
-    DataTypeUniqueId
-  >(targetHandleIndex, state.nodes[targetNodeIndex].data);
+    typeof sourceNodeData,
+    typeof sourceHandleIndex
+  >(sourceHandleIndex, sourceNodeData)?.value;
+  const targetHandle = getHandleFromNodeDataFromIndices<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType,
+    typeof targetNodeData,
+    typeof targetHandleIndex
+  >(targetHandleIndex, targetNodeData)?.value;
 
   const resultantSourceHandleDataType =
     getResultantDataTypeOfHandleConsideringInferredType(sourceHandle);
@@ -727,18 +610,22 @@ function inferTypesAfterEdgeRemoval<
   const sourceNode = state.nodes[sourceNodeIndex];
   const targetNode = state.nodes[targetNodeIndex];
 
-  const sourceHandle = getInputOrOutputFromNodeDataFromIndices<
-    UnderlyingType,
+  const sourceHandle = getHandleFromNodeDataFromIndices<
+    DataTypeUniqueId,
     NodeTypeUniqueId,
-    ComplexSchemaType,
-    DataTypeUniqueId
-  >(sourceHandleIndex, sourceNode.data);
-  const targetHandle = getInputOrOutputFromNodeDataFromIndices<
     UnderlyingType,
-    NodeTypeUniqueId,
     ComplexSchemaType,
-    DataTypeUniqueId
-  >(targetHandleIndex, targetNode.data);
+    typeof sourceNode.data,
+    typeof sourceHandleIndex
+  >(sourceHandleIndex, sourceNode.data)?.value;
+  const targetHandle = getHandleFromNodeDataFromIndices<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType,
+    typeof targetNode.data,
+    typeof targetHandleIndex
+  >(targetHandleIndex, targetNode.data)?.value;
 
   const sourceHandleDataType = sourceHandle?.dataType;
   const targetHandleDataType = targetHandle?.dataType;
@@ -771,23 +658,28 @@ function inferTypesAfterEdgeRemoval<
     sourceHandleDataType.dataTypeObject.underlyingType === 'inferFromConnection'
   ) {
     const connectedSourceEdges = getConnectedEdges([sourceNode], state.edges);
-    const { inputsAndIndices, outputsAndIndices } =
-      getAllInputsAndOutputsFromNodeData(sourceNode.data);
+    const { inputsAndIndices, outputsAndIndices } = getAllHandlesFromNodeData<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType,
+      typeof sourceNode.data
+    >(sourceNode.data);
     const mapOfHandlesOfThisDataType: Record<string, boolean> = {};
     for (const inputAndIndex of inputsAndIndices) {
       if (
-        inputAndIndex.input.dataType?.dataTypeUniqueId ===
+        inputAndIndex.value.dataType?.dataTypeUniqueId ===
         sourceHandleDataType.dataTypeUniqueId
       ) {
-        mapOfHandlesOfThisDataType[inputAndIndex.input.id] = true;
+        mapOfHandlesOfThisDataType[inputAndIndex.value.id] = true;
       }
     }
     for (const outputAndIndex of outputsAndIndices) {
       if (
-        outputAndIndex.output.dataType?.dataTypeUniqueId ===
+        outputAndIndex.value.dataType?.dataTypeUniqueId ===
         sourceHandleDataType.dataTypeUniqueId
       ) {
-        mapOfHandlesOfThisDataType[outputAndIndex.output.id] = true;
+        mapOfHandlesOfThisDataType[outputAndIndex.value.id] = true;
       }
     }
 
@@ -815,7 +707,7 @@ function inferTypesAfterEdgeRemoval<
       updatedNodes = [...updatedNodes];
       updatedNodes[sourceNodeIndex] = {
         ...updatedNodes[sourceNodeIndex],
-        data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
+        data: inferTypeAcrossTheNodeForHandleOfDataType<
           DataTypeUniqueId,
           NodeTypeUniqueId,
           UnderlyingType,
@@ -842,23 +734,28 @@ function inferTypesAfterEdgeRemoval<
     targetHandleDataType.dataTypeObject.underlyingType === 'inferFromConnection'
   ) {
     const connectedTargetEdges = getConnectedEdges([targetNode], state.edges);
-    const { inputsAndIndices, outputsAndIndices } =
-      getAllInputsAndOutputsFromNodeData(targetNode.data);
+    const { inputsAndIndices, outputsAndIndices } = getAllHandlesFromNodeData<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType,
+      typeof targetNode.data
+    >(targetNode.data);
     const mapOfHandlesOfThisDataType: Record<string, boolean> = {};
     for (const inputAndIndex of inputsAndIndices) {
       if (
-        inputAndIndex.input.dataType?.dataTypeUniqueId ===
+        inputAndIndex.value.dataType?.dataTypeUniqueId ===
         targetHandleDataType.dataTypeUniqueId
       ) {
-        mapOfHandlesOfThisDataType[inputAndIndex.input.id] = true;
+        mapOfHandlesOfThisDataType[inputAndIndex.value.id] = true;
       }
     }
     for (const outputAndIndex of outputsAndIndices) {
       if (
-        outputAndIndex.output.dataType?.dataTypeUniqueId ===
+        outputAndIndex.value.dataType?.dataTypeUniqueId ===
         targetHandleDataType.dataTypeUniqueId
       ) {
-        mapOfHandlesOfThisDataType[outputAndIndex.output.id] = true;
+        mapOfHandlesOfThisDataType[outputAndIndex.value.id] = true;
       }
     }
 
@@ -886,7 +783,7 @@ function inferTypesAfterEdgeRemoval<
       updatedNodes = [...updatedNodes];
       updatedNodes[targetNodeIndex] = {
         ...updatedNodes[targetNodeIndex],
-        data: inferTypeAcrossTheNodeForHandleOfDataTypeWithoutMutating<
+        data: inferTypeAcrossTheNodeForHandleOfDataType<
           DataTypeUniqueId,
           NodeTypeUniqueId,
           UnderlyingType,

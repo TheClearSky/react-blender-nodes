@@ -1,4 +1,4 @@
-import { getInputOrOutputFromNodeData } from '@/components/organisms/ConfigurableNode/nodeDataManipulation';
+import { getHandleFromNodeDataMatchingHandleId } from '@/utils/nodeStateManagement/handles/handleGetters';
 import { cn } from '@/utils';
 import {
   BaseEdge,
@@ -119,10 +119,10 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
 
     const sourceHandleColor = useMemo(() => {
       if (!props.source || !sourceNodeData) return;
-      const inputOrOutput = getInputOrOutputFromNodeData(
+      const inputOrOutput = getHandleFromNodeDataMatchingHandleId(
         props.sourceHandleId || '',
         sourceNodeData?.data,
-      );
+      )?.value;
       return inputOrOutput?.handleColor ?? '#A1A1A1';
     }, [props.source, sourceNodeData]);
 
@@ -130,10 +130,10 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
 
     const targetHandleColor = useMemo(() => {
       if (!props.target || !targetNodeData) return;
-      const inputOrOutput = getInputOrOutputFromNodeData(
+      const inputOrOutput = getHandleFromNodeDataMatchingHandleId(
         props.targetHandleId || '',
         targetNodeData?.data,
-      );
+      )?.value;
       return inputOrOutput?.handleColor ?? '#A1A1A1';
     }, [props.target, targetNodeData]);
 

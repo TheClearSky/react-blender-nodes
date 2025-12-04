@@ -6,7 +6,7 @@ import {
   constructNodeOfType,
   getCurrentNodesAndEdgesFromState,
   setCurrentNodesAndEdgesToStateWithMutatingState,
-} from './constructAndModifyNodes';
+} from './nodes/constructAndModifyNodes';
 import {
   addEdgeWithTypeChecking,
   removeEdgeWithTypeChecking,
@@ -402,16 +402,11 @@ function mainReducer<
             },
             currentNodesAndEdges.inputNodeId,
             currentNodesAndEdges.outputNodeId,
+            newState,
           );
           if (!addedEdgeResult.validation.isValid) {
             break;
           }
-          newState = setCurrentNodesAndEdgesToStateWithMutatingState(
-            newState,
-            addedEdgeResult.updatedNodes,
-            addedEdgeResult.updatedEdges,
-          );
-          newState.typeOfNodes = addedEdgeResult.updatedTypeOfNodes;
           break;
         case actionTypesMap.OPEN_NODE_GROUP:
           //If nodeId is provided, we are opening an instance of the node group

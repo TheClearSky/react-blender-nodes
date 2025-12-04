@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Nodes, Edges } from '@/components/organisms/FullGraph/types';
-import type { HandleShape } from '@/components/organisms/ConfigurableNode/ContextAwareHandle';
+import type { HandleShape } from '@/components/organisms/ConfigurableNode';
 import type { Viewport } from '@xyflow/react';
 
 /**

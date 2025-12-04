@@ -1,8 +1,8 @@
 import { useReactFlow, useNodeId } from '@xyflow/react';
 import { Input } from '@/components/atoms';
 import { SliderNumberInput } from '@/components/molecules';
-import { modifyInputsInNodeDataWithoutMutating } from './nodeDataManipulation';
-import type { ConfigurableNodeInput } from './ConfigurableNode';
+import type { ConfigurableNodeInput } from '../ConfigurableNode';
+import { updateHandleInNodeDataMatchingHandleId } from '@/utils/nodeStateManagement/handles/handleSetters';
 
 /**
  * Props for the ReactFlowAwareInput component
@@ -36,10 +36,13 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
             if (currentNode.id === nodeId) {
               return {
                 ...currentNode,
-                data: modifyInputsInNodeDataWithoutMutating(
-                  input.id,
+                data: updateHandleInNodeDataMatchingHandleId(
                   currentNode.data,
+                  input.id,
                   { value: newValue },
+                  true,
+                  false,
+                  false,
                 ),
               };
             }
@@ -61,10 +64,13 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
             if (currentNode.id === nodeId) {
               return {
                 ...currentNode,
-                data: modifyInputsInNodeDataWithoutMutating(
-                  input.id,
+                data: updateHandleInNodeDataMatchingHandleId(
                   currentNode.data,
+                  input.id,
                   { value: newValue },
+                  true,
+                  false,
+                  false,
                 ),
               };
             }

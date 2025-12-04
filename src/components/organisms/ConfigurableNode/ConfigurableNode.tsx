@@ -7,9 +7,12 @@ import { Position, useNodeConnections } from '@xyflow/react';
 import { forwardRef, type HTMLAttributes, useState } from 'react';
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { Button } from '@/components/atoms';
-import { ContextAwareHandle, type HandleShape } from './ContextAwareHandle';
-import { ContextAwareInput } from './ContextAwareInput';
-import { ContextAwareOpenButton } from './ContextAwareOpenButton';
+import {
+  ContextAwareHandle,
+  type HandleShape,
+} from './SupportingSubcomponents/ContextAwareHandle';
+import { ContextAwareInput } from './SupportingSubcomponents/ContextAwareInput';
+import { ContextAwareOpenButton } from './SupportingSubcomponents/ContextAwareOpenButton';
 import { z } from 'zod';
 
 /**

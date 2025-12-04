@@ -19,7 +19,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ConfigurableNodeReactFlowWrapper } from '../ConfigurableNode/ConfigurableNodeReactFlowWrapper';
+import { ConfigurableNodeReactFlowWrapper } from '../ConfigurableNode';
 import { ConfigurableEdge } from '../../atoms/ConfigurableEdge/ConfigurableEdge';
 import { ConfigurableConnection } from '@/components/atoms/ConfiguableConnection/ConfigurableConnection';
 import { createNodeContextMenu } from '../../molecules/ContextMenu/createNodeContextMenu';

@@ -7,7 +7,7 @@ import {
 } from './ConfigurableNode';
 import { cn } from '@/utils/cnHelper';
 
-import { handleShapesMap } from './ContextAwareHandle';
+import { handleShapesMap } from './SupportingSubcomponents/ContextAwareHandle';
 
 const meta = {
   component: ConfigurableNode,

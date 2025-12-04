@@ -7,7 +7,7 @@ import {
   makeDataTypeWithAutoInfer,
   makeTypeOfNodeWithAutoInfer,
 } from '@/utils/nodeStateManagement/types';
-import { handleShapesMap } from '@/components/organisms/ConfigurableNode/ContextAwareHandle';
+import { handleShapesMap } from '@/components/organisms/ConfigurableNode';
 import state1 from './PlaygroundState1.json';
 import { z } from 'zod';
 import { standardDataTypes, standardNodeTypes } from '@/utils';
@@ -385,8 +385,6 @@ export const Playground: StoryObj<typeof FullGraph> = {
       nodes: state1.nodes as Nodes,
       edges: state1.edges as Edges,
     });
-
-    console.log('state', JSON.stringify(state, null, 2));
 
     return <FullGraph state={state} dispatch={dispatch} />;
   },

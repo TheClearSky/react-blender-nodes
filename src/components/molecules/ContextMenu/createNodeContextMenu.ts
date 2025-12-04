@@ -11,7 +11,7 @@ import {
   type Action,
 } from '@/utils/nodeStateManagement/mainReducer';
 import { z } from 'zod';
-import { getAllDependentsOfNodeTypeRecursively } from '@/utils/nodeStateManagement/constructAndModifyNodes';
+import { getAllDependentsOfNodeTypeRecursively } from '@/utils/nodeStateManagement/nodes/constructAndModifyNodes';
 
 type CreateNodeContextMenuProps<
   DataTypeUniqueId extends string = string,

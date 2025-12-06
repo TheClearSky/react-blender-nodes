@@ -184,8 +184,6 @@ function inferTypesAfterEdgeAddition<
     //Already inferred
     if (sourceHandleInferredDataType) {
       return {
-        // updatedNodes: state.nodes,
-        // updatedTypeOfNodes: state.typeOfNodes,
         validation: { isValid: true },
       };
     }
@@ -200,8 +198,6 @@ function inferTypesAfterEdgeAddition<
     //Already inferred
     if (targetHandleInferredDataType) {
       return {
-        // updatedNodes: state.nodes,
-        // updatedTypeOfNodes: state.typeOfNodes,
         validation: { isValid: true },
       };
     }
@@ -220,8 +216,6 @@ function inferTypesAfterEdgeAddition<
     connectedHandle === undefined
   ) {
     return {
-      // updatedNodes: state.nodes,
-      // updatedTypeOfNodes: state.typeOfNodes,
       validation: {
         isValid: false,
         reason:
@@ -272,14 +266,6 @@ function inferTypesAfterEdgeAddition<
       ? targetHandle.inferredDataType?.dataTypeObject.allowInput
       : sourceHandle.inferredDataType?.dataTypeObject.allowInput;
     if (!handleToAddName || !handleToAddDataType) {
-      console.log(
-        'a',
-        JSON.stringify(targetHandle, null, 2),
-        JSON.stringify(sourceHandle, null, 2),
-        handleToAddName,
-        handleToAddDataType,
-        handleToAddAllowInput,
-      );
       return {
         validation: {
           isValid: false,
@@ -288,7 +274,6 @@ function inferTypesAfterEdgeAddition<
       };
     }
     if (!newDuplicateHandle) {
-      console.log('b');
       return {
         validation: {
           isValid: false,
@@ -331,8 +316,6 @@ function inferTypesAfterEdgeAddition<
     );
   }
   return {
-    // updatedNodes: state.nodes,
-    // updatedTypeOfNodes: state.typeOfNodes,
     validation: { isValid: true },
   };
 }

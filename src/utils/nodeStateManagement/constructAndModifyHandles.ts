@@ -195,6 +195,12 @@ function addEdgeWithTypeChecking<
     validation = validationTemp;
   }
 
+  if (!validation.isValid) {
+    return {
+      validation,
+    };
+  }
+
   state.edges.push(newEdge);
   return {
     validation,

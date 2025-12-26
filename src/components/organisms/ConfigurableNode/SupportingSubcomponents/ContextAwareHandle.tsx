@@ -1,43 +1,12 @@
 import { cn } from '@/utils';
-import { Position, Handle, type HandleType } from '@xyflow/react';
+import {
+  Position,
+  Handle,
+  type HandleType,
+  useNodeConnections,
+} from '@xyflow/react';
 import { forwardRef, type HTMLAttributes } from 'react';
-
-/** Available handle shapes for node inputs and outputs */
-const handleShapes = [
-  'circle',
-  'square',
-  'rectangle',
-  'list',
-  'grid',
-  'diamond',
-  'trapezium',
-  'hexagon',
-  'star',
-  'cross',
-  'zigzag',
-  'sparkle',
-  'parallelogram',
-] as const;
-
-/** Map of handle shapes for type-safe access */
-const handleShapesMap = {
-  [handleShapes[0]]: handleShapes[0],
-  [handleShapes[1]]: handleShapes[1],
-  [handleShapes[2]]: handleShapes[2],
-  [handleShapes[3]]: handleShapes[3],
-  [handleShapes[4]]: handleShapes[4],
-  [handleShapes[5]]: handleShapes[5],
-  [handleShapes[6]]: handleShapes[6],
-  [handleShapes[7]]: handleShapes[7],
-  [handleShapes[8]]: handleShapes[8],
-  [handleShapes[9]]: handleShapes[9],
-  [handleShapes[10]]: handleShapes[10],
-  [handleShapes[11]]: handleShapes[11],
-  [handleShapes[12]]: handleShapes[12],
-} as const;
-
-/** Type representing all available handle shapes */
-type HandleShape = (typeof handleShapesMap)[keyof typeof handleShapesMap];
+import { handleShapesMap, type HandleShape } from './ContextAwareHandleShapes';
 
 /**
  * Props for the ContextAwareHandle component
@@ -53,6 +22,8 @@ type ContextAwareHandleProps = {
   color?: string;
   /** Shape of the handle */
   shape?: HandleShape;
+  /** Maximum number of connections for this handle */
+  maxConnections?: number;
   /** Whether the handle is currently inside a ReactFlow context */
   isCurrentlyInsideReactFlow?: boolean;
 } & HTMLAttributes<HTMLDivElement>;
@@ -317,13 +288,24 @@ const ContextAwareHandle = forwardRef<HTMLDivElement, ContextAwareHandleProps>(
       id,
       color,
       shape = handleShapesMap.circle,
+      maxConnections,
       isCurrentlyInsideReactFlow = false,
       className,
       ...props
     },
     ref,
   ) => {
+    const connections = isCurrentlyInsideReactFlow
+      ? useNodeConnections({
+          handleId: id,
+          handleType: type,
+        })
+      : [];
     if (isCurrentlyInsideReactFlow) {
+      const canConnect =
+        maxConnections !== undefined
+          ? connections.length < maxConnections
+          : undefined;
       return (
         <Handle
           type={type}
@@ -336,6 +318,9 @@ const ContextAwareHandle = forwardRef<HTMLDivElement, ContextAwareHandleProps>(
           style={{
             backgroundColor: 'transparent',
           }}
+          isConnectable={canConnect}
+          isConnectableStart={canConnect}
+          isConnectableEnd={canConnect}
           {...props}
           ref={ref}
         >

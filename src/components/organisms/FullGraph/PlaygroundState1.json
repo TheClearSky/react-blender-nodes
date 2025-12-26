@@ -311,13 +311,8 @@
       },
       "shape": "trapezium"
     },
-    "newGroupInput": {
-      "name": "New Group Input",
-      "underlyingType": "inferFromConnection",
-      "color": "#333333"
-    },
-    "newGroupOutput": {
-      "name": "New Group Output",
+    "groupInfer": {
+      "name": "Group Infer",
       "underlyingType": "inferFromConnection",
       "color": "#333333"
     }
@@ -584,7 +579,7 @@
       "outputs": [
         {
           "name": "",
-          "dataType": "newGroupInput"
+          "dataType": "groupInfer"
         }
       ]
     },
@@ -594,7 +589,7 @@
       "inputs": [
         {
           "name": "",
-          "dataType": "newGroupOutput"
+          "dataType": "groupInfer"
         }
       ],
       "outputs": []

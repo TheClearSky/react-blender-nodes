@@ -18,6 +18,7 @@ import {
   getOutgoers,
   type EdgeChange,
 } from '@xyflow/react';
+import { isLoopConnectionValid } from './nodes/loops';
 import { generateRandomString } from '../randomGeneration';
 import type { HandleIndices } from './handles/types';
 import { inferTypesAfterEdgeAddition } from './newOrRemovedEdgeValidation';
@@ -152,6 +153,19 @@ function addEdgeWithTypeChecking<
       },
     };
   }
+
+  // Check if path contains loop nodes (this validation should happen before type inference)
+  const loopPathValidation = isLoopConnectionValid<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >(state, sourceNode, targetNode, sourceHandleIndex, targetHandleIndex);
+
+  if (!loopPathValidation.validation.isValid) {
+    return loopPathValidation;
+  }
+
   let validation = { isValid: true };
 
   if (state.enableTypeInference) {

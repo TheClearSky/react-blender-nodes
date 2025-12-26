@@ -38,6 +38,8 @@ type ConfigurableNodeInput<
   handleShape?: HandleShape;
   /** Whether to show an interactive input component when not connected */
   allowInput?: boolean;
+  /** Maximum number of connections for this input */
+  maxConnections?: number;
 
   /** Data type of the input, used by full graph */
   dataType?: {
@@ -88,6 +90,8 @@ type ConfigurableNodeOutput<
   handleColor?: string;
   /** Shape of the output handle (circle, square, diamond, etc.) */
   handleShape?: HandleShape;
+  /** Maximum number of connections for this output */
+  maxConnections?: number;
 
   /** Data type of the output, used by full graph */
   dataType?: {
@@ -229,6 +233,7 @@ const RenderInput = forwardRef<HTMLDivElement, RenderInputProps>(
           id={input.id}
           color={input.handleColor}
           shape={input.handleShape}
+          maxConnections={input.maxConnections}
           isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
         />
         <div className='flex-1 flex items-center gap-3 w-full'>
@@ -281,6 +286,7 @@ const RenderOutput = forwardRef<HTMLDivElement, RenderOutputProps>(
           id={output.id}
           color={output.handleColor}
           shape={output.handleShape}
+          maxConnections={output.maxConnections}
           isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
         />
       </div>

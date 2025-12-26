@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { FullGraph, useFullGraph } from './FullGraph';
+import { FullGraph, useFullGraph } from './';
 import { Position } from '@xyflow/react';
 import { type Nodes, type Edges } from './types';
 import {

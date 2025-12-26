@@ -74,6 +74,8 @@ type DataType<
       shape?: HandleShape;
       /** Whether this input allows direct user input */
       allowInput?: boolean;
+      /** Maximum number of connections for this data type */
+      maxConnections?: number;
     }
   : {
       /** Display name of the data type */
@@ -88,6 +90,8 @@ type DataType<
       shape?: HandleShape;
       /** Whether this input allows direct user input */
       allowInput?: boolean;
+      /** Maximum number of connections for this data type */
+      maxConnections?: number;
     };
 
 /**
@@ -159,6 +163,8 @@ type TypeOfInput<DataTypeUniqueId extends string = string> = {
   dataType: DataTypeUniqueId;
   /** Whether this input allows direct user input */
   allowInput?: boolean;
+  /** Maximum number of connections for this input */
+  maxConnections?: number;
 };
 
 /**

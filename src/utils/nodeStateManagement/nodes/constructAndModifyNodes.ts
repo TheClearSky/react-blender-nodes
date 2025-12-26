@@ -90,12 +90,17 @@ function constructInputOrOutputOfType<
     typeOfDataTypeInNode.allowInput ??
     matchingDataTypeFromAllDataTypes.allowInput;
 
+  const resultantMaxConnections =
+    typeOfDataTypeInNode.maxConnections ??
+    matchingDataTypeFromAllDataTypes.maxConnections;
+
   if (matchingDataTypeFromAllDataTypes.underlyingType === 'number') {
     return {
       id: generateRandomString(lengthOfIds),
       name: typeOfDataTypeInNode.name,
       handleColor: matchingDataTypeFromAllDataTypes.color,
       allowInput: resultantAllowInput,
+      maxConnections: resultantMaxConnections,
       type: 'number' as const,
       handleShape: matchingDataTypeFromAllDataTypes.shape,
       dataType: {
@@ -112,6 +117,7 @@ function constructInputOrOutputOfType<
         matchingDataTypeFromAllDataTypes.underlyingType === 'string'
           ? resultantAllowInput
           : false,
+      maxConnections: resultantMaxConnections,
       type: 'string' as const,
       handleShape: matchingDataTypeFromAllDataTypes.shape,
       dataType: {

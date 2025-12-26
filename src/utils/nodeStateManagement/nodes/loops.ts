@@ -1147,6 +1147,107 @@ function verifyLoopStructureUniformHandleInference<
     typeof loopStop.data
   >(loopStop.data);
 
+  const allHandlesLoopEnd = getAllHandlesFromNodeData<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType,
+    typeof loopEnd.data
+  >(loopEnd.data);
+
+  const numberOfInferredInputLoopHandlesLoopStart =
+    allHandlesLoopStart.inputsAndIndices.length -
+    (loopStartInputInferHandleIndex + 1);
+  const numberOfInferredOutputLoopHandlesLoopStart =
+    allHandlesLoopStart.outputsAndIndices.length -
+    (loopStartOutputInferHandleIndex + 1);
+  const numberOfInferredInputLoopHandlesLoopStop =
+    allHandlesLoopStop.inputsAndIndices.length -
+    (loopStopInputInferHandleIndex + 1);
+  const numberOfInferredOutputLoopHandlesLoopStop =
+    allHandlesLoopStop.outputsAndIndices.length -
+    (loopStopOutputInferHandleIndex + 1);
+  const numberOfInferredInputLoopHandlesLoopEnd =
+    allHandlesLoopEnd.inputsAndIndices.length -
+    (loopEndInputInferHandleIndex + 1);
+  const numberOfInferredOutputLoopHandlesLoopEnd =
+    allHandlesLoopEnd.outputsAndIndices.length -
+    (loopEndOutputInferHandleIndex + 1);
+
+  const allNumberOfInferredLoopHandles = [
+    numberOfInferredInputLoopHandlesLoopStart,
+    numberOfInferredOutputLoopHandlesLoopStart,
+    numberOfInferredInputLoopHandlesLoopStop,
+    numberOfInferredOutputLoopHandlesLoopStop,
+    numberOfInferredInputLoopHandlesLoopEnd,
+    numberOfInferredOutputLoopHandlesLoopEnd,
+  ];
+
+  const areAllNumberOfInferredLoopHandlesEqual =
+    allNumberOfInferredLoopHandles.every(
+      (v) => v === allNumberOfInferredLoopHandles[0],
+    );
+  if (!areAllNumberOfInferredLoopHandlesEqual) {
+    return {
+      validation: {
+        isValid: false,
+        reason: 'Loop structure has different number of inferred handles',
+      },
+    };
+  }
+
+  for (let i = 0; i < allNumberOfInferredLoopHandles[0] - 1; i++) {
+    const inputLoopHandleLoopStart =
+      allHandlesLoopStart.inputsAndIndices[
+        i + loopStartInputInferHandleIndex + 1
+      ];
+    const outputLoopHandleLoopStart =
+      allHandlesLoopStart.outputsAndIndices[
+        i + loopStartOutputInferHandleIndex + 1
+      ];
+    const inputLoopHandleLoopStop =
+      allHandlesLoopStop.inputsAndIndices[
+        i + loopStopInputInferHandleIndex + 1
+      ];
+    const outputLoopHandleLoopStop =
+      allHandlesLoopStop.outputsAndIndices[
+        i + loopStopOutputInferHandleIndex + 1
+      ];
+    const inputLoopHandleLoopEnd =
+      allHandlesLoopEnd.inputsAndIndices[i + loopEndInputInferHandleIndex + 1];
+    const outputLoopHandleLoopEnd =
+      allHandlesLoopEnd.outputsAndIndices[
+        i + loopEndOutputInferHandleIndex + 1
+      ];
+
+    const allHandles = [
+      inputLoopHandleLoopStart,
+      outputLoopHandleLoopStart,
+      inputLoopHandleLoopStop,
+      outputLoopHandleLoopStop,
+      inputLoopHandleLoopEnd,
+      outputLoopHandleLoopEnd,
+    ];
+
+    const areAllHandleTypesEqual = allHandles.every(
+      (v) =>
+        v.value?.dataType?.dataTypeUniqueId &&
+        allHandles[0].value?.dataType?.dataTypeUniqueId &&
+        v.value?.dataType?.dataTypeUniqueId ===
+          allHandles[0].value?.dataType?.dataTypeUniqueId,
+    );
+    if (!areAllHandleTypesEqual) {
+      return {
+        validation: {
+          isValid: false,
+          reason: 'Loop structure has different handle types',
+        },
+      };
+    }
+
+    //Check connections
+  }
+
   return {
     validation: { isValid: true },
   };

@@ -5,17 +5,18 @@ import type {
   InstantiatedNonPanelTypesOfHandles,
 } from './handles/types';
 import { getConnectedEdges } from '@xyflow/react';
-import {
-  addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees,
-  getResultantDataTypeOfHandleConsideringInferredType,
-} from './constructAndModifyHandles';
+import { getResultantDataTypeOfHandleConsideringInferredType } from './constructAndModifyHandles';
 import { constructTypeOfHandleFromIndices } from './nodes/constructAndModifyNodes';
 import {
   getAllHandlesFromNodeData,
   getHandleFromNodeDataFromIndices,
 } from './handles/handleGetters';
 import { inferTypeAcrossTheNodeForHandleOfDataType } from './edges/typeInference';
-import { insertOrDeleteHandleInNodeDataUsingHandleIndices } from './handles/handleSetters';
+import { addDuplicateHandleToNodeGroupAfterInference } from './nodes/nodeGroups';
+import {
+  addDuplicateHandlesToLoopNodesAfterInference,
+  isLoopNode,
+} from './nodes/loops';
 
 /**
  * Type for connection validation result
@@ -116,6 +117,17 @@ function inferTypesAfterEdgeAddition<
   const nodeGroup =
     state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
 
+  if (!sourceNodeData.nodeTypeUniqueId || !targetNodeData.nodeTypeUniqueId) {
+    return {
+      validation: {
+        isValid: false,
+        reason: 'Source or target node type not found',
+      },
+    };
+  }
+  const isSourceNodeLoopNode = isLoopNode(sourceNodeData.nodeTypeUniqueId);
+  const isTargetNodeLoopNode = isLoopNode(targetNodeData.nodeTypeUniqueId);
+
   //No inference needed, none are infer types
   if (
     !isSourceHandleInferredFromConnection &&
@@ -168,15 +180,15 @@ function inferTypesAfterEdgeAddition<
       dataTypeToInferFor = targetHandleDataType.dataTypeUniqueId;
       connectedHandle = sourceHandle;
       resetInferredType = false;
-      overrideDataType = isTargetNodeGroupOutput;
-      overrideName = isTargetNodeGroupOutput;
+      overrideDataType = isTargetNodeGroupOutput || isTargetNodeLoopNode;
+      overrideName = isTargetNodeGroupOutput || isTargetNodeLoopNode;
     } else if (targetHandleInferredDataType) {
       indexOfNodeToUpdate = sourceNodeIndex;
       dataTypeToInferFor = sourceHandleDataType.dataTypeUniqueId;
       connectedHandle = targetHandle;
       resetInferredType = false;
-      overrideDataType = isSourceNodeGroupInput;
-      overrideName = isSourceNodeGroupInput;
+      overrideDataType = isSourceNodeGroupInput || isSourceNodeLoopNode;
+      overrideName = isSourceNodeGroupInput || isSourceNodeLoopNode;
     }
   }
   //One of the handles is infer type, infer if needed
@@ -192,8 +204,8 @@ function inferTypesAfterEdgeAddition<
     dataTypeToInferFor = sourceHandleDataType.dataTypeUniqueId;
     connectedHandle = targetHandle;
     resetInferredType = false;
-    overrideDataType = isSourceNodeGroupInput;
-    overrideName = isSourceNodeGroupInput;
+    overrideDataType = isSourceNodeGroupInput || isSourceNodeLoopNode;
+    overrideName = isSourceNodeGroupInput || isSourceNodeLoopNode;
   } else if (isTargetHandleInferredFromConnection) {
     //Already inferred
     if (targetHandleInferredDataType) {
@@ -206,8 +218,8 @@ function inferTypesAfterEdgeAddition<
     dataTypeToInferFor = targetHandleDataType.dataTypeUniqueId;
     connectedHandle = sourceHandle;
     resetInferredType = false;
-    overrideDataType = isTargetNodeGroupOutput;
-    overrideName = isTargetNodeGroupOutput;
+    overrideDataType = isTargetNodeGroupOutput || isTargetNodeLoopNode;
+    overrideName = isTargetNodeGroupOutput || isTargetNodeLoopNode;
   }
 
   if (
@@ -236,85 +248,50 @@ function inferTypesAfterEdgeAddition<
     overrideDataType: overrideDataType,
     overrideName: overrideName,
   });
-  //!== is basically xor for boolean, we are checking if one is true and the other is false
-  //Since we should only do this if one of them is an end connection
-  //There can never be an infer connection straight from group input to group output, because information is missing
-  if (
-    nodeGroup &&
-    (isSourceHandleInferredFromConnection && isSourceNodeGroupInput) !==
-      (isTargetHandleInferredFromConnection && isTargetNodeGroupOutput)
-  ) {
-    const indexOfNodeToUpdateInGroup = isTargetNodeGroupOutput
-      ? targetNodeIndex
-      : sourceNodeIndex;
-    const inputOrOutputType = isTargetNodeGroupOutput ? 'input' : 'output';
-    //If an output or input node group's output or input got inferred, we need to create a duplicate output or input handle for further connections
-    const newDuplicateHandle = constructTypeOfHandleFromIndices(
-      state.dataTypes,
-      state.nodes[indexOfNodeToUpdateInGroup].data
-        .nodeTypeUniqueId as NodeTypeUniqueId,
-      state.typeOfNodes,
-      { type: inputOrOutputType, index1: 0, index2: undefined },
-    );
-    const handleToAddName = isTargetNodeGroupOutput
-      ? targetHandle.name
-      : sourceHandle.name;
-    const handleToAddDataType = isTargetNodeGroupOutput
-      ? targetHandle.inferredDataType?.dataTypeUniqueId
-      : sourceHandle.inferredDataType?.dataTypeUniqueId;
-    const handleToAddAllowInput = isTargetNodeGroupOutput
-      ? targetHandle.inferredDataType?.dataTypeObject.allowInput
-      : sourceHandle.inferredDataType?.dataTypeObject.allowInput;
-    if (!handleToAddName || !handleToAddDataType) {
-      return {
-        validation: {
-          isValid: false,
-          reason: 'Handle to add name, data type, or allow input not found',
-        },
-      };
-    }
-    if (!newDuplicateHandle) {
-      return {
-        validation: {
-          isValid: false,
-          reason: 'New duplicate handle not found',
-        },
-      };
-    }
-    insertOrDeleteHandleInNodeDataUsingHandleIndices<
-      UnderlyingType,
+
+  // Handle duplicate handle addition for node groups
+  const duplicateHandleValidation = addDuplicateHandleToNodeGroupAfterInference<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >(
+    state,
+    sourceNodeIndex,
+    targetNodeIndex,
+    sourceHandle,
+    targetHandle,
+    unmodifiedState,
+    isSourceHandleInferredFromConnection,
+    isTargetHandleInferredFromConnection,
+    isSourceNodeGroupInput,
+    isTargetNodeGroupOutput,
+    nodeGroup,
+  );
+
+  if (!duplicateHandleValidation.validation.isValid) {
+    return duplicateHandleValidation;
+  }
+
+  // Handle duplicate handle addition for loop nodes
+  const duplicateLoopHandleValidation =
+    addDuplicateHandlesToLoopNodesAfterInference<
+      DataTypeUniqueId,
       NodeTypeUniqueId,
-      ComplexSchemaType,
-      DataTypeUniqueId
+      UnderlyingType,
+      ComplexSchemaType
     >(
-      state.nodes[indexOfNodeToUpdateInGroup].data,
-      {
-        type: inputOrOutputType,
-        index1: -1,
-        index2: undefined,
-      },
-      0,
-      newDuplicateHandle,
-      true,
-      'after',
+      state,
+      sourceNodeIndex,
+      targetNodeIndex,
+      isSourceHandleInferredFromConnection,
+      isTargetHandleInferredFromConnection,
     );
 
-    addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees(
-      unmodifiedState,
-      nodeGroup.nodeType,
-      {
-        name: handleToAddName,
-        dataType: handleToAddDataType,
-        allowInput: handleToAddAllowInput,
-      },
-      {
-        type: isTargetNodeGroupOutput ? 'output' : 'input',
-        index1: -1,
-        index2: undefined,
-      },
-      'after',
-    );
+  if (!duplicateLoopHandleValidation.validation.isValid) {
+    return duplicateLoopHandleValidation;
   }
+
   return {
     validation: { isValid: true },
   };

@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { useNodeId } from '@xyflow/react';
 import { SquareMousePointerIcon } from 'lucide-react';
-import { FullGraphContext } from '../../FullGraph/FullGraph';
+import { FullGraphContext } from '../../FullGraph';
 import { actionTypesMap } from '@/utils/nodeStateManagement/mainReducer';
 
 /**

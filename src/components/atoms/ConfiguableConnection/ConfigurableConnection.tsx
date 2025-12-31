@@ -68,7 +68,7 @@ const ConfigurableConnection = ({
   return (
     <BaseEdge
       path={edgePath}
-      className='!stroke-7 in-[g.selected]:brightness-150'
+      className='stroke-7! in-[g.selected]:brightness-150'
       style={{ stroke: handleColor || '#A1A1A1' }}
       focusable={true}
     />

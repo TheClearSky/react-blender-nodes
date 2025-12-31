@@ -4,7 +4,7 @@ import {
 } from '@/components/atoms/NodeResizerWithMoreControls/NodeResizerWithMoreControls';
 import { cn, type DataType, type SupportedUnderlyingTypes } from '@/utils';
 import { Position, useNodeConnections } from '@xyflow/react';
-import { forwardRef, type HTMLAttributes, useState } from 'react';
+import { forwardRef, type HTMLAttributes, useContext, useState } from 'react';
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { Button } from '@/components/atoms';
 import {
@@ -14,6 +14,7 @@ import {
 import { ContextAwareInput } from './SupportingSubcomponents/ContextAwareInput';
 import { ContextAwareOpenButton } from './SupportingSubcomponents/ContextAwareOpenButton';
 import { z } from 'zod';
+import { FullGraphContext } from '../FullGraph/FullGraphState';
 
 /**
  * Configuration for a node input
@@ -68,6 +69,22 @@ type ConfigurableNodeInput<
       /** Callback when the input value changes */
       onChange?: (value: number) => void;
     }
+  | {
+      /**  */
+      type: 'boolean';
+      /** Current value of the input */
+      value?: boolean;
+      /** Callback when the input value changes */
+      onChange?: (value: boolean) => void;
+    }
+  | {
+      /** Unsupported input type */
+      type: 'unsupportedDirectly';
+      /** Current value of the input */
+      value?: unknown;
+      /** Callback when the input value changes */
+      onChange?: (value: unknown) => void;
+    }
 );
 
 /**
@@ -112,6 +129,14 @@ type ConfigurableNodeOutput<
       /** Number output type */
       type: 'number';
     }
+  | {
+      /** Boolean output type */
+      type: 'boolean';
+    }
+  | {
+      /** Unsupported output type */
+      type: 'unsupportedDirectly';
+    }
 );
 
 /**
@@ -152,6 +177,8 @@ type ConfigurableNodeProps<
     : never = never,
   DataTypeUniqueId extends string = string,
 > = {
+  /** Unique identifier for the node, for debugging when enableDebugMode is true and inside react flow */
+  id?: string;
   /** Display name of the node */
   name?: string;
   /** Background color of the node header */
@@ -328,9 +355,9 @@ const RenderInputPanel = forwardRef<HTMLDivElement, RenderInputPanelProps>(
       >
         {/* Arrow on the left */}
         {isOpen ? (
-          <ChevronUpIcon className='w-6 h-6 flex-shrink-0 mr-2' />
+          <ChevronUpIcon className='w-6 h-6 shrink-0 mr-2' />
         ) : (
-          <ChevronDownIcon className='w-6 h-6 flex-shrink-0 mr-2' />
+          <ChevronDownIcon className='w-6 h-6 shrink-0 mr-2' />
         )}
         <span className='truncate'>{panel.name}</span>
       </Button>
@@ -434,6 +461,7 @@ RenderInputPanel.displayName = 'RenderInputPanel';
 const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
   (
     {
+      id,
       name = 'Node',
       headerColor = '#79461D',
       inputs = [],
@@ -449,6 +477,8 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
   ) => {
     // State for panel open/close states
     const [openPanels, setOpenPanels] = useState<Set<string>>(new Set());
+
+    const fullGraphContext = useContext(FullGraphContext);
 
     // Toggle panel open/close state
     const togglePanel = (panelId: string) => {
@@ -481,6 +511,9 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
           }}
         >
           <p className='truncate py-2'>{name}</p>
+          {fullGraphContext?.allProps?.state?.enableDebugMode && (
+            <p className='shrink-0 py-2'>{id}</p>
+          )}
           <ContextAwareOpenButton
             showButton={showNodeOpenButton}
             isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}

@@ -9,6 +9,7 @@ import type { Viewport } from '@xyflow/react';
 const supportedUnderlyingTypes = [
   'string',
   'number',
+  'boolean',
   'complex',
   'noEquivalent',
   'inferFromConnection',
@@ -28,6 +29,7 @@ const supportedUnderlyingTypesMap = {
   [supportedUnderlyingTypes[2]]: supportedUnderlyingTypes[2],
   [supportedUnderlyingTypes[3]]: supportedUnderlyingTypes[3],
   [supportedUnderlyingTypes[4]]: supportedUnderlyingTypes[4],
+  [supportedUnderlyingTypes[5]]: supportedUnderlyingTypes[5],
 } as const;
 
 /**
@@ -446,6 +448,16 @@ type State<
    * @default undefined
    */
   enableRecursionChecking?: boolean;
+
+  /**
+   * Whether to enable debugging mode
+   * - If not provided, is considered disabled
+   * - When disabled, no debug information is displayed in the graph
+   * - When enabled, debug information is displayed in the graph
+   *
+   * @default undefined
+   */
+  enableDebugMode?: boolean;
 };
 
 /**

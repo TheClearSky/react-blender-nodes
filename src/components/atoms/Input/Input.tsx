@@ -144,7 +144,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         type='text'
         className={cn(
           'h-[44px] rounded-md text-primary-white bg-primary-black font-main px-4 \
-        text-[27px] leading-[27px] outline-none focus-visible:!outline-none \
+        text-[27px] leading-[27px] outline-none focus-visible:outline-none! \
         border-secondary-dark-gray border w-max min-w-0 placeholder:text-[#6B6B6B]',
           className,
         )}

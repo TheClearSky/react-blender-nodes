@@ -108,17 +108,42 @@ function constructInputOrOutputOfType<
         dataTypeUniqueId: typeOfDataTypeInNode.dataType,
       },
     };
+  } else if (matchingDataTypeFromAllDataTypes.underlyingType === 'string') {
+    return {
+      id: generateRandomString(lengthOfIds),
+      name: typeOfDataTypeInNode.name,
+      handleColor: matchingDataTypeFromAllDataTypes.color,
+      allowInput: resultantAllowInput,
+      maxConnections: resultantMaxConnections,
+      type: 'string' as const,
+      handleShape: matchingDataTypeFromAllDataTypes.shape,
+      dataType: {
+        dataTypeObject: matchingDataTypeFromAllDataTypes,
+        dataTypeUniqueId: typeOfDataTypeInNode.dataType,
+      },
+    };
+  } else if (matchingDataTypeFromAllDataTypes.underlyingType === 'boolean') {
+    return {
+      id: generateRandomString(lengthOfIds),
+      name: typeOfDataTypeInNode.name,
+      handleColor: matchingDataTypeFromAllDataTypes.color,
+      allowInput: resultantAllowInput,
+      maxConnections: resultantMaxConnections,
+      type: 'boolean' as const,
+      handleShape: matchingDataTypeFromAllDataTypes.shape,
+      dataType: {
+        dataTypeObject: matchingDataTypeFromAllDataTypes,
+        dataTypeUniqueId: typeOfDataTypeInNode.dataType,
+      },
+    };
   } else {
     return {
       id: generateRandomString(lengthOfIds),
       name: typeOfDataTypeInNode.name,
       handleColor: matchingDataTypeFromAllDataTypes.color,
-      allowInput:
-        matchingDataTypeFromAllDataTypes.underlyingType === 'string'
-          ? resultantAllowInput
-          : false,
+      allowInput: resultantAllowInput,
       maxConnections: resultantMaxConnections,
-      type: 'string' as const,
+      type: 'unsupportedDirectly' as const,
       handleShape: matchingDataTypeFromAllDataTypes.shape,
       dataType: {
         dataTypeObject: matchingDataTypeFromAllDataTypes,

@@ -13,6 +13,8 @@ import {
   getHandleFromNodeDataFromIndices,
 } from '../handles/handleGetters';
 import type { HandleIndices } from '../handles/types';
+import { getResultantDataTypeOfHandleConsideringInferredType } from '../constructAndModifyHandles';
+import { isGroupInputOrOutputNode } from './nodeGroups';
 
 const loopStartInputInferHandleIndex = 0;
 const loopStartOutputInferHandleIndex = 1;
@@ -319,7 +321,6 @@ function getAllReachableNodes<
   >,
   startNodeId: string,
 ): Set<string> {
-  const reachable = new Set<string>();
   const queue: string[] = [startNodeId];
   const visited = new Set<string>();
 
@@ -330,7 +331,6 @@ function getAllReachableNodes<
     }
 
     visited.add(currentNodeId);
-    reachable.add(currentNodeId);
 
     const currentNode = state.nodes.find((node) => node.id === currentNodeId);
     if (!currentNode) {
@@ -354,27 +354,7 @@ function getAllReachableNodes<
     }
   }
 
-  return reachable;
-}
-
-/**
- * Checks if there's any path between two sets of nodes
- *
- * @param sourceReachable - Set of node IDs reachable from source
- * @param targetReachable - Set of node IDs reachable from target
- * @returns True if there's any path between the two sets
- */
-function hasPathBetweenNodeSets(
-  sourceReachable: Set<string>,
-  targetReachable: Set<string>,
-): boolean {
-  // Check if any node from source is reachable from target or vice versa
-  for (const sourceNodeId of sourceReachable) {
-    if (targetReachable.has(sourceNodeId)) {
-      return true;
-    }
-  }
-  return false;
+  return visited;
 }
 
 /**
@@ -409,160 +389,6 @@ type LoopStructure<
 };
 
 /**
- * Finds all loop triplets and pairs in the graph
- * A triplet is loopStart -> loopStop -> loopEnd
- * A pair can be loopStart -> loopStop or loopStop -> loopEnd
- *
- * @template DataTypeUniqueId - Unique identifier type for data types
- * @template NodeTypeUniqueId - Unique identifier type for node types
- * @template UnderlyingType - Supported underlying data types
- * @template ComplexSchemaType - Zod schema type for complex data types
- * @param state - The current graph state
- * @param startNodeId - Starting node ID to find reachable loops from
- * @returns Array of loop structures (triplets or pairs)
- */
-function findAllReachableLoopStructures<
-  DataTypeUniqueId extends string = string,
-  NodeTypeUniqueId extends string = string,
-  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
-  ComplexSchemaType extends UnderlyingType extends 'complex'
-    ? z.ZodType
-    : never = never,
->(
-  state: State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >,
-  startNodeId: string,
-): LoopStructure[] {
-  const reachableNodes = getAllReachableNodes(state, startNodeId);
-  const loopStructures: LoopStructure[] = [];
-  const processedStructures = new Set<string>();
-
-  // Find all loop nodes in reachable set
-  const loopStartNodes: string[] = [];
-  const loopStopNodes: string[] = [];
-  const loopEndNodes: string[] = [];
-
-  for (const nodeId of reachableNodes) {
-    const node = state.nodes.find((n) => n.id === nodeId);
-    if (!node?.data.nodeTypeUniqueId) {
-      continue;
-    }
-
-    const nodeType = node.data.nodeTypeUniqueId;
-    if (nodeType === standardNodeTypeNamesMap.loopStart) {
-      loopStartNodes.push(nodeId);
-    } else if (nodeType === standardNodeTypeNamesMap.loopStop) {
-      loopStopNodes.push(nodeId);
-    } else if (nodeType === standardNodeTypeNamesMap.loopEnd) {
-      loopEndNodes.push(nodeId);
-    }
-  }
-
-  // Try to form triplets: loopStart -> loopStop -> loopEnd
-  for (const loopStartId of loopStartNodes) {
-    const loopStartNode = state.nodes.find((n) => n.id === loopStartId);
-    if (!loopStartNode) continue;
-
-    const loopStartOutgoers = getOutgoers(
-      loopStartNode,
-      state.nodes,
-      state.edges,
-    );
-    for (const outgoer of loopStartOutgoers) {
-      if (outgoer.data.nodeTypeUniqueId === standardNodeTypeNamesMap.loopStop) {
-        const loopStopId = outgoer.id;
-        const loopStopOutgoers = getOutgoers(outgoer, state.nodes, state.edges);
-        for (const loopEndCandidate of loopStopOutgoers) {
-          if (
-            loopEndCandidate.data.nodeTypeUniqueId ===
-            standardNodeTypeNamesMap.loopEnd
-          ) {
-            const structureKey = `${loopStartId}-${loopStopId}-${loopEndCandidate.id}`;
-            if (!processedStructures.has(structureKey)) {
-              processedStructures.add(structureKey);
-              loopStructures.push({
-                loopStart: loopStartId,
-                loopStop: loopStopId,
-                loopEnd: loopEndCandidate.id,
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Find incomplete pairs: loopStart -> loopStop (without loopEnd)
-  for (const loopStartId of loopStartNodes) {
-    const loopStartNode = state.nodes.find((n) => n.id === loopStartId);
-    if (!loopStartNode) continue;
-
-    const loopStartOutgoers = getOutgoers(
-      loopStartNode,
-      state.nodes,
-      state.edges,
-    );
-    for (const outgoer of loopStartOutgoers) {
-      if (outgoer.data.nodeTypeUniqueId === standardNodeTypeNamesMap.loopStop) {
-        const loopStopId = outgoer.id;
-        // Check if this loopStop is already part of a triplet
-        const isPartOfTriplet = loopStructures.some(
-          (struct) => struct.loopStop === loopStopId,
-        );
-        if (!isPartOfTriplet) {
-          const structureKey = `${loopStartId}-${loopStopId}`;
-          if (!processedStructures.has(structureKey)) {
-            processedStructures.add(structureKey);
-            loopStructures.push({
-              loopStart: loopStartId,
-              loopStop: loopStopId,
-            });
-          }
-        }
-      }
-    }
-  }
-
-  // Find incomplete pairs: loopStop -> loopEnd (without loopStart)
-  for (const loopStopId of loopStopNodes) {
-    const loopStopNode = state.nodes.find((n) => n.id === loopStopId);
-    if (!loopStopNode) continue;
-
-    const loopStopOutgoers = getOutgoers(
-      loopStopNode,
-      state.nodes,
-      state.edges,
-    );
-    for (const outgoer of loopStopOutgoers) {
-      if (outgoer.data.nodeTypeUniqueId === standardNodeTypeNamesMap.loopEnd) {
-        const loopEndId = outgoer.id;
-        // Check if this loopStop is already part of a triplet
-        const isPartOfTriplet = loopStructures.some(
-          (struct) =>
-            struct.loopStop === loopStopId && struct.loopEnd === loopEndId,
-        );
-        if (!isPartOfTriplet) {
-          const structureKey = `${loopStopId}-${loopEndId}`;
-          if (!processedStructures.has(structureKey)) {
-            processedStructures.add(structureKey);
-            loopStructures.push({
-              loopStop: loopStopId,
-              loopEnd: loopEndId,
-            });
-          }
-        }
-      }
-    }
-  }
-
-  return loopStructures;
-}
-
-/**
  * Gets all nodes inside a loop region (between loopStart and loopStop, or between loopStop and loopEnd)
  * Uses bidirectional traversal to handle zigzag paths - regions are only separated by loop nodes
  *
@@ -589,19 +415,26 @@ function getNodesInLoopRegion<
     UnderlyingType,
     ComplexSchemaType
   >,
-  loopStructure: LoopStructure,
-  region: 'startToStop' | 'stopToEnd',
-): Set<string> {
-  const nodesInRegion = new Set<string>();
+  loopStructure: LoopStructure<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+): {
+  nodesInRegionStartToStop: Set<string>;
+  nodesInRegionStopToEnd: Set<string>;
+} {
+  const nodesInRegionStartToStop = new Set<string>();
+  const nodesInRegionStopToEnd = new Set<string>();
 
-  if (
-    region === 'startToStop' &&
-    loopStructure.loopStart &&
-    loopStructure.loopStop
-  ) {
+  {
     // Bidirectional BFS: start from loopStart and loopStop, traverse in both directions
     // Stop when we hit the boundary loop nodes
-    const queue: string[] = [loopStructure.loopStart, loopStructure.loopStop];
+    const queue: string[] = [
+      loopStructure.loopStart.id,
+      loopStructure.loopStop.id,
+    ];
     const visited = new Set<string>();
     while (queue.length > 0) {
       const currentNodeId = queue.shift();
@@ -613,10 +446,10 @@ function getNodesInLoopRegion<
 
       // Don't include loopStart or loopStop themselves in the region
       if (
-        currentNodeId !== loopStructure.loopStart &&
-        currentNodeId !== loopStructure.loopStop
+        currentNodeId !== loopStructure.loopStart.id &&
+        currentNodeId !== loopStructure.loopStop.id
       ) {
-        nodesInRegion.add(currentNodeId);
+        nodesInRegionStartToStop.add(currentNodeId);
       }
 
       const currentNode: (typeof state.nodes)[number] | undefined =
@@ -625,7 +458,7 @@ function getNodesInLoopRegion<
 
       // Traverse forward (outgoers)
       const outgoers: (typeof state.nodes)[number][] =
-        currentNode.id !== loopStructure.loopStop
+        currentNode.id !== loopStructure.loopStop.id
           ? getOutgoers(currentNode, state.nodes, state.edges)
           : [];
       for (const outgoer of outgoers) {
@@ -642,7 +475,7 @@ function getNodesInLoopRegion<
 
       // Traverse backward (incomers) to handle zigzag paths
       const incomers: (typeof state.nodes)[number][] =
-        currentNode.id !== loopStructure.loopStart
+        currentNode.id !== loopStructure.loopStart.id
           ? getIncomers(currentNode, state.nodes, state.edges)
           : [];
       for (const incomer of incomers) {
@@ -657,14 +490,14 @@ function getNodesInLoopRegion<
         }
       }
     }
-  } else if (
-    region === 'stopToEnd' &&
-    loopStructure.loopStop &&
-    loopStructure.loopEnd
-  ) {
+  }
+  {
     // Bidirectional BFS: start from loopStop and loopEnd, traverse in both directions
     // Stop when we hit the boundary loop nodes
-    const queue: string[] = [loopStructure.loopStop, loopStructure.loopEnd];
+    const queue: string[] = [
+      loopStructure.loopStop.id,
+      loopStructure.loopEnd.id,
+    ];
     const visited = new Set<string>();
 
     while (queue.length > 0) {
@@ -677,10 +510,10 @@ function getNodesInLoopRegion<
 
       // Don't include loopStop or loopEnd themselves in the region
       if (
-        currentNodeId !== loopStructure.loopStop &&
-        currentNodeId !== loopStructure.loopEnd
+        currentNodeId !== loopStructure.loopStop.id &&
+        currentNodeId !== loopStructure.loopEnd.id
       ) {
-        nodesInRegion.add(currentNodeId);
+        nodesInRegionStopToEnd.add(currentNodeId);
       }
 
       const currentNode: (typeof state.nodes)[number] | undefined =
@@ -689,11 +522,11 @@ function getNodesInLoopRegion<
 
       // Traverse forward (outgoers)
       const outgoers: (typeof state.nodes)[number][] =
-        currentNode.id !== loopStructure.loopEnd
+        currentNode.id !== loopStructure.loopEnd.id
           ? getOutgoers(currentNode, state.nodes, state.edges)
           : [];
       for (const outgoer of outgoers) {
-        if (outgoer.id === loopStructure.loopEnd) {
+        if (outgoer.id === loopStructure.loopEnd.id) {
           // Reached loopEnd boundary, don't traverse further
           continue;
         }
@@ -710,11 +543,11 @@ function getNodesInLoopRegion<
 
       // Traverse backward (incomers) to handle zigzag paths
       const incomers: (typeof state.nodes)[number][] =
-        currentNode.id !== loopStructure.loopStop
+        currentNode.id !== loopStructure.loopStop.id
           ? getIncomers(currentNode, state.nodes, state.edges)
           : [];
       for (const incomer of incomers) {
-        if (incomer.id === loopStructure.loopStop) {
+        if (incomer.id === loopStructure.loopStop.id) {
           // Reached loopStop boundary, don't traverse further
           continue;
         }
@@ -731,21 +564,25 @@ function getNodesInLoopRegion<
     }
   }
 
-  return nodesInRegion;
+  return {
+    nodesInRegionStartToStop,
+    nodesInRegionStopToEnd,
+  };
 }
 
 /**
- * Gets all nodes outside a loop structure (not in any region)
+ * Gets all boundary loop nodes of a node (if they exist), searching in all directions from the node
  *
  * @template DataTypeUniqueId - Unique identifier type for data types
  * @template NodeTypeUniqueId - Unique identifier type for node types
  * @template UnderlyingType - Supported underlying data types
  * @template ComplexSchemaType - Zod schema type for complex data types
  * @param state - The current graph state
- * @param loopStructure - The loop structure to analyze
- * @returns Set of node IDs outside the loop structure
+ * @param nodeToSearchFrom - The node to search from
+ * @param ignoreBoundaryLoopNodeIds - The ids of the boundary loop nodes to ignore
+ * @returns Set of boundary loop nodes of the node
  */
-function getNodesOutsideLoop<
+function getBoundaryLoopNodesOfNode<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
@@ -759,49 +596,99 @@ function getNodesOutsideLoop<
     UnderlyingType,
     ComplexSchemaType
   >,
-  loopStructure: LoopStructure,
-): Set<string> {
-  const allNodes = new Set(state.nodes.map((n) => n.id));
-  const nodesInLoop = new Set<string>();
+  nodeToSearchFrom: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['nodes'][number],
+  ignoreBoundaryLoopNodeIds: string[] = [],
+  initialSearchNodeDirection: 'input' | 'output' | 'none' = 'none',
+): {
+  boundaryLoopNodes: {
+    [key: string]: State<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >['nodes'][number];
+  };
+} {
+  const boundaryLoopNodes: {
+    [key: string]: State<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >['nodes'][number];
+  } = {};
 
-  // Add loop nodes themselves
-  if (loopStructure.loopStart) nodesInLoop.add(loopStructure.loopStart);
-  if (loopStructure.loopStop) nodesInLoop.add(loopStructure.loopStop);
-  if (loopStructure.loopEnd) nodesInLoop.add(loopStructure.loopEnd);
+  const ignoreBoundaryLoopNodeIdsSet = new Set<string>(
+    ignoreBoundaryLoopNodeIds,
+  );
 
-  // Add nodes in startToStop region
-  if (loopStructure.loopStart && loopStructure.loopStop) {
-    const startToStopNodes = getNodesInLoopRegion(
-      state,
-      loopStructure,
-      'startToStop',
-    );
-    for (const nodeId of startToStopNodes) {
-      nodesInLoop.add(nodeId);
+  // Bidirectional BFS: start from nodeToSearchFrom, traverse in both directions
+  // Stop when we hit the boundary loop nodes
+  const queue: string[] = [
+    nodeToSearchFrom.id + '-' + initialSearchNodeDirection,
+  ];
+  const visited = new Set<string>();
+  while (queue.length > 0) {
+    const currentNodeIdAndDirection = queue.shift();
+    if (!currentNodeIdAndDirection) {
+      continue;
+    }
+    const [currentNodeId, direction] = currentNodeIdAndDirection.split('-');
+    if (!currentNodeId || visited.has(currentNodeId)) {
+      continue;
+    }
+
+    visited.add(currentNodeId);
+
+    const currentNode: (typeof state.nodes)[number] | undefined =
+      state.nodes.find((n) => n.id === currentNodeId);
+    if (!currentNode) continue;
+
+    const isCurrentNodeALoopNode =
+      currentNode.data.nodeTypeUniqueId &&
+      isLoopNode(currentNode.data.nodeTypeUniqueId) &&
+      !ignoreBoundaryLoopNodeIdsSet.has(currentNode.id);
+
+    if (isCurrentNodeALoopNode) {
+      boundaryLoopNodes[currentNode.id + '-' + direction] = currentNode;
+    }
+
+    if (!isCurrentNodeALoopNode || direction === 'output') {
+      // Traverse forward (outgoers)
+      const outgoers: (typeof state.nodes)[number][] = getOutgoers(
+        currentNode,
+        state.nodes,
+        state.edges,
+      );
+      for (const outgoer of outgoers) {
+        if (!visited.has(outgoer.id)) {
+          queue.push(outgoer.id + '-input');
+        }
+      }
+    }
+
+    if (!isCurrentNodeALoopNode || direction === 'input') {
+      // Traverse backward (incomers) to handle zigzag paths
+      const incomers: (typeof state.nodes)[number][] = getIncomers(
+        currentNode,
+        state.nodes,
+        state.edges,
+      );
+      for (const incomer of incomers) {
+        if (!visited.has(incomer.id)) {
+          queue.push(incomer.id + '-output');
+        }
+      }
     }
   }
-
-  // Add nodes in stopToEnd region
-  if (loopStructure.loopStop && loopStructure.loopEnd) {
-    const stopToEndNodes = getNodesInLoopRegion(
-      state,
-      loopStructure,
-      'stopToEnd',
-    );
-    for (const nodeId of stopToEndNodes) {
-      nodesInLoop.add(nodeId);
-    }
-  }
-
-  // Nodes outside are all nodes minus nodes in loop
-  const nodesOutside = new Set<string>();
-  for (const nodeId of allNodes) {
-    if (!nodesInLoop.has(nodeId)) {
-      nodesOutside.add(nodeId);
-    }
-  }
-
-  return nodesOutside;
+  return {
+    boundaryLoopNodes,
+  };
 }
 
 function getLoopStructureFromNode<
@@ -1112,18 +999,16 @@ function verifyLoopStructureUniformHandleInference<
     ? z.ZodType
     : never = never,
 >(
-  state: State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >,
   loopStructure: LoopStructure<
     DataTypeUniqueId,
     NodeTypeUniqueId,
     UnderlyingType,
     ComplexSchemaType
   >,
+  sourceHandleResultantInferredDataType: DataTypeUniqueId,
+  targetHandleResultantInferredDataType: DataTypeUniqueId,
+  sourceNodeId: string,
+  targetNodeId: string,
 ): {
   validation: ConnectionValidationResult;
 } {
@@ -1183,42 +1068,89 @@ function verifyLoopStructureUniformHandleInference<
     numberOfInferredOutputLoopHandlesLoopEnd,
   ];
 
-  const areAllNumberOfInferredLoopHandlesEqual =
+  const maxNumberOfInferredLoopHandles = Math.max(
+    ...allNumberOfInferredLoopHandles,
+  );
+
+  const areAllNumberOfInferredLoopHandlesEqualOrOneShort =
     allNumberOfInferredLoopHandles.every(
-      (v) => v === allNumberOfInferredLoopHandles[0],
+      (v) =>
+        v === maxNumberOfInferredLoopHandles ||
+        v === maxNumberOfInferredLoopHandles - 1,
     );
-  if (!areAllNumberOfInferredLoopHandlesEqual) {
+  if (!areAllNumberOfInferredLoopHandlesEqualOrOneShort) {
     return {
       validation: {
         isValid: false,
-        reason: 'Loop structure has different number of inferred handles',
+        reason:
+          'Loop structure has too different number of inferred handles, complete the connections',
       },
     };
   }
 
-  for (let i = 0; i < allNumberOfInferredLoopHandles[0] - 1; i++) {
+  //Check the new connection
+
+  const loopHandlesAtMax = allNumberOfInferredLoopHandles.map(
+    (num) => num === maxNumberOfInferredLoopHandles,
+  );
+
+  const handlesBeingAddedTo = [
+    loopStructure.loopStart.id === targetNodeId &&
+      targetHandleResultantInferredDataType ===
+        standardDataTypeNamesMap.loopInfer,
+    loopStructure.loopStart.id === sourceNodeId &&
+      sourceHandleResultantInferredDataType ===
+        standardDataTypeNamesMap.loopInfer,
+    loopStructure.loopStop.id === targetNodeId &&
+      targetHandleResultantInferredDataType ===
+        standardDataTypeNamesMap.loopInfer,
+    loopStructure.loopStop.id === sourceNodeId &&
+      sourceHandleResultantInferredDataType ===
+        standardDataTypeNamesMap.loopInfer,
+    loopStructure.loopEnd.id === targetNodeId &&
+      targetHandleResultantInferredDataType ===
+        standardDataTypeNamesMap.loopInfer,
+    loopStructure.loopEnd.id === sourceNodeId &&
+      sourceHandleResultantInferredDataType ===
+        standardDataTypeNamesMap.loopInfer,
+  ];
+
+  if (!loopHandlesAtMax.every((loopHandleAtMax) => loopHandleAtMax)) {
+    if (
+      loopHandlesAtMax
+        .map((isAtMax, index) => {
+          if (isAtMax) {
+            return handlesBeingAddedTo[index];
+          }
+          return false;
+        })
+        .some((isAtMaxAndBeingAddedTo) => isAtMaxAndBeingAddedTo)
+    ) {
+      return {
+        validation: {
+          isValid: false,
+          reason:
+            "Can't add a new connection to loops before older conenctions are synced across",
+        },
+      };
+    }
+  }
+
+  for (let i = 0; i < maxNumberOfInferredLoopHandles; i++) {
     const inputLoopHandleLoopStart =
-      allHandlesLoopStart.inputsAndIndices[
-        i + loopStartInputInferHandleIndex + 1
-      ];
+      allHandlesLoopStart.inputsAndIndices[i + loopStartInputInferHandleIndex];
     const outputLoopHandleLoopStart =
       allHandlesLoopStart.outputsAndIndices[
-        i + loopStartOutputInferHandleIndex + 1
+        i + loopStartOutputInferHandleIndex
       ];
     const inputLoopHandleLoopStop =
-      allHandlesLoopStop.inputsAndIndices[
-        i + loopStopInputInferHandleIndex + 1
-      ];
+      allHandlesLoopStop.inputsAndIndices[i + loopStopInputInferHandleIndex];
     const outputLoopHandleLoopStop =
-      allHandlesLoopStop.outputsAndIndices[
-        i + loopStopOutputInferHandleIndex + 1
-      ];
+      allHandlesLoopStop.outputsAndIndices[i + loopStopOutputInferHandleIndex];
     const inputLoopHandleLoopEnd =
-      allHandlesLoopEnd.inputsAndIndices[i + loopEndInputInferHandleIndex + 1];
+      allHandlesLoopEnd.inputsAndIndices[i + loopEndInputInferHandleIndex];
     const outputLoopHandleLoopEnd =
-      allHandlesLoopEnd.outputsAndIndices[
-        i + loopEndOutputInferHandleIndex + 1
-      ];
+      allHandlesLoopEnd.outputsAndIndices[i + loopEndOutputInferHandleIndex];
 
     const allHandles = [
       inputLoopHandleLoopStart,
@@ -1229,13 +1161,40 @@ function verifyLoopStructureUniformHandleInference<
       outputLoopHandleLoopEnd,
     ];
 
-    const areAllHandleTypesEqual = allHandles.every(
-      (v) =>
-        v.value?.dataType?.dataTypeUniqueId &&
-        allHandles[0].value?.dataType?.dataTypeUniqueId &&
-        v.value?.dataType?.dataTypeUniqueId ===
-          allHandles[0].value?.dataType?.dataTypeUniqueId,
+    const firstNonLoopInferHandle = allHandles.find(
+      (handle) =>
+        handle?.value?.dataType?.dataTypeUniqueId &&
+        handle?.value?.dataType?.dataTypeUniqueId !==
+          standardDataTypeNamesMap.loopInfer,
     );
+
+    if (!firstNonLoopInferHandle) {
+      return {
+        validation: {
+          isValid: false,
+          reason:
+            'This is a system error, this should never happen, please notify report this on https://github.com/TheClearSky/react-blender-nodes/issues',
+        },
+      };
+    }
+
+    const areAllHandleTypesEqual = allHandles.every((v, handleIndex) => {
+      const dataTypeOfCurrentHandle = v.value.dataType?.dataTypeUniqueId;
+      return (
+        dataTypeOfCurrentHandle && //every handle should have some data type
+        (dataTypeOfCurrentHandle ===
+          firstNonLoopInferHandle.value?.dataType?.dataTypeUniqueId || //Either it should be equal to other types
+          (i === maxNumberOfInferredLoopHandles - 1 //Or if in the last row
+            ? dataTypeOfCurrentHandle === standardDataTypeNamesMap.loopInfer && //It should be equal to loopInfer (unassigned)
+              (handlesBeingAddedTo[handleIndex] //but if it is being assigned to right now
+                ? (handleIndex % 2 === 0
+                    ? sourceHandleResultantInferredDataType //to get the current type, just do mod
+                    : targetHandleResultantInferredDataType) ===
+                  firstNonLoopInferHandle.value?.dataType?.dataTypeUniqueId //It's type should match to the other types
+                : true)
+            : false))
+      );
+    });
     if (!areAllHandleTypesEqual) {
       return {
         validation: {
@@ -1244,14 +1203,163 @@ function verifyLoopStructureUniformHandleInference<
         },
       };
     }
-
-    //Check connections
   }
 
   return {
     validation: { isValid: true },
   };
 }
+
+/**
+ * Verifies if the parent loop regions of the source and target nodes are valid
+ *
+ * @template DataTypeUniqueId - Unique identifier type for data types
+ * @template NodeTypeUniqueId - Unique identifier type for node types
+ * @template UnderlyingType - Supported underlying data types
+ * @template ComplexSchemaType - Zod schema type for complex data types
+ * @param state - The current graph state
+ * @param sourceNode - The source node
+ * @param targetNode - The target node
+ * @param ignoreBoundaryLoopNodeIds - The ids of the boundary loop nodes to ignore
+ * @returns Validation result indicating if the parent loop regions are valid
+ */
+function verifyParentLoopRegionsAreValid<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+  sourceNode: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['nodes'][number],
+  targetNode: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['nodes'][number],
+  ignoreBoundaryLoopNodeIds: string[] = [],
+): {
+  validation: ConnectionValidationResult;
+} {
+  const sourceNodeType = sourceNode.data.nodeTypeUniqueId;
+  const targetNodeType = targetNode.data.nodeTypeUniqueId;
+
+  if (!sourceNodeType || !targetNodeType) {
+    return {
+      validation: {
+        isValid: false,
+        reason: 'Source or target node type not found',
+      },
+    };
+  }
+  const sourceBoundaryLoopNodes = getBoundaryLoopNodesOfNode(
+    state,
+    sourceNode,
+    ignoreBoundaryLoopNodeIds,
+    'output',
+  );
+  const targetBoundaryLoopNodes = getBoundaryLoopNodesOfNode(
+    state,
+    targetNode,
+    ignoreBoundaryLoopNodeIds,
+    'input',
+  );
+
+  const isSourceInAnIsolatedIslandWithoutLoopNodes =
+    Object.keys(sourceBoundaryLoopNodes.boundaryLoopNodes).length === 0;
+  const isTargetInAnIsolatedIslandWithoutLoopNodes =
+    Object.keys(targetBoundaryLoopNodes.boundaryLoopNodes).length === 0;
+  if (
+    isSourceInAnIsolatedIslandWithoutLoopNodes ||
+    isTargetInAnIsolatedIslandWithoutLoopNodes
+  ) {
+    return {
+      validation: {
+        isValid: true,
+      },
+    };
+  }
+
+  const isSourceNodeOutsideAllLoopNodes =
+    isGroupInputOrOutputNode(sourceNodeType) ||
+    Object.keys(sourceBoundaryLoopNodes.boundaryLoopNodes).every((key) => {
+      const boundaryLoopNode = sourceBoundaryLoopNodes.boundaryLoopNodes[key];
+      const [_, boundaryLoopNodeDirection] = key.split('-');
+      return (
+        boundaryLoopNode.data.nodeTypeUniqueId !==
+          standardNodeTypeNamesMap.loopStop &&
+        (boundaryLoopNodeDirection === 'input'
+          ? boundaryLoopNode.data.nodeTypeUniqueId !==
+            standardNodeTypeNamesMap.loopEnd
+          : boundaryLoopNode.data.nodeTypeUniqueId !==
+            standardNodeTypeNamesMap.loopStart)
+      );
+    });
+
+  const isTargetNodeOutsideAllLoopNodes =
+    isGroupInputOrOutputNode(targetNodeType) ||
+    Object.keys(targetBoundaryLoopNodes.boundaryLoopNodes).every((key) => {
+      const boundaryLoopNode = targetBoundaryLoopNodes.boundaryLoopNodes[key];
+      const [_, boundaryLoopNodeDirection] = key.split('-');
+      return (
+        boundaryLoopNode.data.nodeTypeUniqueId !==
+          standardNodeTypeNamesMap.loopStop &&
+        (boundaryLoopNodeDirection === 'input'
+          ? boundaryLoopNode.data.nodeTypeUniqueId !==
+            standardNodeTypeNamesMap.loopEnd
+          : boundaryLoopNode.data.nodeTypeUniqueId !==
+            standardNodeTypeNamesMap.loopStart)
+      );
+    });
+
+  if (isSourceNodeOutsideAllLoopNodes !== isTargetNodeOutsideAllLoopNodes) {
+    return {
+      validation: {
+        isValid: false,
+        reason:
+          "Can't connect a node from inside the loop to a node from outside the loop",
+      },
+    };
+  } else if (
+    !isSourceNodeOutsideAllLoopNodes &&
+    !isTargetNodeOutsideAllLoopNodes
+  ) {
+    const areBoundariesSame =
+      Object.keys(sourceBoundaryLoopNodes.boundaryLoopNodes).every((key) => {
+        const matchingBoundaryLoopNode =
+          targetBoundaryLoopNodes.boundaryLoopNodes[key];
+        return Boolean(matchingBoundaryLoopNode);
+      }) &&
+      Object.keys(sourceBoundaryLoopNodes.boundaryLoopNodes).length ===
+        Object.keys(targetBoundaryLoopNodes.boundaryLoopNodes).length;
+
+    if (!areBoundariesSame) {
+      return {
+        validation: {
+          isValid: false,
+          reason: "Can't connect 2 nodes of different regions of loop nodes",
+        },
+      };
+    }
+  }
+
+  return {
+    validation: { isValid: true },
+  };
+}
+
 /**
  * Checks if any path between source and target nodes contains loop nodes
  *
@@ -1342,6 +1450,23 @@ function isLoopConnectionValid<
     };
   }
 
+  const sourceHandleResultantInferredDataType =
+    getResultantDataTypeOfHandleConsideringInferredType(sourceHandle, true);
+  const targetHandleResultantInferredDataType =
+    getResultantDataTypeOfHandleConsideringInferredType(targetHandle, true);
+
+  if (
+    !sourceHandleResultantInferredDataType ||
+    !targetHandleResultantInferredDataType
+  ) {
+    return {
+      validation: {
+        isValid: false,
+        reason: 'Source or target resultant handle data type not found',
+      },
+    };
+  }
+
   const isSourceLoopNode = isLoopNode(sourceNodeType);
   const isTargetLoopNode = isLoopNode(targetNodeType);
 
@@ -1371,8 +1496,18 @@ function isLoopConnectionValid<
         };
       }
     } else {
-      const loopStructureSource = getLoopStructureFromNode(state, sourceNode);
-      const loopStructureTarget = getLoopStructureFromNode(state, targetNode);
+      const loopStructureSource = getLoopStructureFromNode<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >(state, sourceNode);
+      const loopStructureTarget = getLoopStructureFromNode<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >(state, targetNode);
       if (!loopStructureSource || !loopStructureTarget) {
         return {
           validation: {
@@ -1380,6 +1515,133 @@ function isLoopConnectionValid<
             reason: `${loopStructureSource ? 'Target' : 'Source'} loop structure not found`,
           },
         };
+      }
+
+      const isSourceLoopStructureValid =
+        verifyLoopStructureUniformHandleInference<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >(
+          loopStructureSource,
+          sourceHandleResultantInferredDataType.dataTypeUniqueId,
+          targetHandleResultantInferredDataType.dataTypeUniqueId,
+          sourceNodeId,
+          targetNodeId,
+        );
+
+      const isTargetLoopStructureValid =
+        verifyLoopStructureUniformHandleInference<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >(
+          loopStructureSource,
+          sourceHandleResultantInferredDataType.dataTypeUniqueId,
+          targetHandleResultantInferredDataType.dataTypeUniqueId,
+          sourceNodeId,
+          targetNodeId,
+        );
+
+      if (
+        !isSourceLoopStructureValid.validation.isValid ||
+        !isTargetLoopStructureValid.validation.isValid
+      ) {
+        return {
+          validation: {
+            isValid: false,
+            reason: `${
+              isSourceLoopStructureValid.validation.isValid
+                ? 'Target'
+                : 'Source'
+            } loop structure is invalid because of reason: ${
+              !isSourceLoopStructureValid.validation.isValid
+                ? isSourceLoopStructureValid.validation.reason
+                : isTargetLoopStructureValid.validation.reason
+            }`,
+          },
+        };
+      }
+
+      if (
+        loopStructureSource.loopStart.id !== loopStructureTarget.loopStart.id
+      ) {
+        //Connection between 2 different loop structures
+        //Can only happen in 2 ways:
+        //1. Both are connecting in series, one's end is connected to the other's start
+        //2. One in inside the other's loop region
+        const isSourceLoopEndConnectedToTargetLoopStart =
+          sourceNodeType === standardNodeTypeNamesMap.loopEnd &&
+          targetNodeType === standardNodeTypeNamesMap.loopStart;
+
+        if (isSourceLoopEndConnectedToTargetLoopStart) {
+          const validation = verifyParentLoopRegionsAreValid(
+            state,
+            sourceNode,
+            targetNode,
+            [
+              loopStructureSource.loopStart.id,
+              loopStructureSource.loopStop.id,
+              loopStructureSource.loopEnd.id,
+              loopStructureTarget.loopStart.id,
+              loopStructureTarget.loopStop.id,
+              loopStructureTarget.loopEnd.id,
+            ],
+          );
+          if (!validation.validation.isValid) {
+            return validation;
+          }
+        } else {
+          const [childLoopStructure, parentLoopStructure] =
+            sourceNodeType === standardNodeTypeNamesMap.loopEnd
+              ? [loopStructureSource, loopStructureTarget]
+              : targetNodeType === standardNodeTypeNamesMap.loopStart
+                ? [loopStructureTarget, loopStructureSource]
+                : [undefined, undefined];
+
+          if (!childLoopStructure || !parentLoopStructure) {
+            return {
+              validation: {
+                isValid: false,
+                reason:
+                  "Can't connect one loop structure's inner region to another loop structure's inner region",
+              },
+            };
+          }
+
+          const validation = verifyParentLoopRegionsAreValid(
+            state,
+            sourceNode,
+            targetNode,
+            [
+              childLoopStructure.loopStart.id,
+              childLoopStructure.loopStop.id,
+              childLoopStructure.loopEnd.id,
+            ],
+          );
+          if (!validation.validation.isValid) {
+            return validation;
+          }
+        }
+      } else {
+        // Check if connection is in valid order: loopStart<->loopStop<->loopEnd
+        const isValidOrder =
+          (sourceNodeType === standardNodeTypeNamesMap.loopStart &&
+            targetNodeType === standardNodeTypeNamesMap.loopStop) ||
+          (sourceNodeType === standardNodeTypeNamesMap.loopStop &&
+            targetNodeType === standardNodeTypeNamesMap.loopEnd);
+
+        if (!isValidOrder) {
+          return {
+            validation: {
+              isValid: false,
+              reason:
+                'Loop nodes can only bind in order: loopStart<->loopStop<->loopEnd',
+            },
+          };
+        }
       }
     }
 
@@ -1399,306 +1661,323 @@ function isLoopConnectionValid<
         },
       };
     }
-    if (isSourceLoopNode) {
+
+    const isLoopStructureValid = verifyLoopStructureUniformHandleInference<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >(
+      loopStructure,
+      sourceHandleResultantInferredDataType.dataTypeUniqueId,
+      targetHandleResultantInferredDataType.dataTypeUniqueId,
+      sourceNodeId,
+      targetNodeId,
+    );
+
+    if (!isLoopStructureValid.validation.isValid) {
+      return {
+        validation: {
+          isValid: false,
+          reason: `Loop structure is invalid because of reason: ${isLoopStructureValid.validation.reason}`,
+        },
+      };
     }
+
+    if (isSourceLoopNode) {
+      const { nodesInRegionStartToStop, nodesInRegionStopToEnd } =
+        getNodesInLoopRegion<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >(state, loopStructure);
+
+      const sourceReachable = getAllReachableNodes<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >(state, sourceNodeId);
+
+      const isTargetInStartToStop = nodesInRegionStartToStop.has(targetNodeId);
+      const isTargetInStopToEnd = nodesInRegionStopToEnd.has(targetNodeId);
+      const isTargetOutside =
+        sourceReachable.has(targetNodeId) &&
+        !isTargetInStartToStop &&
+        !isTargetInStopToEnd;
+      //Guaranteed to be group output node because it has an incoming connection
+      //Group input has no input handles
+      const isTargetGroupOutputNode = isGroupInputOrOutputNode(targetNodeType);
+
+      const isSourceLoopStart = loopStructure.loopStart.id === sourceNodeId;
+      const isSourceLoopStop = loopStructure.loopStop.id === sourceNodeId;
+      const isSourceLoopEnd = loopStructure.loopEnd.id === sourceNodeId;
+
+      if (isTargetGroupOutputNode && !isSourceLoopEnd) {
+        return {
+          validation: {
+            isValid: false,
+            reason:
+              'Group output node can only connect to loop end not inside the loop',
+          },
+        };
+      }
+      if (isTargetInStartToStop && !isSourceLoopStart) {
+        return {
+          validation: {
+            isValid: false,
+            reason:
+              'Loop nodes inside the LoopStart<->LoopStop region can only connect to LoopStart, LoopStop, other nodes in the same region or unreachable nodes',
+          },
+        };
+      }
+      if (isTargetInStopToEnd && !isSourceLoopStop) {
+        return {
+          validation: {
+            isValid: false,
+            reason:
+              'Loop nodes inside the LoopStop<->LoopEnd region can only connect to LoopStop, LoopEnd, other nodes in the same region or unreachable nodes',
+          },
+        };
+      }
+      if (isTargetOutside && !isSourceLoopEnd) {
+        return {
+          validation: {
+            isValid: false,
+            reason:
+              'Loop nodes outside the Loop region can only connect to LoopStart, LoopStop or other nodes outside the loop',
+          },
+        };
+      }
+      const parentloopStructureValidation = verifyParentLoopRegionsAreValid(
+        state,
+        sourceNode,
+        targetNode,
+        [
+          loopStructure.loopStart.id,
+          loopStructure.loopStop.id,
+          loopStructure.loopEnd.id,
+        ],
+      );
+      if (!parentloopStructureValidation.validation.isValid) {
+        return parentloopStructureValidation;
+      }
+      return {
+        validation: { isValid: true },
+      };
+    } else if (isTargetLoopNode) {
+      const { nodesInRegionStartToStop, nodesInRegionStopToEnd } =
+        getNodesInLoopRegion<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >(state, loopStructure);
+      const targetReachable = getAllReachableNodes<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >(state, targetNodeId);
+      const isSourceInStartToStop = nodesInRegionStartToStop.has(sourceNodeId);
+      const isSourceInStopToEnd = nodesInRegionStopToEnd.has(sourceNodeId);
+      const isSourceOutside =
+        targetReachable.has(sourceNodeId) &&
+        !isSourceInStartToStop &&
+        !isSourceInStopToEnd;
+      //Guaranteed to be group input node because it has an outgoing connection
+      //Group output has no output handles
+      const isSourceGroupInputNode = isGroupInputOrOutputNode(sourceNodeType);
+
+      const isTargetLoopStart = loopStructure.loopStart.id === targetNodeId;
+      const isTargetLoopStop = loopStructure.loopStop.id === targetNodeId;
+      const isTargetLoopEnd = loopStructure.loopEnd.id === targetNodeId;
+
+      if (isSourceGroupInputNode && !isTargetLoopStart) {
+        return {
+          validation: {
+            isValid: false,
+            reason:
+              'Group input node can only connect to loop start not inside the loop',
+          },
+        };
+      }
+      if (isSourceInStartToStop && !isTargetLoopStop) {
+        return {
+          validation: {
+            isValid: false,
+            reason:
+              'Loop nodes inside the LoopStart<->LoopStop region can only connect to LoopStart, LoopStop, other nodes in the same region or unreachable nodes',
+          },
+        };
+      }
+      if (isSourceInStopToEnd && !isTargetLoopEnd) {
+        return {
+          validation: {
+            isValid: false,
+            reason:
+              'Loop nodes inside the LoopStop<->LoopEnd region can only connect to LoopStop, LoopEnd, other nodes in the same region or unreachable nodes',
+          },
+        };
+      }
+      if (isSourceOutside && !isTargetLoopStart) {
+        return {
+          validation: {
+            isValid: false,
+            reason:
+              'Loop nodes outside the Loop region can only connect to LoopStart, LoopStop or other nodes outside the loop',
+          },
+        };
+      }
+
+      const parentloopStructureValidation = verifyParentLoopRegionsAreValid(
+        state,
+        sourceNode,
+        targetNode,
+        [
+          loopStructure.loopStart.id,
+          loopStructure.loopStop.id,
+          loopStructure.loopEnd.id,
+        ],
+      );
+      if (!parentloopStructureValidation.validation.isValid) {
+        return parentloopStructureValidation;
+      }
+      return {
+        validation: { isValid: true },
+      };
+    }
+    return {
+      validation: { isValid: true },
+    };
+  } else {
+    const validation = verifyParentLoopRegionsAreValid(
+      state,
+      sourceNode,
+      targetNode,
+    );
+    if (!validation.validation.isValid) {
+      return validation;
+    }
+
+    return {
+      validation: { isValid: true },
+    };
+  }
+}
+
+/**
+ * Checks if a loop node can be removed from the graph
+ * @param state - The current state of the graph
+ * @param nodeToRemove - The node to remove
+ * @returns A validation result indicating if the node can be removed
+ */
+function canRemoveLoopNode<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+  nodeToRemove: string,
+): {
+  validation: ConnectionValidationResult;
+} {
+  const node = state.nodes.find((node) => node.id === nodeToRemove);
+  console.log('Node to remove', node);
+  if (!node) {
+    console.log('Node not found');
+    return {
+      validation: { isValid: true },
+    };
+  }
+  if (!node.data.nodeTypeUniqueId) {
+    console.log('Node has no node type unique id');
+    return {
+      validation: { isValid: true },
+    };
+  }
+  if (!isLoopNode(node.data.nodeTypeUniqueId)) {
+    console.log('Node is not a loop node');
+    return {
+      validation: { isValid: true },
+    };
+  }
+  const loopStructure = getLoopStructureFromNode(state, node);
+  if (!loopStructure) {
+    console.log('Loop structure not found');
+    return {
+      validation: { isValid: true },
+    };
+  }
+  const loopStartOutgoers = getOutgoers(
+    loopStructure.loopStart,
+    state.nodes,
+    state.edges,
+  );
+  const loopStartIncomers = getIncomers(
+    loopStructure.loopStart,
+    state.nodes,
+    state.edges,
+  );
+
+  if (loopStartIncomers.length > 0 || loopStartOutgoers.length > 1) {
+    return {
+      validation: {
+        isValid: false,
+        reason:
+          'Loop nodes can only be removed if they have no remaining connections',
+      },
+    };
   }
 
-  // // Case 2: None or only one is a loop node
-  // // Find all reachable loop structures from both nodes
-  // const sourceLoopStructures = findAllReachableLoopStructures(
-  //   state,
-  //   sourceNodeId,
-  // );
-  // const targetLoopStructures = findAllReachableLoopStructures(
-  //   state,
-  //   targetNodeId,
-  // );
+  const loopStopOutgoers = getOutgoers(
+    loopStructure.loopStop,
+    state.nodes,
+    state.edges,
+  );
+  const loopStopIncomers = getIncomers(
+    loopStructure.loopStop,
+    state.nodes,
+    state.edges,
+  );
+  if (loopStopIncomers.length > 1 || loopStopOutgoers.length > 1) {
+    return {
+      validation: {
+        isValid: false,
+        reason:
+          'Loop nodes can only be removed if they have no remaining connections',
+      },
+    };
+  }
 
-  // // Combine all unique loop structures
-  // const allLoopStructures = new Map<string, LoopStructure>();
-  // for (const structure of sourceLoopStructures) {
-  //   const key = `${structure.loopStart || ''}-${structure.loopStop || ''}-${structure.loopEnd || ''}`;
-  //   allLoopStructures.set(key, structure);
-  // }
-  // for (const structure of targetLoopStructures) {
-  //   const key = `${structure.loopStart || ''}-${structure.loopStop || ''}-${structure.loopEnd || ''}`;
-  //   allLoopStructures.set(key, structure);
-  // }
-  // console.log('allLoopStructures', allLoopStructures);
-
-  // // Check each loop structure
-  // for (const loopStructure of allLoopStructures.values()) {
-  //   // Get nodes in each region
-  //   const startToStopNodes =
-  //     loopStructure.loopStart && loopStructure.loopStop
-  //       ? getNodesInLoopRegion(state, loopStructure, 'startToStop')
-  //       : new Set<string>();
-
-  //   console.log(
-  //     'startToStopNodes:',
-  //     JSON.stringify(Array.from(startToStopNodes), null, 2),
-  //   );
-  //   const stopToEndNodes =
-  //     loopStructure.loopStop && loopStructure.loopEnd
-  //       ? getNodesInLoopRegion(state, loopStructure, 'stopToEnd')
-  //       : new Set<string>();
-  //   const nodesOutside = getNodesOutsideLoop(state, loopStructure);
-
-  //   // Check if source node is reachable from the loop structure
-  //   const sourceReachable = getAllReachableNodes(state, sourceNodeId);
-  //   const targetReachable = getAllReachableNodes(state, targetNodeId);
-
-  //   const isSourceReachableFromLoop =
-  //     sourceReachable.has(loopStructure.loopStart || '') ||
-  //     sourceReachable.has(loopStructure.loopStop || '') ||
-  //     sourceReachable.has(loopStructure.loopEnd || '');
-
-  //   const isTargetReachableFromLoop =
-  //     targetReachable.has(loopStructure.loopStart || '') ||
-  //     targetReachable.has(loopStructure.loopStop || '') ||
-  //     targetReachable.has(loopStructure.loopEnd || '');
-
-  //   // Determine which region each node is in
-  //   const isSourceInStartToStop = startToStopNodes.has(sourceNodeId);
-  //   const isSourceInStopToEnd = stopToEndNodes.has(sourceNodeId);
-  //   const isSourceOutside = nodesOutside.has(sourceNodeId);
-  //   const isSourceLoopStart = loopStructure.loopStart === sourceNodeId;
-  //   const isSourceLoopStop = loopStructure.loopStop === sourceNodeId;
-  //   const isSourceLoopEnd = loopStructure.loopEnd === sourceNodeId;
-  //   const isSourceGroupInput = isGroupInputOrOutputNode(sourceNodeType);
-  //   const isSourceGroupOutput = isGroupInputOrOutputNode(sourceNodeType);
-  //   const isSourceUnreachable =
-  //     !isSourceReachableFromLoop &&
-  //     !isSourceLoopStart &&
-  //     !isSourceLoopStop &&
-  //     !isSourceLoopEnd;
-
-  //   const isTargetInStartToStop = startToStopNodes.has(targetNodeId);
-  //   const isTargetInStopToEnd = stopToEndNodes.has(targetNodeId);
-  //   const isTargetOutside = nodesOutside.has(targetNodeId);
-  //   const isTargetLoopStart = loopStructure.loopStart === targetNodeId;
-  //   const isTargetLoopStop = loopStructure.loopStop === targetNodeId;
-  //   const isTargetLoopEnd = loopStructure.loopEnd === targetNodeId;
-  //   const isTargetGroupInput = isGroupInputOrOutputNode(targetNodeType);
-  //   const isTargetGroupOutput = isGroupInputOrOutputNode(targetNodeType);
-  //   const isTargetUnreachable =
-  //     !isTargetReachableFromLoop &&
-  //     !isTargetLoopStart &&
-  //     !isTargetLoopStop &&
-  //     !isTargetLoopEnd;
-
-  //   console.log('isSourceUnreachable', isSourceUnreachable);
-  //   console.log('isTargetUnreachable', isTargetUnreachable);
-  //   console.log('isSourceOutside', isSourceOutside);
-  //   console.log('isTargetOutside', isTargetOutside);
-  //   console.log('isSourceInStartToStop', isSourceInStartToStop);
-  //   console.log('isTargetInStartToStop', isTargetInStartToStop);
-  //   console.log('isSourceInStopToEnd', isSourceInStopToEnd);
-  //   console.log('isTargetInStopToEnd', isTargetInStopToEnd);
-  //   console.log('isSourceLoopStart', isSourceLoopStart);
-  //   console.log('isTargetLoopStart', isTargetLoopStart);
-  //   console.log('isSourceLoopStop', isSourceLoopStop);
-  //   console.log('isTargetLoopStop', isTargetLoopStop);
-  //   console.log('isSourceLoopEnd', isSourceLoopEnd);
-  //   console.log('isTargetLoopEnd', isTargetLoopEnd);
-
-  //   // If both nodes are unreachable from this loop, they don't belong to any region
-  //   // and can connect freely (they can join any region)
-  //   if (isSourceUnreachable || isTargetUnreachable) {
-  //     continue;
-  //   }
-  //   // If both nodes are outside, they can connect freely
-  //   if (isSourceOutside && isTargetOutside) {
-  //     continue;
-  //   }
-  //   // If source is outside and target is loopStart, they can connect freely
-  //   if (isSourceOutside && isTargetLoopStart) {
-  //     continue;
-  //   }
-  //   // If source is loopEnd and target is outside, they can connect freely
-  //   if (isSourceLoopEnd && isTargetOutside) {
-  //     continue;
-  //   }
-
-  //   // If both nodes are in the same region, they can connect freely
-  //   if (isSourceInStartToStop && isTargetInStartToStop) {
-  //     continue;
-  //   }
-  //   if (isSourceInStopToEnd && isTargetInStopToEnd) {
-  //     continue;
-  //   }
-
-  //   //Order of connection: loopStart<->loopStop<->loopEnd
-  //   if (isSourceLoopStart && isTargetLoopStop) {
-  //     continue;
-  //   }
-  //   if (isSourceLoopStop && isTargetLoopEnd) {
-  //     continue;
-  //   }
-  //   if (isSourceLoopEnd && isTargetLoopStart) {
-  //     continue;
-  //   }
-
-  //   // Connection inside region loopStart<->loopStop
-  //   if (isSourceInStartToStop && isTargetLoopStop) {
-  //     continue;
-  //   }
-  //   if (isTargetInStartToStop && isSourceLoopStart) {
-  //     continue;
-  //   }
-  //   // Connection inside region loopStop<->loopEnd
-  //   if (isSourceInStopToEnd && isTargetLoopEnd) {
-  //     continue;
-  //   }
-  //   if (isTargetInStopToEnd && isSourceLoopStop) {
-  //     continue;
-  //   }
-  //   return {
-  //     validation: {
-  //       isValid: false,
-  //       reason:
-  //         'Loop nodes can only connect in order: loopStart<->loopStop<->loopEnd, and regions cannot be connected to each other',
-  //     },
-  //   };
-
-  //   // // Validation rules:
-  //   // // 1. Nodes in startToStop region can only connect within that region or to loopStop
-  //   // // 2. Nodes in stopToEnd region can only connect within that region or to loopEnd
-  //   // // 3. Nodes outside can only connect to loopStart or nodes outside, not to nodes inside regions
-  //   // // 4. Nodes in startToStop region cannot connect to nodes in stopToEnd region (and vice versa)
-
-  //   // // Explicitly disallow connections between startToStop and stopToEnd regions
-  //   // if (isSourceInStartToStop && isTargetInStopToEnd) {
-  //   //   return {
-  //   //     validation: {
-  //   //       isValid: false,
-  //   //       reason: 'Nodes in loopStart->loopStop region cannot connect to nodes in loopStop->loopEnd region',
-  //   //     },
-  //   //   };
-  //   // }
-
-  //   // if (isSourceInStopToEnd && isTargetInStartToStop) {
-  //   //   return {
-  //   //     validation: {
-  //   //       isValid: false,
-  //   //       reason: 'Nodes in loopStop->loopEnd region cannot connect to nodes in loopStart->loopStop region',
-  //   //     },
-  //   //   };
-  //   // }
-
-  //   // // Check if source is trying to connect from an invalid position
-  //   // if (isSourceInStartToStop || isSourceLoopStart) {
-  //   //   // Source is in startToStop region or is loopStart
-  //   //   // Can only connect to nodes in same region or to loopStop
-  //   //   if (
-  //   //     !isTargetInStartToStop &&
-  //   //     !isTargetLoopStop &&
-  //   //     !isTargetLoopStart
-  //   //   ) {
-  //   //     return {
-  //   //       validation: {
-  //   //         isValid: false,
-  //   //         reason: 'Nodes in loopStart->loopStop region can only connect within that region or to loopStop',
-  //   //       },
-  //   //     };
-  //   //   }
-  //   // }
-
-  //   // if (isSourceInStopToEnd || isSourceLoopStop) {
-  //   //   // Source is in stopToEnd region or is loopStop
-  //   //   // Can only connect to nodes in same region or to loopEnd
-  //   //   if (
-  //   //     !isTargetInStopToEnd &&
-  //   //     !isTargetLoopEnd &&
-  //   //     !isTargetLoopStop
-  //   //   ) {
-  //   //     return {
-  //   //       validation: {
-  //   //         isValid: false,
-  //   //         reason: 'Nodes in loopStop->loopEnd region can only connect within that region or to loopEnd',
-  //   //       },
-  //   //     };
-  //   //   }
-  //   // }
-
-  //   // if (isSourceOutside && !isSourceLoopStart && !isSourceLoopStop && !isSourceLoopEnd) {
-  //   //   // Source is outside (not a loop node and not unreachable - already handled above)
-  //   //   // Can only connect to loopStart or nodes outside
-  //   //   if (isTargetInStartToStop || isTargetInStopToEnd) {
-  //   //     return {
-  //   //       validation: {
-  //   //         isValid: false,
-  //   //         reason: 'Nodes outside loop cannot connect to nodes inside loop regions',
-  //   //       },
-  //   //     };
-  //   //   }
-  //   //   if (!isTargetLoopStart && !isTargetOutside) {
-  //   //     return {
-  //   //       validation: {
-  //   //         isValid: false,
-  //   //         reason: 'Nodes outside loop can only connect to loopStart or nodes outside',
-  //   //       },
-  //   //     };
-  //   //   }
-  //   // }
-
-  //   // // Check if target is trying to receive from an invalid position
-  //   // if (isTargetInStartToStop || isTargetLoopStop) {
-  //   //   // Target is in startToStop region or is loopStop
-  //   //   // Can only receive from nodes in same region or from loopStart
-  //   //   if (
-  //   //     !isSourceInStartToStop &&
-  //   //     !isSourceLoopStart &&
-  //   //     !isSourceLoopStop
-  //   //   ) {
-  //   //     return {
-  //   //       validation: {
-  //   //         isValid: false,
-  //   //         reason: 'Nodes in loopStart->loopStop region can only receive connections from within that region or from loopStart',
-  //   //       },
-  //   //     };
-  //   //   }
-  //   // }
-
-  //   // if (isTargetInStopToEnd || isTargetLoopEnd) {
-  //   //   // Target is in stopToEnd region or is loopEnd
-  //   //   // Can only receive from nodes in same region or from loopStop
-  //   //   if (
-  //   //     !isSourceInStopToEnd &&
-  //   //     !isSourceLoopStop &&
-  //   //     !isSourceLoopEnd
-  //   //   ) {
-  //   //     return {
-  //   //       validation: {
-  //   //         isValid: false,
-  //   //         reason: 'Nodes in loopStop->loopEnd region can only receive connections from within that region or from loopStop',
-  //   //       },
-  //   //     };
-  //   //   }
-  //   // }
-
-  //   // if (isTargetOutside && !isTargetLoopStart && !isTargetLoopStop && !isTargetLoopEnd) {
-  //   //   // Target is outside (not a loop node and not unreachable - already handled above)
-  //   //   // Can only receive from loopEnd or nodes outside
-  //   //   if (isSourceInStartToStop || isSourceInStopToEnd) {
-  //   //     return {
-  //   //       validation: {
-  //   //         isValid: false,
-  //   //         reason: 'Nodes outside loop cannot receive connections from nodes inside loop regions',
-  //   //       },
-  //   //     };
-  //   //   }
-  //   //   if (!isSourceLoopEnd && !isSourceOutside) {
-  //   //     return {
-  //   //       validation: {
-  //   //         isValid: false,
-  //   //         reason: 'Nodes outside loop can only receive connections from loopEnd or nodes outside',
-  //   //       },
-  //   //     };
-  //   //   }
-  //   // }
-  // }
-
+  const loopEndIncomers = getIncomers(
+    loopStructure.loopEnd,
+    state.nodes,
+    state.edges,
+  );
+  const loopEndOutgoers = getOutgoers(
+    loopStructure.loopEnd,
+    state.nodes,
+    state.edges,
+  );
+  if (loopEndIncomers.length > 1 || loopEndOutgoers.length > 0) {
+    return {
+      validation: {
+        isValid: false,
+        reason:
+          'Loop nodes can only be removed if they have no remaining connections',
+      },
+    };
+  }
   return {
     validation: { isValid: true },
   };
@@ -1708,4 +1987,5 @@ export {
   addDuplicateHandlesToLoopNodesAfterInference,
   isLoopConnectionValid,
   isLoopNode,
+  canRemoveLoopNode,
 };

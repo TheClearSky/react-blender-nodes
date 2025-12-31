@@ -11,6 +11,7 @@ import { handleShapesMap } from '@/components/organisms/ConfigurableNode';
 import state1 from './PlaygroundState1.json';
 import { z } from 'zod';
 import { standardDataTypes, standardNodeTypes } from '@/utils';
+import type { FunctionImplementations } from '@/utils/nodeRunner/types';
 
 const meta = {
   component: FullGraph,
@@ -234,6 +235,13 @@ const exampleDataTypes = {
     }),
     shape: handleShapesMap.trapezium,
   }),
+  booleanDataType: makeDataTypeWithAutoInfer({
+    name: 'Boolean Data',
+    underlyingType: 'boolean',
+    color: '#FF6B6B',
+    shape: handleShapesMap.diamond,
+    allowInput: true,
+  }),
   ...standardDataTypes,
 };
 
@@ -371,6 +379,12 @@ const exampleTypeOfNodes = {
       { name: 'Complex Output Of Type 2', dataType: 'complexDataType2' },
       { name: 'Complex Output Of Type 3', dataType: 'complexDataType3' },
     ],
+  }),
+  booleanNode: makeTypeOfNodeWithAutoInfer<keyof typeof exampleDataTypes>({
+    name: 'Boolean Node',
+    headerColor: '#A64622',
+    inputs: [{ name: 'Boolean Input', dataType: 'booleanDataType' }],
+    outputs: [{ name: 'Boolean Output', dataType: 'booleanDataType' }],
   }),
   ...standardNodeTypes,
 };
@@ -715,6 +729,7 @@ export const WithTypeCheckingAndConversions: StoryObj<typeof FullGraph> = {
       allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking: true,
       enableComplexTypeChecking: true,
       enableTypeInference: true,
+      enableDebugMode: true,
     });
 
     return (
@@ -789,6 +804,70 @@ export const WithCycleChecking: StoryObj<typeof FullGraph> = {
         </div>
         <div style={{ flex: 1 }}>
           <FullGraph state={state} dispatch={dispatch} />
+        </div>
+      </div>
+    );
+  },
+};
+
+const circuitExampleDataTypes = {
+  bit: makeDataTypeWithAutoInfer({
+    name: 'Bit',
+    underlyingType: 'boolean',
+    color: '#00BFFF',
+    shape: handleShapesMap.rectangle,
+  }),
+  ...standardDataTypes,
+};
+
+const circuitExampleTypeOfNodes = {
+  andGate: makeTypeOfNodeWithAutoInfer<keyof typeof circuitExampleDataTypes>({
+    name: 'AND Gate',
+    headerColor: '#C44536',
+    inputs: [
+      { name: 'Bit 1', dataType: 'bit' },
+      { name: 'Bit 2', dataType: 'bit' },
+    ],
+    outputs: [{ name: 'Bit', dataType: 'bit' }],
+  }),
+  ...standardNodeTypes,
+};
+
+export const WithRunner: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    // Create initial state with allowed conversions
+    const { state, dispatch } = useFullGraph({
+      dataTypes: circuitExampleDataTypes,
+      typeOfNodes: circuitExampleTypeOfNodes,
+      nodes: [],
+      edges: [],
+      // Define allowed conversions between data types
+      allowedConversionsBetweenDataTypes: {},
+      allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking: true,
+      enableComplexTypeChecking: true,
+      enableTypeInference: true,
+      enableCycleChecking: true,
+    });
+
+    const functionImplementations: FunctionImplementations<
+      keyof typeof circuitExampleTypeOfNodes
+    > = {
+      andGate: function (bit1, bit2) {
+        return bit1[0] && bit2[0];
+      },
+    };
+
+    return (
+      <div
+        style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div style={{ flex: 1 }}>
+          <FullGraph
+            state={state}
+            dispatch={dispatch}
+            functionImplementations={functionImplementations}
+          />
         </div>
       </div>
     );

@@ -3,6 +3,7 @@ import { Input } from '@/components/atoms';
 import { SliderNumberInput } from '@/components/molecules';
 import type { ConfigurableNodeInput } from '../ConfigurableNode';
 import { updateHandleInNodeDataMatchingHandleId } from '@/utils/nodeStateManagement/handles/handleSetters';
+import { Checkbox } from '@/components/atoms/Checkbox/Checkbox';
 
 /**
  * Props for the ReactFlowAwareInput component
@@ -53,7 +54,7 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
       allowOnlyNumbers={false}
       className='w-full'
     />
-  ) : (
+  ) : input.type === 'number' ? (
     <SliderNumberInput
       name={input.name}
       value={input.value}
@@ -80,7 +81,21 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
       }}
       className='w-full'
     />
-  );
+  ) : input.type === 'boolean' ? (
+    <div className='flex items-center gap-2 w-full'>
+      <Checkbox
+        checked={input.value}
+        onCheckedChange={(newValue) => {
+          if (newValue !== 'indeterminate') {
+            input.onChange?.(newValue);
+          }
+        }}
+      />
+      <p className='text-primary-white text-[27px] leading-[27px] font-main truncate'>
+        {input.name}
+      </p>
+    </div>
+  ) : null;
 };
 
 /**
@@ -140,14 +155,28 @@ const ContextAwareInput = ({
       allowOnlyNumbers={false}
       className='w-full'
     />
-  ) : (
+  ) : input.type === 'number' ? (
     <SliderNumberInput
       name={input.name}
       value={input.value}
       onChange={input.onChange}
       className='w-full'
     />
-  );
+  ) : input.type === 'boolean' ? (
+    <div className='flex items-center gap-2 w-full'>
+      <Checkbox
+        checked={input.value}
+        onCheckedChange={(newValue) => {
+          if (newValue !== 'indeterminate') {
+            input.onChange?.(newValue);
+          }
+        }}
+      />
+      <p className='text-primary-white text-[27px] leading-[27px] font-main truncate'>
+        {input.name}
+      </p>
+    </div>
+  ) : null;
 };
 
 export { ContextAwareInput, ReactFlowAwareInput };

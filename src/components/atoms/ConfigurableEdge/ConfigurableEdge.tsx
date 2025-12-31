@@ -164,7 +164,7 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
           markerStart={markerStart}
           interactionWidth={interactionWidth}
           className={cn(
-            '!stroke-7 in-[g.selected]:brightness-150',
+            'stroke-7! in-[g.selected]:brightness-150',
             !isInViewport && 'opacity-25',
           )}
           style={{

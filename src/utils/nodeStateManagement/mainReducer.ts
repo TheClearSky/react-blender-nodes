@@ -21,6 +21,7 @@ import {
 } from '@xyflow/react';
 import type { EdgeChanges, NodeChanges } from '@/components';
 import { standardNodeTypeNamesMap } from './standardNodes';
+import { canRemoveLoopNode } from './nodes/loops';
 
 /** Length of generated random IDs for nodes */
 const lengthOfIds = 20;
@@ -308,13 +309,27 @@ function mainReducer<
           break;
         case actionTypesMap.UPDATE_NODE_BY_REACT_FLOW:
           const nodeChanges = action.payload.changes;
-          newState = setCurrentNodesAndEdgesToStateWithMutatingState(
-            newState,
-            applyNodeChanges(
-              nodeChanges,
-              getCurrentNodesAndEdgesFromState(newState).nodes,
-            ),
-          );
+          for (const nodeChange of nodeChanges) {
+            if (nodeChange.type === 'remove') {
+              console.log('Removing loop node', nodeChange.id);
+              const validation = canRemoveLoopNode(newState, nodeChange.id);
+              if (!validation.validation.isValid) {
+                console.log(
+                  'Loop node cannot be removed',
+                  validation.validation.reason,
+                );
+                continue;
+              }
+              console.log('Loop node can be removed');
+            }
+            newState = setCurrentNodesAndEdgesToStateWithMutatingState(
+              newState,
+              applyNodeChanges(
+                [nodeChange],
+                getCurrentNodesAndEdgesFromState(newState).nodes,
+              ),
+            );
+          }
           break;
         case actionTypesMap.UPDATE_EDGES_BY_REACT_FLOW:
           const edgeChanges = action.payload.changes;

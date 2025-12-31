@@ -93,10 +93,11 @@ type ConfigurableNodeReactFlowWrapperProps<
 const ConfigurableNodeReactFlowWrapper = forwardRef<
   HTMLDivElement,
   Omit<ConfigurableNodeReactFlowWrapperProps, 'position'>
->(({ data = {} }, ref) => {
+>(({ data = {}, id }, ref) => {
   return (
     <ConfigurableNode
       isCurrentlyInsideReactFlow={true}
+      id={id}
       className='w-full'
       {...data}
       ref={ref}

@@ -403,6 +403,7 @@ function getResultantDataTypeOfHandleConsideringInferredType<
         DataTypeUniqueId
       >
     | undefined,
+  fallbackToInferFromConnectionTypeWhenNotInferred = false,
 ):
   | {
       dataTypeObject: DataType<UnderlyingType, ComplexSchemaType>;
@@ -420,7 +421,12 @@ function getResultantDataTypeOfHandleConsideringInferredType<
   ) {
     return handleMainDataType;
   }
-  return handleInferredDataType || undefined;
+  return (
+    handleInferredDataType ||
+    (fallbackToInferFromConnectionTypeWhenNotInferred
+      ? handleMainDataType
+      : undefined)
+  );
 }
 
 /**

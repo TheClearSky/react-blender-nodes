@@ -32,6 +32,9 @@ import {
 import { getCurrentNodesAndEdgesFromState } from '@/utils';
 import { FullGraphContext } from './FullGraphState';
 import { nodeTypes, edgeTypes } from './FullGraphCustomNodesAndEdges';
+import type { FunctionImplementations } from '@/utils/nodeRunner/types';
+import { Button } from '@/components/atoms';
+import { PlayIcon } from 'lucide-react';
 
 /**
  * Props for the FullGraph component
@@ -67,6 +70,7 @@ type FullGraphProps<
       >,
     ]
   >;
+  functionImplementations?: FunctionImplementations<NodeTypeUniqueId>;
 };
 
 /**
@@ -92,6 +96,7 @@ function FullGraphWithReactFlowProvider<
 >({
   state,
   dispatch,
+  functionImplementations,
 }: FullGraphProps<
   DataTypeUniqueId,
   NodeTypeUniqueId,
@@ -266,6 +271,14 @@ function FullGraphWithReactFlowProvider<
           }),
         )}
       />
+      {functionImplementations && (
+        <div className='absolute top-0 right-0 scale-75 origin-top-right flex items-center gap-3 m-2 max-w-full'>
+          <Button>
+            <p>Run</p>
+            <PlayIcon />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -366,6 +379,7 @@ function FullGraph<
 >({
   state,
   dispatch,
+  functionImplementations,
 }: FullGraphProps<
   DataTypeUniqueId,
   NodeTypeUniqueId,
@@ -376,7 +390,11 @@ function FullGraph<
     <ReactFlowProvider>
       {/* @ts-ignore - this is because useContext can't infer types, issue highlighted here: https://stackoverflow.com/questions/51448291/how-to-create-a-generic-react-component-with-a-typed-context-provider */}
       <FullGraphContext.Provider value={{ allProps: { state, dispatch } }}>
-        <FullGraphWithReactFlowProvider state={state} dispatch={dispatch} />
+        <FullGraphWithReactFlowProvider
+          state={state}
+          dispatch={dispatch}
+          functionImplementations={functionImplementations}
+        />
       </FullGraphContext.Provider>
     </ReactFlowProvider>
   );

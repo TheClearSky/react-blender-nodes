@@ -1873,7 +1873,7 @@ function isLoopConnectionValid<
  * @param nodeToRemove - The node to remove
  * @returns A validation result indicating if the node can be removed
  */
-function canRemoveLoopNode<
+function canRemoveLoopNodes<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
@@ -1887,96 +1887,90 @@ function canRemoveLoopNode<
     UnderlyingType,
     ComplexSchemaType
   >,
-  nodeToRemove: string,
+  nodesToRemove:
+    | string[]
+    | State<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >['nodes'],
 ): {
   validation: ConnectionValidationResult;
 } {
-  const node = state.nodes.find((node) => node.id === nodeToRemove);
-  console.log('Node to remove', node);
-  if (!node) {
-    console.log('Node not found');
-    return {
-      validation: { isValid: true },
-    };
-  }
-  if (!node.data.nodeTypeUniqueId) {
-    console.log('Node has no node type unique id');
-    return {
-      validation: { isValid: true },
-    };
-  }
-  if (!isLoopNode(node.data.nodeTypeUniqueId)) {
-    console.log('Node is not a loop node');
-    return {
-      validation: { isValid: true },
-    };
-  }
-  const loopStructure = getLoopStructureFromNode(state, node);
-  if (!loopStructure) {
-    console.log('Loop structure not found');
-    return {
-      validation: { isValid: true },
-    };
-  }
-  const loopStartOutgoers = getOutgoers(
-    loopStructure.loopStart,
-    state.nodes,
-    state.edges,
-  );
-  const loopStartIncomers = getIncomers(
-    loopStructure.loopStart,
-    state.nodes,
-    state.edges,
-  );
+  let nodesToRemoveResultant: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['nodes'] = [];
 
-  if (loopStartIncomers.length > 0 || loopStartOutgoers.length > 1) {
-    return {
-      validation: {
-        isValid: false,
-        reason:
-          'Loop nodes can only be removed if they have no remaining connections',
-      },
+  if (nodesToRemove.every((node) => typeof node === 'string')) {
+    const nodeIdSet = new Set(nodesToRemove);
+    nodesToRemoveResultant = state.nodes.filter((node) =>
+      nodeIdSet.has(node.id),
+    );
+  } else {
+    nodesToRemoveResultant = nodesToRemove;
+  }
+
+  const nodesToRemoveMap: Record<
+    string,
+    {
+      node: State<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >['nodes'][number];
+      alreadyChecked: boolean;
+    }
+  > = {};
+  for (const node of nodesToRemoveResultant) {
+    nodesToRemoveMap[node.id] = {
+      node,
+      alreadyChecked: false,
     };
   }
 
-  const loopStopOutgoers = getOutgoers(
-    loopStructure.loopStop,
-    state.nodes,
-    state.edges,
-  );
-  const loopStopIncomers = getIncomers(
-    loopStructure.loopStop,
-    state.nodes,
-    state.edges,
-  );
-  if (loopStopIncomers.length > 1 || loopStopOutgoers.length > 1) {
-    return {
-      validation: {
-        isValid: false,
-        reason:
-          'Loop nodes can only be removed if they have no remaining connections',
-      },
-    };
-  }
+  const nodesToRemoveMapKeys = Object.keys(nodesToRemoveMap);
 
-  const loopEndIncomers = getIncomers(
-    loopStructure.loopEnd,
-    state.nodes,
-    state.edges,
-  );
-  const loopEndOutgoers = getOutgoers(
-    loopStructure.loopEnd,
-    state.nodes,
-    state.edges,
-  );
-  if (loopEndIncomers.length > 1 || loopEndOutgoers.length > 0) {
-    return {
-      validation: {
-        isValid: false,
-        reason:
-          'Loop nodes can only be removed if they have no remaining connections',
-      },
-    };
+  for (const nodeId of nodesToRemoveMapKeys) {
+    const node = nodesToRemoveMap[nodeId].node;
+    if (nodesToRemoveMap[nodeId].alreadyChecked) {
+      continue;
+    }
+    nodesToRemoveMap[nodeId].alreadyChecked = true;
+    if (!node) {
+      continue;
+    }
+    if (!node.data.nodeTypeUniqueId) {
+      continue;
+    }
+    if (!isLoopNode(node.data.nodeTypeUniqueId)) {
+      continue;
+    }
+    const loopStructure = getLoopStructureFromNode(state, node);
+    if (!loopStructure) {
+      continue;
+    }
+
+    if (
+      nodesToRemoveMap[loopStructure.loopStart.id] === undefined ||
+      nodesToRemoveMap[loopStructure.loopStop.id] === undefined ||
+      nodesToRemoveMap[loopStructure.loopEnd.id] === undefined
+    ) {
+      return {
+        validation: {
+          isValid: false,
+          reason:
+            "Loop nodes all need to be removed together, can't partially remove them",
+        },
+      };
+    }
+    nodesToRemoveMap[loopStructure.loopStart.id].alreadyChecked = true;
+    nodesToRemoveMap[loopStructure.loopStop.id].alreadyChecked = true;
+    nodesToRemoveMap[loopStructure.loopEnd.id].alreadyChecked = true;
   }
   return {
     validation: { isValid: true },
@@ -1987,5 +1981,5 @@ export {
   addDuplicateHandlesToLoopNodesAfterInference,
   isLoopConnectionValid,
   isLoopNode,
-  canRemoveLoopNode,
+  canRemoveLoopNodes,
 };

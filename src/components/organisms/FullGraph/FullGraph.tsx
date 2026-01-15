@@ -35,6 +35,7 @@ import { nodeTypes, edgeTypes } from './FullGraphCustomNodesAndEdges';
 import type { FunctionImplementations } from '@/utils/nodeRunner/types';
 import { Button } from '@/components/atoms';
 import { PlayIcon } from 'lucide-react';
+import { canRemoveLoopNodes } from '@/utils/nodeStateManagement/nodes/loops';
 
 /**
  * Props for the FullGraph component
@@ -226,6 +227,19 @@ function FullGraphWithReactFlowProvider<
             payload: { viewport },
           })
         }
+        onBeforeDelete={async ({ nodes }) => {
+          const nodesAndEdgesInCurrentNodeGroup =
+            getCurrentNodesAndEdgesFromState(state);
+          const validation = canRemoveLoopNodes(
+            { ...state, ...nodesAndEdgesInCurrentNodeGroup },
+            nodes,
+          );
+          if (!validation.validation.isValid) {
+            return false;
+          }
+
+          return true;
+        }}
       >
         <Controls />
         <Background />

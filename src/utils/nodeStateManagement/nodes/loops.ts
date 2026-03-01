@@ -4,6 +4,12 @@ import { constructTypeOfHandleFromIndices } from './constructAndModifyNodes';
 import { insertOrDeleteHandleInNodeDataUsingHandleIndices } from '../handles/handleSetters';
 import type { ConnectionValidationResult } from '../newOrRemovedEdgeValidation';
 import {
+  loopEndInputInferHandleIndex,
+  loopEndOutputInferHandleIndex,
+  loopStartInputInferHandleIndex,
+  loopStartOutputInferHandleIndex,
+  loopStopInputInferHandleIndex,
+  loopStopOutputInferHandleIndex,
   standardDataTypeNamesMap,
   standardNodeTypeNamesMap,
 } from '../standardNodes';
@@ -11,17 +17,11 @@ import { getOutgoers, getIncomers } from '@xyflow/react';
 import {
   getAllHandlesFromNodeData,
   getHandleFromNodeDataFromIndices,
+  getHandleFromNodeDataMatchingHandleId,
 } from '../handles/handleGetters';
 import type { HandleIndices } from '../handles/types';
 import { getResultantDataTypeOfHandleConsideringInferredType } from '../constructAndModifyHandles';
 import { isGroupInputOrOutputNode } from './nodeGroups';
-
-const loopStartInputInferHandleIndex = 0;
-const loopStartOutputInferHandleIndex = 1;
-const loopStopInputInferHandleIndex = 2;
-const loopStopOutputInferHandleIndex = 1;
-const loopEndInputInferHandleIndex = 1;
-const loopEndOutputInferHandleIndex = 0;
 
 function getLoopNodeInferHandleIndex(
   nodeTypeUniqueId: string,
@@ -1868,12 +1868,13 @@ function isLoopConnectionValid<
 }
 
 /**
- * Checks if a loop node can be removed from the graph
+ * Checks if loop nodes and edges can be removed from the graph
  * @param state - The current state of the graph
- * @param nodeToRemove - The node to remove
+ * @param nodeToRemove - The nodes to remove
+ * @param edgesToRemove - The edges to remove
  * @returns A validation result indicating if the node can be removed
  */
-function canRemoveLoopNodes<
+function canRemoveLoopNodesAndEdges<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
@@ -1895,6 +1896,14 @@ function canRemoveLoopNodes<
         UnderlyingType,
         ComplexSchemaType
       >['nodes'],
+  edgesToRemove:
+    | string[]
+    | State<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >['edges'],
 ): {
   validation: ConnectionValidationResult;
 } {
@@ -1972,6 +1981,78 @@ function canRemoveLoopNodes<
     nodesToRemoveMap[loopStructure.loopStop.id].alreadyChecked = true;
     nodesToRemoveMap[loopStructure.loopEnd.id].alreadyChecked = true;
   }
+  let edgesToRemoveResultant: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['edges'] = [];
+
+  if (edgesToRemove.every((edge) => typeof edge === 'string')) {
+    const edgeIdSet = new Set(edgesToRemove);
+    edgesToRemoveResultant = state.edges.filter((edge) =>
+      edgeIdSet.has(edge.id),
+    );
+  } else {
+    edgesToRemoveResultant = edgesToRemove;
+  }
+
+  for (const edge of edgesToRemoveResultant) {
+    const sourceNode = state.nodes.find((node) => node.id === edge.source);
+    const targetNode = state.nodes.find((node) => node.id === edge.target);
+    const sourceHandleId = edge.sourceHandle;
+    const targetHandleId = edge.targetHandle;
+    if (!sourceHandleId || !targetHandleId) {
+      continue;
+    }
+    if (!sourceNode || !targetNode) {
+      continue;
+    }
+    const sourceNodeType = sourceNode.data.nodeTypeUniqueId;
+    const targetNodeType = targetNode.data.nodeTypeUniqueId;
+    if (!sourceNodeType || !targetNodeType) {
+      continue;
+    }
+    if (!isLoopNode(sourceNodeType) || !isLoopNode(targetNodeType)) {
+      continue;
+    }
+
+    const sourceHandle = getHandleFromNodeDataMatchingHandleId(
+      sourceHandleId,
+      sourceNode.data,
+    )?.value;
+    const targetHandle = getHandleFromNodeDataMatchingHandleId(
+      targetHandleId,
+      targetNode.data,
+    )?.value;
+    const sourceHandleDataTypeUniqueId =
+      sourceHandle?.dataType?.dataTypeUniqueId;
+    const targetHandleDataTypeUniqueId =
+      targetHandle?.dataType?.dataTypeUniqueId;
+    if (
+      sourceHandleDataTypeUniqueId !== standardDataTypeNamesMap.bindLoopNodes ||
+      targetHandleDataTypeUniqueId !== standardDataTypeNamesMap.bindLoopNodes
+    ) {
+      continue;
+    }
+    const loopStructure = getLoopStructureFromNode(state, sourceNode);
+    if (!loopStructure) {
+      continue;
+    }
+    if (
+      nodesToRemoveMap[loopStructure.loopStart.id] === undefined ||
+      nodesToRemoveMap[loopStructure.loopStop.id] === undefined ||
+      nodesToRemoveMap[loopStructure.loopEnd.id] === undefined
+    ) {
+      return {
+        validation: {
+          isValid: false,
+          reason:
+            'Cannot disconnect loop nodes bind edges once fully connected, to delete, select all connected loop nodes and delete them at once',
+        },
+      };
+    }
+  }
   return {
     validation: { isValid: true },
   };
@@ -1981,5 +2062,8 @@ export {
   addDuplicateHandlesToLoopNodesAfterInference,
   isLoopConnectionValid,
   isLoopNode,
-  canRemoveLoopNodes,
+  canRemoveLoopNodesAndEdges,
+  getLoopStructureFromNode,
+  getNodesInLoopRegion,
 };
+export type { LoopStructure };

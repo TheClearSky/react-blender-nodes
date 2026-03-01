@@ -46,8 +46,9 @@ const standardDataTypes = {
   }),
   [standardDataTypeNamesMap.condition]: makeDataTypeWithAutoInfer({
     name: 'Condition',
-    underlyingType: 'inferFromConnection',
+    underlyingType: 'boolean',
     color: '#cca6d6',
+    allowInput: true,
   }),
   [standardDataTypeNamesMap.bindLoopNodes]: makeDataTypeWithAutoInfer({
     name: 'Bind Loop Nodes',
@@ -160,6 +161,13 @@ const standardNodeTypes = {
   }),
 };
 
+const loopStartInputInferHandleIndex = 0;
+const loopStartOutputInferHandleIndex = 1;
+const loopStopInputInferHandleIndex = 2;
+const loopStopOutputInferHandleIndex = 1;
+const loopEndInputInferHandleIndex = 1;
+const loopEndOutputInferHandleIndex = 0;
+
 export {
   standardDataTypes,
   standardNodeTypes,
@@ -167,4 +175,10 @@ export {
   standardNodeTypeNames,
   standardDataTypeNamesMap,
   standardNodeTypeNamesMap,
+  loopStartInputInferHandleIndex,
+  loopStartOutputInferHandleIndex,
+  loopStopInputInferHandleIndex,
+  loopStopOutputInferHandleIndex,
+  loopEndInputInferHandleIndex,
+  loopEndOutputInferHandleIndex,
 };

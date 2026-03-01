@@ -43,7 +43,7 @@
     "build-storybook": "storybook build",
     "test": "vitest",
     "test:watch": "vitest --watch",
-    "checklist": "npm run prepare && npm run pretty && npm i && npm run build && npm run build-storybook",
+    "checklist": "npm i && npm run prepare && npm run pretty && npm run build && npm run build-storybook",
     "cl": "npm run checklist",
     "prepare": "husky"
   },

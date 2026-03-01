@@ -88,6 +88,24 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
         onCheckedChange={(newValue) => {
           if (newValue !== 'indeterminate') {
             input.onChange?.(newValue);
+            reactflowContext.setNodes((nodes) =>
+              nodes.map((currentNode) => {
+                if (currentNode.id === nodeId) {
+                  return {
+                    ...currentNode,
+                    data: updateHandleInNodeDataMatchingHandleId(
+                      currentNode.data,
+                      input.id,
+                      { value: newValue },
+                      true,
+                      false,
+                      false,
+                    ),
+                  };
+                }
+                return currentNode;
+              }),
+            );
           }
         }}
       />

@@ -601,6 +601,7 @@ const groupRecord = makeRecord(groupSteps);
 // ═══════════════════════════════════════════════════════
 
 const meta = {
+  title: 'Organisms/NodeRunnerPanel',
   component: NodeRunnerPanel,
   argTypes: {
     runnerState: {

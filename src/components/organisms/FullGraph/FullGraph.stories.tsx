@@ -16,6 +16,7 @@ import { constructNodeOfType } from '@/utils/nodeStateManagement/nodes/construct
 import type { InputHandleValue } from '@/utils/nodeRunner/types';
 
 const meta = {
+  title: 'Organisms/FullGraph',
   component: FullGraph,
 } satisfies Meta<typeof FullGraph>;
 

@@ -8,6 +8,7 @@ import { fn } from 'storybook/test';
 import { useArgs } from 'storybook/preview-api';
 
 const meta = {
+  title: 'Molecules/SliderNumberInput',
   component: SliderNumberInput,
   argTypes: {
     name: {

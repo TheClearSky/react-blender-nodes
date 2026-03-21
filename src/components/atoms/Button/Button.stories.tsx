@@ -5,6 +5,7 @@ import { Button, type ButtonProps } from './Button';
 import { cn } from '@/utils/cnHelper';
 
 const meta = {
+  title: 'Atoms/Button',
   component: Button,
   argTypes: {
     color: {

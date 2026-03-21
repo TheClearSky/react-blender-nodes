@@ -324,6 +324,7 @@ const longRecord = makeRecord(longSteps);
 // ─────────────────────────────────────────────────────
 
 const meta = {
+  title: 'Molecules/ExecutionTimeline',
   component: ExecutionTimeline,
   argTypes: {
     currentStepIndex: {

@@ -6,6 +6,7 @@ import { useArgs } from 'storybook/internal/preview-api';
 import { cn } from '@/utils/cnHelper';
 
 const meta = {
+  title: 'Atoms/Input',
   component: Input,
   argTypes: {},
   tags: ['autodocs'],

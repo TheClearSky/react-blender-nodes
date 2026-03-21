@@ -6,6 +6,7 @@ import { useArgs } from 'storybook/internal/preview-api';
 import type { CheckedState } from '@radix-ui/react-checkbox';
 
 const meta = {
+  title: 'Atoms/Checkbox',
   component: Checkbox,
   argTypes: {},
   tags: ['autodocs'],

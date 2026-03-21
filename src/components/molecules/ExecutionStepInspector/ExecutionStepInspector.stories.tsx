@@ -379,6 +379,7 @@ const deepComplexStep: ExecutionStepRecord = {
 // ─────────────────────────────────────────────────────
 
 const meta = {
+  title: 'Molecules/ExecutionStepInspector',
   component: ExecutionStepInspector,
   argTypes: {
     hideComplexValues: { control: 'boolean' },

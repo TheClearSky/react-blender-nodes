@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 const meta = {
+  title: 'Molecules/ContextMenu',
   component: ContextMenu,
   argTypes: {},
   decorators: [

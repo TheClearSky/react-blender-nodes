@@ -51,6 +51,67 @@ type CreateNodeContextMenuProps<
   currentNodeType?: NodeTypeUniqueId;
 };
 
+// ── Internal tree-building types ──
+
+type MenuTreeLeaf = {
+  kind: 'leaf';
+  item: ContextMenuItem;
+  priority: number;
+  insertionIndex: number;
+};
+
+type MenuTreeFolder = {
+  kind: 'folder';
+  label: string;
+  children: MenuTreeNode[];
+};
+
+type MenuTreeNode = MenuTreeLeaf | MenuTreeFolder;
+
+function getEffectivePriority(node: MenuTreeNode): number {
+  if (node.kind === 'leaf') return node.priority;
+  if (node.children.length === 0) return 0;
+  return Math.max(...node.children.map(getEffectivePriority));
+}
+
+function getMinInsertionIndex(node: MenuTreeNode): number {
+  if (node.kind === 'leaf') return node.insertionIndex;
+  if (node.children.length === 0) return Infinity;
+  return Math.min(...node.children.map(getMinInsertionIndex));
+}
+
+function sortTreeLevel(children: MenuTreeNode[]): void {
+  children.sort((a, b) => {
+    const priorityDiff = getEffectivePriority(b) - getEffectivePriority(a);
+    if (priorityDiff !== 0) return priorityDiff;
+    return getMinInsertionIndex(a) - getMinInsertionIndex(b);
+  });
+  for (const child of children) {
+    if (child.kind === 'folder') {
+      sortTreeLevel(child.children);
+    }
+  }
+}
+
+function treeToMenuItems(children: MenuTreeNode[]): ContextMenuItem[] {
+  const items: ContextMenuItem[] = [];
+  for (const child of children) {
+    if (child.kind === 'leaf') {
+      items.push(child.item);
+    } else {
+      const subItems = treeToMenuItems(child.children);
+      if (subItems.length > 0) {
+        items.push({
+          id: `folder-${child.label}`,
+          label: child.label,
+          subItems,
+        });
+      }
+    }
+  }
+  return items;
+}
+
 /**
  * Creates a context menu tree for adding nodes
  * @param typeOfNodes - The available node types
@@ -79,7 +140,6 @@ function createNodeContextMenu<
   UnderlyingType,
   ComplexSchemaType
 >): ContextMenuItem[] {
-  // Get all node type names and create menu items, also preserve the type of the keys
   const nodeTypeKeys = Object.keys(typeOfNodes) as Array<
     keyof typeof typeOfNodes
   >;
@@ -88,6 +148,7 @@ function createNodeContextMenu<
     return [];
   }
 
+  // Apply recursion filtering
   function filterNodeTypeKeys(
     nodeTypeKeys: Array<NodeTypeUniqueId>,
     isRecursionAllowed: boolean,
@@ -114,25 +175,61 @@ function createNodeContextMenu<
     isRecursionAllowed,
   );
 
-  const nodeSubItems: ContextMenuItem[] = filteredNodeTypeKeys.map(
-    (nodeTypeId) => ({
-      id: `add-${nodeTypeId}`,
-      label: typeOfNodes[nodeTypeId].name,
-      onClick: () => {
-        // Dispatch the ADD_NODE action
-        dispatch({
-          type: actionTypesMap.ADD_NODE_AND_SELECT,
-          payload: {
-            type: nodeTypeId,
-            position: contextMenuPosition,
-          },
-        });
+  // Build tree from location paths
+  const root: MenuTreeNode[] = [];
 
-        // Close the context menu
-        setContextMenu({ isOpen: false, position: { x: 0, y: 0 } });
+  for (let i = 0; i < filteredNodeTypeKeys.length; i++) {
+    const nodeTypeId = filteredNodeTypeKeys[i];
+    const nodeType = typeOfNodes[nodeTypeId];
+    const location = nodeType.locationInContextMenu ?? [];
+    const priority = nodeType.priorityInContextMenu ?? 0;
+
+    const leaf: MenuTreeLeaf = {
+      kind: 'leaf',
+      item: {
+        id: `add-${String(nodeTypeId)}`,
+        label: nodeType.name,
+        onClick: () => {
+          dispatch({
+            type: actionTypesMap.ADD_NODE_AND_SELECT,
+            payload: {
+              type: nodeTypeId,
+              position: contextMenuPosition,
+            },
+          });
+          setContextMenu({ isOpen: false, position: { x: 0, y: 0 } });
+        },
       },
-    }),
-  );
+      priority,
+      insertionIndex: i,
+    };
+
+    if (location.length === 0) {
+      // Root level
+      root.push(leaf);
+    } else {
+      // Walk the path, creating folders as needed
+      let currentLevel = root;
+      for (const segment of location) {
+        let folder = currentLevel.find(
+          (n): n is MenuTreeFolder =>
+            n.kind === 'folder' && n.label === segment,
+        );
+        if (!folder) {
+          folder = { kind: 'folder', label: segment, children: [] };
+          currentLevel.push(folder);
+        }
+        currentLevel = folder.children;
+      }
+      currentLevel.push(leaf);
+    }
+  }
+
+  // Sort all levels by priority (descending), stable with insertion index
+  sortTreeLevel(root);
+
+  // Convert tree to ContextMenuItem[]
+  const nodeSubItems = treeToMenuItems(root);
 
   return [
     {

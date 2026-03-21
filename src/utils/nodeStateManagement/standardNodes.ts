@@ -3,6 +3,16 @@ import {
   makeTypeOfNodeWithAutoInfer,
 } from './types';
 
+const standardNodeContextMenu = {
+  locationInContextMenu: ['Standard Nodes'] as string[],
+  priorityInContextMenu: 200,
+} as const;
+
+const groupNodeContextMenu = {
+  locationInContextMenu: ['Group Nodes'] as string[],
+  priorityInContextMenu: 100,
+} as const;
+
 const standardDataTypeNames = [
   'groupInfer',
   'loopInfer',
@@ -60,10 +70,12 @@ const standardDataTypes = {
 
 const standardNodeTypes = {
   [standardNodeTypeNamesMap.groupInput]: makeTypeOfNodeWithAutoInfer<
-    keyof typeof standardDataTypes
+    keyof typeof standardDataTypes,
+    typeof standardNodeTypeNamesMap.groupInput
   >({
     name: 'Group Input',
     headerColor: '#1d1d1d',
+    ...standardNodeContextMenu,
     inputs: [],
     outputs: [
       {
@@ -73,10 +85,12 @@ const standardNodeTypes = {
     ],
   }),
   [standardNodeTypeNamesMap.groupOutput]: makeTypeOfNodeWithAutoInfer<
-    keyof typeof standardDataTypes
+    keyof typeof standardDataTypes,
+    typeof standardNodeTypeNamesMap.groupOutput
   >({
     name: 'Group Output',
     headerColor: '#1d1d1d',
+    ...standardNodeContextMenu,
     inputs: [
       {
         name: '',
@@ -86,10 +100,12 @@ const standardNodeTypes = {
     outputs: [],
   }),
   [standardNodeTypeNamesMap.loopStart]: makeTypeOfNodeWithAutoInfer<
-    keyof typeof standardDataTypes
+    keyof typeof standardDataTypes,
+    typeof standardNodeTypeNamesMap.loopStart
   >({
     name: 'Loop Start',
     headerColor: '#1d1d1d',
+    ...standardNodeContextMenu,
     inputs: [
       {
         name: '',
@@ -108,10 +124,12 @@ const standardNodeTypes = {
     ],
   }),
   [standardNodeTypeNamesMap.loopStop]: makeTypeOfNodeWithAutoInfer<
-    keyof typeof standardDataTypes
+    keyof typeof standardDataTypes,
+    typeof standardNodeTypeNamesMap.loopStop
   >({
     name: 'Loop Stop',
     headerColor: '#1d1d1d',
+    ...standardNodeContextMenu,
     inputs: [
       {
         name: 'Bind Loop Nodes',
@@ -138,10 +156,12 @@ const standardNodeTypes = {
     ],
   }),
   [standardNodeTypeNamesMap.loopEnd]: makeTypeOfNodeWithAutoInfer<
-    keyof typeof standardDataTypes
+    keyof typeof standardDataTypes,
+    typeof standardNodeTypeNamesMap.loopEnd
   >({
     name: 'Loop End',
     headerColor: '#1d1d1d',
+    ...standardNodeContextMenu,
     inputs: [
       {
         name: 'Bind Loop Nodes',
@@ -169,6 +189,8 @@ const loopEndInputInferHandleIndex = 1;
 const loopEndOutputInferHandleIndex = 0;
 
 export {
+  standardNodeContextMenu,
+  groupNodeContextMenu,
   standardDataTypes,
   standardNodeTypes,
   standardDataTypeNames,

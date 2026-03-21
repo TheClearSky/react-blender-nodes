@@ -15,6 +15,8 @@ import { ContextAwareInput } from './SupportingSubcomponents/ContextAwareInput';
 import { ContextAwareOpenButton } from './SupportingSubcomponents/ContextAwareOpenButton';
 import { z } from 'zod';
 import { FullGraphContext } from '../FullGraph/FullGraphState';
+import type { NodeVisualState, GraphError } from '@/utils/nodeRunner/types';
+import { NodeStatusIndicator } from '@/components/atoms/NodeStatusIndicator/NodeStatusIndicator';
 
 /**
  * Configuration for a node input
@@ -210,6 +212,12 @@ type ConfigurableNodeProps<
    * @default false
    */
   showNodeOpenButton?: boolean;
+  /** Runner visual state for this node (undefined = no runner overlay) */
+  runnerVisualState?: NodeVisualState;
+  /** Errors from the runner for this node */
+  runnerErrors?: ReadonlyArray<GraphError>;
+  /** Warnings from the runner for this node (e.g., missing implementation) */
+  runnerWarnings?: ReadonlyArray<string>;
 } & HTMLAttributes<HTMLDivElement>;
 
 type RenderInputProps<
@@ -471,6 +479,9 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       nodeResizerProps = {},
       nodeTypeUniqueId,
       showNodeOpenButton = false,
+      runnerVisualState,
+      runnerErrors,
+      runnerWarnings,
       ...props
     },
     ref,
@@ -492,7 +503,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
         return newSet;
       });
     };
-    return (
+    const nodeContent = (
       <div
         tabIndex={0}
         className={cn(
@@ -562,6 +573,21 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
         </div>
       </div>
     );
+
+    // Wrap with status indicator when runner state is present
+    if (runnerVisualState !== undefined) {
+      return (
+        <NodeStatusIndicator
+          visualState={runnerVisualState}
+          errors={runnerErrors}
+          warnings={runnerWarnings}
+        >
+          {nodeContent}
+        </NodeStatusIndicator>
+      );
+    }
+
+    return nodeContent;
   },
 );
 

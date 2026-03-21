@@ -1,7 +1,11 @@
-# React Blender Nodes
-
-A React component library inspired by Blender's node editor interface, providing
-a flexible and customizable node-based graph editor for web applications.
+<p align="center">
+  <img src="./docs/logo.svg" alt="react-blender-nodes logo" width="80" />
+</p>
+<h1 align="center">react-blender-nodes</h1>
+<p align="center">
+  A React component library inspired by Blender's node editor interface, providing<br/>
+  a flexible and customizable node-based graph editor for web applications.
+</p>
 
 ![React Blender Nodes Banner](./docs/screenshots/banner.png)
 
@@ -363,6 +367,25 @@ Visit `http://localhost:6006` to see:
 - Interactive controls
 - Usage examples
 - Handle shape demonstrations
+
+### Architecture & Internal Documentation
+
+For contributors and developers building on the library internals, a full
+documentation index is available at [`docs/index.md`](./docs/index.md). It
+includes an ASCII architecture diagram, cross-feature dependency maps, and a
+**"What to Read Based on What You're Building"** guide:
+
+| Task                         | Key Docs                                                                    |
+| ---------------------------- | --------------------------------------------------------------------------- |
+| Adding a new data type       | `dataTypesDoc`, `handlesDoc`, `typeInferenceDoc`, `connectionValidationDoc` |
+| Adding a new node type       | `nodesDoc`, `handlesDoc`, `configurableNodeDoc`, `stateManagementDoc`       |
+| Making nodes executable      | `runnerCompilerDoc`, `runnerExecutorDoc`, `runnerHookDoc`                   |
+| Building node groups / loops | `nodeGroupsDoc`, `loopsDoc`, `connectionValidationDoc`                      |
+| Modifying graph editor UI    | `fullGraphDoc`, `configurableNodeDoc`, `contextMenuDoc`                     |
+| Working with state/reducer   | `stateManagementDoc`, `immerDoc`, `edgesDoc`                                |
+
+See the [full index](./docs/index.md) for all 32 feature docs with relative
+links organized by tier.
 
 ### Component API
 

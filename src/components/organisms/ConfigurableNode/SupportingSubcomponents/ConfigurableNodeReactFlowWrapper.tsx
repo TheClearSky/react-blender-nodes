@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useContext } from 'react';
 import { type NodeProps, type Node, type XYPosition } from '@xyflow/react';
 import {
   type ConfigurableNodeProps,
@@ -6,6 +6,7 @@ import {
 } from './../ConfigurableNode';
 import type { SupportedUnderlyingTypes } from '@/utils';
 import { z } from 'zod';
+import { FullGraphContext } from '../../FullGraph/FullGraphState';
 
 /** State type for configurable nodes in ReactFlow */
 type ConfigurableNodeState<
@@ -94,12 +95,18 @@ const ConfigurableNodeReactFlowWrapper = forwardRef<
   HTMLDivElement,
   Omit<ConfigurableNodeReactFlowWrapperProps, 'position'>
 >(({ data = {}, id }, ref) => {
+  const fullGraphContext = useContext(FullGraphContext);
+  const nodeRunnerState = fullGraphContext?.nodeRunnerStates?.get(id);
+
   return (
     <ConfigurableNode
       isCurrentlyInsideReactFlow={true}
       id={id}
       className='w-full'
       {...data}
+      runnerVisualState={nodeRunnerState?.visualState}
+      runnerErrors={nodeRunnerState?.errors}
+      runnerWarnings={nodeRunnerState?.warnings}
       ref={ref}
     />
   );

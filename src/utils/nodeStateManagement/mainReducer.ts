@@ -20,7 +20,10 @@ import {
   type Viewport,
 } from '@xyflow/react';
 import type { EdgeChanges, NodeChanges } from '@/components';
-import { standardNodeTypeNamesMap } from './standardNodes';
+import {
+  standardNodeTypeNamesMap,
+  groupNodeContextMenu,
+} from './standardNodes';
 
 /** Length of generated random IDs for nodes */
 const lengthOfIds = 20;
@@ -37,6 +40,7 @@ const actionTypes = [
   'CLOSE_NODE_GROUP',
   'ADD_NODE_GROUP',
   'SET_VIEWPORT',
+  'REPLACE_STATE',
 ] as const;
 
 /** Map of action types for type-safe action dispatching */
@@ -51,6 +55,7 @@ const actionTypesMap = {
   [actionTypes[7]]: actionTypes[7],
   [actionTypes[8]]: actionTypes[8],
   [actionTypes[9]]: actionTypes[9],
+  [actionTypes[10]]: actionTypes[10],
 } as const;
 
 /**
@@ -159,6 +164,19 @@ type Action<
       payload: {
         /** Current viewport of the graph */
         viewport: Viewport;
+      };
+    }
+  | {
+      /** Replace the entire graph state (used by import) */
+      type: typeof actionTypesMap.REPLACE_STATE;
+      payload: {
+        /** The new state to replace the current state with */
+        state: State<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >;
       };
     };
 
@@ -503,6 +521,7 @@ function mainReducer<
           const nodeGroup: (typeof newState.typeOfNodes)[NodeTypeUniqueId] = {
             name: 'Node Group ' + (numberOfNodeGroups + 1).toString(),
             headerColor: '#344621',
+            ...groupNodeContextMenu,
             inputs: [],
             outputs: [],
             subtree: {
@@ -527,6 +546,8 @@ function mainReducer<
         case actionTypesMap.SET_VIEWPORT:
           newState.viewport = action.payload.viewport;
           break;
+        case actionTypesMap.REPLACE_STATE:
+          return action.payload.state;
       }
     },
   );

@@ -6,9 +6,22 @@ import {
   type SupportedUnderlyingTypes,
 } from '@/utils';
 import type z from 'zod';
+import type { NodeVisualState, GraphError } from '@/utils/nodeRunner/types';
+
+/**
+ * Per-node runner state provided via context so the ReactFlow wrapper
+ * can apply visual indicators without prop drilling.
+ */
+type NodeRunnerState = {
+  visualState: NodeVisualState;
+  errors?: ReadonlyArray<GraphError>;
+  warnings?: ReadonlyArray<string>;
+};
 
 const FullGraphContext = createContext<{
   allProps: FullGraphProps;
+  /** Optional map of nodeId -> runner visual state. Provided by useNodeRunner. */
+  nodeRunnerStates?: ReadonlyMap<string, NodeRunnerState>;
 }>(null!); //the not-null assertion (null!) is because-
 // we are creating a context that is always provided (right below)
 
@@ -108,4 +121,31 @@ function useFullGraph<
   return { state, dispatch };
 }
 
-export { FullGraphContext, useFullGraph };
+/**
+ * Create a type-safe context value from concrete generic params.
+ *
+ * This is the single centralized point where generic variance on dispatch
+ * is bridged. React's createContext doesn't support generic type parameters,
+ * so providing a concrete FullGraphProps<'andGate', ...> to a context typed
+ * as FullGraphProps<string, ...> requires a variance bridge.
+ *
+ * Safety justification: context consumers dispatch actions using
+ * actionTypesMap constants which produce valid payloads regardless of
+ * the concrete generic params. The contravariance on dispatch is safe
+ * because all consumer dispatches originate from user interactions
+ * (right-click menu, group selector) that use the correct node type IDs.
+ */
+function createContextValue(
+  props: { state: unknown; dispatch: unknown },
+  nodeRunnerStates?: ReadonlyMap<string, NodeRunnerState>,
+): React.ContextType<typeof FullGraphContext> {
+  // The caller passes concrete State<D,N,U,C> + dispatch; we erase the
+  // generics to match the context's default-param FullGraphProps type.
+  // This is safe per the justification above.
+  const allProps = props as unknown as FullGraphProps;
+  return { allProps, nodeRunnerStates };
+}
+
+export { FullGraphContext, useFullGraph, createContextValue };
+
+export type { NodeRunnerState };

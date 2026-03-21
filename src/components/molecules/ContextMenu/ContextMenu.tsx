@@ -1,16 +1,8 @@
 import { cn } from '@/utils';
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { ChevronRightIcon } from 'lucide-react';
-import {
-  useFloating,
-  autoUpdate,
-  offset,
-  flip,
-  shift,
-  useHover,
-  useInteractions,
-  safePolygon,
-} from '@floating-ui/react';
+import { FloatingPortal } from '@floating-ui/react';
+import { useSubmenuManager } from './useSubmenuManager';
 
 /**
  * Configuration for a context menu item
@@ -47,96 +39,26 @@ type ContextMenuProps = {
   onItemClick?: (item: ContextMenuItem) => void;
 };
 
-const ContextMenuSubmenu = ({
-  subItems,
-  onItemClick,
-  className,
-}: {
-  subItems: ContextMenuItem[];
-  onItemClick?: (item: ContextMenuItem) => void;
-  className?: string;
-}) => {
-  const [, setHoveredItemId] = useState<string | null>(null);
-
-  const handleItemClick = (item: ContextMenuItem) => {
-    if (item.onClick) {
-      item.onClick();
-    }
-    if (onItemClick) {
-      onItemClick(item);
-    }
-  };
-
-  return (
-    <ul
-      className={cn(
-        'min-w-48 bg-[#181818] border border-none rounded-md shadow-lg py-1',
-        className,
-      )}
-    >
-      {subItems.map((item, index) => (
-        <ContextMenuItemComponent
-          key={item.id}
-          item={item}
-          index={index}
-          onItemClick={handleItemClick}
-          onItemClickCallback={onItemClick}
-          setHoveredItemId={setHoveredItemId}
-        />
-      ))}
-    </ul>
-  );
-};
-
 /**
- * Individual context menu item component with floating UI submenu support
+ * Simple menu item row — no floating UI, no submenu rendering.
+ * Reports hover to the parent ContextMenuSubmenu which owns the shared submenu.
  */
 const ContextMenuItemComponent = ({
   item,
   index,
   onItemClick,
-  onItemClickCallback,
-  setHoveredItemId,
+  onHover,
+  itemRef,
+  itemTransitionStyle,
 }: {
   item: ContextMenuItem;
   index: number;
   onItemClick: (item: ContextMenuItem) => void;
-  onItemClickCallback?: (item: ContextMenuItem) => void;
-  setHoveredItemId: (id: string | null) => void;
+  onHover: (itemId: string | null) => void;
+  itemRef: (el: HTMLDivElement | null) => void;
+  itemTransitionStyle?: React.CSSProperties;
 }) => {
-  const [isSubmenuOpen, setIsSubmenuOpen] = useState(false);
-
-  // Floating UI setup for submenu
-  const { refs, floatingStyles, context } = useFloating({
-    open: isSubmenuOpen,
-    onOpenChange: setIsSubmenuOpen,
-    placement: 'right-start',
-    middleware: [
-      offset(5),
-      flip({ fallbackPlacements: ['left-start'] }),
-      shift({ padding: 8 }),
-    ],
-    whileElementsMounted: autoUpdate,
-  });
-
-  // Hover interactions with safePolygon to keep submenu open during transitions
-  const hover = useHover(context, {
-    handleClose: safePolygon(),
-    delay: { open: 75, close: 75 },
-  });
-
-  const { getReferenceProps, getFloatingProps } = useInteractions([hover]);
-
-  const handleMouseEnter = () => {
-    setHoveredItemId(item.id);
-    if (item.subItems && item.subItems.length > 0) {
-      setIsSubmenuOpen(true);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    // Don't immediately close - let floating UI handle it with safePolygon
-  };
+  const hasSubItems = item.subItems && item.subItems.length > 0;
 
   return (
     <li className='relative'>
@@ -144,15 +66,14 @@ const ContextMenuItemComponent = ({
         <div className='border-t border-gray-600 m-0' />
       )}
       <div
-        ref={refs.setReference}
+        ref={itemRef}
         className={cn(
           'flex items-center justify-between gap-2 px-3 py-1.25 hover:bg-[#3F3F3F] cursor-pointer',
           'transition-colors duration-150',
         )}
+        style={itemTransitionStyle}
         onClick={() => onItemClick(item)}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        {...getReferenceProps()}
+        onMouseEnter={() => onHover(hasSubItems ? item.id : null)}
       >
         <div className='flex items-center gap-2'>
           {item.icon && (
@@ -170,33 +91,182 @@ const ContextMenuItemComponent = ({
               {item.shortcut}
             </span>
           )}
-          {item.subItems && item.subItems.length > 0 && (
+          {hasSubItems && (
             <ChevronRightIcon className='w-3 h-3 text-gray-400' />
           )}
         </div>
       </div>
-
-      {/* Floating UI Submenu */}
-      {item.subItems && item.subItems.length > 0 && isSubmenuOpen && (
-        <div
-          ref={refs.setFloating}
-          style={{
-            ...floatingStyles,
-            // Prevent scrollbar during positioning
-            contain: 'layout',
-            willChange: 'transform',
-          }}
-          className='z-50'
-          {...getFloatingProps()}
-        >
-          <ContextMenuSubmenu
-            subItems={item.subItems}
-            onItemClick={onItemClickCallback}
-            className='ml-1'
-          />
-        </div>
-      )}
     </li>
+  );
+};
+
+/**
+ * Renders a list of menu items + manages a single shared floating submenu
+ * for whichever item is currently hovered.
+ *
+ * @param bare - When true, the <ul> has no visual styling (bg/shadow/rounded).
+ *   Used when rendered inside the floating panel which already provides styling.
+ */
+const ContextMenuSubmenu = ({
+  subItems,
+  onItemClick,
+  className,
+  bare = false,
+  itemTransitionStyle,
+}: {
+  subItems: ContextMenuItem[];
+  onItemClick?: (item: ContextMenuItem) => void;
+  className?: string;
+  bare?: boolean;
+  itemTransitionStyle?: React.CSSProperties;
+}) => {
+  const {
+    activeSubItems,
+    prevSubItems,
+    exitSubItems,
+    crossfadePhase,
+    isSwitching,
+    isOpen,
+    panelSizeStyles,
+    incomingRef,
+    floatingRefs,
+    floatingStyles,
+    placement,
+    handleItemClick,
+    handleHover,
+    handleFloatingMouseEnter,
+    handleFloatingMouseLeave,
+    handleListMouseLeave,
+    makeItemRef,
+    SUBMENU_DURATION_MS,
+    CONTENT_FADE_DURATION_MS,
+  } = useSubmenuManager(subItems, onItemClick);
+
+  const hasAnySubItems = subItems.some(
+    (item) => item.subItems && item.subItems.length > 0,
+  );
+
+  return (
+    <>
+      <ul
+        className={cn(
+          'min-w-48 py-1',
+          !bare && 'bg-[#181818] border border-none rounded-md shadow-lg',
+          className,
+        )}
+        onMouseLeave={handleListMouseLeave}
+      >
+        {subItems.map((item, index) => (
+          <ContextMenuItemComponent
+            key={item.id}
+            item={item}
+            index={index}
+            onItemClick={handleItemClick}
+            onHover={handleHover}
+            itemRef={makeItemRef(item.id)}
+            itemTransitionStyle={itemTransitionStyle}
+          />
+        ))}
+      </ul>
+
+      {/* Shared floating submenu — portaled to body so it escapes overflow:hidden */}
+      {hasAnySubItems && (
+        <FloatingPortal>
+          <div
+            ref={floatingRefs.setFloating}
+            style={{
+              ...floatingStyles,
+              transitionProperty: isSwitching
+                ? 'opacity, transform, translate'
+                : 'opacity, translate',
+              transitionDuration: `${SUBMENU_DURATION_MS}ms`,
+              transitionTimingFunction: 'ease-out',
+            }}
+            className={cn(
+              'z-50',
+              isOpen
+                ? 'opacity-100 translate-x-0'
+                : cn(
+                    'opacity-0 pointer-events-none',
+                    placement.startsWith('right')
+                      ? '-translate-x-[20px]'
+                      : 'translate-x-[20px]',
+                  ),
+            )}
+            onMouseEnter={handleFloatingMouseEnter}
+            onMouseLeave={handleFloatingMouseLeave}
+          >
+            {/* Visual panel — has bg, rounded corners, shadow, animated size + overflow clip */}
+            <div
+              className='bg-[#181818] rounded-md shadow-lg ml-1'
+              style={{
+                ...panelSizeStyles,
+                transitionProperty: 'opacity, translate, width, height',
+                transitionDuration: `${SUBMENU_DURATION_MS}ms`,
+                transitionTimingFunction: 'ease-out',
+              }}
+            >
+              {/* Crossfade wrapper */}
+              <div className='relative'>
+                {/* Outgoing layer (fading out via per-item opacity) */}
+                {crossfadePhase !== null && prevSubItems && (
+                  <div
+                    className='absolute inset-0'
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    <ContextMenuSubmenu
+                      subItems={prevSubItems}
+                      onItemClick={onItemClick}
+                      bare
+                      itemTransitionStyle={
+                        crossfadePhase === 'initial'
+                          ? { opacity: 1, transform: 'translateX(0)' }
+                          : {
+                              opacity: 0,
+                              transform: 'translateX(10%)',
+                              transition: `opacity ${CONTENT_FADE_DURATION_MS}ms ease-out, transform ${CONTENT_FADE_DURATION_MS}ms ease-out`,
+                            }
+                      }
+                    />
+                  </div>
+                )}
+
+                {/* Incoming layer (fading in via per-item opacity, provides size) */}
+                {activeSubItems && (
+                  <div ref={incomingRef}>
+                    <ContextMenuSubmenu
+                      subItems={activeSubItems}
+                      onItemClick={onItemClick}
+                      bare
+                      itemTransitionStyle={
+                        crossfadePhase === 'initial'
+                          ? { opacity: 0, transform: 'translateX(-10%)' }
+                          : crossfadePhase === 'animating'
+                            ? {
+                                opacity: 1,
+                                transform: 'translateX(0)',
+                                transition: `opacity ${CONTENT_FADE_DURATION_MS}ms ease-out, transform ${CONTENT_FADE_DURATION_MS}ms ease-out`,
+                              }
+                            : undefined
+                      }
+                    />
+                  </div>
+                )}
+
+                {/* Exit layer — keeps last content visible during slide-out */}
+                {!activeSubItems && exitSubItems && (
+                  <ContextMenuSubmenu
+                    subItems={exitSubItems}
+                    onItemClick={onItemClick}
+                    bare
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </FloatingPortal>
+      )}
+    </>
   );
 };
 

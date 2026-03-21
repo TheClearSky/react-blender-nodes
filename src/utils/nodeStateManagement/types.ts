@@ -205,6 +205,11 @@ type TypeOfNode<
   )[];
   /** Array of outputs */
   outputs: TypeOfInput<DataTypeUniqueId>[];
+  /** Path in the "Add Node" context menu. e.g. ["Math", "Trig"] nests under Math > Trig.
+   * Omit to place at root level of "Add Node". */
+  locationInContextMenu?: string[];
+  /** Ordering priority in the context menu. Higher values appear first. Default: 0. */
+  priorityInContextMenu?: number;
   /** Subtree of the node type (if this exists, this is a node group) */
   subtree?: {
     nodes: State<

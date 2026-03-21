@@ -3,6 +3,7 @@ import { ScrollableButtonContainer } from './ScrollableButtonContainer';
 import { cn } from '@/utils/cnHelper';
 
 const meta = {
+  title: 'Atoms/ScrollableButtonContainer',
   component: ScrollableButtonContainer,
   args: {
     orientation: 'horizontal',

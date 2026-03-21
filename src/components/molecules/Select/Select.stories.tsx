@@ -14,6 +14,7 @@ import {
 import { cn } from '@/utils/cnHelper';
 
 const meta = {
+  title: 'Molecules/Select',
   component: Select,
   argTypes: {
     onValueChange: {

@@ -9,6 +9,7 @@ import type { NodeVisualState, GraphError } from '@/utils/nodeRunner/types';
 import { nodeVisualStates } from '@/utils/nodeRunner/types';
 
 const meta = {
+  title: 'Atoms/NodeStatusIndicator',
   component: NodeStatusIndicator,
   argTypes: {
     visualState: {

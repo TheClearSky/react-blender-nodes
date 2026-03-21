@@ -11,6 +11,7 @@ import type { RunnerState } from '@/utils/nodeRunner/types';
 import { runnerStates } from '@/utils/nodeRunner/types';
 
 const meta = {
+  title: 'Molecules/RunControls',
   component: RunControls,
   argTypes: {
     runnerState: {

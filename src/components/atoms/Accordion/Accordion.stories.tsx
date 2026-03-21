@@ -8,7 +8,7 @@ import {
 } from './Accordion';
 
 const meta = {
-  component: Accordion,
+  title: 'Atoms/Accordion',
   tags: ['autodocs'],
   decorators: [
     (Story) => (
@@ -17,11 +17,11 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof Accordion>;
+} satisfies Meta;
 
 export default meta;
 
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj;
 
 export const Single: Story = {
   render: () => (

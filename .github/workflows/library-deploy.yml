@@ -16,12 +16,12 @@ jobs:
 
     steps:
       - name: Checkout to repo in current branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20.x'
+          node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install Dependencies
@@ -42,10 +42,10 @@ jobs:
       contents: read
     steps:
       - name: Checkout to repo in current branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'

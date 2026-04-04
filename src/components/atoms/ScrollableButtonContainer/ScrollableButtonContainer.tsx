@@ -1,4 +1,4 @@
-import { Button } from '@/components/atoms';
+import { Button } from '@/components/atoms/Button';
 import { cn } from '@/utils/cnHelper';
 import {
   ChevronDown,

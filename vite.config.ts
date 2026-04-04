@@ -49,7 +49,7 @@ export default defineConfig({
         },
       },
     },
-    sourcemap: true,
+    sourcemap: false,
     emptyOutDir: true,
   },
   test: {

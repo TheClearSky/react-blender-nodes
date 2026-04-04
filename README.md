@@ -190,6 +190,63 @@ https://github.com/user-attachments/assets/72d9384a-e9ca-4223-906a-dc422fb66f49
 - **State Management**: Integrated reducer for managing graph state
 - **TypeScript Support**: Full type safety with comprehensive definitions
 
+### 🚀 Node Runner — Execute Your Graphs
+
+![Runner Panel with Timeline](./docs/screenshots/runner-fully-executed.png)
+
+Turn your node graphs into executable programs. The built-in runner compiles
+your graph into an execution plan and runs it — with full debugging support.
+
+- **Two execution modes**:
+  - **Instant**: Runs the entire graph at once, then replay via the timeline
+  - **Step-by-step**: Pause after each node, manually advance with step/resume
+- **Execution timeline**: Multi-track timeline visualization showing each node's
+  execution as a block, grouped by concurrency level
+  - Scrubber with drag-to-seek and snap-to-step
+  - Zoom, pan, and auto-fit controls
+  - Wall-clock and execution-time display modes (strips out pause/debug
+    overhead)
+  - Auto-scroll follows the current step during live execution
+- **Step inspector**: Click any timeline block to inspect a step's input values,
+  output values, timing, errors, and loop/group context
+- **Visual node states**: Nodes on the canvas highlight in real time as idle,
+  running, completed, skipped, or errored
+
+![Step-by-step Debugging](./docs/screenshots/runner-debugging-node-highlighted.png)
+
+- **Loop support**: Define iterative computation with loop-start/stop/end node
+  triplets — the runner compiles loop bodies into `LoopExecutionBlock`s with
+  per-iteration recording and configurable max-iteration limits
+- **Node groups**: Compose subgraphs into reusable group nodes — the compiler
+  recursively resolves group subtrees into `GroupExecutionScope`s
+- **Execution recording**: Every run produces a full `ExecutionRecord` with
+  per-step timing, input/output snapshots, and loop iteration details — export
+  and import recordings as JSON for sharing and offline analysis
+
+![Loop Execution Timeline](./docs/screenshots/execution-timeline-loop-iterations.png)
+
+### Usage
+
+```tsx
+import { FullGraph, useFullGraph } from 'react-blender-nodes';
+import { makeFunctionImplementationsWithAutoInfer } from 'react-blender-nodes';
+
+// Define what each node type does when executed
+const functionImplementations = makeFunctionImplementationsWithAutoInfer({
+  myNodeType: async ({ inputs }) => {
+    // Process inputs and return outputs
+    return { outputHandle: inputs.inputHandle * 2 };
+  },
+});
+
+// Pass implementations to FullGraph to enable the runner
+<FullGraph
+  state={state}
+  dispatch={dispatch}
+  functionImplementations={functionImplementations}
+/>;
+```
+
 ## Usage Examples
 
 ### Smart Type System with Validation

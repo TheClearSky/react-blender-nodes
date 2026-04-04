@@ -104,7 +104,7 @@ top grip edge). The inspector has its own independent slide animation
 |  |  +----------------------------------------------------------+| |
 |  |  | RunControls (molecule - top bar)                          || |
 |  |  | [> Run] [|| Pause] [>> Step] [[] Stop] [<< Reset]        || |
-|  |  | Mode: [Instant | Step-by-Step]  |  Max loops: [10000]     || |
+|  |  | Mode: [Instant | Step-by-Step]  |  Max loops: [100]     || |
 |  |  +----------------------------------------------------------+| |
 |  |                                                               | |
 |  |  +------------------------------------+  +------------------+| |

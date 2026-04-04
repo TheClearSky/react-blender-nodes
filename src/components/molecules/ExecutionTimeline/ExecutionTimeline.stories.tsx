@@ -6,6 +6,7 @@ import {
   ExecutionTimeline,
   type ExecutionTimelineProps,
 } from './ExecutionTimeline';
+import { RecordingViewStateProvider } from '@/components/organisms/FullGraph/RecordingViewStateContext';
 import type {
   ExecutionRecord,
   ExecutionStepRecord,
@@ -46,6 +47,7 @@ function makeRecord(
     startTime: 0,
     endTime,
     totalDuration: endTime,
+    compilationDuration: 0,
     totalPauseDuration: 0,
     status: 'completed',
     steps,
@@ -340,6 +342,13 @@ const meta = {
     onScrubTo: fn(),
     onStepClick: fn(),
   },
+  decorators: [
+    (Story) => (
+      <RecordingViewStateProvider>
+        <Story />
+      </RecordingViewStateProvider>
+    ),
+  ],
   tags: ['autodocs'],
 } satisfies Meta<ExecutionTimelineProps>;
 

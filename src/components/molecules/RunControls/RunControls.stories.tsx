@@ -29,7 +29,7 @@ const meta = {
   args: {
     runnerState: 'idle',
     mode: 'instant',
-    maxLoopIterations: 10000,
+    maxLoopIterations: 100,
     onRun: fn(),
     onPause: fn(),
     onStep: fn(),
@@ -123,7 +123,7 @@ export const AllStatesComparison: Story = {
             <RunControls
               runnerState={state}
               mode='instant'
-              maxLoopIterations={10000}
+              maxLoopIterations={100}
               onRun={fn()}
               onPause={fn()}
               onStep={fn()}
@@ -148,7 +148,7 @@ export const InteractiveLifecycle: Story = {
   render: () => {
     const [runnerState, setRunnerState] = useState<RunnerState>('idle');
     const [mode, setMode] = useState<RunMode>('instant');
-    const [maxIterations, setMaxIterations] = useState(10000);
+    const [maxIterations, setMaxIterations] = useState(100);
     const [log, setLog] = useState<string[]>([]);
 
     function addLog(action: string) {

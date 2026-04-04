@@ -462,10 +462,12 @@ function getNodesInLoopRegion<
           ? getOutgoers(currentNode, state.nodes, state.edges)
           : [];
       for (const outgoer of outgoers) {
-        // Check if outgoer is a loop node (other than our boundaries) - if so, it's a boundary
-        const outgoerType = outgoer.data.nodeTypeUniqueId;
-        if (outgoerType && isLoopNode(outgoerType)) {
-          // This is another loop node, it's a boundary - don't traverse
+        // Skip our own loop boundary nodes (already handled)
+        if (
+          outgoer.id === loopStructure.loopStart.id ||
+          outgoer.id === loopStructure.loopStop.id ||
+          outgoer.id === loopStructure.loopEnd.id
+        ) {
           continue;
         }
         if (!visited.has(outgoer.id)) {
@@ -479,10 +481,12 @@ function getNodesInLoopRegion<
           ? getIncomers(currentNode, state.nodes, state.edges)
           : [];
       for (const incomer of incomers) {
-        // Check if incomer is a loop node (other than our boundaries) - if so, it's a boundary
-        const incomerType = incomer.data.nodeTypeUniqueId;
-        if (incomerType && isLoopNode(incomerType)) {
-          // This is another loop node, it's a boundary - don't traverse
+        // Skip our own loop boundary nodes (already handled)
+        if (
+          incomer.id === loopStructure.loopStart.id ||
+          incomer.id === loopStructure.loopStop.id ||
+          incomer.id === loopStructure.loopEnd.id
+        ) {
           continue;
         }
         if (!visited.has(incomer.id)) {
@@ -526,14 +530,12 @@ function getNodesInLoopRegion<
           ? getOutgoers(currentNode, state.nodes, state.edges)
           : [];
       for (const outgoer of outgoers) {
-        if (outgoer.id === loopStructure.loopEnd.id) {
-          // Reached loopEnd boundary, don't traverse further
-          continue;
-        }
-        // Check if outgoer is a loop node (other than our boundaries) - if so, it's a boundary
-        const outgoerType = outgoer.data.nodeTypeUniqueId;
-        if (outgoerType && isLoopNode(outgoerType)) {
-          // This is another loop node, it's a boundary - don't traverse
+        // Skip our own loop boundary nodes
+        if (
+          outgoer.id === loopStructure.loopStart.id ||
+          outgoer.id === loopStructure.loopStop.id ||
+          outgoer.id === loopStructure.loopEnd.id
+        ) {
           continue;
         }
         if (!visited.has(outgoer.id)) {
@@ -547,14 +549,12 @@ function getNodesInLoopRegion<
           ? getIncomers(currentNode, state.nodes, state.edges)
           : [];
       for (const incomer of incomers) {
-        if (incomer.id === loopStructure.loopStop.id) {
-          // Reached loopStop boundary, don't traverse further
-          continue;
-        }
-        // Check if incomer is a loop node (other than our boundaries) - if so, it's a boundary
-        const incomerType = incomer.data.nodeTypeUniqueId;
-        if (incomerType && isLoopNode(incomerType)) {
-          // This is another loop node, it's a boundary - don't traverse
+        // Skip our own loop boundary nodes
+        if (
+          incomer.id === loopStructure.loopStart.id ||
+          incomer.id === loopStructure.loopStop.id ||
+          incomer.id === loopStructure.loopEnd.id
+        ) {
           continue;
         }
         if (!visited.has(incomer.id)) {

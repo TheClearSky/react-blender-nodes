@@ -261,6 +261,13 @@ type StandardExecutionStep = {
 };
 
 /**
+ * Phases within a single loop iteration lifecycle.
+ * Used for deterministic ordering in the timeline and controlling
+ * edge animation behavior.
+ */
+type LoopPhase = 'loopStart' | 'preStop' | 'loopStop' | 'postStop' | 'loopEnd';
+
+/**
  * A compiled loop structure containing the loop triplet node IDs
  * and the topologically sorted body steps.
  */
@@ -270,8 +277,10 @@ type LoopExecutionBlock = {
   loopStopNodeId: string;
   loopEndNodeId: string;
   /** Topologically sorted body steps (nodes between loopStart and loopStop) */
-  bodySteps: ReadonlyArray<ExecutionStep>;
-  /** Maximum iterations before erroring (configurable, default 10000) */
+  preStopSteps: ReadonlyArray<ExecutionStep>;
+  /** Topologically sorted body steps (nodes between loopStop and loopEnd) */
+  postStopSteps: ReadonlyArray<ExecutionStep>;
+  /** Maximum iterations before erroring (configurable, default 100) */
   maxIterations: number;
   concurrencyLevel: number;
 };
@@ -493,10 +502,27 @@ type ExecutionStepRecord = {
   loopIteration?: number;
   /** Loop structure identifier (only when inside a loop body) */
   loopStructureId?: string;
+  /** @deprecated Use hierarchical LoopIterationRecord.nestedLoopRecords instead */
+  parentLoopStructureId?: string;
+  /** @deprecated Use hierarchical LoopIterationRecord.nestedLoopRecords instead */
+  parentLoopIteration?: number;
   /** Group node instance ID (only when inside a group scope) */
   groupNodeId?: string;
   /** Group nesting depth (only when inside a group scope) */
   groupDepth?: number;
+  /**
+   * True when the step's duration was below timer resolution
+   * (performance.now() returned the same value for start and end).
+   * Displayed as "< 0.1ms" in the UI instead of an exact value.
+   */
+  estimatedTiming?: boolean;
+  /** Position within the loop iteration lifecycle. Determines vertical
+   *  ordering in the timeline and controls edge animation behavior. */
+  loopPhase?: LoopPhase;
+  /** For LoopStart steps: whether the input came from upstream nodes
+   *  (iteration 0) or from LoopStop feedback (iteration N>0).
+   *  Controls which edges animate and what the inspector shows. */
+  inputSource?: 'upstream' | 'feedback';
 };
 
 /**
@@ -509,6 +535,8 @@ type LoopIterationRecord = {
   duration: number;
   conditionValue: boolean;
   stepRecords: ReadonlyArray<ExecutionStepRecord>;
+  /** Loop records for nested loops that executed within this iteration. */
+  nestedLoopRecords: ReadonlyMap<string, LoopRecord>;
 };
 
 /**
@@ -567,6 +595,12 @@ type ExecutionRecord = {
   /** Total execution duration (ms) — wall-clock time */
   totalDuration: number;
   /**
+   * Time spent warming up the JS engine before execution (ms).
+   * The first nodes in a session pay a JIT compilation cost; this
+   * warmup phase absorbs that cost so recorded step timings are accurate.
+   */
+  compilationDuration: number;
+  /**
    * Total time spent paused during execution (ms).
    * Only non-zero in step-by-step mode. Subtract from totalDuration
    * to get execution-only duration.
@@ -586,6 +620,40 @@ type ExecutionRecord = {
   groupRecords: ReadonlyMap<string, GroupRecord>;
   /** Complete ValueStore snapshot at end of execution ("nodeId:handleId" -> value) */
   finalValues: ReadonlyMap<string, unknown>;
+  /** UI preferences captured when the recording was saved */
+  viewState?: RecordingViewState;
+};
+
+// ─────────────────────────────────────────────────────
+// Recording View State — UI preferences persisted with the record
+// ─────────────────────────────────────────────────────
+
+/**
+ * Captures the UI state of the timeline and runner panel at the time
+ * a recording is saved. All fields are optional so older recordings
+ * without viewState still load correctly.
+ */
+type RecordingViewState = {
+  /** Currently selected step index in the timeline (null = none) */
+  selectedStepIndex?: number | null;
+  /** Whether edge value badges animate along the path */
+  edgeValuesAnimated?: boolean;
+  /** Whether the auto-scroll (timeline + canvas) toggle is on */
+  autoScroll?: boolean;
+  /** Run mode used for this recording */
+  runMode?: 'instant' | 'stepByStep';
+  /** Max loop iterations setting */
+  maxLoopIterations?: number;
+  /** Whether the runner panel drawer is open */
+  panelOpen?: boolean;
+  /** Timeline time-mode toggle */
+  timeMode?: 'execution' | 'wallClock';
+  /** Timeline collapsed state */
+  timelineCollapsed?: boolean;
+  /** Which loop iterations are expanded (loopStructureId → iteration index) */
+  selectedIterations?: Record<string, number>;
+  /** Autoplay interval in seconds */
+  autoplayIntervalSec?: number;
 };
 
 // ─────────────────────────────────────────────────────
@@ -846,6 +914,7 @@ export type {
   InputResolutionEntry,
   OutputDistributionEntry,
   // Execution steps (IR)
+  LoopPhase,
   StandardExecutionStep,
   LoopExecutionBlock,
   GroupExecutionScope,
@@ -867,6 +936,7 @@ export type {
   ConcurrencyLevelRecord,
   ExecutionRecordStatus,
   ExecutionRecord,
+  RecordingViewState,
   // Run session types (NodeRunnerPanel organism)
   RunMode,
   RunProgress,

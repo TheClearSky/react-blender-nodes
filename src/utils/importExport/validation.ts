@@ -52,7 +52,7 @@ function validateGraphStateStructure(data: unknown): ValidationIssue[] {
     return issues;
   }
 
-  const state = data.state as Record<string, unknown>;
+  const state = data.state;
 
   // dataTypes
   if (!isObject(state.dataTypes)) {
@@ -65,12 +65,12 @@ function validateGraphStateStructure(data: unknown): ValidationIssue[] {
         );
         continue;
       }
-      if (typeof (dt as Record<string, unknown>).name !== 'string') {
+      if (typeof dt.name !== 'string') {
         issues.push(
           issue(`state.dataTypes.${dtId}.name`, 'Expected string name'),
         );
       }
-      if (typeof (dt as Record<string, unknown>).underlyingType !== 'string') {
+      if (typeof dt.underlyingType !== 'string') {
         issues.push(
           issue(
             `state.dataTypes.${dtId}.underlyingType`,
@@ -92,7 +92,7 @@ function validateGraphStateStructure(data: unknown): ValidationIssue[] {
         );
         continue;
       }
-      const nodeType = nt as Record<string, unknown>;
+      const nodeType = nt;
       if (typeof nodeType.name !== 'string') {
         issues.push(
           issue(`state.typeOfNodes.${ntId}.name`, 'Expected string name'),
@@ -125,7 +125,7 @@ function validateGraphStateStructure(data: unknown): ValidationIssue[] {
         continue;
       }
 
-      const n = node as Record<string, unknown>;
+      const n = node;
       if (typeof n.id !== 'string') {
         issues.push(issue(`${path}.id`, 'Expected string id'));
       } else {
@@ -144,7 +144,7 @@ function validateGraphStateStructure(data: unknown): ValidationIssue[] {
       if (!isObject(n.position)) {
         issues.push(issue(`${path}.position`, 'Expected position object'));
       } else {
-        const pos = n.position as Record<string, unknown>;
+        const pos = n.position;
         if (typeof pos.x !== 'number') {
           issues.push(issue(`${path}.position.x`, 'Expected number x'));
         }
@@ -163,11 +163,8 @@ function validateGraphStateStructure(data: unknown): ValidationIssue[] {
     const nodeIds = new Set<string>();
     if (Array.isArray(state.nodes)) {
       for (const node of state.nodes) {
-        if (
-          isObject(node) &&
-          typeof (node as Record<string, unknown>).id === 'string'
-        ) {
-          nodeIds.add((node as Record<string, unknown>).id as string);
+        if (isObject(node) && typeof node.id === 'string') {
+          nodeIds.add(node.id);
         }
       }
     }
@@ -181,7 +178,7 @@ function validateGraphStateStructure(data: unknown): ValidationIssue[] {
         continue;
       }
 
-      const e = edge as Record<string, unknown>;
+      const e = edge;
       if (typeof e.id !== 'string') {
         issues.push(issue(`${path}.id`, 'Expected string id'));
       } else {
@@ -269,7 +266,7 @@ function validateExecutionRecordStructure(data: unknown): ValidationIssue[] {
     return issues;
   }
 
-  const record = data.record as Record<string, unknown>;
+  const record = data.record;
 
   // Top-level fields
   if (typeof record.id !== 'string') {
@@ -309,7 +306,7 @@ function validateExecutionRecordStructure(data: unknown): ValidationIssue[] {
         continue;
       }
 
-      const s = step as Record<string, unknown>;
+      const s = step;
       if (typeof s.stepIndex !== 'number') {
         issues.push(issue(`${path}.stepIndex`, 'Expected number stepIndex'));
       }

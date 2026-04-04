@@ -1,0 +1,1885 @@
+<!doctype html>
+<html lang="en" class="auto">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SVG Color Customizer & Themes</title>
+    <style>
+      :root {
+        --bg-color: #f0f2f5;
+        --panel-bg: #ffffff;
+        --text-color: #333333;
+        --border-color: #e2e8f0;
+        --header-color: #1a202c;
+        --subtext-color: #718096;
+        --section-label: #a0aec0;
+        --picker-label: #4a5568;
+        --theme-row-bg: #fdfdfd;
+        --theme-name-bg: #f7fafc;
+        --theme-name-color: #4a5568;
+        --menu-btn-bg: #ffffff;
+        --menu-btn-hover: #f8fafc;
+        --drag-handle: #cbd5e1;
+        --btn-light-bg: #f1f5f9;
+        --btn-light-color: #334155;
+        --btn-light-hover: #e2e8f0;
+        --btn-dark-bg: #334155;
+        --btn-dark-color: #f8fafc;
+        --btn-dark-hover: #1e293b;
+        --btn-uw-bg: #ffffff;
+        --btn-uw-color: #000000;
+        --btn-uw-border: #cbd5e1;
+        --btn-uw-hover-bg: #f8fafc;
+        --btn-uw-hover-color: #2563eb;
+        --btn-ub-bg: #000000;
+        --btn-ub-color: #ffffff;
+        --btn-ub-hover-bg: #1a1a1a;
+        --btn-ub-hover-color: #38bdf8;
+        --color-swatch-shadow: rgba(0, 0, 0, 0.1);
+        --canvas-bg: #ffffff;
+        --canvas-shadow: rgba(0, 0, 0, 0.08);
+        --sidebar-shadow: rgba(0, 0, 0, 0.05);
+        --scrollbar-thumb: #c1c1c1;
+        --scrollbar-thumb-hover: #a0a0a0;
+        --scrollbar-track: transparent;
+      }
+
+      /* Dark mode variables — applied by class or media query */
+      :root.dark,
+      :root.auto:is([data-system-dark]) {
+        --bg-color: #1a1a2e;
+        --panel-bg: #16213e;
+        --text-color: #e0e0e0;
+        --border-color: #2a2a4a;
+        --header-color: #e8e8f0;
+        --subtext-color: #9090b0;
+        --section-label: #7070a0;
+        --picker-label: #b0b0d0;
+        --theme-row-bg: #1e1e3a;
+        --theme-name-bg: #1a1a34;
+        --theme-name-color: #b0b0d0;
+        --menu-btn-bg: #16213e;
+        --menu-btn-hover: #1e2a4a;
+        --drag-handle: #3a3a5a;
+        --btn-light-bg: #2a2a4a;
+        --btn-light-color: #d0d0e0;
+        --btn-light-hover: #3a3a5a;
+        --btn-dark-bg: #0f0f2a;
+        --btn-dark-color: #e0e0f0;
+        --btn-dark-hover: #0a0a20;
+        --btn-uw-bg: #2a2a4a;
+        --btn-uw-color: #e0e0f0;
+        --btn-uw-border: #3a3a5a;
+        --btn-uw-hover-bg: #3a3a5a;
+        --btn-uw-hover-color: #60a0ff;
+        --btn-ub-bg: #0a0a1a;
+        --btn-ub-color: #e0e0f0;
+        --btn-ub-hover-bg: #151530;
+        --btn-ub-hover-color: #38bdf8;
+        --color-swatch-shadow: rgba(255, 255, 255, 0.1);
+        --canvas-bg: #1e1e3a;
+        --canvas-shadow: rgba(0, 0, 0, 0.3);
+        --sidebar-shadow: rgba(0, 0, 0, 0.2);
+        --scrollbar-thumb: #3a3a5a;
+        --scrollbar-thumb-hover: #50507a;
+        --scrollbar-track: transparent;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root.auto {
+          --bg-color: #1a1a2e;
+          --panel-bg: #16213e;
+          --text-color: #e0e0e0;
+          --border-color: #2a2a4a;
+          --header-color: #e8e8f0;
+          --subtext-color: #9090b0;
+          --section-label: #7070a0;
+          --picker-label: #b0b0d0;
+          --theme-row-bg: #1e1e3a;
+          --theme-name-bg: #1a1a34;
+          --theme-name-color: #b0b0d0;
+          --menu-btn-bg: #16213e;
+          --menu-btn-hover: #1e2a4a;
+          --drag-handle: #3a3a5a;
+          --btn-light-bg: #2a2a4a;
+          --btn-light-color: #d0d0e0;
+          --btn-light-hover: #3a3a5a;
+          --btn-dark-bg: #0f0f2a;
+          --btn-dark-color: #e0e0f0;
+          --btn-dark-hover: #0a0a20;
+          --btn-uw-bg: #2a2a4a;
+          --btn-uw-color: #e0e0f0;
+          --btn-uw-border: #3a3a5a;
+          --btn-uw-hover-bg: #3a3a5a;
+          --btn-uw-hover-color: #60a0ff;
+          --btn-ub-bg: #0a0a1a;
+          --btn-ub-color: #e0e0f0;
+          --btn-ub-hover-bg: #151530;
+          --btn-ub-hover-color: #38bdf8;
+          --color-swatch-shadow: rgba(255, 255, 255, 0.1);
+          --canvas-bg: #1e1e3a;
+          --canvas-shadow: rgba(0, 0, 0, 0.3);
+          --sidebar-shadow: rgba(0, 0, 0, 0.2);
+          --scrollbar-thumb: #3a3a5a;
+          --scrollbar-thumb-hover: #50507a;
+          --scrollbar-track: transparent;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+          Arial, sans-serif;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+        position: relative;
+      }
+
+      /* Scrollbar styling */
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--scrollbar-track);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--scrollbar-thumb-hover);
+      }
+
+      /* Drag handle hidden on desktop */
+      .drag-handle {
+        display: none;
+      }
+
+      /* Color Mode Toggle */
+      .color-mode-btn {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 30;
+        background: var(--menu-btn-bg);
+        border: 1px solid var(--border-color);
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        font-weight: 600;
+        font-size: 0.8rem;
+        color: var(--text-color);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: background-color 0.2s;
+        user-select: none;
+      }
+      .color-mode-btn:hover {
+        background: var(--menu-btn-hover);
+      }
+      .color-mode-btn .icon {
+        font-size: 1rem;
+        line-height: 1;
+      }
+
+      /* Mobile Menu Button */
+      .menu-btn {
+        display: none;
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        z-index: 30;
+        background: var(--menu-btn-bg);
+        border: 1px solid var(--border-color);
+        padding: 10px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        font-weight: 600;
+        font-size: 0.9rem;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-color);
+        transition: background-color 0.2s;
+      }
+      .menu-btn:hover {
+        background: var(--menu-btn-hover);
+      }
+
+      /* Sidebar Controls */
+      .sidebar {
+        width: 420px;
+        background-color: var(--panel-bg);
+        border-right: 1px solid var(--border-color);
+        padding: 24px;
+        overflow-y: auto;
+        box-shadow: 2px 0 10px var(--sidebar-shadow);
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        z-index: 20;
+      }
+
+      .header h1 {
+        font-size: 1.25rem;
+        margin-bottom: 8px;
+        color: var(--header-color);
+      }
+
+      .header p {
+        font-size: 0.85rem;
+        color: var(--subtext-color);
+        line-height: 1.4;
+      }
+
+      .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .control-group h2 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--section-label);
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 4px;
+        margin-bottom: 4px;
+      }
+
+      /* Theme Palette UI */
+      .theme-container {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .theme-row {
+        display: flex;
+        align-items: stretch;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        overflow: hidden;
+        background: var(--theme-row-bg);
+      }
+
+      .theme-name {
+        flex: 0 0 110px;
+        display: flex;
+        align-items: center;
+        padding: 6px 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--theme-name-color);
+        border-right: 1px solid var(--border-color);
+        background: var(--theme-name-bg);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .t-btn {
+        flex: 1 1 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 2px;
+        border: none;
+        border-right: 1px solid var(--border-color);
+        cursor: pointer;
+        font-size: 0.7rem;
+        font-weight: 600;
+        transition: all 0.2s;
+      }
+
+      .t-btn:last-child {
+        border-right: none;
+      }
+
+      .t-btn.light {
+        background: var(--btn-light-bg);
+        color: var(--btn-light-color);
+      }
+      .t-btn.light:hover {
+        background: var(--btn-light-hover);
+      }
+
+      .t-btn.dark {
+        background: var(--btn-dark-bg);
+        color: var(--btn-dark-color);
+      }
+      .t-btn.dark:hover {
+        background: var(--btn-dark-hover);
+      }
+
+      .t-btn.u-w {
+        background: var(--btn-uw-bg);
+        color: var(--btn-uw-color);
+        border-left: 2px solid var(--btn-uw-border);
+      }
+      .t-btn.u-w:hover {
+        background: var(--btn-uw-hover-bg);
+        color: var(--btn-uw-hover-color);
+      }
+
+      .t-btn.u-b {
+        background: var(--btn-ub-bg);
+        color: var(--btn-ub-color);
+      }
+      .t-btn.u-b:hover {
+        background: var(--btn-ub-hover-bg);
+        color: var(--btn-ub-hover-color);
+      }
+
+      /* Manual Pickers */
+      .color-picker {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+
+      .color-picker label {
+        cursor: pointer;
+        flex-grow: 1;
+      }
+
+      input[type='color'] {
+        -webkit-appearance: none;
+        appearance: none;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        cursor: pointer;
+        padding: 0;
+        background: none;
+        box-shadow: 0 0 0 1px var(--color-swatch-shadow);
+      }
+
+      input[type='color']::-webkit-color-swatch-wrapper {
+        padding: 0;
+      }
+      input[type='color']::-webkit-color-swatch {
+        border: none;
+        border-radius: 4px;
+      }
+
+      /* Checkbox UI */
+      .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        color: var(--picker-label);
+        cursor: pointer;
+        padding-left: 2px;
+      }
+
+      .checkbox-row input[type='checkbox'] {
+        cursor: pointer;
+        width: 16px;
+        height: 16px;
+      }
+
+      .checkbox-row label {
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .btn-download {
+        background-color: #4299e1;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        margin-top: 10px;
+      }
+
+      .btn-download:hover {
+        background-color: #3182ce;
+      }
+
+      /* SVG Preview Area */
+      .preview-area {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        position: relative;
+      }
+
+      /* Fixed Canvas Container */
+      #canvas-bg {
+        background-color: var(--canvas-bg);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px var(--canvas-shadow);
+        width: fit-content;
+        height: auto;
+        max-width: 600px;
+        max-height: 100%;
+        aspect-ratio: 1 / 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        transition: background-color 0.3s ease;
+      }
+
+      svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      /* Mobile Responsive Drawer Logic */
+      @media (max-width: 900px) {
+        body {
+          flex-direction: column;
+        }
+        .menu-btn {
+          display: flex;
+        }
+        .sidebar {
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          width: 100%;
+          max-width: 100%;
+          height: 60vh;
+          border-right: none;
+          border-top: 1px solid var(--border-color);
+          border-radius: 20px 20px 0 0;
+          padding-top: 24px;
+          transform: translateY(100%);
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Visual Drag Handle Line — drawn by .drag-handle */
+        .sidebar::before {
+          display: none;
+        }
+
+        .drag-handle {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 28px;
+          cursor: grab;
+          touch-action: none;
+          z-index: 5;
+        }
+        .drag-handle:active {
+          cursor: grabbing;
+        }
+        .drag-handle::after {
+          content: '';
+          width: 40px;
+          height: 5px;
+          background-color: var(--drag-handle);
+          border-radius: 5px;
+        }
+
+        .sidebar.open {
+          transform: translateY(0);
+        }
+
+        .preview-area {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0; /* Full height initially */
+          padding: 20px;
+          padding-top: 80px; /* Clear the menu button */
+          transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .preview-area.drawer-open {
+          bottom: 60vh; /* Shrinks the preview container, auto-scaling the SVG to fit! */
+        }
+      }
+    </style>
+    <script>
+      // Apply saved color mode before paint to prevent flash
+      (function () {
+        var mode = localStorage.getItem('colorMode') || 'auto';
+        document.documentElement.className = mode;
+      })();
+    </script>
+  </head>
+  <body>
+    <!-- Mobile menu button -->
+    <button class="menu-btn" id="menu-btn">
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+      Customize
+    </button>
+
+    <!-- Color Mode Toggle -->
+    <button
+      class="color-mode-btn"
+      id="color-mode-btn"
+      title="Toggle color mode"
+    >
+      <span class="icon" id="color-mode-icon"></span>
+      <span id="color-mode-label"></span>
+    </button>
+
+    <!-- Sidebar Controls -->
+    <div class="sidebar" id="sidebar">
+      <div class="drag-handle" id="drag-handle"></div>
+      <div class="header">
+        <h1>SVG Customizer</h1>
+        <p>
+          <strong>U-White & U-Black</strong> apply identical perfectly-balanced
+          palettes.
+        </p>
+      </div>
+
+      <div class="control-group">
+        <h2>Theme Palettes</h2>
+        <div class="theme-container" id="theme-container">
+          <!-- Buttons injected by JS -->
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h2>Environment</h2>
+        <div class="color-picker">
+          <label for="c-bg">Canvas Background</label>
+          <input type="color" id="c-bg" value="#ffffff" />
+        </div>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="include-bg" checked />
+          <label for="include-bg">Include background in final SVG</label>
+        </div>
+
+        <div class="color-picker">
+          <label for="c-grid">Grid Lines</label>
+          <input
+            type="color"
+            id="c-grid"
+            value="#add8e6"
+            data-target=".theme-grid"
+            data-attr="stroke"
+          />
+        </div>
+        <div class="color-picker">
+          <label for="c-outline">Main Outlines</label>
+          <input
+            type="color"
+            id="c-outline"
+            value="#0f0f0f"
+            data-target=".theme-outline"
+            data-attr="stroke"
+          />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h2>Cubes & Nodes</h2>
+        <div class="color-picker">
+          <label for="c-red-front">Top Cube Front</label>
+          <input
+            type="color"
+            id="c-red-front"
+            value="#ee7678"
+            data-target=".theme-red-front"
+            data-attr="fill"
+          />
+        </div>
+        <div class="color-picker">
+          <label for="c-red-shadow">Top Cube Shadow</label>
+          <input
+            type="color"
+            id="c-red-shadow"
+            value="#d05a5d"
+            data-target=".theme-red-shadow"
+            data-attr="fill"
+          />
+        </div>
+        <div class="color-picker">
+          <label for="c-yellow-front">Bottom Cube Front</label>
+          <input
+            type="color"
+            id="c-yellow-front"
+            value="#f2db68"
+            data-target=".theme-yellow-front"
+            data-attr="fill"
+          />
+        </div>
+        <div class="color-picker">
+          <label for="c-yellow-shadow">Bottom Cube Shadow</label>
+          <input
+            type="color"
+            id="c-yellow-shadow"
+            value="#d1b747"
+            data-target=".theme-yellow-shadow"
+            data-attr="fill"
+          />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h2>Connections</h2>
+        <div class="color-picker">
+          <label for="c-cable-front">Wire Front</label>
+          <input
+            type="color"
+            id="c-cable-front"
+            value="#add8e6"
+            data-target=".theme-cable-front"
+            data-attr="stroke"
+          />
+        </div>
+        <div class="color-picker">
+          <label for="c-cable-shadow">Wire Shadow</label>
+          <input
+            type="color"
+            id="c-cable-shadow"
+            value="#1e3a8a"
+            data-target=".theme-cable-shadow"
+            data-attr="stroke"
+          />
+        </div>
+        <div class="color-picker">
+          <label for="c-brackets">Corner Brackets</label>
+          <input
+            type="color"
+            id="c-brackets"
+            value="#add8e6"
+            data-target=".theme-brackets"
+            data-attr="stroke"
+          />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h2>Sparkles</h2>
+        <div class="color-picker">
+          <label for="c-sparkle-w">Sparkle 1</label>
+          <input
+            type="color"
+            id="c-sparkle-w"
+            value="#ffffff"
+            data-target=".theme-sparkle-w"
+            data-attr="both"
+          />
+        </div>
+        <div class="color-picker">
+          <label for="c-sparkle-y">Sparkle 2</label>
+          <input
+            type="color"
+            id="c-sparkle-y"
+            value="#f6e16a"
+            data-target=".theme-sparkle-y"
+            data-attr="both"
+          />
+        </div>
+      </div>
+
+      <button class="btn-download" onclick="downloadSVG()">
+        Download Custom SVG
+      </button>
+    </div>
+
+    <!-- Preview Area -->
+    <div class="preview-area" id="preview-area">
+      <div id="canvas-bg">
+        <svg
+          id="live-svg"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="-15 -15 330 330"
+        >
+          <!-- SVG Embedded Background -->
+          <rect
+            id="svg-export-bg"
+            x="-15"
+            y="-15"
+            width="330"
+            height="330"
+            fill="#ffffff"
+          />
+
+          <!-- Grid -->
+          <g class="theme-grid" stroke="#add8e6" stroke-width="1.5">
+            <line x1="110" y1="30" x2="110" y2="270" />
+            <line x1="190" y1="30" x2="190" y2="270" />
+            <line x1="30" y1="110" x2="270" y2="110" />
+            <line x1="30" y1="190" x2="270" y2="190" />
+          </g>
+
+          <!-- Outer Frame -->
+          <rect
+            class="theme-outline"
+            x="30"
+            y="30"
+            width="240"
+            height="240"
+            fill="none"
+            stroke="#0f0f0f"
+            stroke-width="6"
+            stroke-linejoin="miter"
+          />
+
+          <!-- Corner Brackets -->
+          <g
+            class="theme-brackets"
+            stroke="#add8e6"
+            stroke-width="6"
+            fill="none"
+            stroke-linecap="square"
+            stroke-linejoin="miter"
+          >
+            <path d="M 287 155 L 295 155 L 295 163" />
+            <path d="M 178 280 L 170 280 L 170 272" />
+          </g>
+
+          <!-- Connection Cable / Edge Shadow -->
+          <path
+            class="theme-cable-shadow"
+            d="M 130 80 C 170 80, 140 225, 180 225"
+            stroke="#1e3a8a"
+            stroke-width="8"
+            fill="none"
+            stroke-linecap="round"
+          />
+
+          <!-- Top Box -->
+          <g
+            class="theme-outline"
+            stroke="#0f0f0f"
+            stroke-width="6"
+            stroke-linejoin="round"
+          >
+            <polygon
+              class="theme-red-shadow"
+              points="30,30 45,15 45,115 30,130"
+              fill="#d05a5d"
+            />
+            <polygon
+              class="theme-red-shadow"
+              points="30,130 45,115 145,115 130,130"
+              fill="#d05a5d"
+            />
+            <rect
+              class="theme-red-front"
+              x="45"
+              y="15"
+              width="100"
+              height="100"
+              fill="#ee7678"
+            />
+          </g>
+
+          <!-- Bottom Box -->
+          <g
+            class="theme-outline"
+            stroke="#0f0f0f"
+            stroke-width="6"
+            stroke-linejoin="round"
+          >
+            <polygon
+              class="theme-yellow-shadow"
+              points="180,180 195,165 195,255 180,270"
+              fill="#d1b747"
+            />
+            <polygon
+              class="theme-yellow-shadow"
+              points="180,270 195,255 285,255 270,270"
+              fill="#d1b747"
+            />
+            <rect
+              class="theme-yellow-front"
+              x="195"
+              y="165"
+              width="90"
+              height="90"
+              fill="#f2db68"
+            />
+          </g>
+
+          <!-- Connection Cable Front -->
+          <path
+            class="theme-cable-front"
+            d="M 145 65 C 185 65, 155 210, 195 210"
+            stroke="#add8e6"
+            stroke-width="8"
+            fill="none"
+            stroke-linecap="round"
+          />
+
+          <!-- Nodes -->
+          <circle
+            class="theme-red-front theme-outline"
+            cx="145"
+            cy="65"
+            r="9"
+            fill="#ee7678"
+            stroke="#0f0f0f"
+            stroke-width="6"
+          />
+          <circle
+            class="theme-yellow-front theme-outline"
+            cx="195"
+            cy="210"
+            r="9"
+            fill="#f2db68"
+            stroke="#0f0f0f"
+            stroke-width="6"
+          />
+
+          <!-- Sparkles -->
+          <g class="theme-sparkle-w" fill="#ffffff">
+            <polygon
+              points="70,4 71.5,7.5 75,9 71.5,10.5 70,14 68.5,10.5 65,9 68.5,7.5"
+            />
+            <polygon
+              points="250,61 251.5,63.5 254,65 251.5,66.5 250,69 248.5,66.5 246,65 248.5,63.5"
+            />
+            <rect x="58.5" y="248.5" width="4" height="4" />
+          </g>
+
+          <g class="theme-sparkle-y" fill="#f6e16a">
+            <polygon
+              points="190,76 191.5,78.5 194,80 191.5,81.5 190,84 188.5,81.5 186,80 188.5,78.5"
+            />
+            <polygon
+              points="135,281 136.5,283.5 139,285 136.5,286.5 135,289 133.5,286.5 131,285 133.5,283.5"
+            />
+            <rect x="128.5" y="158.5" width="4" height="4" />
+          </g>
+
+          <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <g class="theme-sparkle-w" stroke="#ffffff" stroke-width="4">
+              <path d="M 56 31 L 64 31 M 60 27 L 60 35" />
+            </g>
+            <g class="theme-sparkle-w" stroke="#ffffff" stroke-width="3">
+              <path d="M 289 200 L 295 200 M 292 197 L 292 203" />
+              <path d="M 281 106 L 289 114 M 281 114 L 289 106" />
+            </g>
+
+            <g class="theme-sparkle-y" stroke="#f6e16a" stroke-width="3">
+              <path d="M 17 101 L 23 101 M 20 98 L 20 104" />
+              <path d="M 147 130 L 153 130 M 150 127 L 150 133" />
+              <path d="M 292 262 L 298 262 M 295 259 L 295 265" />
+              <path d="M 37 217 L 43 223 M 37 223 L 43 217" />
+              <path d="M 217 47 L 223 53 M 217 53 L 223 47" />
+            </g>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <script>
+      // Mobile Drawer Logic
+      const sidebar = document.getElementById('sidebar');
+      const previewArea = document.getElementById('preview-area');
+      const menuBtn = document.getElementById('menu-btn');
+
+      function toggleMenu() {
+        const isOpen = sidebar.classList.toggle('open');
+        previewArea.classList.toggle('drawer-open');
+
+        if (isOpen) {
+          menuBtn.innerHTML =
+            '<svg style="width:20px;height:20px;" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Close Drawer';
+        } else {
+          menuBtn.innerHTML =
+            '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg> Customize';
+        }
+      }
+
+      menuBtn.addEventListener('click', toggleMenu);
+
+      // Palette Database
+      const palettes = {
+        'Default Classic': {
+          light: {
+            bg: '#ffffff',
+            grid: '#add8e6',
+            outline: '#0f0f0f',
+            redFront: '#ee7678',
+            redShadow: '#d05a5d',
+            yellowFront: '#f2db68',
+            yellowShadow: '#d1b747',
+            cableFront: '#add8e6',
+            cableShadow: '#1e3a8a',
+            brackets: '#add8e6',
+            sparkleW: '#a3a3a3',
+            sparkleY: '#f6e16a',
+          },
+          dark: {
+            bg: '#121212',
+            grid: '#2a3b4c',
+            outline: '#f0f0f0',
+            redFront: '#ee7678',
+            redShadow: '#b03a3d',
+            yellowFront: '#f2db68',
+            yellowShadow: '#c1a737',
+            cableFront: '#5bc0de',
+            cableShadow: '#1e3a8a',
+            brackets: '#5bc0de',
+            sparkleW: '#ffffff',
+            sparkleY: '#f6e16a',
+          },
+          univ: {
+            grid: '#94a3b8',
+            outline: '#64748b',
+            redFront: '#e85d75',
+            redShadow: '#b93b52',
+            yellowFront: '#dca723',
+            yellowShadow: '#b08b16',
+            cableFront: '#4db6ac',
+            cableShadow: '#268e83',
+            brackets: '#64748b',
+            sparkleW: '#4db6ac',
+            sparkleY: '#dca723',
+          },
+        },
+        'Cyberpunk Neon': {
+          light: {
+            bg: '#f0f0f5',
+            grid: '#d1d5db',
+            outline: '#111827',
+            redFront: '#ff2a5f',
+            redShadow: '#cc0033',
+            yellowFront: '#e6d500',
+            yellowShadow: '#b3a600',
+            cableFront: '#00d0e6',
+            cableShadow: '#008299',
+            brackets: '#ff2a5f',
+            sparkleW: '#00d0e6',
+            sparkleY: '#ff2a5f',
+          },
+          dark: {
+            bg: '#0a0a0f',
+            grid: '#1a1a24',
+            outline: '#00ffcc',
+            redFront: '#ff0055',
+            redShadow: '#8a0020',
+            yellowFront: '#fcee0a',
+            yellowShadow: '#999000',
+            cableFront: '#00f0ff',
+            cableShadow: '#005c66',
+            brackets: '#ff0055',
+            sparkleW: '#ffffff',
+            sparkleY: '#fcee0a',
+          },
+          univ: {
+            grid: '#9f7fb0',
+            outline: '#9d4edd',
+            redFront: '#f72585',
+            redShadow: '#b51760',
+            yellowFront: '#00b4cc',
+            yellowShadow: '#008091',
+            cableFront: '#00f5d4',
+            cableShadow: '#00a892',
+            brackets: '#9d4edd',
+            sparkleW: '#f72585',
+            sparkleY: '#00b4cc',
+          },
+        },
+        'Steampunk Copper': {
+          light: {
+            bg: '#f4ecd8',
+            grid: '#d8cca8',
+            outline: '#3e2723',
+            redFront: '#b87333',
+            redShadow: '#8c4a1b',
+            yellowFront: '#cda434',
+            yellowShadow: '#9a7b26',
+            cableFront: '#8d6e63',
+            cableShadow: '#4e342e',
+            brackets: '#b87333',
+            sparkleW: '#8d6e63',
+            sparkleY: '#cda434',
+          },
+          dark: {
+            bg: '#1f1814',
+            grid: '#3a2c24',
+            outline: '#d7ccc8',
+            redFront: '#d2691e',
+            redShadow: '#8b4513',
+            yellowFront: '#b8860b',
+            yellowShadow: '#8b6508',
+            cableFront: '#a1887f',
+            cableShadow: '#3e2723',
+            brackets: '#a1887f',
+            sparkleW: '#d7ccc8',
+            sparkleY: '#d2691e',
+          },
+          univ: {
+            grid: '#b8a99a',
+            outline: '#9e7a52',
+            redFront: '#c2593b',
+            redShadow: '#8f3d26',
+            yellowFront: '#c99130',
+            yellowShadow: '#9e6f22',
+            cableFront: '#6b8e9b',
+            cableShadow: '#476673',
+            brackets: '#9e7a52',
+            sparkleW: '#c2593b',
+            sparkleY: '#c99130',
+          },
+        },
+        'RPG Fantasy': {
+          light: {
+            bg: '#f1f5f1',
+            grid: '#c8d8c8',
+            outline: '#2e3a2e',
+            redFront: '#d32f2f',
+            redShadow: '#9a0007',
+            yellowFront: '#fbc02d',
+            yellowShadow: '#c49000',
+            cableFront: '#66bb6a',
+            cableShadow: '#338a3e',
+            brackets: '#66bb6a',
+            sparkleW: '#4caf50',
+            sparkleY: '#fbc02d',
+          },
+          dark: {
+            bg: '#131a13',
+            grid: '#223322',
+            outline: '#c8e6c9',
+            redFront: '#e53935',
+            redShadow: '#ab000d',
+            yellowFront: '#fdd835',
+            yellowShadow: '#c6a700',
+            cableFront: '#81c784',
+            cableShadow: '#1b5e20',
+            brackets: '#81c784',
+            sparkleW: '#e8f5e9',
+            sparkleY: '#fdd835',
+          },
+          univ: {
+            grid: '#9caea0',
+            outline: '#728c76',
+            redFront: '#d94841',
+            redShadow: '#a3302a',
+            yellowFront: '#e6ab2e',
+            yellowShadow: '#b0801d',
+            cableFront: '#5c9e62',
+            cableShadow: '#3f7344',
+            brackets: '#728c76',
+            sparkleW: '#e6ab2e',
+            sparkleY: '#5c9e62',
+          },
+        },
+        'Retro 8-Bit Pixel': {
+          light: {
+            bg: '#ffffff',
+            grid: '#e0e0e0',
+            outline: '#000000',
+            redFront: '#e52521',
+            redShadow: '#aa0000',
+            yellowFront: '#fdf104',
+            yellowShadow: '#bba800',
+            cableFront: '#005cff',
+            cableShadow: '#0000aa',
+            brackets: '#000000',
+            sparkleW: '#005cff',
+            sparkleY: '#fdf104',
+          },
+          dark: {
+            bg: '#000000',
+            grid: '#333333',
+            outline: '#ffffff',
+            redFront: '#ff00ff',
+            redShadow: '#aa00aa',
+            yellowFront: '#32cd32',
+            yellowShadow: '#008800',
+            cableFront: '#00ffff',
+            cableShadow: '#008888',
+            brackets: '#ffffff',
+            sparkleW: '#ffffff',
+            sparkleY: '#32cd32',
+          },
+          univ: {
+            grid: '#b0b0b0',
+            outline: '#8a8a8a',
+            redFront: '#e53935',
+            redShadow: '#b71c1c',
+            yellowFront: '#fbc02d',
+            yellowShadow: '#f57f17',
+            cableFront: '#1e88e5',
+            cableShadow: '#1565c0',
+            brackets: '#8a8a8a',
+            sparkleW: '#e53935',
+            sparkleY: '#1e88e5',
+          },
+        },
+        'Pastel Dream': {
+          light: {
+            bg: '#fffaf0',
+            grid: '#fae3d9',
+            outline: '#8a7b8e',
+            redFront: '#ffb6b9',
+            redShadow: '#e68c92',
+            yellowFront: '#fae3d9',
+            yellowShadow: '#dcaaa0',
+            cableFront: '#bbded6',
+            cableShadow: '#8eb8af',
+            brackets: '#bbded6',
+            sparkleW: '#8a7b8e',
+            sparkleY: '#ffb6b9',
+          },
+          dark: {
+            bg: '#2c2a33',
+            grid: '#3f3c47',
+            outline: '#ebdce8',
+            redFront: '#e5a0aa',
+            redShadow: '#b06c76',
+            yellowFront: '#f5d3c8',
+            yellowShadow: '#bf988b',
+            cableFront: '#a2c9c5',
+            cableShadow: '#648a85',
+            brackets: '#a2c9c5',
+            sparkleW: '#ebdce8',
+            sparkleY: '#f5d3c8',
+          },
+          univ: {
+            grid: '#c5b4c4',
+            outline: '#9b8caa',
+            redFront: '#e08595',
+            redShadow: '#b86372',
+            yellowFront: '#e0ac8b',
+            yellowShadow: '#b88565',
+            cableFront: '#85b5ad',
+            cableShadow: '#628e87',
+            brackets: '#9b8caa',
+            sparkleW: '#85b5ad',
+            sparkleY: '#e08595',
+          },
+        },
+        'Oil Painting Rich': {
+          light: {
+            bg: '#fbf7f5',
+            grid: '#e6ddd8',
+            outline: '#2c1e16',
+            redFront: '#e30022',
+            redShadow: '#990011',
+            yellowFront: '#cc7722',
+            yellowShadow: '#8c4d11',
+            cableFront: '#120a8f',
+            cableShadow: '#090547',
+            brackets: '#2c1e16',
+            sparkleW: '#120a8f',
+            sparkleY: '#cc7722',
+          },
+          dark: {
+            bg: '#1a1514',
+            grid: '#2b2321',
+            outline: '#d9c5b2',
+            redFront: '#c80815',
+            redShadow: '#7a0008',
+            yellowFront: '#d68a59',
+            yellowShadow: '#945129',
+            cableFront: '#0047ab',
+            cableShadow: '#002057',
+            brackets: '#d9c5b2',
+            sparkleW: '#d9c5b2',
+            sparkleY: '#d68a59',
+          },
+          univ: {
+            grid: '#b3ada3',
+            outline: '#8b6d55',
+            redFront: '#c44d45',
+            redShadow: '#8e322c',
+            yellowFront: '#d49548',
+            yellowShadow: '#9e6a2e',
+            cableFront: '#45739e',
+            cableShadow: '#2c5073',
+            brackets: '#8b6d55',
+            sparkleW: '#d49548',
+            sparkleY: '#45739e',
+          },
+        },
+        Glassmorphism: {
+          light: {
+            bg: '#f3f4f6',
+            grid: '#e5e7eb',
+            outline: '#6b7280',
+            redFront: '#a78bfa',
+            redShadow: '#7c3aed',
+            yellowFront: '#fde047',
+            yellowShadow: '#eab308',
+            cableFront: '#38bdf8',
+            cableShadow: '#0284c7',
+            brackets: '#9ca3af',
+            sparkleW: '#38bdf8',
+            sparkleY: '#fde047',
+          },
+          dark: {
+            bg: '#111827',
+            grid: '#1f2937',
+            outline: '#9ca3af',
+            redFront: '#8b5cf6',
+            redShadow: '#5b21b6',
+            yellowFront: '#fbbf24',
+            yellowShadow: '#b45309',
+            cableFront: '#2dd4bf',
+            cableShadow: '#0f766e',
+            brackets: '#4b5563',
+            sparkleW: '#e5e7eb',
+            sparkleY: '#fbbf24',
+          },
+          univ: {
+            grid: '#aab9c7',
+            outline: '#7b9ebd',
+            redFront: '#b678d4',
+            redShadow: '#8a55a3',
+            yellowFront: '#a5d154',
+            yellowShadow: '#789e36',
+            cableFront: '#4fc3d9',
+            cableShadow: '#3595a8',
+            brackets: '#7b9ebd',
+            sparkleW: '#b678d4',
+            sparkleY: '#4fc3d9',
+          },
+        },
+        // --- Analogous harmony: blue-cyan-teal sweep ---
+        'Ocean Depths': {
+          light: {
+            bg: '#f0f7fa',
+            grid: '#b8dce8',
+            outline: '#1b3a4b',
+            redFront: '#e06c5e',
+            redShadow: '#b34a3e',
+            yellowFront: '#f2c55c',
+            yellowShadow: '#c99e3a',
+            cableFront: '#3daacc',
+            cableShadow: '#1a7a9e',
+            brackets: '#3daacc',
+            sparkleW: '#1a7a9e',
+            sparkleY: '#f2c55c',
+          },
+          dark: {
+            bg: '#091b26',
+            grid: '#12303f',
+            outline: '#8ecae6',
+            redFront: '#d4553f',
+            redShadow: '#8c2f22',
+            yellowFront: '#e6b84a',
+            yellowShadow: '#a07e28',
+            cableFront: '#219ebc',
+            cableShadow: '#0a6a82',
+            brackets: '#219ebc',
+            sparkleW: '#caf0f8',
+            sparkleY: '#e6b84a',
+          },
+          univ: {
+            grid: '#7aabbf',
+            outline: '#4a8da6',
+            redFront: '#d06050',
+            redShadow: '#9e4035',
+            yellowFront: '#d4a842',
+            yellowShadow: '#a5802e',
+            cableFront: '#2e99b0',
+            cableShadow: '#1b6e82',
+            brackets: '#4a8da6',
+            sparkleW: '#d06050',
+            sparkleY: '#2e99b0',
+          },
+        },
+        // --- Triadic harmony: violet / teal / gold at 120° intervals ---
+        'Deep Space': {
+          light: {
+            bg: '#f2f0f8',
+            grid: '#d6d0e8',
+            outline: '#1e1535',
+            redFront: '#9b5de5',
+            redShadow: '#6e35b8',
+            yellowFront: '#f0c040',
+            yellowShadow: '#c49a20',
+            cableFront: '#00cfc8',
+            cableShadow: '#009690',
+            brackets: '#9b5de5',
+            sparkleW: '#00cfc8',
+            sparkleY: '#f0c040',
+          },
+          dark: {
+            bg: '#0c0a18',
+            grid: '#1a1530',
+            outline: '#c4b5f0',
+            redFront: '#b07cf5',
+            redShadow: '#6230a8',
+            yellowFront: '#ffd54f',
+            yellowShadow: '#b8952a',
+            cableFront: '#00e5df',
+            cableShadow: '#007a75',
+            brackets: '#b07cf5',
+            sparkleW: '#e8e0ff',
+            sparkleY: '#ffd54f',
+          },
+          univ: {
+            grid: '#9a90b8',
+            outline: '#7b6fa0',
+            redFront: '#a268e0',
+            redShadow: '#7540ad',
+            yellowFront: '#d4a832',
+            yellowShadow: '#a58025',
+            cableFront: '#00b5b0',
+            cableShadow: '#008580',
+            brackets: '#7b6fa0',
+            sparkleW: '#a268e0',
+            sparkleY: '#00b5b0',
+          },
+        },
+        // --- Monochromatic gold + split-complementary navy accent ---
+        'Gold & Amber': {
+          light: {
+            bg: '#fdf8ed',
+            grid: '#ecdbb0',
+            outline: '#3d2e0a',
+            redFront: '#e8a020',
+            redShadow: '#b87a10',
+            yellowFront: '#f5cc40',
+            yellowShadow: '#c5a020',
+            cableFront: '#c87820',
+            cableShadow: '#8a5010',
+            brackets: '#3d2e0a',
+            sparkleW: '#c87820',
+            sparkleY: '#f5cc40',
+          },
+          dark: {
+            bg: '#181208',
+            grid: '#2e2510',
+            outline: '#f0d080',
+            redFront: '#daa020',
+            redShadow: '#8b6508',
+            yellowFront: '#ffd700',
+            yellowShadow: '#b09500',
+            cableFront: '#e8a840',
+            cableShadow: '#8a6010',
+            brackets: '#f0d080',
+            sparkleW: '#fff0c8',
+            sparkleY: '#ffd700',
+          },
+          univ: {
+            grid: '#c4ad78',
+            outline: '#9a8450',
+            redFront: '#d49228',
+            redShadow: '#a06e18',
+            yellowFront: '#e0b830',
+            yellowShadow: '#ad8e20',
+            cableFront: '#4a6e90',
+            cableShadow: '#304e68',
+            brackets: '#9a8450',
+            sparkleW: '#4a6e90',
+            sparkleY: '#d49228',
+          },
+        },
+        // --- Complementary harmony: red-green Christmas/forest ---
+        'Enchanted Forest': {
+          light: {
+            bg: '#f2f7f0',
+            grid: '#c5dcc0',
+            outline: '#1a2e18',
+            redFront: '#c0392b',
+            redShadow: '#8e2218',
+            yellowFront: '#a8c840',
+            yellowShadow: '#7ea028',
+            cableFront: '#27ae60',
+            cableShadow: '#148040',
+            brackets: '#27ae60',
+            sparkleW: '#c0392b',
+            sparkleY: '#a8c840',
+          },
+          dark: {
+            bg: '#0a140a',
+            grid: '#15281a',
+            outline: '#a0d8a0',
+            redFront: '#e74c3c',
+            redShadow: '#922b21',
+            yellowFront: '#b8e050',
+            yellowShadow: '#82a830',
+            cableFront: '#2ecc71',
+            cableShadow: '#0e8040',
+            brackets: '#a0d8a0',
+            sparkleW: '#d5f5d5',
+            sparkleY: '#b8e050',
+          },
+          univ: {
+            grid: '#8aad85',
+            outline: '#5c8058',
+            redFront: '#c44038',
+            redShadow: '#902828',
+            yellowFront: '#90b435',
+            yellowShadow: '#688825',
+            cableFront: '#35a855',
+            cableShadow: '#22783a',
+            brackets: '#5c8058',
+            sparkleW: '#c44038',
+            sparkleY: '#35a855',
+          },
+        },
+        // --- Split-complementary: cherry base + teal & lime accents ---
+        'Cherry Blossom': {
+          light: {
+            bg: '#fef5f7',
+            grid: '#f5d0d8',
+            outline: '#4a1028',
+            redFront: '#e84070',
+            redShadow: '#b82858',
+            yellowFront: '#f8b0c0',
+            yellowShadow: '#d88898',
+            cableFront: '#90c8a8',
+            cableShadow: '#60a080',
+            brackets: '#90c8a8',
+            sparkleW: '#4a1028',
+            sparkleY: '#f8b0c0',
+          },
+          dark: {
+            bg: '#1e0a12',
+            grid: '#30141e',
+            outline: '#f5c0d0',
+            redFront: '#f04878',
+            redShadow: '#a02048',
+            yellowFront: '#f0a0b8',
+            yellowShadow: '#c07088',
+            cableFront: '#80c0a0',
+            cableShadow: '#408868',
+            brackets: '#f5c0d0',
+            sparkleW: '#ffe8f0',
+            sparkleY: '#f0a0b8',
+          },
+          univ: {
+            grid: '#c8a0b0',
+            outline: '#a07888',
+            redFront: '#e04868',
+            redShadow: '#ab3050',
+            yellowFront: '#d89aaa',
+            yellowShadow: '#b07080',
+            cableFront: '#60b090',
+            cableShadow: '#408068',
+            brackets: '#a07888',
+            sparkleW: '#60b090',
+            sparkleY: '#e04868',
+          },
+        },
+        // --- Tetradic harmony: orange / blue / green / magenta ---
+        'Neon Tokyo': {
+          light: {
+            bg: '#f5f3f8',
+            grid: '#ddd8e8',
+            outline: '#18122b',
+            redFront: '#ff6a3d',
+            redShadow: '#cc4820',
+            yellowFront: '#36d9a0',
+            yellowShadow: '#20a878',
+            cableFront: '#4d8aff',
+            cableShadow: '#2860cc',
+            brackets: '#ff6a3d',
+            sparkleW: '#4d8aff',
+            sparkleY: '#36d9a0',
+          },
+          dark: {
+            bg: '#08060f',
+            grid: '#141020',
+            outline: '#c0b8e0',
+            redFront: '#ff5722',
+            redShadow: '#a03010',
+            yellowFront: '#00e676',
+            yellowShadow: '#00a050',
+            cableFront: '#448aff',
+            cableShadow: '#1a50a0',
+            brackets: '#ff5722',
+            sparkleW: '#e8e0ff',
+            sparkleY: '#00e676',
+          },
+          univ: {
+            grid: '#a098b8',
+            outline: '#7870a0',
+            redFront: '#e85a30',
+            redShadow: '#b04020',
+            yellowFront: '#28c488',
+            yellowShadow: '#189060',
+            cableFront: '#3878e0',
+            cableShadow: '#2050a0',
+            brackets: '#7870a0',
+            sparkleW: '#e85a30',
+            sparkleY: '#3878e0',
+          },
+        },
+        // --- Analogous warm: terracotta / sienna / clay ---
+        'Terracotta Sun': {
+          light: {
+            bg: '#faf4ee',
+            grid: '#e8d4c0',
+            outline: '#3a2218',
+            redFront: '#c86840',
+            redShadow: '#984828',
+            yellowFront: '#e8a860',
+            yellowShadow: '#c08040',
+            cableFront: '#d88850',
+            cableShadow: '#985830',
+            brackets: '#3a2218',
+            sparkleW: '#985830',
+            sparkleY: '#e8a860',
+          },
+          dark: {
+            bg: '#1a110a',
+            grid: '#2e2018',
+            outline: '#e0c8a8',
+            redFront: '#d07848',
+            redShadow: '#884020',
+            yellowFront: '#f0b868',
+            yellowShadow: '#a88038',
+            cableFront: '#e09058',
+            cableShadow: '#885028',
+            brackets: '#e0c8a8',
+            sparkleW: '#f8e8d0',
+            sparkleY: '#f0b868',
+          },
+          univ: {
+            grid: '#bea898',
+            outline: '#987868',
+            redFront: '#c06038',
+            redShadow: '#904028',
+            yellowFront: '#d49850',
+            yellowShadow: '#a87838',
+            cableFront: '#5888a0',
+            cableShadow: '#386878',
+            brackets: '#987868',
+            sparkleW: '#5888a0',
+            sparkleY: '#c06038',
+          },
+        },
+        // --- Cool complementary: ice blue + warm coral accent ---
+        'Arctic Aurora': {
+          light: {
+            bg: '#f0f8fc',
+            grid: '#c0dce8',
+            outline: '#102838',
+            redFront: '#40c8b0',
+            redShadow: '#209880',
+            yellowFront: '#a0e8d8',
+            yellowShadow: '#70c0b0',
+            cableFront: '#e87088',
+            cableShadow: '#b04860',
+            brackets: '#e87088',
+            sparkleW: '#40c8b0',
+            sparkleY: '#e87088',
+          },
+          dark: {
+            bg: '#06141c',
+            grid: '#0e2430',
+            outline: '#a0d8e8',
+            redFront: '#30e8c8',
+            redShadow: '#18a890',
+            yellowFront: '#80f0d8',
+            yellowShadow: '#50c0a8',
+            cableFront: '#f06888',
+            cableShadow: '#a03858',
+            brackets: '#f06888',
+            sparkleW: '#d0f8f0',
+            sparkleY: '#f06888',
+          },
+          univ: {
+            grid: '#88b0c0',
+            outline: '#5888a0',
+            redFront: '#30b8a0',
+            redShadow: '#208878',
+            yellowFront: '#80d0c0',
+            yellowShadow: '#58a898',
+            cableFront: '#d85878',
+            cableShadow: '#a03858',
+            brackets: '#5888a0',
+            sparkleW: '#30b8a0',
+            sparkleY: '#d85878',
+          },
+        },
+      };
+
+      // Initialize UI
+      function buildThemeUI() {
+        const container = document.getElementById('theme-container');
+        for (const [themeName, variants] of Object.entries(palettes)) {
+          const row = document.createElement('div');
+          row.className = 'theme-row';
+
+          const label = document.createElement('div');
+          label.className = 'theme-name';
+          label.innerText = themeName;
+          row.appendChild(label);
+
+          // Light Button
+          const btnL = document.createElement('button');
+          btnL.className = 't-btn light';
+          btnL.innerText = 'Light';
+          btnL.title = `Apply ${themeName} (Light background optimized)`;
+          btnL.onclick = () => {
+            applyPalette(
+              variants.light,
+            ); /* if(window.innerWidth<=900) toggleMenu(); */
+          };
+          row.appendChild(btnL);
+
+          // Dark Button
+          const btnD = document.createElement('button');
+          btnD.className = 't-btn dark';
+          btnD.innerText = 'Dark';
+          btnD.title = `Apply ${themeName} (Dark background optimized)`;
+          btnD.onclick = () => {
+            applyPalette(variants.dark);
+          };
+          row.appendChild(btnD);
+
+          // Univ-White Button
+          const btnUW = document.createElement('button');
+          btnUW.className = 't-btn u-w';
+          btnUW.innerText = 'U-White';
+          btnUW.title = `Apply ${themeName} Universal Palette on Pure White`;
+          btnUW.onclick = () => {
+            applyPalette(variants.univ, '#ffffff');
+          };
+          row.appendChild(btnUW);
+
+          // Univ-Black Button
+          const btnUB = document.createElement('button');
+          btnUB.className = 't-btn u-b';
+          btnUB.innerText = 'U-Black';
+          btnUB.title = `Apply ${themeName} Universal Palette on Pure Black`;
+          btnUB.onclick = () => {
+            applyPalette(variants.univ, '#000000');
+          };
+          row.appendChild(btnUB);
+
+          container.appendChild(row);
+        }
+      }
+
+      // Apply selected palette
+      function applyPalette(p, forcedBg = null) {
+        const mappings = {
+          'c-bg': forcedBg || p.bg,
+          'c-grid': p.grid,
+          'c-outline': p.outline,
+          'c-red-front': p.redFront,
+          'c-red-shadow': p.redShadow,
+          'c-yellow-front': p.yellowFront,
+          'c-yellow-shadow': p.yellowShadow,
+          'c-cable-front': p.cableFront,
+          'c-cable-shadow': p.cableShadow,
+          'c-brackets': p.brackets,
+          'c-sparkle-w': p.sparkleW,
+          'c-sparkle-y': p.sparkleY,
+        };
+
+        for (let id in mappings) {
+          let el = document.getElementById(id);
+          if (el) {
+            el.value = mappings[id];
+            el.dispatchEvent(new Event('input')); // Trigger update
+          }
+        }
+      }
+
+      // Background Update Logic
+      const bgInput = document.getElementById('c-bg');
+      const includeBgCheckbox = document.getElementById('include-bg');
+      const svgExportBg = document.getElementById('svg-export-bg');
+
+      function updateBackground() {
+        const color = bgInput.value;
+
+        if (includeBgCheckbox.checked) {
+          svgExportBg.setAttribute('fill', color);
+        } else {
+          svgExportBg.setAttribute('fill', 'none');
+        }
+      }
+
+      bgInput.addEventListener('input', updateBackground);
+      includeBgCheckbox.addEventListener('change', updateBackground);
+
+      // Standard color picker logic for elements
+      document.querySelectorAll('input[data-target]').forEach((input) => {
+        input.addEventListener('input', (e) => {
+          const color = e.target.value;
+          const targetSelector = e.target.getAttribute('data-target');
+          const attrType = e.target.getAttribute('data-attr');
+
+          document.querySelectorAll(targetSelector).forEach((element) => {
+            if (attrType === 'both') {
+              if (
+                element.hasAttribute('fill') &&
+                element.getAttribute('fill') !== 'none'
+              ) {
+                element.setAttribute('fill', color);
+              }
+              if (
+                element.hasAttribute('stroke') &&
+                element.getAttribute('stroke') !== 'none'
+              ) {
+                element.setAttribute('stroke', color);
+              }
+            } else {
+              element.setAttribute(attrType, color);
+            }
+          });
+        });
+      });
+
+      // Download feature
+      function downloadSVG() {
+        const svg = document.getElementById('live-svg');
+        const serializer = new XMLSerializer();
+        let source = serializer.serializeToString(svg);
+        source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
+        const url =
+          'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'custom-graphic.svg';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      // Color Mode Toggle (light / dark / auto)
+      const colorModeBtn = document.getElementById('color-mode-btn');
+      const colorModeIcon = document.getElementById('color-mode-icon');
+      const colorModeLabel = document.getElementById('color-mode-label');
+      const modes = ['auto', 'light', 'dark'];
+      const modeIcons = { auto: '\u25D0', light: '\u2600', dark: '\u263E' };
+      const modeLabels = { auto: 'Auto', light: 'Light', dark: 'Dark' };
+      let currentMode = localStorage.getItem('colorMode') || 'auto';
+
+      function applyColorMode(mode) {
+        currentMode = mode;
+        localStorage.setItem('colorMode', mode);
+        const root = document.documentElement;
+        root.classList.remove('auto', 'light', 'dark');
+        root.classList.add(mode);
+        colorModeIcon.textContent = modeIcons[mode];
+        colorModeLabel.textContent = modeLabels[mode];
+      }
+
+      colorModeBtn.addEventListener('click', () => {
+        const next = modes[(modes.indexOf(currentMode) + 1) % modes.length];
+        applyColorMode(next);
+      });
+
+      applyColorMode(currentMode);
+
+      // Mobile Drawer Drag Handle
+      const dragHandle = document.getElementById('drag-handle');
+      let dragStartY = 0;
+      let dragging = false;
+      let sidebarStartTranslate = 0;
+
+      function getDrawerTranslateY() {
+        const transform = getComputedStyle(sidebar).transform;
+        if (transform === 'none') return 0;
+        const matrix = new DOMMatrix(transform);
+        return matrix.m42;
+      }
+
+      function onDragStart(e) {
+        if (window.innerWidth > 900) return;
+        dragging = true;
+        dragStartY = e.touches ? e.touches[0].clientY : e.clientY;
+        sidebarStartTranslate = getDrawerTranslateY();
+        sidebar.style.transition = 'none';
+        previewArea.style.transition = 'none';
+      }
+
+      function onDragMove(e) {
+        if (!dragging) return;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        let delta = clientY - dragStartY;
+        // Only allow dragging down (closing) when open, or up (opening) when closed
+        const isOpen = sidebar.classList.contains('open');
+        if (isOpen) {
+          delta = Math.max(0, delta); // Only drag down to close
+        } else {
+          delta = Math.min(0, delta); // Only drag up to open
+        }
+        const translate = sidebarStartTranslate + delta;
+        const clamped = Math.max(0, Math.min(translate, sidebar.offsetHeight));
+        sidebar.style.transform = `translateY(${clamped}px)`;
+      }
+
+      function onDragEnd(e) {
+        if (!dragging) return;
+        dragging = false;
+        sidebar.style.transition = '';
+        previewArea.style.transition = '';
+        sidebar.style.transform = '';
+
+        const clientY = e.changedTouches
+          ? e.changedTouches[0].clientY
+          : e.clientY;
+        const delta = clientY - dragStartY;
+        const threshold = sidebar.offsetHeight * 0.25;
+        const isOpen = sidebar.classList.contains('open');
+
+        if (isOpen && delta > threshold) {
+          // Swipe down far enough — close
+          toggleMenu();
+        } else if (!isOpen && delta < -threshold) {
+          // Swipe up far enough — open
+          toggleMenu();
+        }
+      }
+
+      dragHandle.addEventListener('touchstart', onDragStart, {
+        passive: true,
+      });
+      document.addEventListener('touchmove', onDragMove, { passive: false });
+      document.addEventListener('touchend', onDragEnd);
+
+      dragHandle.addEventListener('mousedown', onDragStart);
+      document.addEventListener('mousemove', onDragMove);
+      document.addEventListener('mouseup', onDragEnd);
+
+      // Run setup
+      buildThemeUI();
+      updateBackground();
+    </script>
+  </body>
+</html>

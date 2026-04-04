@@ -167,9 +167,10 @@ type SerializedStepRecord = Omit<
 
 type SerializedLoopIterationRecord = Omit<
   LoopIterationRecord,
-  'stepRecords'
+  'stepRecords' | 'nestedLoopRecords'
 > & {
   stepRecords: ReadonlyArray<SerializedStepRecord>;
+  nestedLoopRecords?: Record<string, SerializedLoopRecord>;
 };
 
 type SerializedLoopRecord = Omit<LoopRecord, 'iterations'> & {
@@ -267,20 +268,32 @@ function deserializeStepRecord(obj: SerializedStepRecord): ExecutionStepRecord {
 function serializeLoopIterationRecord(
   iter: LoopIterationRecord,
 ): SerializedLoopIterationRecord {
+  const nested: Record<string, SerializedLoopRecord> = {};
+  for (const [k, v] of iter.nestedLoopRecords) {
+    nested[k] = serializeLoopRecord(v);
+  }
   return {
     ...iter,
     stepRecords: iter.stepRecords.map(serializeStepRecord),
+    nestedLoopRecords: Object.keys(nested).length > 0 ? nested : undefined,
   };
 }
 
 function deserializeLoopIterationRecord(
   obj: SerializedLoopIterationRecord,
 ): LoopIterationRecord {
+  const nestedLoopRecords = new Map<string, LoopRecord>();
+  if (obj.nestedLoopRecords) {
+    for (const [k, v] of Object.entries(obj.nestedLoopRecords)) {
+      nestedLoopRecords.set(k, deserializeLoopRecord(v));
+    }
+  }
   return {
     ...obj,
     stepRecords: (obj.stepRecords ?? []).map((s: SerializedStepRecord) =>
       deserializeStepRecord(s),
     ),
+    nestedLoopRecords,
   };
 }
 
@@ -357,6 +370,7 @@ function serializeExecutionRecord(
     startTime: record.startTime,
     endTime: record.endTime,
     totalDuration: record.totalDuration,
+    compilationDuration: record.compilationDuration,
     totalPauseDuration: record.totalPauseDuration,
     status: record.status,
     steps: record.steps.map(serializeStepRecord),
@@ -365,6 +379,7 @@ function serializeExecutionRecord(
     loopRecords,
     groupRecords,
     finalValues,
+    ...(record.viewState ? { viewState: record.viewState } : {}),
   };
 }
 
@@ -404,6 +419,7 @@ function deserializeExecutionRecord(
     startTime: obj.startTime,
     endTime: obj.endTime,
     totalDuration: obj.totalDuration,
+    compilationDuration: obj.compilationDuration ?? 0,
     totalPauseDuration: obj.totalPauseDuration ?? 0,
     status: obj.status,
     steps: (obj.steps ?? []).map((s: SerializedStepRecord) =>
@@ -416,6 +432,7 @@ function deserializeExecutionRecord(
     loopRecords,
     groupRecords,
     finalValues,
+    ...(obj.viewState ? { viewState: obj.viewState } : {}),
   };
 }
 

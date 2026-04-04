@@ -459,7 +459,7 @@ type LoopExecutionBlock = {
   loopStopNodeId: string;
   loopEndNodeId: string;
   bodySteps: ReadonlyArray<ExecutionStep>;
-  maxIterations: number; // configurable, default 10000
+  maxIterations: number; // configurable, default 100
   concurrencyLevel: number; // assigned by main compiler
 };
 ```
@@ -580,8 +580,8 @@ Value lifecycle across iterations:
 
 ## Limitations and Deprecated Patterns
 
-- **Maximum iterations:** Configurable via `maxLoopIterations` (default 10000).
-  If the condition remains `true` after all iterations, an error is thrown.
+- **Maximum iterations:** Configurable via `maxLoopIterations` (default 100). If
+  the condition remains `true` after all iterations, an error is thrown.
 - **No early break from body:** There is no mechanism for a body node to signal
   an early loop exit. Only the condition handle on loopStop controls loop flow.
 - **Condition default on error:** If the node feeding the condition handle

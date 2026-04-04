@@ -22,7 +22,7 @@ import {
   hasKey,
 } from './groupCompiler';
 
-const DEFAULT_MAX_LOOP_ITERATIONS = 10000;
+const DEFAULT_MAX_LOOP_ITERATIONS = 100;
 
 /**
  * Compile a graph State into an ExecutionPlan (intermediate representation).
@@ -220,7 +220,7 @@ function compile<
     nodeToLoopProxy.set(block.loopStartNodeId, proxyId);
     nodeToLoopProxy.set(block.loopStopNodeId, proxyId);
     nodeToLoopProxy.set(block.loopEndNodeId, proxyId);
-    for (const step of block.bodySteps) {
+    for (const step of [...block.preStopSteps, ...block.postStopSteps]) {
       if (step.kind === 'standard') {
         nodeToLoopProxy.set(step.nodeId, proxyId);
       }
@@ -338,7 +338,7 @@ function compile<
         nodeCount++;
       } else if (step.kind === 'loop') {
         // Count loop triplet + body nodes
-        nodeCount += 3 + step.bodySteps.length;
+        nodeCount += 3 + step.preStopSteps.length + step.postStopSteps.length;
       } else if (step.kind === 'group') {
         nodeCount += 1 + step.innerPlan.nodeCount;
       }

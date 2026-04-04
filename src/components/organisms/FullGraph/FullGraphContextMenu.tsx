@@ -85,7 +85,7 @@ const FullGraphContextMenu = ({
         bottom: position.y + 1,
         left: position.x,
       }),
-    } as unknown as Element);
+    });
   }, [isOpen, position, refs]);
 
   if (!isMounted) {

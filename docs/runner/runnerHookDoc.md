@@ -341,7 +341,7 @@ type UseNodeRunnerReturn = {
   // ── Settings ───────────────────────────────
   mode: UseNodeRunnerMode; // 'instant' | 'stepByStep'
   setMode: (mode: UseNodeRunnerMode) => void;
-  maxLoopIterations: number; // Default: 10000
+  maxLoopIterations: number; // Default: 100
   setMaxLoopIterations: (max: number) => void;
 };
 ```

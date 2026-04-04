@@ -1,0 +1,3615 @@
+{
+  "version": 1,
+  "exportedAt": "2026-04-04T13:18:41.423Z",
+  "record": {
+    "id": "5891e778-c8aa-489b-8b75-072f1677a4ba",
+    "startTime": 853084.6999999285,
+    "endTime": 853085.5300000014,
+    "totalDuration": 0.8300000729504973,
+    "compilationDuration": 17,
+    "totalPauseDuration": 0,
+    "status": "completed",
+    "steps": [
+      {
+        "stepIndex": 0,
+        "nodeId": "emy3elykaicuuqmi5z97",
+        "nodeTypeId": "bitConstant",
+        "nodeTypeName": "Bit Input",
+        "concurrencyLevel": 0,
+        "startTime": 0.10000002384185791,
+        "endTime": 0.10200002393685281,
+        "duration": 0.0020000000949949026,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Value": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": true
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 1,
+        "nodeId": "pnc2c8r7csdqjmz8ypxv",
+        "nodeTypeId": "bitConstant",
+        "nodeTypeName": "Bit Input",
+        "concurrencyLevel": 0,
+        "startTime": 0.10100002388935536,
+        "endTime": 0.10300002398435026,
+        "duration": 0.0020000000949949026,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Value": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": true
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 2,
+        "nodeId": "kiiy4cvqmbnl9l5lj57n",
+        "nodeTypeId": "loopStart",
+        "nodeTypeName": "Loop Start",
+        "concurrencyLevel": 1,
+        "startTime": 0.3010000715730712,
+        "endTime": 0.30200007162056863,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "emy3elykaicuuqmi5z97",
+                "sourceNodeName": "Bit Input",
+                "sourceHandleId": "96lx7qlwlsvif47dfwc2",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "pnc2c8r7csdqjmz8ypxv",
+                "sourceNodeName": "Bit Input",
+                "sourceHandleId": "q0mabdcze0863prmasan",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "A": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 2
+          },
+          "B": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "loopStart",
+        "inputSource": "upstream",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 3,
+        "nodeId": "9oz5glp6wj14gj9y734e",
+        "nodeTypeId": "xorGate",
+        "nodeTypeName": "XOR Gate",
+        "concurrencyLevel": 0,
+        "startTime": 0.3030000716680661,
+        "endTime": 0.305000071763061,
+        "duration": 0.0020000000949949026,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                "sourceNodeName": "Loop Start",
+                "sourceHandleId": "hk26sh27n6ydu8s6kz7l",
+                "sourceHandleName": "A",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": true,
+            "defaultValue": true
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 2
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 4,
+        "nodeId": "ctnrc0yflauzk2jqa6qc",
+        "nodeTypeId": "andGate",
+        "nodeTypeName": "AND Gate",
+        "concurrencyLevel": 0,
+        "startTime": 0.30400007171556354,
+        "endTime": 0.30600007181055844,
+        "duration": 0.0020000000949949026,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                "sourceNodeName": "Loop Start",
+                "sourceHandleId": "hk26sh27n6ydu8s6kz7l",
+                "sourceHandleName": "A",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": true,
+            "defaultValue": true
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 5,
+        "nodeId": "lwvckqpjaxt8a63fsxqk",
+        "nodeTypeId": "xorGate",
+        "nodeTypeName": "XOR Gate",
+        "concurrencyLevel": 1,
+        "startTime": 0.3070000718580559,
+        "endTime": 0.30800007190555334,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "ctnrc0yflauzk2jqa6qc",
+                "sourceNodeName": "AND Gate",
+                "sourceHandleId": "euvb9qn5lgqqrkl4nlby",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                "sourceNodeName": "Loop Start",
+                "sourceHandleId": "ti6q9zq19uulksn1b2q9",
+                "sourceHandleName": "B",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 2
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 6,
+        "nodeId": "9ld9lknck32xxltbiuau",
+        "nodeTypeId": "loopStart",
+        "nodeTypeName": "Loop Start",
+        "concurrencyLevel": 2,
+        "startTime": 0.3110000720480457,
+        "endTime": 0.31200007209554315,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Out": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "lwvckqpjaxt8a63fsxqk",
+                "sourceNodeName": "XOR Gate",
+                "sourceHandleId": "7jrjccqlyd6b7dharza1",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "9ld9lknck32xxltbiuau",
+        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "parentLoopIteration": 0,
+        "loopPhase": "loopStart",
+        "inputSource": "upstream",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 7,
+        "nodeId": "ifb8xksowyszrstdwp1p",
+        "nodeTypeId": "loopStop",
+        "nodeTypeName": "Loop Stop",
+        "concurrencyLevel": 2,
+        "startTime": 0.3130000721430406,
+        "endTime": 0.31400007219053805,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Bind Loop Nodes": {
+            "connections": [],
+            "dataTypeId": "bindLoopNodes",
+            "isDefault": true
+          },
+          "Continue If Condition Is True": {
+            "connections": [],
+            "dataTypeId": "condition",
+            "isDefault": true
+          },
+          "Out": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "9ld9lknck32xxltbiuau",
+                "sourceNodeName": "Loop Start",
+                "sourceHandleId": "gpo9bbfqx27x0mu4ofst",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "9ld9lknck32xxltbiuau",
+        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "parentLoopIteration": 0,
+        "loopPhase": "loopStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 8,
+        "nodeId": "lfuod7lfwoleze4ek29i",
+        "nodeTypeId": "loopEnd",
+        "nodeTypeName": "Loop End",
+        "concurrencyLevel": 2,
+        "startTime": 0.3150000722380355,
+        "endTime": 0.31600007228553295,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Bind Loop Nodes": {
+            "connections": [],
+            "dataTypeId": "bindLoopNodes",
+            "isDefault": true
+          },
+          "Out": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "ifb8xksowyszrstdwp1p",
+                "sourceNodeName": "Loop Stop",
+                "sourceHandleId": "qjxjb3uqjg8wb3gl9tui",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "9ld9lknck32xxltbiuau",
+        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "parentLoopIteration": 0,
+        "loopPhase": "loopEnd",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 9,
+        "nodeId": "gw9tfhpwmeqw6ge4yf5j",
+        "nodeTypeId": "andGate",
+        "nodeTypeName": "AND Gate",
+        "concurrencyLevel": 3,
+        "startTime": 0.5,
+        "endTime": 0.5010000000474975,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "9oz5glp6wj14gj9y734e",
+                "sourceNodeName": "XOR Gate",
+                "sourceHandleId": "kruzwcs1ff5v0ku4qyx1",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "lfuod7lfwoleze4ek29i",
+                "sourceNodeName": "Loop End",
+                "sourceHandleId": "o2h9z5bgorlwka5zjyv9",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 10,
+        "nodeId": "eplzks4gjrvedc4zqjy2",
+        "nodeTypeId": "notGate",
+        "nodeTypeName": "NOT Gate",
+        "concurrencyLevel": 4,
+        "startTime": 0.5020000000949949,
+        "endTime": 0.5030000001424924,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "In": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "gw9tfhpwmeqw6ge4yf5j",
+                "sourceNodeName": "AND Gate",
+                "sourceHandleId": "o9igjfokeln1i25x4ex2",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 11,
+        "nodeId": "4fuwxnj86u035u8z6lbi",
+        "nodeTypeId": "loopStop",
+        "nodeTypeName": "Loop Stop",
+        "concurrencyLevel": 1,
+        "startTime": 0.5040000001899898,
+        "endTime": 0.5050000002374873,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Bind Loop Nodes": {
+            "connections": [],
+            "dataTypeId": "bindLoopNodes",
+            "isDefault": true
+          },
+          "Continue If Condition Is True": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "eplzks4gjrvedc4zqjy2",
+                "sourceNodeName": "NOT Gate",
+                "sourceHandleId": "jt54l4plklk1hfzjmie7",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "condition",
+            "isDefault": false
+          },
+          "A": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "9oz5glp6wj14gj9y734e",
+                "sourceNodeName": "XOR Gate",
+                "sourceHandleId": "kruzwcs1ff5v0ku4qyx1",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "lwvckqpjaxt8a63fsxqk",
+                "sourceNodeName": "XOR Gate",
+                "sourceHandleId": "7jrjccqlyd6b7dharza1",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "A": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          },
+          "B": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "loopStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 12,
+        "nodeId": "x32hrrjo7uc8mvdwtpty",
+        "nodeTypeId": "loopEnd",
+        "nodeTypeName": "Loop End",
+        "concurrencyLevel": 1,
+        "startTime": 0.5060000002849847,
+        "endTime": 0.5070000003324822,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Bind Loop Nodes": {
+            "connections": [],
+            "dataTypeId": "bindLoopNodes",
+            "isDefault": true
+          },
+          "A": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "4fuwxnj86u035u8z6lbi",
+                "sourceNodeName": "Loop Stop",
+                "sourceHandleId": "cu2flb8m7mb1iid6uuh3",
+                "sourceHandleName": "A",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "4fuwxnj86u035u8z6lbi",
+                "sourceNodeName": "Loop Stop",
+                "sourceHandleId": "50t9sue7xukcnte7d78e",
+                "sourceHandleName": "B",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {},
+        "loopIteration": 0,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "loopEnd",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 13,
+        "nodeId": "kiiy4cvqmbnl9l5lj57n",
+        "nodeTypeId": "loopStart",
+        "nodeTypeName": "Loop Start",
+        "concurrencyLevel": 1,
+        "startTime": 0.5100000004749745,
+        "endTime": 0.6000000238418579,
+        "duration": 0.0900000233668834,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "A": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 2
+          },
+          "B": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 1,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "loopStart",
+        "inputSource": "feedback"
+      },
+      {
+        "stepIndex": 14,
+        "nodeId": "9oz5glp6wj14gj9y734e",
+        "nodeTypeId": "xorGate",
+        "nodeTypeName": "XOR Gate",
+        "concurrencyLevel": 0,
+        "startTime": 0.6010000238893554,
+        "endTime": 0.6030000239843503,
+        "duration": 0.0020000000949949026,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                "sourceNodeName": "Loop Start",
+                "sourceHandleId": "hk26sh27n6ydu8s6kz7l",
+                "sourceHandleName": "A",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": true,
+            "defaultValue": true
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 2
+          }
+        },
+        "loopIteration": 1,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 15,
+        "nodeId": "ctnrc0yflauzk2jqa6qc",
+        "nodeTypeId": "andGate",
+        "nodeTypeName": "AND Gate",
+        "concurrencyLevel": 0,
+        "startTime": 0.6020000239368528,
+        "endTime": 0.6040000240318477,
+        "duration": 0.0020000000949949026,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                "sourceNodeName": "Loop Start",
+                "sourceHandleId": "hk26sh27n6ydu8s6kz7l",
+                "sourceHandleName": "A",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": true,
+            "defaultValue": true
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 1,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 16,
+        "nodeId": "lwvckqpjaxt8a63fsxqk",
+        "nodeTypeId": "xorGate",
+        "nodeTypeName": "XOR Gate",
+        "concurrencyLevel": 1,
+        "startTime": 0.6050000240793452,
+        "endTime": 0.6060000241268426,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "ctnrc0yflauzk2jqa6qc",
+                "sourceNodeName": "AND Gate",
+                "sourceHandleId": "euvb9qn5lgqqrkl4nlby",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                "sourceNodeName": "Loop Start",
+                "sourceHandleId": "ti6q9zq19uulksn1b2q9",
+                "sourceHandleName": "B",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 2
+          }
+        },
+        "loopIteration": 1,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 17,
+        "nodeId": "9ld9lknck32xxltbiuau",
+        "nodeTypeId": "loopStart",
+        "nodeTypeName": "Loop Start",
+        "concurrencyLevel": 2,
+        "startTime": 0.609000024269335,
+        "endTime": 0.6100000243168324,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Out": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "lwvckqpjaxt8a63fsxqk",
+                "sourceNodeName": "XOR Gate",
+                "sourceHandleId": "7jrjccqlyd6b7dharza1",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "9ld9lknck32xxltbiuau",
+        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "parentLoopIteration": 1,
+        "loopPhase": "loopStart",
+        "inputSource": "upstream",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 18,
+        "nodeId": "ifb8xksowyszrstdwp1p",
+        "nodeTypeId": "loopStop",
+        "nodeTypeName": "Loop Stop",
+        "concurrencyLevel": 2,
+        "startTime": 0.6110000243643299,
+        "endTime": 0.6120000244118273,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Bind Loop Nodes": {
+            "connections": [],
+            "dataTypeId": "bindLoopNodes",
+            "isDefault": true
+          },
+          "Continue If Condition Is True": {
+            "connections": [],
+            "dataTypeId": "condition",
+            "isDefault": true
+          },
+          "Out": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "9ld9lknck32xxltbiuau",
+                "sourceNodeName": "Loop Start",
+                "sourceHandleId": "gpo9bbfqx27x0mu4ofst",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "9ld9lknck32xxltbiuau",
+        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "parentLoopIteration": 1,
+        "loopPhase": "loopStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 19,
+        "nodeId": "lfuod7lfwoleze4ek29i",
+        "nodeTypeId": "loopEnd",
+        "nodeTypeName": "Loop End",
+        "concurrencyLevel": 2,
+        "startTime": 0.6130000244593248,
+        "endTime": 0.6140000245068222,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Bind Loop Nodes": {
+            "connections": [],
+            "dataTypeId": "bindLoopNodes",
+            "isDefault": true
+          },
+          "Out": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "ifb8xksowyszrstdwp1p",
+                "sourceNodeName": "Loop Stop",
+                "sourceHandleId": "qjxjb3uqjg8wb3gl9tui",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "9ld9lknck32xxltbiuau",
+        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "parentLoopIteration": 1,
+        "loopPhase": "loopEnd",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 20,
+        "nodeId": "gw9tfhpwmeqw6ge4yf5j",
+        "nodeTypeId": "andGate",
+        "nodeTypeName": "AND Gate",
+        "concurrencyLevel": 3,
+        "startTime": 0.6170000246493146,
+        "endTime": 0.618000024696812,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "9oz5glp6wj14gj9y734e",
+                "sourceNodeName": "XOR Gate",
+                "sourceHandleId": "kruzwcs1ff5v0ku4qyx1",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "lfuod7lfwoleze4ek29i",
+                "sourceNodeName": "Loop End",
+                "sourceHandleId": "o2h9z5bgorlwka5zjyv9",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 1,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 21,
+        "nodeId": "eplzks4gjrvedc4zqjy2",
+        "nodeTypeId": "notGate",
+        "nodeTypeName": "NOT Gate",
+        "concurrencyLevel": 4,
+        "startTime": 0.6190000247443095,
+        "endTime": 0.6200000247918069,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "In": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "gw9tfhpwmeqw6ge4yf5j",
+                "sourceNodeName": "AND Gate",
+                "sourceHandleId": "o9igjfokeln1i25x4ex2",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 1,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 22,
+        "nodeId": "4fuwxnj86u035u8z6lbi",
+        "nodeTypeId": "loopStop",
+        "nodeTypeName": "Loop Stop",
+        "concurrencyLevel": 1,
+        "startTime": 0.6210000248393044,
+        "endTime": 0.6220000248868018,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Bind Loop Nodes": {
+            "connections": [],
+            "dataTypeId": "bindLoopNodes",
+            "isDefault": true
+          },
+          "Continue If Condition Is True": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "eplzks4gjrvedc4zqjy2",
+                "sourceNodeName": "NOT Gate",
+                "sourceHandleId": "jt54l4plklk1hfzjmie7",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "condition",
+            "isDefault": false
+          },
+          "A": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "9oz5glp6wj14gj9y734e",
+                "sourceNodeName": "XOR Gate",
+                "sourceHandleId": "kruzwcs1ff5v0ku4qyx1",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "lwvckqpjaxt8a63fsxqk",
+                "sourceNodeName": "XOR Gate",
+                "sourceHandleId": "7jrjccqlyd6b7dharza1",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "A": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          },
+          "B": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 1,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "loopStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 23,
+        "nodeId": "x32hrrjo7uc8mvdwtpty",
+        "nodeTypeId": "loopEnd",
+        "nodeTypeName": "Loop End",
+        "concurrencyLevel": 1,
+        "startTime": 0.6230000249342993,
+        "endTime": 0.6240000249817967,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Bind Loop Nodes": {
+            "connections": [],
+            "dataTypeId": "bindLoopNodes",
+            "isDefault": true
+          },
+          "A": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "4fuwxnj86u035u8z6lbi",
+                "sourceNodeName": "Loop Stop",
+                "sourceHandleId": "cu2flb8m7mb1iid6uuh3",
+                "sourceHandleName": "A",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "4fuwxnj86u035u8z6lbi",
+                "sourceNodeName": "Loop Stop",
+                "sourceHandleId": "50t9sue7xukcnte7d78e",
+                "sourceHandleName": "B",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {},
+        "loopIteration": 1,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "loopEnd",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 24,
+        "nodeId": "kiiy4cvqmbnl9l5lj57n",
+        "nodeTypeId": "loopStart",
+        "nodeTypeName": "Loop Start",
+        "concurrencyLevel": 1,
+        "startTime": 0.6270000251242891,
+        "endTime": 0.6280000251717865,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "A": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 2
+          },
+          "B": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 2,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "loopStart",
+        "inputSource": "feedback",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 25,
+        "nodeId": "9oz5glp6wj14gj9y734e",
+        "nodeTypeId": "xorGate",
+        "nodeTypeName": "XOR Gate",
+        "concurrencyLevel": 0,
+        "startTime": 0.7000000476837158,
+        "endTime": 0.7020000477787107,
+        "duration": 0.0020000000949949026,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                "sourceNodeName": "Loop Start",
+                "sourceHandleId": "hk26sh27n6ydu8s6kz7l",
+                "sourceHandleName": "A",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": true,
+            "defaultValue": true
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 2
+          }
+        },
+        "loopIteration": 2,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 26,
+        "nodeId": "ctnrc0yflauzk2jqa6qc",
+        "nodeTypeId": "andGate",
+        "nodeTypeName": "AND Gate",
+        "concurrencyLevel": 0,
+        "startTime": 0.7010000477312133,
+        "endTime": 0.8000000715255737,
+        "duration": 0.09900002379436046,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                "sourceNodeName": "Loop Start",
+                "sourceHandleId": "hk26sh27n6ydu8s6kz7l",
+                "sourceHandleName": "A",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": true,
+            "defaultValue": true
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 2,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop"
+      },
+      {
+        "stepIndex": 27,
+        "nodeId": "lwvckqpjaxt8a63fsxqk",
+        "nodeTypeId": "xorGate",
+        "nodeTypeName": "XOR Gate",
+        "concurrencyLevel": 1,
+        "startTime": 0.8010000715730712,
+        "endTime": 0.8020000716205686,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "ctnrc0yflauzk2jqa6qc",
+                "sourceNodeName": "AND Gate",
+                "sourceHandleId": "euvb9qn5lgqqrkl4nlby",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                "sourceNodeName": "Loop Start",
+                "sourceHandleId": "ti6q9zq19uulksn1b2q9",
+                "sourceHandleName": "B",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 2
+          }
+        },
+        "loopIteration": 2,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 28,
+        "nodeId": "9ld9lknck32xxltbiuau",
+        "nodeTypeId": "loopStart",
+        "nodeTypeName": "Loop Start",
+        "concurrencyLevel": 2,
+        "startTime": 0.805000071763061,
+        "endTime": 0.8060000718105584,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Out": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "lwvckqpjaxt8a63fsxqk",
+                "sourceNodeName": "XOR Gate",
+                "sourceHandleId": "7jrjccqlyd6b7dharza1",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "9ld9lknck32xxltbiuau",
+        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "parentLoopIteration": 2,
+        "loopPhase": "loopStart",
+        "inputSource": "upstream",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 29,
+        "nodeId": "ifb8xksowyszrstdwp1p",
+        "nodeTypeId": "loopStop",
+        "nodeTypeName": "Loop Stop",
+        "concurrencyLevel": 2,
+        "startTime": 0.8070000718580559,
+        "endTime": 0.8080000719055533,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Bind Loop Nodes": {
+            "connections": [],
+            "dataTypeId": "bindLoopNodes",
+            "isDefault": true
+          },
+          "Continue If Condition Is True": {
+            "connections": [],
+            "dataTypeId": "condition",
+            "isDefault": true
+          },
+          "Out": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "9ld9lknck32xxltbiuau",
+                "sourceNodeName": "Loop Start",
+                "sourceHandleId": "gpo9bbfqx27x0mu4ofst",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "9ld9lknck32xxltbiuau",
+        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "parentLoopIteration": 2,
+        "loopPhase": "loopStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 30,
+        "nodeId": "lfuod7lfwoleze4ek29i",
+        "nodeTypeId": "loopEnd",
+        "nodeTypeName": "Loop End",
+        "concurrencyLevel": 2,
+        "startTime": 0.8090000719530508,
+        "endTime": 0.8100000720005482,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Bind Loop Nodes": {
+            "connections": [],
+            "dataTypeId": "bindLoopNodes",
+            "isDefault": true
+          },
+          "Out": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "ifb8xksowyszrstdwp1p",
+                "sourceNodeName": "Loop Stop",
+                "sourceHandleId": "qjxjb3uqjg8wb3gl9tui",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 0,
+        "loopStructureId": "9ld9lknck32xxltbiuau",
+        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "parentLoopIteration": 2,
+        "loopPhase": "loopEnd",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 31,
+        "nodeId": "gw9tfhpwmeqw6ge4yf5j",
+        "nodeTypeId": "andGate",
+        "nodeTypeName": "AND Gate",
+        "concurrencyLevel": 3,
+        "startTime": 0.8130000721430406,
+        "endTime": 0.814000072190538,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "9oz5glp6wj14gj9y734e",
+                "sourceNodeName": "XOR Gate",
+                "sourceHandleId": "kruzwcs1ff5v0ku4qyx1",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "lfuod7lfwoleze4ek29i",
+                "sourceNodeName": "Loop End",
+                "sourceHandleId": "o2h9z5bgorlwka5zjyv9",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 2,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 32,
+        "nodeId": "eplzks4gjrvedc4zqjy2",
+        "nodeTypeId": "notGate",
+        "nodeTypeName": "NOT Gate",
+        "concurrencyLevel": 4,
+        "startTime": 0.8150000722380355,
+        "endTime": 0.816000072285533,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "In": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "gw9tfhpwmeqw6ge4yf5j",
+                "sourceNodeName": "AND Gate",
+                "sourceHandleId": "o9igjfokeln1i25x4ex2",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 2,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "preStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 33,
+        "nodeId": "4fuwxnj86u035u8z6lbi",
+        "nodeTypeId": "loopStop",
+        "nodeTypeName": "Loop Stop",
+        "concurrencyLevel": 1,
+        "startTime": 0.8170000723330304,
+        "endTime": 0.8180000723805279,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Bind Loop Nodes": {
+            "connections": [],
+            "dataTypeId": "bindLoopNodes",
+            "isDefault": true
+          },
+          "Continue If Condition Is True": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "eplzks4gjrvedc4zqjy2",
+                "sourceNodeName": "NOT Gate",
+                "sourceHandleId": "jt54l4plklk1hfzjmie7",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "condition",
+            "isDefault": false
+          },
+          "A": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "9oz5glp6wj14gj9y734e",
+                "sourceNodeName": "XOR Gate",
+                "sourceHandleId": "kruzwcs1ff5v0ku4qyx1",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "lwvckqpjaxt8a63fsxqk",
+                "sourceNodeName": "XOR Gate",
+                "sourceHandleId": "7jrjccqlyd6b7dharza1",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "A": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          },
+          "B": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 2,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "loopStop",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 34,
+        "nodeId": "x32hrrjo7uc8mvdwtpty",
+        "nodeTypeId": "loopEnd",
+        "nodeTypeName": "Loop End",
+        "concurrencyLevel": 1,
+        "startTime": 0.8190000724280253,
+        "endTime": 0.8200000724755228,
+        "duration": 0.0010000000474974513,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Bind Loop Nodes": {
+            "connections": [],
+            "dataTypeId": "bindLoopNodes",
+            "isDefault": true
+          },
+          "A": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "4fuwxnj86u035u8z6lbi",
+                "sourceNodeName": "Loop Stop",
+                "sourceHandleId": "cu2flb8m7mb1iid6uuh3",
+                "sourceHandleName": "A",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "4fuwxnj86u035u8z6lbi",
+                "sourceNodeName": "Loop Stop",
+                "sourceHandleId": "50t9sue7xukcnte7d78e",
+                "sourceHandleName": "B",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "A": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          },
+          "B": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "loopIteration": 2,
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopPhase": "loopEnd",
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 35,
+        "nodeId": "r2jvgauk38lxx6lnzxc2",
+        "nodeTypeId": "bitDisplay",
+        "nodeTypeName": "Bit Output",
+        "concurrencyLevel": 2,
+        "startTime": 0.82500007271301,
+        "endTime": 0.8270000728080049,
+        "duration": 0.0020000000949949026,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "In": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "x32hrrjo7uc8mvdwtpty",
+                "sourceNodeName": "Loop End",
+                "sourceHandleId": "snwgahdi6nbtg2hlphht",
+                "sourceHandleName": "A",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {},
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 36,
+        "nodeId": "j8uny8sp5oke701pw8zq",
+        "nodeTypeId": "bitDisplay",
+        "nodeTypeName": "Bit Output",
+        "concurrencyLevel": 2,
+        "startTime": 0.8260000727605075,
+        "endTime": 0.8280000728555024,
+        "duration": 0.0020000000949949026,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "In": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "x32hrrjo7uc8mvdwtpty",
+                "sourceNodeName": "Loop End",
+                "sourceHandleId": "8qmrl0ywj5xoorfa6fpn",
+                "sourceHandleName": "B",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {},
+        "estimatedTiming": true
+      }
+    ],
+    "errors": [],
+    "concurrencyLevels": [
+      {
+        "level": 0,
+        "startTime": 0.0010000000474974513,
+        "endTime": 0.10400002403184772,
+        "duration": 0.10300002398435026,
+        "nodeIds": ["emy3elykaicuuqmi5z97", "pnc2c8r7csdqjmz8ypxv"]
+      },
+      {
+        "level": 1,
+        "startTime": 0.10500002407934517,
+        "endTime": 0.8230000726180151,
+        "duration": 0.7180000485386699,
+        "nodeIds": ["kiiy4cvqmbnl9l5lj57n"]
+      },
+      {
+        "level": 2,
+        "startTime": 0.8240000726655126,
+        "endTime": 0.8290000729029998,
+        "duration": 0.0050000002374872565,
+        "nodeIds": ["r2jvgauk38lxx6lnzxc2", "j8uny8sp5oke701pw8zq"]
+      }
+    ],
+    "loopRecords": {
+      "kiiy4cvqmbnl9l5lj57n": {
+        "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "loopStartNodeId": "kiiy4cvqmbnl9l5lj57n",
+        "loopStopNodeId": "4fuwxnj86u035u8z6lbi",
+        "loopEndNodeId": "x32hrrjo7uc8mvdwtpty",
+        "iterations": [
+          {
+            "iteration": 0,
+            "startTime": 0.30000007152557373,
+            "endTime": 0.5080000003799796,
+            "duration": 0.20799992885440588,
+            "conditionValue": true,
+            "stepRecords": [
+              {
+                "stepIndex": 2,
+                "nodeId": "kiiy4cvqmbnl9l5lj57n",
+                "nodeTypeId": "loopStart",
+                "nodeTypeName": "Loop Start",
+                "concurrencyLevel": 1,
+                "startTime": 0.3010000715730712,
+                "endTime": 0.30200007162056863,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "emy3elykaicuuqmi5z97",
+                        "sourceNodeName": "Bit Input",
+                        "sourceHandleId": "96lx7qlwlsvif47dfwc2",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "pnc2c8r7csdqjmz8ypxv",
+                        "sourceNodeName": "Bit Input",
+                        "sourceHandleId": "q0mabdcze0863prmasan",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "A": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 2
+                  },
+                  "B": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 0,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "loopStart",
+                "inputSource": "upstream",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 3,
+                "nodeId": "9oz5glp6wj14gj9y734e",
+                "nodeTypeId": "xorGate",
+                "nodeTypeName": "XOR Gate",
+                "concurrencyLevel": 0,
+                "startTime": 0.3030000716680661,
+                "endTime": 0.305000071763061,
+                "duration": 0.0020000000949949026,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                        "sourceNodeName": "Loop Start",
+                        "sourceHandleId": "hk26sh27n6ydu8s6kz7l",
+                        "sourceHandleName": "A",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [],
+                    "dataTypeId": "bit",
+                    "isDefault": true,
+                    "defaultValue": true
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 2
+                  }
+                },
+                "loopIteration": 0,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 4,
+                "nodeId": "ctnrc0yflauzk2jqa6qc",
+                "nodeTypeId": "andGate",
+                "nodeTypeName": "AND Gate",
+                "concurrencyLevel": 0,
+                "startTime": 0.30400007171556354,
+                "endTime": 0.30600007181055844,
+                "duration": 0.0020000000949949026,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                        "sourceNodeName": "Loop Start",
+                        "sourceHandleId": "hk26sh27n6ydu8s6kz7l",
+                        "sourceHandleName": "A",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [],
+                    "dataTypeId": "bit",
+                    "isDefault": true,
+                    "defaultValue": true
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 0,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 5,
+                "nodeId": "lwvckqpjaxt8a63fsxqk",
+                "nodeTypeId": "xorGate",
+                "nodeTypeName": "XOR Gate",
+                "concurrencyLevel": 1,
+                "startTime": 0.3070000718580559,
+                "endTime": 0.30800007190555334,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "ctnrc0yflauzk2jqa6qc",
+                        "sourceNodeName": "AND Gate",
+                        "sourceHandleId": "euvb9qn5lgqqrkl4nlby",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                        "sourceNodeName": "Loop Start",
+                        "sourceHandleId": "ti6q9zq19uulksn1b2q9",
+                        "sourceHandleName": "B",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 2
+                  }
+                },
+                "loopIteration": 0,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 9,
+                "nodeId": "gw9tfhpwmeqw6ge4yf5j",
+                "nodeTypeId": "andGate",
+                "nodeTypeName": "AND Gate",
+                "concurrencyLevel": 3,
+                "startTime": 0.5,
+                "endTime": 0.5010000000474975,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "9oz5glp6wj14gj9y734e",
+                        "sourceNodeName": "XOR Gate",
+                        "sourceHandleId": "kruzwcs1ff5v0ku4qyx1",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "lfuod7lfwoleze4ek29i",
+                        "sourceNodeName": "Loop End",
+                        "sourceHandleId": "o2h9z5bgorlwka5zjyv9",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 0,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 10,
+                "nodeId": "eplzks4gjrvedc4zqjy2",
+                "nodeTypeId": "notGate",
+                "nodeTypeName": "NOT Gate",
+                "concurrencyLevel": 4,
+                "startTime": 0.5020000000949949,
+                "endTime": 0.5030000001424924,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "In": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "gw9tfhpwmeqw6ge4yf5j",
+                        "sourceNodeName": "AND Gate",
+                        "sourceHandleId": "o9igjfokeln1i25x4ex2",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 0,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 11,
+                "nodeId": "4fuwxnj86u035u8z6lbi",
+                "nodeTypeId": "loopStop",
+                "nodeTypeName": "Loop Stop",
+                "concurrencyLevel": 1,
+                "startTime": 0.5040000001899898,
+                "endTime": 0.5050000002374873,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "Bind Loop Nodes": {
+                    "connections": [],
+                    "dataTypeId": "bindLoopNodes",
+                    "isDefault": true
+                  },
+                  "Continue If Condition Is True": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "eplzks4gjrvedc4zqjy2",
+                        "sourceNodeName": "NOT Gate",
+                        "sourceHandleId": "jt54l4plklk1hfzjmie7",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "condition",
+                    "isDefault": false
+                  },
+                  "A": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "9oz5glp6wj14gj9y734e",
+                        "sourceNodeName": "XOR Gate",
+                        "sourceHandleId": "kruzwcs1ff5v0ku4qyx1",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "lwvckqpjaxt8a63fsxqk",
+                        "sourceNodeName": "XOR Gate",
+                        "sourceHandleId": "7jrjccqlyd6b7dharza1",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "A": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  },
+                  "B": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 0,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "loopStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 12,
+                "nodeId": "x32hrrjo7uc8mvdwtpty",
+                "nodeTypeId": "loopEnd",
+                "nodeTypeName": "Loop End",
+                "concurrencyLevel": 1,
+                "startTime": 0.5060000002849847,
+                "endTime": 0.5070000003324822,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "Bind Loop Nodes": {
+                    "connections": [],
+                    "dataTypeId": "bindLoopNodes",
+                    "isDefault": true
+                  },
+                  "A": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "4fuwxnj86u035u8z6lbi",
+                        "sourceNodeName": "Loop Stop",
+                        "sourceHandleId": "cu2flb8m7mb1iid6uuh3",
+                        "sourceHandleName": "A",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "4fuwxnj86u035u8z6lbi",
+                        "sourceNodeName": "Loop Stop",
+                        "sourceHandleId": "50t9sue7xukcnte7d78e",
+                        "sourceHandleName": "B",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {},
+                "loopIteration": 0,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "loopEnd",
+                "estimatedTiming": true
+              }
+            ],
+            "nestedLoopRecords": {
+              "9ld9lknck32xxltbiuau": {
+                "loopStructureId": "9ld9lknck32xxltbiuau",
+                "loopStartNodeId": "9ld9lknck32xxltbiuau",
+                "loopStopNodeId": "ifb8xksowyszrstdwp1p",
+                "loopEndNodeId": "lfuod7lfwoleze4ek29i",
+                "iterations": [
+                  {
+                    "iteration": 0,
+                    "startTime": 0.31000007200054824,
+                    "endTime": 0.3170000723330304,
+                    "duration": 0.007000000332482159,
+                    "conditionValue": false,
+                    "stepRecords": [
+                      {
+                        "stepIndex": 6,
+                        "nodeId": "9ld9lknck32xxltbiuau",
+                        "nodeTypeId": "loopStart",
+                        "nodeTypeName": "Loop Start",
+                        "concurrencyLevel": 2,
+                        "startTime": 0.3110000720480457,
+                        "endTime": 0.31200007209554315,
+                        "duration": 0.0010000000474974513,
+                        "pauseAdjustment": 0,
+                        "status": "completed",
+                        "inputValues": {
+                          "Out": {
+                            "connections": [
+                              {
+                                "value": false,
+                                "sourceNodeId": "lwvckqpjaxt8a63fsxqk",
+                                "sourceNodeName": "XOR Gate",
+                                "sourceHandleId": "7jrjccqlyd6b7dharza1",
+                                "sourceHandleName": "Out",
+                                "sourceDataTypeId": "bit"
+                              }
+                            ],
+                            "dataTypeId": "bit",
+                            "isDefault": false
+                          }
+                        },
+                        "outputValues": {
+                          "Out": {
+                            "value": false,
+                            "dataTypeId": "bit",
+                            "targetCount": 1
+                          }
+                        },
+                        "loopIteration": 0,
+                        "loopStructureId": "9ld9lknck32xxltbiuau",
+                        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                        "parentLoopIteration": 0,
+                        "loopPhase": "loopStart",
+                        "inputSource": "upstream",
+                        "estimatedTiming": true
+                      },
+                      {
+                        "stepIndex": 7,
+                        "nodeId": "ifb8xksowyszrstdwp1p",
+                        "nodeTypeId": "loopStop",
+                        "nodeTypeName": "Loop Stop",
+                        "concurrencyLevel": 2,
+                        "startTime": 0.3130000721430406,
+                        "endTime": 0.31400007219053805,
+                        "duration": 0.0010000000474974513,
+                        "pauseAdjustment": 0,
+                        "status": "completed",
+                        "inputValues": {
+                          "Bind Loop Nodes": {
+                            "connections": [],
+                            "dataTypeId": "bindLoopNodes",
+                            "isDefault": true
+                          },
+                          "Continue If Condition Is True": {
+                            "connections": [],
+                            "dataTypeId": "condition",
+                            "isDefault": true
+                          },
+                          "Out": {
+                            "connections": [
+                              {
+                                "value": false,
+                                "sourceNodeId": "9ld9lknck32xxltbiuau",
+                                "sourceNodeName": "Loop Start",
+                                "sourceHandleId": "gpo9bbfqx27x0mu4ofst",
+                                "sourceHandleName": "Out",
+                                "sourceDataTypeId": "bit"
+                              }
+                            ],
+                            "dataTypeId": "bit",
+                            "isDefault": false
+                          }
+                        },
+                        "outputValues": {
+                          "Out": {
+                            "value": false,
+                            "dataTypeId": "bit",
+                            "targetCount": 1
+                          }
+                        },
+                        "loopIteration": 0,
+                        "loopStructureId": "9ld9lknck32xxltbiuau",
+                        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                        "parentLoopIteration": 0,
+                        "loopPhase": "loopStop",
+                        "estimatedTiming": true
+                      },
+                      {
+                        "stepIndex": 8,
+                        "nodeId": "lfuod7lfwoleze4ek29i",
+                        "nodeTypeId": "loopEnd",
+                        "nodeTypeName": "Loop End",
+                        "concurrencyLevel": 2,
+                        "startTime": 0.3150000722380355,
+                        "endTime": 0.31600007228553295,
+                        "duration": 0.0010000000474974513,
+                        "pauseAdjustment": 0,
+                        "status": "completed",
+                        "inputValues": {
+                          "Bind Loop Nodes": {
+                            "connections": [],
+                            "dataTypeId": "bindLoopNodes",
+                            "isDefault": true
+                          },
+                          "Out": {
+                            "connections": [
+                              {
+                                "value": false,
+                                "sourceNodeId": "ifb8xksowyszrstdwp1p",
+                                "sourceNodeName": "Loop Stop",
+                                "sourceHandleId": "qjxjb3uqjg8wb3gl9tui",
+                                "sourceHandleName": "Out",
+                                "sourceDataTypeId": "bit"
+                              }
+                            ],
+                            "dataTypeId": "bit",
+                            "isDefault": false
+                          }
+                        },
+                        "outputValues": {
+                          "Out": {
+                            "value": false,
+                            "dataTypeId": "bit",
+                            "targetCount": 1
+                          }
+                        },
+                        "loopIteration": 0,
+                        "loopStructureId": "9ld9lknck32xxltbiuau",
+                        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                        "parentLoopIteration": 0,
+                        "loopPhase": "loopEnd",
+                        "estimatedTiming": true
+                      }
+                    ]
+                  }
+                ],
+                "totalIterations": 1,
+                "startTime": 0.3090000719530508,
+                "endTime": 0.3999999761581421,
+                "duration": 0.0909999042050913
+              }
+            }
+          },
+          {
+            "iteration": 1,
+            "startTime": 0.5090000004274771,
+            "endTime": 0.6250000250292942,
+            "duration": 0.11600002460181713,
+            "conditionValue": true,
+            "stepRecords": [
+              {
+                "stepIndex": 13,
+                "nodeId": "kiiy4cvqmbnl9l5lj57n",
+                "nodeTypeId": "loopStart",
+                "nodeTypeName": "Loop Start",
+                "concurrencyLevel": 1,
+                "startTime": 0.5100000004749745,
+                "endTime": 0.6000000238418579,
+                "duration": 0.0900000233668834,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "A": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 2
+                  },
+                  "B": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 1,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "loopStart",
+                "inputSource": "feedback"
+              },
+              {
+                "stepIndex": 14,
+                "nodeId": "9oz5glp6wj14gj9y734e",
+                "nodeTypeId": "xorGate",
+                "nodeTypeName": "XOR Gate",
+                "concurrencyLevel": 0,
+                "startTime": 0.6010000238893554,
+                "endTime": 0.6030000239843503,
+                "duration": 0.0020000000949949026,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                        "sourceNodeName": "Loop Start",
+                        "sourceHandleId": "hk26sh27n6ydu8s6kz7l",
+                        "sourceHandleName": "A",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [],
+                    "dataTypeId": "bit",
+                    "isDefault": true,
+                    "defaultValue": true
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 2
+                  }
+                },
+                "loopIteration": 1,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 15,
+                "nodeId": "ctnrc0yflauzk2jqa6qc",
+                "nodeTypeId": "andGate",
+                "nodeTypeName": "AND Gate",
+                "concurrencyLevel": 0,
+                "startTime": 0.6020000239368528,
+                "endTime": 0.6040000240318477,
+                "duration": 0.0020000000949949026,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                        "sourceNodeName": "Loop Start",
+                        "sourceHandleId": "hk26sh27n6ydu8s6kz7l",
+                        "sourceHandleName": "A",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [],
+                    "dataTypeId": "bit",
+                    "isDefault": true,
+                    "defaultValue": true
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 1,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 16,
+                "nodeId": "lwvckqpjaxt8a63fsxqk",
+                "nodeTypeId": "xorGate",
+                "nodeTypeName": "XOR Gate",
+                "concurrencyLevel": 1,
+                "startTime": 0.6050000240793452,
+                "endTime": 0.6060000241268426,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "ctnrc0yflauzk2jqa6qc",
+                        "sourceNodeName": "AND Gate",
+                        "sourceHandleId": "euvb9qn5lgqqrkl4nlby",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                        "sourceNodeName": "Loop Start",
+                        "sourceHandleId": "ti6q9zq19uulksn1b2q9",
+                        "sourceHandleName": "B",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 2
+                  }
+                },
+                "loopIteration": 1,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 20,
+                "nodeId": "gw9tfhpwmeqw6ge4yf5j",
+                "nodeTypeId": "andGate",
+                "nodeTypeName": "AND Gate",
+                "concurrencyLevel": 3,
+                "startTime": 0.6170000246493146,
+                "endTime": 0.618000024696812,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "9oz5glp6wj14gj9y734e",
+                        "sourceNodeName": "XOR Gate",
+                        "sourceHandleId": "kruzwcs1ff5v0ku4qyx1",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "lfuod7lfwoleze4ek29i",
+                        "sourceNodeName": "Loop End",
+                        "sourceHandleId": "o2h9z5bgorlwka5zjyv9",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 1,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 21,
+                "nodeId": "eplzks4gjrvedc4zqjy2",
+                "nodeTypeId": "notGate",
+                "nodeTypeName": "NOT Gate",
+                "concurrencyLevel": 4,
+                "startTime": 0.6190000247443095,
+                "endTime": 0.6200000247918069,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "In": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "gw9tfhpwmeqw6ge4yf5j",
+                        "sourceNodeName": "AND Gate",
+                        "sourceHandleId": "o9igjfokeln1i25x4ex2",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 1,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 22,
+                "nodeId": "4fuwxnj86u035u8z6lbi",
+                "nodeTypeId": "loopStop",
+                "nodeTypeName": "Loop Stop",
+                "concurrencyLevel": 1,
+                "startTime": 0.6210000248393044,
+                "endTime": 0.6220000248868018,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "Bind Loop Nodes": {
+                    "connections": [],
+                    "dataTypeId": "bindLoopNodes",
+                    "isDefault": true
+                  },
+                  "Continue If Condition Is True": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "eplzks4gjrvedc4zqjy2",
+                        "sourceNodeName": "NOT Gate",
+                        "sourceHandleId": "jt54l4plklk1hfzjmie7",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "condition",
+                    "isDefault": false
+                  },
+                  "A": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "9oz5glp6wj14gj9y734e",
+                        "sourceNodeName": "XOR Gate",
+                        "sourceHandleId": "kruzwcs1ff5v0ku4qyx1",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "lwvckqpjaxt8a63fsxqk",
+                        "sourceNodeName": "XOR Gate",
+                        "sourceHandleId": "7jrjccqlyd6b7dharza1",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "A": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  },
+                  "B": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 1,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "loopStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 23,
+                "nodeId": "x32hrrjo7uc8mvdwtpty",
+                "nodeTypeId": "loopEnd",
+                "nodeTypeName": "Loop End",
+                "concurrencyLevel": 1,
+                "startTime": 0.6230000249342993,
+                "endTime": 0.6240000249817967,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "Bind Loop Nodes": {
+                    "connections": [],
+                    "dataTypeId": "bindLoopNodes",
+                    "isDefault": true
+                  },
+                  "A": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "4fuwxnj86u035u8z6lbi",
+                        "sourceNodeName": "Loop Stop",
+                        "sourceHandleId": "cu2flb8m7mb1iid6uuh3",
+                        "sourceHandleName": "A",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "4fuwxnj86u035u8z6lbi",
+                        "sourceNodeName": "Loop Stop",
+                        "sourceHandleId": "50t9sue7xukcnte7d78e",
+                        "sourceHandleName": "B",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {},
+                "loopIteration": 1,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "loopEnd",
+                "estimatedTiming": true
+              }
+            ],
+            "nestedLoopRecords": {
+              "9ld9lknck32xxltbiuau": {
+                "loopStructureId": "9ld9lknck32xxltbiuau",
+                "loopStartNodeId": "9ld9lknck32xxltbiuau",
+                "loopStopNodeId": "ifb8xksowyszrstdwp1p",
+                "loopEndNodeId": "lfuod7lfwoleze4ek29i",
+                "iterations": [
+                  {
+                    "iteration": 0,
+                    "startTime": 0.6080000242218375,
+                    "endTime": 0.6150000245543197,
+                    "duration": 0.007000000332482159,
+                    "conditionValue": false,
+                    "stepRecords": [
+                      {
+                        "stepIndex": 17,
+                        "nodeId": "9ld9lknck32xxltbiuau",
+                        "nodeTypeId": "loopStart",
+                        "nodeTypeName": "Loop Start",
+                        "concurrencyLevel": 2,
+                        "startTime": 0.609000024269335,
+                        "endTime": 0.6100000243168324,
+                        "duration": 0.0010000000474974513,
+                        "pauseAdjustment": 0,
+                        "status": "completed",
+                        "inputValues": {
+                          "Out": {
+                            "connections": [
+                              {
+                                "value": true,
+                                "sourceNodeId": "lwvckqpjaxt8a63fsxqk",
+                                "sourceNodeName": "XOR Gate",
+                                "sourceHandleId": "7jrjccqlyd6b7dharza1",
+                                "sourceHandleName": "Out",
+                                "sourceDataTypeId": "bit"
+                              }
+                            ],
+                            "dataTypeId": "bit",
+                            "isDefault": false
+                          }
+                        },
+                        "outputValues": {
+                          "Out": {
+                            "value": true,
+                            "dataTypeId": "bit",
+                            "targetCount": 1
+                          }
+                        },
+                        "loopIteration": 0,
+                        "loopStructureId": "9ld9lknck32xxltbiuau",
+                        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                        "parentLoopIteration": 1,
+                        "loopPhase": "loopStart",
+                        "inputSource": "upstream",
+                        "estimatedTiming": true
+                      },
+                      {
+                        "stepIndex": 18,
+                        "nodeId": "ifb8xksowyszrstdwp1p",
+                        "nodeTypeId": "loopStop",
+                        "nodeTypeName": "Loop Stop",
+                        "concurrencyLevel": 2,
+                        "startTime": 0.6110000243643299,
+                        "endTime": 0.6120000244118273,
+                        "duration": 0.0010000000474974513,
+                        "pauseAdjustment": 0,
+                        "status": "completed",
+                        "inputValues": {
+                          "Bind Loop Nodes": {
+                            "connections": [],
+                            "dataTypeId": "bindLoopNodes",
+                            "isDefault": true
+                          },
+                          "Continue If Condition Is True": {
+                            "connections": [],
+                            "dataTypeId": "condition",
+                            "isDefault": true
+                          },
+                          "Out": {
+                            "connections": [
+                              {
+                                "value": true,
+                                "sourceNodeId": "9ld9lknck32xxltbiuau",
+                                "sourceNodeName": "Loop Start",
+                                "sourceHandleId": "gpo9bbfqx27x0mu4ofst",
+                                "sourceHandleName": "Out",
+                                "sourceDataTypeId": "bit"
+                              }
+                            ],
+                            "dataTypeId": "bit",
+                            "isDefault": false
+                          }
+                        },
+                        "outputValues": {
+                          "Out": {
+                            "value": true,
+                            "dataTypeId": "bit",
+                            "targetCount": 1
+                          }
+                        },
+                        "loopIteration": 0,
+                        "loopStructureId": "9ld9lknck32xxltbiuau",
+                        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                        "parentLoopIteration": 1,
+                        "loopPhase": "loopStop",
+                        "estimatedTiming": true
+                      },
+                      {
+                        "stepIndex": 19,
+                        "nodeId": "lfuod7lfwoleze4ek29i",
+                        "nodeTypeId": "loopEnd",
+                        "nodeTypeName": "Loop End",
+                        "concurrencyLevel": 2,
+                        "startTime": 0.6130000244593248,
+                        "endTime": 0.6140000245068222,
+                        "duration": 0.0010000000474974513,
+                        "pauseAdjustment": 0,
+                        "status": "completed",
+                        "inputValues": {
+                          "Bind Loop Nodes": {
+                            "connections": [],
+                            "dataTypeId": "bindLoopNodes",
+                            "isDefault": true
+                          },
+                          "Out": {
+                            "connections": [
+                              {
+                                "value": true,
+                                "sourceNodeId": "ifb8xksowyszrstdwp1p",
+                                "sourceNodeName": "Loop Stop",
+                                "sourceHandleId": "qjxjb3uqjg8wb3gl9tui",
+                                "sourceHandleName": "Out",
+                                "sourceDataTypeId": "bit"
+                              }
+                            ],
+                            "dataTypeId": "bit",
+                            "isDefault": false
+                          }
+                        },
+                        "outputValues": {
+                          "Out": {
+                            "value": true,
+                            "dataTypeId": "bit",
+                            "targetCount": 1
+                          }
+                        },
+                        "loopIteration": 0,
+                        "loopStructureId": "9ld9lknck32xxltbiuau",
+                        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                        "parentLoopIteration": 1,
+                        "loopPhase": "loopEnd",
+                        "estimatedTiming": true
+                      }
+                    ]
+                  }
+                ],
+                "totalIterations": 1,
+                "startTime": 0.6070000241743401,
+                "endTime": 0.6160000246018171,
+                "duration": 0.009000000427477062
+              }
+            }
+          },
+          {
+            "iteration": 2,
+            "startTime": 0.6260000250767916,
+            "endTime": 0.8210000725230202,
+            "duration": 0.19500004744622856,
+            "conditionValue": false,
+            "stepRecords": [
+              {
+                "stepIndex": 24,
+                "nodeId": "kiiy4cvqmbnl9l5lj57n",
+                "nodeTypeId": "loopStart",
+                "nodeTypeName": "Loop Start",
+                "concurrencyLevel": 1,
+                "startTime": 0.6270000251242891,
+                "endTime": 0.6280000251717865,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "A": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 2
+                  },
+                  "B": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 2,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "loopStart",
+                "inputSource": "feedback",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 25,
+                "nodeId": "9oz5glp6wj14gj9y734e",
+                "nodeTypeId": "xorGate",
+                "nodeTypeName": "XOR Gate",
+                "concurrencyLevel": 0,
+                "startTime": 0.7000000476837158,
+                "endTime": 0.7020000477787107,
+                "duration": 0.0020000000949949026,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                        "sourceNodeName": "Loop Start",
+                        "sourceHandleId": "hk26sh27n6ydu8s6kz7l",
+                        "sourceHandleName": "A",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [],
+                    "dataTypeId": "bit",
+                    "isDefault": true,
+                    "defaultValue": true
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 2
+                  }
+                },
+                "loopIteration": 2,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 26,
+                "nodeId": "ctnrc0yflauzk2jqa6qc",
+                "nodeTypeId": "andGate",
+                "nodeTypeName": "AND Gate",
+                "concurrencyLevel": 0,
+                "startTime": 0.7010000477312133,
+                "endTime": 0.8000000715255737,
+                "duration": 0.09900002379436046,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                        "sourceNodeName": "Loop Start",
+                        "sourceHandleId": "hk26sh27n6ydu8s6kz7l",
+                        "sourceHandleName": "A",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [],
+                    "dataTypeId": "bit",
+                    "isDefault": true,
+                    "defaultValue": true
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 2,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop"
+              },
+              {
+                "stepIndex": 27,
+                "nodeId": "lwvckqpjaxt8a63fsxqk",
+                "nodeTypeId": "xorGate",
+                "nodeTypeName": "XOR Gate",
+                "concurrencyLevel": 1,
+                "startTime": 0.8010000715730712,
+                "endTime": 0.8020000716205686,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "ctnrc0yflauzk2jqa6qc",
+                        "sourceNodeName": "AND Gate",
+                        "sourceHandleId": "euvb9qn5lgqqrkl4nlby",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "kiiy4cvqmbnl9l5lj57n",
+                        "sourceNodeName": "Loop Start",
+                        "sourceHandleId": "ti6q9zq19uulksn1b2q9",
+                        "sourceHandleName": "B",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 2
+                  }
+                },
+                "loopIteration": 2,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 31,
+                "nodeId": "gw9tfhpwmeqw6ge4yf5j",
+                "nodeTypeId": "andGate",
+                "nodeTypeName": "AND Gate",
+                "concurrencyLevel": 3,
+                "startTime": 0.8130000721430406,
+                "endTime": 0.814000072190538,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "A": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "9oz5glp6wj14gj9y734e",
+                        "sourceNodeName": "XOR Gate",
+                        "sourceHandleId": "kruzwcs1ff5v0ku4qyx1",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "lfuod7lfwoleze4ek29i",
+                        "sourceNodeName": "Loop End",
+                        "sourceHandleId": "o2h9z5bgorlwka5zjyv9",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 2,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 32,
+                "nodeId": "eplzks4gjrvedc4zqjy2",
+                "nodeTypeId": "notGate",
+                "nodeTypeName": "NOT Gate",
+                "concurrencyLevel": 4,
+                "startTime": 0.8150000722380355,
+                "endTime": 0.816000072285533,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "In": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "gw9tfhpwmeqw6ge4yf5j",
+                        "sourceNodeName": "AND Gate",
+                        "sourceHandleId": "o9igjfokeln1i25x4ex2",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "Out": {
+                    "value": false,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 2,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "preStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 33,
+                "nodeId": "4fuwxnj86u035u8z6lbi",
+                "nodeTypeId": "loopStop",
+                "nodeTypeName": "Loop Stop",
+                "concurrencyLevel": 1,
+                "startTime": 0.8170000723330304,
+                "endTime": 0.8180000723805279,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "Bind Loop Nodes": {
+                    "connections": [],
+                    "dataTypeId": "bindLoopNodes",
+                    "isDefault": true
+                  },
+                  "Continue If Condition Is True": {
+                    "connections": [
+                      {
+                        "value": false,
+                        "sourceNodeId": "eplzks4gjrvedc4zqjy2",
+                        "sourceNodeName": "NOT Gate",
+                        "sourceHandleId": "jt54l4plklk1hfzjmie7",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "condition",
+                    "isDefault": false
+                  },
+                  "A": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "9oz5glp6wj14gj9y734e",
+                        "sourceNodeName": "XOR Gate",
+                        "sourceHandleId": "kruzwcs1ff5v0ku4qyx1",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "lwvckqpjaxt8a63fsxqk",
+                        "sourceNodeName": "XOR Gate",
+                        "sourceHandleId": "7jrjccqlyd6b7dharza1",
+                        "sourceHandleName": "Out",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "A": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  },
+                  "B": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 2,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "loopStop",
+                "estimatedTiming": true
+              },
+              {
+                "stepIndex": 34,
+                "nodeId": "x32hrrjo7uc8mvdwtpty",
+                "nodeTypeId": "loopEnd",
+                "nodeTypeName": "Loop End",
+                "concurrencyLevel": 1,
+                "startTime": 0.8190000724280253,
+                "endTime": 0.8200000724755228,
+                "duration": 0.0010000000474974513,
+                "pauseAdjustment": 0,
+                "status": "completed",
+                "inputValues": {
+                  "Bind Loop Nodes": {
+                    "connections": [],
+                    "dataTypeId": "bindLoopNodes",
+                    "isDefault": true
+                  },
+                  "A": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "4fuwxnj86u035u8z6lbi",
+                        "sourceNodeName": "Loop Stop",
+                        "sourceHandleId": "cu2flb8m7mb1iid6uuh3",
+                        "sourceHandleName": "A",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  },
+                  "B": {
+                    "connections": [
+                      {
+                        "value": true,
+                        "sourceNodeId": "4fuwxnj86u035u8z6lbi",
+                        "sourceNodeName": "Loop Stop",
+                        "sourceHandleId": "50t9sue7xukcnte7d78e",
+                        "sourceHandleName": "B",
+                        "sourceDataTypeId": "bit"
+                      }
+                    ],
+                    "dataTypeId": "bit",
+                    "isDefault": false
+                  }
+                },
+                "outputValues": {
+                  "A": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  },
+                  "B": {
+                    "value": true,
+                    "dataTypeId": "bit",
+                    "targetCount": 1
+                  }
+                },
+                "loopIteration": 2,
+                "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                "loopPhase": "loopEnd",
+                "estimatedTiming": true
+              }
+            ],
+            "nestedLoopRecords": {
+              "9ld9lknck32xxltbiuau": {
+                "loopStructureId": "9ld9lknck32xxltbiuau",
+                "loopStartNodeId": "9ld9lknck32xxltbiuau",
+                "loopStopNodeId": "ifb8xksowyszrstdwp1p",
+                "loopEndNodeId": "lfuod7lfwoleze4ek29i",
+                "iterations": [
+                  {
+                    "iteration": 0,
+                    "startTime": 0.8040000717155635,
+                    "endTime": 0.8110000720480457,
+                    "duration": 0.007000000332482159,
+                    "conditionValue": false,
+                    "stepRecords": [
+                      {
+                        "stepIndex": 28,
+                        "nodeId": "9ld9lknck32xxltbiuau",
+                        "nodeTypeId": "loopStart",
+                        "nodeTypeName": "Loop Start",
+                        "concurrencyLevel": 2,
+                        "startTime": 0.805000071763061,
+                        "endTime": 0.8060000718105584,
+                        "duration": 0.0010000000474974513,
+                        "pauseAdjustment": 0,
+                        "status": "completed",
+                        "inputValues": {
+                          "Out": {
+                            "connections": [
+                              {
+                                "value": true,
+                                "sourceNodeId": "lwvckqpjaxt8a63fsxqk",
+                                "sourceNodeName": "XOR Gate",
+                                "sourceHandleId": "7jrjccqlyd6b7dharza1",
+                                "sourceHandleName": "Out",
+                                "sourceDataTypeId": "bit"
+                              }
+                            ],
+                            "dataTypeId": "bit",
+                            "isDefault": false
+                          }
+                        },
+                        "outputValues": {
+                          "Out": {
+                            "value": true,
+                            "dataTypeId": "bit",
+                            "targetCount": 1
+                          }
+                        },
+                        "loopIteration": 0,
+                        "loopStructureId": "9ld9lknck32xxltbiuau",
+                        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                        "parentLoopIteration": 2,
+                        "loopPhase": "loopStart",
+                        "inputSource": "upstream",
+                        "estimatedTiming": true
+                      },
+                      {
+                        "stepIndex": 29,
+                        "nodeId": "ifb8xksowyszrstdwp1p",
+                        "nodeTypeId": "loopStop",
+                        "nodeTypeName": "Loop Stop",
+                        "concurrencyLevel": 2,
+                        "startTime": 0.8070000718580559,
+                        "endTime": 0.8080000719055533,
+                        "duration": 0.0010000000474974513,
+                        "pauseAdjustment": 0,
+                        "status": "completed",
+                        "inputValues": {
+                          "Bind Loop Nodes": {
+                            "connections": [],
+                            "dataTypeId": "bindLoopNodes",
+                            "isDefault": true
+                          },
+                          "Continue If Condition Is True": {
+                            "connections": [],
+                            "dataTypeId": "condition",
+                            "isDefault": true
+                          },
+                          "Out": {
+                            "connections": [
+                              {
+                                "value": true,
+                                "sourceNodeId": "9ld9lknck32xxltbiuau",
+                                "sourceNodeName": "Loop Start",
+                                "sourceHandleId": "gpo9bbfqx27x0mu4ofst",
+                                "sourceHandleName": "Out",
+                                "sourceDataTypeId": "bit"
+                              }
+                            ],
+                            "dataTypeId": "bit",
+                            "isDefault": false
+                          }
+                        },
+                        "outputValues": {
+                          "Out": {
+                            "value": true,
+                            "dataTypeId": "bit",
+                            "targetCount": 1
+                          }
+                        },
+                        "loopIteration": 0,
+                        "loopStructureId": "9ld9lknck32xxltbiuau",
+                        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                        "parentLoopIteration": 2,
+                        "loopPhase": "loopStop",
+                        "estimatedTiming": true
+                      },
+                      {
+                        "stepIndex": 30,
+                        "nodeId": "lfuod7lfwoleze4ek29i",
+                        "nodeTypeId": "loopEnd",
+                        "nodeTypeName": "Loop End",
+                        "concurrencyLevel": 2,
+                        "startTime": 0.8090000719530508,
+                        "endTime": 0.8100000720005482,
+                        "duration": 0.0010000000474974513,
+                        "pauseAdjustment": 0,
+                        "status": "completed",
+                        "inputValues": {
+                          "Bind Loop Nodes": {
+                            "connections": [],
+                            "dataTypeId": "bindLoopNodes",
+                            "isDefault": true
+                          },
+                          "Out": {
+                            "connections": [
+                              {
+                                "value": true,
+                                "sourceNodeId": "ifb8xksowyszrstdwp1p",
+                                "sourceNodeName": "Loop Stop",
+                                "sourceHandleId": "qjxjb3uqjg8wb3gl9tui",
+                                "sourceHandleName": "Out",
+                                "sourceDataTypeId": "bit"
+                              }
+                            ],
+                            "dataTypeId": "bit",
+                            "isDefault": false
+                          }
+                        },
+                        "outputValues": {
+                          "Out": {
+                            "value": true,
+                            "dataTypeId": "bit",
+                            "targetCount": 1
+                          }
+                        },
+                        "loopIteration": 0,
+                        "loopStructureId": "9ld9lknck32xxltbiuau",
+                        "parentLoopStructureId": "kiiy4cvqmbnl9l5lj57n",
+                        "parentLoopIteration": 2,
+                        "loopPhase": "loopEnd",
+                        "estimatedTiming": true
+                      }
+                    ]
+                  }
+                ],
+                "totalIterations": 1,
+                "startTime": 0.8030000716680661,
+                "endTime": 0.8120000720955431,
+                "duration": 0.009000000427477062
+              }
+            }
+          }
+        ],
+        "totalIterations": 3,
+        "startTime": 0.20000004768371582,
+        "endTime": 0.8220000725705177,
+        "duration": 0.6220000248868018
+      }
+    },
+    "groupRecords": {},
+    "finalValues": {
+      "emy3elykaicuuqmi5z97:96lx7qlwlsvif47dfwc2": false,
+      "pnc2c8r7csdqjmz8ypxv:q0mabdcze0863prmasan": false,
+      "kiiy4cvqmbnl9l5lj57n:hk26sh27n6ydu8s6kz7l": false,
+      "kiiy4cvqmbnl9l5lj57n:ti6q9zq19uulksn1b2q9": true,
+      "9oz5glp6wj14gj9y734e:kruzwcs1ff5v0ku4qyx1": true,
+      "ctnrc0yflauzk2jqa6qc:euvb9qn5lgqqrkl4nlby": false,
+      "lwvckqpjaxt8a63fsxqk:7jrjccqlyd6b7dharza1": true,
+      "9ld9lknck32xxltbiuau:gpo9bbfqx27x0mu4ofst": true,
+      "ifb8xksowyszrstdwp1p:qjxjb3uqjg8wb3gl9tui": true,
+      "lfuod7lfwoleze4ek29i:o2h9z5bgorlwka5zjyv9": true,
+      "gw9tfhpwmeqw6ge4yf5j:o9igjfokeln1i25x4ex2": true,
+      "eplzks4gjrvedc4zqjy2:jt54l4plklk1hfzjmie7": false,
+      "4fuwxnj86u035u8z6lbi:cu2flb8m7mb1iid6uuh3": true,
+      "4fuwxnj86u035u8z6lbi:50t9sue7xukcnte7d78e": true,
+      "x32hrrjo7uc8mvdwtpty:snwgahdi6nbtg2hlphht": true,
+      "x32hrrjo7uc8mvdwtpty:8qmrl0ywj5xoorfa6fpn": true
+    },
+    "viewState": {
+      "selectedStepIndex": 1,
+      "edgeValuesAnimated": true,
+      "panelOpen": true,
+      "autoScroll": true,
+      "timeMode": "execution",
+      "timelineCollapsed": false,
+      "selectedIterations": {
+        "kiiy4cvqmbnl9l5lj57n": 2,
+        "9ld9lknck32xxltbiuau": 0
+      },
+      "autoplayIntervalSec": 2,
+      "runMode": "instant",
+      "maxLoopIterations": 100
+    }
+  }
+}

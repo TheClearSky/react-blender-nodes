@@ -47,6 +47,10 @@ type UseNodeRunnerParams<
   options?: {
     maxLoopIterations?: number;
   };
+  /** Controlled execution record. When provided, useNodeRunner uses this instead of internal state. */
+  executionRecord?: ExecutionRecord | null;
+  /** Setter called whenever the execution record changes (run completes, reset, load, etc.). */
+  onExecutionRecordChange?: (record: ExecutionRecord | null) => void;
 };
 
 /** Result of validating an imported record against the current graph. */
@@ -343,23 +347,57 @@ function useNodeRunner<
   state,
   functionImplementations,
   options,
+  executionRecord: controlledRecord,
+  onExecutionRecordChange,
 }: UseNodeRunnerParams<
   DataTypeUniqueId,
   NodeTypeUniqueId,
   UnderlyingType,
   ComplexSchemaType
 >): UseNodeRunnerReturn {
+  // ── Controlled / uncontrolled record ─────────────────
+  const isControlled = controlledRecord !== undefined;
+  const [internalRecord, setInternalRecord] = useState<ExecutionRecord | null>(
+    null,
+  );
+  const executionRecord = isControlled ? controlledRecord : internalRecord;
+  // Track the last record we set internally so the external sync can
+  // distinguish our own updates from truly external changes.
+  const lastSetRecordRef = useRef<ExecutionRecord | null>(
+    executionRecord ?? null,
+  );
+  const setExecutionRecord = useCallback(
+    (record: ExecutionRecord | null) => {
+      lastSetRecordRef.current = record;
+      if (!isControlled) setInternalRecord(record);
+      onExecutionRecordChange?.(record);
+    },
+    [isControlled, onExecutionRecordChange],
+  );
+
   // ── React state ──────────────────────────────────────
-  const [runnerState, setRunnerState] = useState<RunnerState>('idle');
-  const [nodeVisualStates, setNodeVisualStates] =
-    useState<ReadonlyMap<string, NodeVisualState>>(EMPTY_VISUAL_STATES);
+  const [runnerState, setRunnerState] = useState<RunnerState>(() =>
+    executionRecord ? 'completed' : 'idle',
+  );
+  const [nodeVisualStates, setNodeVisualStates] = useState<
+    ReadonlyMap<string, NodeVisualState>
+  >(() => {
+    if (!executionRecord) return EMPTY_VISUAL_STATES;
+    return computeVisualStatesAtStep(
+      executionRecord,
+      Math.max(0, executionRecord.steps.length - 1),
+    );
+  });
   const [nodeWarnings, setNodeWarnings] =
     useState<ReadonlyMap<string, ReadonlyArray<string>>>(EMPTY_WARNINGS);
-  const [nodeErrors, setNodeErrors] =
-    useState<ReadonlyMap<string, ReadonlyArray<GraphError>>>(EMPTY_ERRORS);
-  const [executionRecord, setExecutionRecord] =
-    useState<ExecutionRecord | null>(null);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [nodeErrors, setNodeErrors] = useState<
+    ReadonlyMap<string, ReadonlyArray<GraphError>>
+  >(() =>
+    executionRecord ? extractNodeErrors(executionRecord) : EMPTY_ERRORS,
+  );
+  const [currentStepIndex, setCurrentStepIndex] = useState(() =>
+    executionRecord ? Math.max(0, executionRecord.steps.length - 1) : 0,
+  );
   const [mode, setMode] = useState<UseNodeRunnerMode>('instant');
   const [maxLoopIterations, setMaxLoopIterations] = useState(
     options?.maxLoopIterations ?? DEFAULT_MAX_LOOP_ITERATIONS,
@@ -388,6 +426,42 @@ function useNodeRunner<
       shouldContinueRef.current = false;
     };
   }, []);
+
+  // ── Sync derived state when controlled record changes externally ──
+  // Skip when the incoming record is one we set ourselves (lastSetRecordRef
+  // holds the exact reference). Only sync for truly external changes
+  // (e.g., parent loading a different recording).
+  const prevRecordRef = useRef(executionRecord);
+  if (
+    isControlled &&
+    executionRecord !== prevRecordRef.current &&
+    executionRecord !== lastSetRecordRef.current
+  ) {
+    prevRecordRef.current = executionRecord;
+    if (executionRecord) {
+      const lastIdx = Math.max(0, executionRecord.steps.length - 1);
+      setCurrentStepIndex(lastIdx);
+      setNodeErrors(extractNodeErrors(executionRecord));
+      const vs = computeVisualStatesAtStep(executionRecord, lastIdx);
+      liveVisualStatesRef.current = new Map(vs);
+      setNodeVisualStates(vs);
+      setRunnerState(
+        executionRecord.status === 'cancelled'
+          ? 'errored'
+          : executionRecord.errors.length > 0
+            ? 'errored'
+            : 'completed',
+      );
+    } else {
+      setCurrentStepIndex(0);
+      setNodeErrors(EMPTY_ERRORS);
+      liveVisualStatesRef.current = new Map();
+      setNodeVisualStates(EMPTY_VISUAL_STATES);
+      setRunnerState('idle');
+    }
+  } else if (isControlled && executionRecord !== prevRecordRef.current) {
+    prevRecordRef.current = executionRecord;
+  }
 
   // ── Warning detection on state/implementation change ──
   useEffect(() => {
@@ -543,7 +617,9 @@ function useNodeRunner<
         const { stepRecord, partialRecord } = result.value;
         setExecutionRecord(partialRecord);
         setCurrentStepIndex(stepRecord.stepIndex);
-        flushVisualStates();
+        setNodeVisualStates(
+          computeVisualStatesAtStep(partialRecord, stepRecord.stepIndex),
+        );
         setRunnerState('paused');
       } else {
         // Graph had zero steps or completed immediately
@@ -595,7 +671,9 @@ function useNodeRunner<
           const { stepRecord, partialRecord } = result.value;
           setExecutionRecord(partialRecord);
           setCurrentStepIndex(stepRecord.stepIndex);
-          flushVisualStates();
+          setNodeVisualStates(
+            computeVisualStatesAtStep(partialRecord, stepRecord.stepIndex),
+          );
           setRunnerState('paused');
         } else {
           finalizeRun(result.value);
@@ -642,7 +720,9 @@ function useNodeRunner<
           const { stepRecord, partialRecord } = result.value;
           setExecutionRecord(partialRecord);
           setCurrentStepIndex(stepRecord.stepIndex);
-          flushVisualStates();
+          setNodeVisualStates(
+            computeVisualStatesAtStep(partialRecord, stepRecord.stepIndex),
+          );
         } catch {
           shouldContinueRef.current = false;
           if (isMountedRef.current) {

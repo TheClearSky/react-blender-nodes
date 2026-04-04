@@ -5,3 +5,4 @@ export * from './Input';
 export * from './NodeResizerWithMoreControls';
 export * from './NodeStatusIndicator';
 export * from './ScrollableButtonContainer';
+export * from './Tooltip';

@@ -22,6 +22,16 @@
   }
 }
 
+@keyframes edge-brightness-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
 @keyframes slide-in-right {
   from {
     transform: translateX(20px);

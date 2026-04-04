@@ -515,9 +515,11 @@ function mainReducer<
               groupOutputNodeId,
               { x: 500, y: 0 },
             );
-          const numberOfNodeGroups = Object.keys(newState.typeOfNodes).filter(
-            (key) => newState.typeOfNodes[key as NodeTypeUniqueId].subtree,
-          ).length;
+          const numberOfNodeGroups = (
+            Object.keys(newState.typeOfNodes) as unknown as Array<
+              keyof typeof newState.typeOfNodes
+            >
+          ).filter((key) => newState.typeOfNodes[key].subtree).length;
           const nodeGroup: (typeof newState.typeOfNodes)[NodeTypeUniqueId] = {
             name: 'Node Group ' + (numberOfNodeGroups + 1).toString(),
             headerColor: '#344621',

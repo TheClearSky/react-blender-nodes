@@ -1,19 +1,30 @@
 import { useState, useCallback, useRef } from 'react';
 import type { ExecutionStepRecord } from '@/utils/nodeRunner/types';
 
-/** Find the step whose midpoint is nearest to a pixel position in content-space. */
+const MIN_BLOCK_WIDTH = 6;
+
+/** Visual center of a timeline block in pixels. */
+function blockVisualCenterPx(
+  step: ExecutionStepRecord,
+  timeScale: number,
+): number {
+  const left = step.startTime * timeScale;
+  const width = Math.max(step.duration * timeScale, MIN_BLOCK_WIDTH);
+  return left + width / 2;
+}
+
+/** Find the step whose visual center is nearest to a pixel position in content-space. */
 function findNearestStep(
   contentPx: number,
   steps: ReadonlyArray<ExecutionStepRecord>,
   timeScale: number,
 ): number | null {
   if (steps.length === 0) return null;
-  const time = contentPx / timeScale;
   let closestIndex = steps[0].stepIndex;
   let closestDist = Infinity;
   for (const step of steps) {
-    const mid = step.startTime + step.duration / 2;
-    const dist = Math.abs(mid - time);
+    const center = blockVisualCenterPx(step, timeScale);
+    const dist = Math.abs(center - contentPx);
     if (dist < closestDist) {
       closestDist = dist;
       closestIndex = step.stepIndex;
@@ -84,7 +95,7 @@ function useTimelineScrub({
   // ── Scrubber position ──
   const currentStep = steps[currentStepIndex];
   const snappedScrubberPx = currentStep
-    ? (currentStep.startTime + currentStep.duration / 2) * timeScale
+    ? blockVisualCenterPx(currentStep, timeScale)
     : 0;
   const scrubberPx = scrubDragPx ?? snappedScrubberPx;
 

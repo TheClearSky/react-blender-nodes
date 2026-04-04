@@ -4,6 +4,7 @@ import {
   useRef,
   useEffect,
   useLayoutEffect,
+  useMemo,
 } from 'react';
 
 const MIN_SCALE = 0.5;
@@ -37,20 +38,91 @@ type UseTimelineZoomPanReturn = {
  * - Shift+wheel zoom centers on the cursor position
  * - Click-drag pans both X and Y
  * - Deferred scroll correction via useLayoutEffect after zoom
- * - Auto fit-to-view when adjustedTotalDuration changes
+ * - Auto fit-to-view: timeScale is derived synchronously from duration and
+ *   container width when in auto-fit mode (no effect cascade)
  */
 function useTimelineZoomPan({
   adjustedTotalDuration,
   timePadRightMs,
   gutterWidth,
 }: UseTimelineZoomPanOptions): UseTimelineZoomPanReturn {
-  const [timeScale, setTimeScale] = useState(10);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
   const panStartXRef = useRef(0);
   const panScrollLeftRef = useRef(0);
 
-  // ── Deferred scroll: set after zoom, applied before paint ──
+  // ── Container width tracking via ResizeObserver ──
+  // The scroll container is conditionally rendered (only when record exists),
+  // so we use a ResizeObserver that re-attaches whenever the ref changes.
+  const [containerWidth, setContainerWidth] = useState(0);
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const observedElRef = useRef<HTMLDivElement | null>(null);
+
+  // Check ref on every render — re-attach observer if the element changed.
+  // This handles the case where the scroll container mounts after the hook
+  // (e.g., when record transitions from null to non-null).
+  const container = scrollContainerRef.current;
+  if (container !== observedElRef.current) {
+    // Detach from previous element
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+    observedElRef.current = container;
+
+    if (container) {
+      setContainerWidth(container.clientWidth);
+      const observer = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (entry) setContainerWidth(entry.contentRect.width);
+      });
+      observer.observe(container);
+      observerRef.current = observer;
+    }
+  }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, []);
+
+  // ── Auto-fit vs manual zoom state ──
+  // When isAutoFit is true, timeScale is derived from duration + container width.
+  // When false, manualTimeScale is used (set by zoomBy / wheel zoom).
+  const [isAutoFit, setIsAutoFit] = useState(true);
+  const [manualTimeScale, setManualTimeScale] = useState(MIN_SCALE);
+
+  // Derive auto-fit scale synchronously — no effect, no second render
+  const autoFitTimeScale = useMemo(() => {
+    const availableWidth = containerWidth - gutterWidth;
+    if (availableWidth <= 0 || adjustedTotalDuration <= 0) return MIN_SCALE;
+    return Math.max(
+      MIN_SCALE,
+      Math.min(
+        MAX_SCALE,
+        availableWidth / (adjustedTotalDuration * (1 + timePadRightMs)),
+      ),
+    );
+  }, [containerWidth, gutterWidth, adjustedTotalDuration, timePadRightMs]);
+
+  const timeScale = isAutoFit ? autoFitTimeScale : manualTimeScale;
+
+  // ── Auto-fit scroll reset ──
+  // When in auto-fit mode, keep scroll at 0 (entire timeline visible).
+  // Use layout effect so the reset applies before paint.
+  const prevAutoFitScaleRef = useRef(autoFitTimeScale);
+  useLayoutEffect(() => {
+    if (!isAutoFit) return;
+    // Only reset scroll when the auto-fit scale actually changes
+    if (prevAutoFitScaleRef.current === autoFitTimeScale) return;
+    prevAutoFitScaleRef.current = autoFitTimeScale;
+    const container = scrollContainerRef.current;
+    if (container) container.scrollLeft = 0;
+  }, [isAutoFit, autoFitTimeScale]);
+
+  // ── Deferred scroll: set after manual zoom, applied before paint ──
   const pendingScrollLeftRef = useRef<number | null>(null);
   useLayoutEffect(() => {
     if (pendingScrollLeftRef.current !== null && scrollContainerRef.current) {
@@ -59,26 +131,12 @@ function useTimelineZoomPan({
     }
   });
 
-  // ── Fit-to-view ──
+  // ── Fit-to-view (button / programmatic) ──
   const fitToView = useCallback(() => {
+    setIsAutoFit(true);
     const container = scrollContainerRef.current;
-    if (!container || adjustedTotalDuration <= 0) return;
-    const availableWidth = container.clientWidth - gutterWidth;
-    if (availableWidth <= 0) return;
-    const newScale = Math.max(
-      MIN_SCALE,
-      Math.min(
-        MAX_SCALE,
-        availableWidth / (adjustedTotalDuration * (1 + timePadRightMs)),
-      ),
-    );
-    setTimeScale(newScale);
-    container.scrollLeft = 0;
-  }, [adjustedTotalDuration, gutterWidth, timePadRightMs]);
-
-  useEffect(() => {
-    fitToView();
-  }, [fitToView]);
+    if (container) container.scrollLeft = 0;
+  }, []);
 
   // ── Zoom (buttons) ──
   const zoomBy = useCallback(
@@ -87,16 +145,19 @@ function useTimelineZoomPan({
       if (!container) return;
       const viewportCenter =
         container.scrollLeft + (container.clientWidth - gutterWidth) / 2;
-      const timeAtCenter = viewportCenter / timeScale;
+      const currentScale = isAutoFit ? autoFitTimeScale : manualTimeScale;
+      const timeAtCenter = viewportCenter / currentScale;
 
-      setTimeScale((prev) => {
-        const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, prev * factor));
-        pendingScrollLeftRef.current =
-          timeAtCenter * next - (container.clientWidth - gutterWidth) / 2;
-        return next;
-      });
+      const next = Math.max(
+        MIN_SCALE,
+        Math.min(MAX_SCALE, currentScale * factor),
+      );
+      pendingScrollLeftRef.current =
+        timeAtCenter * next - (container.clientWidth - gutterWidth) / 2;
+      setIsAutoFit(false);
+      setManualTimeScale(next);
     },
-    [timeScale, gutterWidth],
+    [gutterWidth, isAutoFit, autoFitTimeScale, manualTimeScale],
   );
 
   // ── Wheel zoom (centered on cursor) ──
@@ -104,6 +165,8 @@ function useTimelineZoomPan({
   timeScaleRef.current = timeScale;
   const gutterWidthRef = useRef(gutterWidth);
   gutterWidthRef.current = gutterWidth;
+  const isAutoFitRef = useRef(isAutoFit);
+  isAutoFitRef.current = isAutoFit;
 
   // Stable wheel handler stored in a ref so we can add/remove the same function.
   const wheelHandlerRef = useRef<((e: WheelEvent) => void) | null>(null);
@@ -123,15 +186,14 @@ function useTimelineZoomPan({
       const zoomDelta = -e.deltaY * WHEEL_ZOOM_SPEED;
       const factor = Math.pow(2, zoomDelta);
 
-      setTimeScale((prevScale) => {
-        const next = Math.max(
-          MIN_SCALE,
-          Math.min(MAX_SCALE, prevScale * factor),
-        );
-        pendingScrollLeftRef.current =
-          timeAtCursor * next - (e.clientX - rect.left - gw);
-        return next;
-      });
+      const next = Math.max(
+        MIN_SCALE,
+        Math.min(MAX_SCALE, currentScale * factor),
+      );
+      pendingScrollLeftRef.current =
+        timeAtCursor * next - (e.clientX - rect.left - gw);
+      setIsAutoFit(false);
+      setManualTimeScale(next);
     };
   }
 

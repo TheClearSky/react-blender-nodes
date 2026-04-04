@@ -652,8 +652,8 @@ On each iteration:
 
 If the loop completes `maxIterations` iterations and the condition is still
 `true`, a `GraphError` is created with the message
-`"Loop exceeded maximum iterations (N)"`. The default limit is 10,000
-(configurable via `options.maxLoopIterations`).
+`"Loop exceeded maximum iterations (N)"`. The default limit is 100 (configurable
+via `options.maxLoopIterations`).
 
 ## Group Execution
 

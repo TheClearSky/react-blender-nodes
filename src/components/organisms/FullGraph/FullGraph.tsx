@@ -6,7 +6,6 @@ import {
   useMemo,
   useEffect,
 } from 'react';
-import { Play } from 'lucide-react';
 import { z } from 'zod';
 import {
   ReactFlow,
@@ -35,19 +34,17 @@ import {
 import { getCurrentNodesAndEdgesFromState } from '@/utils';
 import {
   FullGraphContext,
+  RecordContext,
   createContextValue,
-  type NodeRunnerState,
 } from './FullGraphState';
+import { RecordingViewStateProvider } from './RecordingViewStateContext';
 import { nodeTypes, edgeTypes } from './FullGraphCustomNodesAndEdges';
 import type {
   FunctionImplementations,
   ExecutionRecord,
 } from '@/utils/nodeRunner/types';
-import {
-  useNodeRunner,
-  type UseNodeRunnerReturn,
-} from '@/utils/nodeRunner/useNodeRunner';
-import { NodeRunnerPanel } from '@/components/organisms/NodeRunnerPanel';
+import type { UseNodeRunnerReturn } from '@/utils/nodeRunner/useNodeRunner';
+import { RunnerOverlay } from './RunnerOverlay';
 import { canRemoveLoopNodesAndEdges } from '@/utils/nodeStateManagement/nodes/loops';
 import { hasKey } from '@/utils/nodeRunner/groupCompiler';
 import { exportGraphState, importGraphState } from '@/utils/importExport';
@@ -115,184 +112,11 @@ type FullGraphProps<
   onRecordingImported?: (record: ExecutionRecord) => void;
   /** Called when import validation fails. Receives the error messages. */
   onImportError?: (errors: string[]) => void;
+  /** Controlled execution record. When provided, FullGraph uses this instead of internal state. */
+  executionRecord?: ExecutionRecord | null;
+  /** Called whenever the execution record changes (run completes, reset, load, etc.). */
+  onExecutionRecordChange?: (record: ExecutionRecord | null) => void;
 };
-
-// ─────────────────────────────────────────────────────
-// RunnerOverlay: manages execution lifecycle and renders
-// NodeRunnerPanel + provides nodeRunnerStates to context
-// ─────────────────────────────────────────────────────
-
-/**
- * Wrapper that calls useNodeRunner, provides a nested FullGraphContext
- * with nodeRunnerStates, and renders the NodeRunnerPanel.
- *
- * Rendered only when functionImplementations is provided.
- * Children (ReactFlow, context menu, etc.) are wrapped so that
- * nodes can read runner visual states from context.
- */
-function RunnerOverlay<
-  DataTypeUniqueId extends string = string,
-  NodeTypeUniqueId extends string = string,
-  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
-  ComplexSchemaType extends UnderlyingType extends 'complex'
-    ? z.ZodType
-    : never = never,
->({
-  state,
-  dispatch,
-  functionImplementations,
-  children,
-  onExecutionRecordRef,
-  loadRecordRef,
-}: {
-  state: FullGraphProps<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >['state'];
-  dispatch: FullGraphProps<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >['dispatch'];
-  functionImplementations: NonNullable<
-    FullGraphProps<
-      DataTypeUniqueId,
-      NodeTypeUniqueId,
-      UnderlyingType,
-      ComplexSchemaType
-    >['functionImplementations']
-  >;
-  children: React.ReactNode;
-  onExecutionRecordRef?: React.RefObject<(() => ExecutionRecord | null) | null>;
-  loadRecordRef?: React.RefObject<
-    | ((
-        record: ExecutionRecord,
-      ) => ReturnType<UseNodeRunnerReturn['loadRecord']>)
-    | null
-  >;
-}) {
-  const runner = useNodeRunner({
-    state,
-    functionImplementations,
-  });
-
-  // Expose execution record getter to parent via ref
-  useEffect(() => {
-    if (onExecutionRecordRef) {
-      onExecutionRecordRef.current = () => runner.executionRecord;
-    }
-    return () => {
-      if (onExecutionRecordRef) {
-        onExecutionRecordRef.current = null;
-      }
-    };
-  }, [onExecutionRecordRef, runner.executionRecord]);
-
-  // Expose loadRecord to parent via ref
-  useEffect(() => {
-    if (loadRecordRef) {
-      loadRecordRef.current = runner.loadRecord;
-    }
-    return () => {
-      if (loadRecordRef) {
-        loadRecordRef.current = null;
-      }
-    };
-  }, [loadRecordRef, runner.loadRecord]);
-
-  // Build combined nodeRunnerStates for FullGraphContext
-  const nodeRunnerStates = useMemo(() => {
-    const combined = new Map<string, NodeRunnerState>();
-
-    // Add visual states
-    for (const [nodeId, vs] of runner.nodeVisualStates) {
-      combined.set(nodeId, { visualState: vs });
-    }
-
-    // Merge warnings (may exist on nodes not yet in visual states)
-    for (const [nodeId, warns] of runner.nodeWarnings) {
-      const existing = combined.get(nodeId);
-      if (existing) {
-        combined.set(nodeId, { ...existing, warnings: warns });
-      } else {
-        combined.set(nodeId, { visualState: 'warning', warnings: warns });
-      }
-    }
-
-    // Merge errors
-    for (const [nodeId, errs] of runner.nodeErrors) {
-      const existing = combined.get(nodeId);
-      if (existing) {
-        combined.set(nodeId, { ...existing, errors: errs });
-      } else {
-        combined.set(nodeId, { visualState: 'errored', errors: errs });
-      }
-    }
-
-    return combined;
-  }, [runner.nodeVisualStates, runner.nodeWarnings, runner.nodeErrors]);
-
-  const handleModeChange = useCallback(
-    (m: 'instant' | 'stepByStep') => {
-      runner.setMode(m);
-    },
-    [runner.setMode],
-  );
-
-  // Handle Run: in stepByStep mode when paused, resume instead of starting new run
-  const handleRun = useCallback(() => {
-    if (runner.runnerState === 'paused') {
-      runner.resume();
-    } else {
-      runner.run();
-    }
-  }, [runner.runnerState, runner.run, runner.resume]);
-
-  const [isRunnerPanelOpen, setIsRunnerPanelOpen] = useState(true);
-
-  return (
-    <FullGraphContext.Provider
-      value={createContextValue({ state, dispatch }, nodeRunnerStates)}
-    >
-      {children}
-
-      {/* Runner panel drawer */}
-      <NodeRunnerPanel
-        runnerState={runner.runnerState}
-        record={runner.executionRecord}
-        currentStepIndex={runner.currentStepIndex}
-        onRun={handleRun}
-        onPause={runner.pause}
-        onStep={runner.step}
-        onStop={runner.stop}
-        onReset={runner.reset}
-        mode={runner.mode}
-        onModeChange={handleModeChange}
-        maxLoopIterations={runner.maxLoopIterations}
-        onMaxLoopIterationsChange={runner.setMaxLoopIterations}
-        onScrubTo={runner.replayTo}
-        isOpen={isRunnerPanelOpen}
-        onOpenChange={setIsRunnerPanelOpen}
-      />
-
-      {/* Toggle button to reopen runner panel */}
-      {!isRunnerPanelOpen && (
-        <button
-          type='button'
-          onClick={() => setIsRunnerPanelOpen(true)}
-          className='btn-press absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-secondary-dark-gray/60 bg-secondary-black/90 px-4 py-2 text-[12px] font-medium text-primary-white shadow-xl backdrop-blur-sm transition-colors hover:bg-primary-dark-gray'
-          title='Open runner panel'
-        >
-          <Play className='h-3.5 w-3.5' />
-          Runner
-        </button>
-      )}
-    </FullGraphContext.Provider>
-  );
-}
 
 // ─────────────────────────────────────────────────────
 // FullGraphWithReactFlowProvider
@@ -318,11 +142,14 @@ function FullGraphWithReactFlowProvider<
   onStateImported,
   onRecordingImported,
   onImportError,
-}: FullGraphProps<
-  DataTypeUniqueId,
-  NodeTypeUniqueId,
-  UnderlyingType,
-  ComplexSchemaType
+}: Omit<
+  FullGraphProps<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+  'executionRecord' | 'onExecutionRecordChange'
 >) {
   const executionRecordRef = useRef<(() => ExecutionRecord | null) | null>(
     null,
@@ -498,10 +325,17 @@ function FullGraphWithReactFlowProvider<
 
   useEffect(() => {
     if (state.viewport === undefined) {
-      fitView({
-        maxZoom: 0.5,
-        minZoom: 0.1,
-      });
+      if (currentNodesAndEdges.nodes.length > 0) {
+        fitView({
+          maxZoom: 0.5,
+          minZoom: 0.1,
+        });
+      } else {
+        dispatch({
+          type: actionTypesMap.SET_VIEWPORT,
+          payload: { viewport: { x: 0, y: 0, zoom: 0.45 } },
+        });
+      }
     }
   }, [state.viewport]);
 
@@ -625,15 +459,17 @@ function FullGraphWithReactFlowProvider<
       className='relative'
     >
       {functionImplementations ? (
-        <RunnerOverlay
-          state={state}
-          dispatch={dispatch}
-          functionImplementations={functionImplementations}
-          onExecutionRecordRef={executionRecordRef}
-          loadRecordRef={loadRecordRef}
-        >
-          {graphContent}
-        </RunnerOverlay>
+        <RecordingViewStateProvider>
+          <RunnerOverlay
+            state={state}
+            dispatch={dispatch}
+            functionImplementations={functionImplementations}
+            onExecutionRecordRef={executionRecordRef}
+            loadRecordRef={loadRecordRef}
+          >
+            {graphContent}
+          </RunnerOverlay>
+        </RecordingViewStateProvider>
       ) : (
         graphContent
       )}
@@ -777,25 +613,38 @@ function FullGraph<
   onStateImported,
   onRecordingImported,
   onImportError,
+  executionRecord,
+  onExecutionRecordChange,
 }: FullGraphProps<
   DataTypeUniqueId,
   NodeTypeUniqueId,
   UnderlyingType,
   ComplexSchemaType
 >) {
+  const noop = useCallback(() => {}, []);
+  const recordContextValue = useMemo(
+    () => ({
+      executionRecord: executionRecord ?? null,
+      setExecutionRecord: onExecutionRecordChange ?? noop,
+    }),
+    [executionRecord, onExecutionRecordChange, noop],
+  );
+
   return (
     <ReactFlowProvider>
       <FullGraphContext.Provider
         value={createContextValue({ state, dispatch })}
       >
-        <FullGraphWithReactFlowProvider
-          state={state}
-          dispatch={dispatch}
-          functionImplementations={functionImplementations}
-          onStateImported={onStateImported}
-          onRecordingImported={onRecordingImported}
-          onImportError={onImportError}
-        />
+        <RecordContext.Provider value={recordContextValue}>
+          <FullGraphWithReactFlowProvider
+            state={state}
+            dispatch={dispatch}
+            functionImplementations={functionImplementations}
+            onStateImported={onStateImported}
+            onRecordingImported={onRecordingImported}
+            onImportError={onImportError}
+          />
+        </RecordContext.Provider>
       </FullGraphContext.Provider>
     </ReactFlowProvider>
   );

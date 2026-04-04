@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { X, Package } from 'lucide-react';
 import { cn } from '@/utils';
 import {
   Accordion,
@@ -11,8 +11,10 @@ import type {
   RecordedInputHandleValue,
   RecordedInputConnection,
   RecordedOutputHandleValue,
+  LoopRecord,
 } from '@/utils/nodeRunner/types';
 import { formatGraphError } from '@/utils/nodeRunner/errors';
+import { Tooltip } from '@/components/atoms/Tooltip';
 
 // ─────────────────────────────────────────────────────
 // Props
@@ -23,10 +25,16 @@ type ExecutionStepInspectorProps = {
   stepRecord: ExecutionStepRecord | null;
   /** Close the inspector */
   onClose: () => void;
+  /** Loop records for enriched loop context display */
+  loopRecords?: ReadonlyMap<string, LoopRecord>;
   /** Replace complex values with type summaries */
   hideComplexValues?: boolean;
   /** Show node IDs and handle IDs alongside display names */
   debugMode?: boolean;
+  /** Whether edge values animate along the path or display statically */
+  edgeValuesAnimated?: boolean;
+  /** Called when the edge animation toggle changes */
+  onEdgeValuesAnimatedChange?: (animated: boolean) => void;
 };
 
 // ─────────────────────────────────────────────────────
@@ -111,23 +119,6 @@ function StatusBadge({ status }: { status: ExecutionStepRecord['status'] }) {
     >
       {c.label}
     </span>
-  );
-}
-
-// ─────────────────────────────────────────────────────
-// NodeIcon — decorative abstract icon
-// ─────────────────────────────────────────────────────
-
-function NodeIcon() {
-  return (
-    <div className='relative h-4 w-4'>
-      <div className='absolute left-0 top-0.5 h-1.5 w-1.5 bg-[#c46868]' />
-      <div className='absolute bottom-0 right-0 box-border h-[7px] w-[7px] rounded-full border-2 border-[#5b79a8]' />
-      <div className='absolute left-2 top-1.5 flex flex-col gap-0.5'>
-        <div className='h-0.5 w-0.5 rounded-full bg-secondary-light-gray' />
-        <div className='h-0.5 w-0.5 rounded-full bg-secondary-light-gray' />
-      </div>
-    </div>
   );
 }
 
@@ -247,8 +238,11 @@ function OutputHandleDisplay({
 function ExecutionStepInspector({
   stepRecord,
   onClose,
+  loopRecords,
   hideComplexValues = false,
   debugMode = false,
+  edgeValuesAnimated,
+  onEdgeValuesAnimatedChange,
 }: ExecutionStepInspectorProps) {
   if (!stepRecord) return null;
 
@@ -260,19 +254,34 @@ function ExecutionStepInspector({
       {/* Header */}
       <div className='flex items-center justify-between border-b border-secondary-dark-gray px-4 py-3'>
         <div className='flex items-center gap-2.5'>
-          <NodeIcon />
+          <Package className='h-5 w-5 text-primary-white' />
           <span className='text-[15px] tracking-wide text-primary-white'>
             {stepRecord.nodeTypeName}
           </span>
         </div>
-        <button
-          type='button'
-          onClick={onClose}
-          className='btn-press rounded p-1 text-secondary-light-gray transition-colors hover:text-primary-white'
-          aria-label='Close'
-        >
-          <X className='h-3.5 w-3.5' />
-        </button>
+        <div className='flex items-center gap-3'>
+          {onEdgeValuesAnimatedChange && (
+            <Tooltip content='Animate edge value badges along the connection path instead of showing them statically'>
+              <label className='flex cursor-pointer items-center gap-1.5 text-[12px] text-secondary-light-gray select-none'>
+                <input
+                  type='checkbox'
+                  checked={edgeValuesAnimated ?? true}
+                  onChange={(e) => onEdgeValuesAnimatedChange(e.target.checked)}
+                  className='h-3 w-3 accent-primary-blue'
+                />
+                <span className='text-primary-white'>Animate</span>
+              </label>
+            </Tooltip>
+          )}
+          <button
+            type='button'
+            onClick={onClose}
+            className='btn-press rounded p-1 text-secondary-light-gray transition-colors hover:text-primary-white'
+            aria-label='Close'
+          >
+            <X className='h-3.5 w-3.5' />
+          </button>
+        </div>
       </div>
 
       {/* Execution info */}
@@ -281,7 +290,9 @@ function ExecutionStepInspector({
         <div className='flex items-center justify-between rounded-md border border-runner-value-border px-3 py-2'>
           <StatusBadge status={stepRecord.status} />
           <span className='font-mono text-[13px] text-secondary-light-gray'>
-            {stepRecord.duration.toFixed(2)}ms
+            {stepRecord.estimatedTiming
+              ? '< 0.1ms'
+              : `${stepRecord.duration.toFixed(2)}ms`}
           </span>
         </div>
 
@@ -309,12 +320,34 @@ function ExecutionStepInspector({
 
         {/* Loop/Group context */}
         {(stepRecord.loopIteration !== undefined || stepRecord.groupNodeId) && (
-          <div className='text-[11px] text-secondary-light-gray'>
-            {stepRecord.loopIteration !== undefined && (
-              <div>Loop iteration: {stepRecord.loopIteration}</div>
-            )}
+          <div className='flex flex-col gap-2'>
+            {stepRecord.loopIteration !== undefined &&
+              (() => {
+                const loopRecord =
+                  stepRecord.loopStructureId && loopRecords
+                    ? loopRecords.get(stepRecord.loopStructureId)
+                    : undefined;
+                const iterationRecord =
+                  loopRecord?.iterations[stepRecord.loopIteration];
+                return (
+                  <div className='rounded-md border border-runner-value-border px-3 py-2'>
+                    <div className='text-[12px] text-primary-white'>
+                      Loop iteration {stepRecord.loopIteration + 1}
+                      {loopRecord ? ` of ${loopRecord.totalIterations}` : ''}
+                    </div>
+                    {iterationRecord && (
+                      <div className='mt-1 text-[10px] text-secondary-light-gray'>
+                        Condition:{' '}
+                        {iterationRecord.conditionValue
+                          ? 'true (continues)'
+                          : 'false (exits)'}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             {stepRecord.groupNodeId && (
-              <div>
+              <div className='text-[11px] text-secondary-light-gray'>
                 Group: {stepRecord.groupNodeId}
                 {stepRecord.groupDepth !== undefined &&
                   ` (depth ${stepRecord.groupDepth})`}
@@ -331,92 +364,90 @@ function ExecutionStepInspector({
       </div>
 
       {/* Scrollable content */}
-      <div className='node-runner-scrollbar max-h-[400px] overflow-y-auto'>
-        <Accordion
-          type='multiple'
-          defaultValue={['inputs', 'outputs']}
-          className='w-full'
+      <Accordion
+        type='multiple'
+        defaultValue={['inputs', 'outputs']}
+        className='w-full'
+      >
+        {/* Inputs section */}
+        <AccordionItem
+          value='inputs'
+          className='border-b border-secondary-dark-gray'
         >
-          {/* Inputs section */}
-          <AccordionItem
-            value='inputs'
-            className='border-b border-secondary-dark-gray'
-          >
-            <AccordionTrigger className='gap-1.5 border-b border-secondary-dark-gray bg-runner-section-header-bg px-4 py-2.5 text-[14px] text-primary-white hover:no-underline [&>svg]:text-secondary-light-gray'>
-              Inputs
-            </AccordionTrigger>
-            <AccordionContent className='p-4 pb-0'>
-              <div className='flex flex-col gap-4 bg-runner-panel-bg'>
-                {inputEntries.length > 0 ? (
-                  inputEntries.map(([name, value], idx) => (
-                    <div key={name}>
-                      {idx > 0 && (
-                        <div className='-mx-4 mb-4 h-px bg-secondary-dark-gray' />
-                      )}
-                      <InputHandleDisplay
-                        handleName={name}
-                        handleValue={value}
-                        hideComplex={hideComplexValues}
-                        debugMode={debugMode}
-                      />
-                    </div>
-                  ))
-                ) : (
-                  <div className='text-[13px] italic text-secondary-light-gray'>
-                    No inputs
+          <AccordionTrigger className='gap-1.5 border-b border-secondary-dark-gray bg-runner-section-header-bg px-4 py-2.5 text-[14px] text-primary-white hover:no-underline [&>svg]:text-secondary-light-gray'>
+            Inputs
+          </AccordionTrigger>
+          <AccordionContent className='p-4'>
+            <div className='flex flex-col gap-4 bg-runner-panel-bg'>
+              {inputEntries.length > 0 ? (
+                inputEntries.map(([name, value], idx) => (
+                  <div key={name}>
+                    {idx > 0 && (
+                      <div className='-mx-4 mb-4 h-px bg-secondary-dark-gray' />
+                    )}
+                    <InputHandleDisplay
+                      handleName={name}
+                      handleValue={value}
+                      hideComplex={hideComplexValues}
+                      debugMode={debugMode}
+                    />
                   </div>
-                )}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+                ))
+              ) : (
+                <div className='text-[13px] italic text-secondary-light-gray'>
+                  No inputs
+                </div>
+              )}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
 
-          {/* Outputs section */}
-          <AccordionItem
-            value='outputs'
-            className='border-b border-secondary-dark-gray'
-          >
-            <AccordionTrigger className='gap-1.5 border-b border-secondary-dark-gray bg-runner-section-header-bg px-4 py-2.5 text-[14px] text-primary-white hover:no-underline [&>svg]:text-secondary-light-gray'>
-              Outputs
-            </AccordionTrigger>
-            <AccordionContent className='p-4 pb-0'>
-              <div className='flex flex-col gap-4 bg-runner-panel-bg'>
-                {outputEntries.length > 0 ? (
-                  outputEntries.map(([name, value], idx) => (
-                    <div key={name}>
-                      {idx > 0 && (
-                        <div className='-mx-4 mb-4 h-px bg-secondary-dark-gray' />
-                      )}
-                      <OutputHandleDisplay
-                        handleName={name}
-                        handleValue={value}
-                        hideComplex={hideComplexValues}
-                      />
-                    </div>
-                  ))
-                ) : (
-                  <div className='text-[13px] italic text-secondary-light-gray'>
-                    No outputs
+        {/* Outputs section */}
+        <AccordionItem
+          value='outputs'
+          className='border-b border-secondary-dark-gray'
+        >
+          <AccordionTrigger className='gap-1.5 border-b border-secondary-dark-gray bg-runner-section-header-bg px-4 py-2.5 text-[14px] text-primary-white hover:no-underline [&>svg]:text-secondary-light-gray'>
+            Outputs
+          </AccordionTrigger>
+          <AccordionContent className='p-4'>
+            <div className='flex flex-col gap-4 bg-runner-panel-bg'>
+              {outputEntries.length > 0 ? (
+                outputEntries.map(([name, value], idx) => (
+                  <div key={name}>
+                    {idx > 0 && (
+                      <div className='-mx-4 mb-4 h-px bg-secondary-dark-gray' />
+                    )}
+                    <OutputHandleDisplay
+                      handleName={name}
+                      handleValue={value}
+                      hideComplex={hideComplexValues}
+                    />
                   </div>
-                )}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+                ))
+              ) : (
+                <div className='text-[13px] italic text-secondary-light-gray'>
+                  No outputs
+                </div>
+              )}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
-        {/* Error section */}
-        {stepRecord.error && (
-          <div className='p-4'>
-            <div className='rounded-md border border-status-errored/30 bg-status-errored/10 p-2.5'>
-              <div className='mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-status-errored'>
-                Error
-              </div>
-              <div className='whitespace-pre-wrap font-mono text-[11px] text-status-errored'>
-                {formatGraphError(stepRecord.error)}
-              </div>
+      {/* Error section */}
+      {stepRecord.error && (
+        <div className='p-4'>
+          <div className='rounded-md border border-status-errored/30 bg-status-errored/10 p-2.5'>
+            <div className='mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-status-errored'>
+              Error
+            </div>
+            <div className='whitespace-pre-wrap font-mono text-[11px] text-status-errored'>
+              {formatGraphError(stepRecord.error)}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

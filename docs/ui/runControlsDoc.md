@@ -127,7 +127,7 @@ A numeric input field labeled "Max loops:" that controls the maximum number of
 iterations a loop structure is allowed to execute before the runner raises an
 error.
 
-- **Default value:** 10000 (from stories)
+- **Default value:** 100
 - **Minimum value:** 1 (HTML `min` attribute)
 - **Validation:** Only accepts integer values > 0 via `parseInt` + `isNaN`
   check. Invalid or non-positive values are silently ignored (the callback is

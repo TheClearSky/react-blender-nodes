@@ -19,19 +19,14 @@ import type {
   GroupExecutionScope,
   InputHandleValue,
   GraphError,
+  LoopPhase,
 } from './types';
 import { createGraphError, buildErrorPath } from './errors';
 import { ValueStore, qualifiedId, flattenInputs } from './valueStore';
 import type { MinimalNodeData } from './valueStore';
 import { ExecutionRecorder } from './executionRecorder';
-import {
-  loopStartInputInferHandleIndex,
-  loopStartOutputInferHandleIndex,
-  loopStopInputInferHandleIndex,
-  loopStopOutputInferHandleIndex,
-  loopEndInputInferHandleIndex,
-  loopEndOutputInferHandleIndex,
-} from '../nodeStateManagement/standardNodes';
+import { standardDataTypeNamesMap } from '../nodeStateManagement/standardNodes';
+import { StepChannel } from './stepChannel';
 import { isStandardNodeType, hasKey } from './groupCompiler';
 
 // ─────────────────────────────────────────────────────
@@ -103,7 +98,8 @@ function buildNodeInfoMap<
             concurrencyLevel: step.concurrencyLevel,
           });
         }
-        processSteps(step.bodySteps);
+        processSteps(step.preStopSteps);
+        processSteps(step.postStopSteps);
       } else if (step.kind === 'group') {
         const node = state.nodes.find((n) => n.id === step.groupNodeId);
         if (!node) continue;
@@ -244,6 +240,8 @@ function recordStructuralNodeCompletion(
     nodeTypeName: string;
     concurrencyLevel: number;
     loopStructureId?: string;
+    parentLoopStructureId?: string;
+    parentLoopIteration?: number;
     groupNodeId?: string;
     groupDepth?: number;
   },
@@ -293,6 +291,7 @@ async function executeStandardNode<
     groupNodeTypeId: string;
     groupDepth: number;
   },
+  loopPhase?: LoopPhase,
 ): Promise<void> {
   const { nodeId, nodeTypeId, nodeTypeName, concurrencyLevel } = step;
 
@@ -307,6 +306,7 @@ async function executeStandardNode<
     loopStructureId: loopContext?.loopStructureId,
     groupNodeId: groupContext?.groupNodeId,
     groupDepth: groupContext?.groupDepth,
+    loopPhase,
   });
 
   const stepStartTime = performance.now();
@@ -488,8 +488,52 @@ async function executeStandardNode<
 // Execute a loop block
 // ─────────────────────────────────────────────────────
 
-/** Condition input is at index 1 in LoopStop's flattened inputs. */
-const LOOP_STOP_CONDITION_INPUT_INDEX = 1;
+/** Data type IDs that are structural (not user data) on loop nodes. */
+const LOOP_STRUCTURAL_TYPES: ReadonlySet<string> = new Set([
+  standardDataTypeNamesMap.bindLoopNodes,
+  standardDataTypeNamesMap.loopInfer,
+  standardDataTypeNamesMap.condition,
+]);
+
+/** Get the resolved dataTypeUniqueId from a handle, considering inferred types. */
+function resolveHandleDataTypeId(handle: {
+  dataType?: { dataTypeUniqueId?: string };
+  inferredDataType?: { dataTypeUniqueId?: string } | null;
+}): string | undefined {
+  return (
+    handle.inferredDataType?.dataTypeUniqueId ??
+    handle.dataType?.dataTypeUniqueId
+  );
+}
+
+/** Extract handle IDs for user data handles (not bindLoopNodes, loopInfer, or condition). */
+function getDataHandleIds(
+  handles: ReadonlyArray<{
+    id?: string;
+    dataType?: { dataTypeUniqueId?: string };
+    inferredDataType?: { dataTypeUniqueId?: string } | null;
+  }>,
+): string[] {
+  return handles
+    .filter((h) => {
+      const dtId = resolveHandleDataTypeId(h);
+      return h.id && dtId && !LOOP_STRUCTURAL_TYPES.has(dtId);
+    })
+    .map((h) => h.id!);
+}
+
+/** Find the condition input handle on Loop Stop (the one with dataType 'condition'). */
+function findConditionInputId(
+  handles: ReadonlyArray<{
+    id?: string;
+    dataType?: { dataTypeUniqueId?: string };
+    inferredDataType?: { dataTypeUniqueId?: string } | null;
+  }>,
+): string | undefined {
+  return handles.find(
+    (h) => resolveHandleDataTypeId(h) === standardDataTypeNamesMap.condition,
+  )?.id;
+}
 
 async function executeLoopBlock<
   DataTypeUniqueId extends string = string,
@@ -514,12 +558,18 @@ async function executeLoopBlock<
   erroredNodes: Set<string>,
   onNodeStateChange: (nodeId: string, state: NodeVisualState) => void,
   abortSignal: AbortSignal,
+  parentLoopContext?: {
+    loopIteration: number;
+    loopStructureId: string;
+  },
+  afterStep?: () => Promise<void>,
 ): Promise<void> {
   const {
     loopStartNodeId,
     loopStopNodeId,
     loopEndNodeId,
-    bodySteps,
+    preStopSteps,
+    postStopSteps,
     maxIterations,
   } = block;
 
@@ -558,6 +608,8 @@ async function executeLoopBlock<
   }
 
   // ── Resolve handle IDs from node data ──────────────
+  // Discover ALL user data handles (everything except bindLoopNodes, loopInfer, condition).
+  // These are paired positionally: startDataInputIds[i] ↔ startDataOutputIds[i], etc.
   const startInputs = flattenInputs(loopStartInfo.data.inputs);
   const startOutputs = loopStartInfo.data.outputs ?? [];
   const stopInputs = flattenInputs(loopStopInfo.data.inputs);
@@ -565,25 +617,33 @@ async function executeLoopBlock<
   const endInputs = flattenInputs(loopEndInfo.data.inputs);
   const endOutputs = loopEndInfo.data.outputs ?? [];
 
-  const startInferInputId = startInputs[loopStartInputInferHandleIndex]?.id;
-  const startInferOutputId = startOutputs[loopStartOutputInferHandleIndex]?.id;
-  const stopConditionInputId = stopInputs[LOOP_STOP_CONDITION_INPUT_INDEX]?.id;
-  const stopInferInputId = stopInputs[loopStopInputInferHandleIndex]?.id;
-  const stopInferOutputId = stopOutputs[loopStopOutputInferHandleIndex]?.id;
-  const endInferInputId = endInputs[loopEndInputInferHandleIndex]?.id;
-  const endInferOutputId = endOutputs[loopEndOutputInferHandleIndex]?.id;
+  const startDataInputIds = getDataHandleIds(startInputs);
+  const startDataOutputIds = getDataHandleIds(startOutputs);
+  const stopDataInputIds = getDataHandleIds(stopInputs);
+  const stopDataOutputIds = getDataHandleIds(stopOutputs);
+  const endDataInputIds = getDataHandleIds(endInputs);
+  const endDataOutputIds = getDataHandleIds(endOutputs);
+
+  const stopConditionInputId = findConditionInputId(stopInputs);
+
+  const dataHandleCount = startDataInputIds.length;
 
   if (
-    !startInferInputId ||
-    !startInferOutputId ||
-    !stopConditionInputId ||
-    !stopInferInputId ||
-    !stopInferOutputId ||
-    !endInferInputId ||
-    !endInferOutputId
+    dataHandleCount === 0 ||
+    startDataOutputIds.length !== dataHandleCount ||
+    stopDataInputIds.length !== dataHandleCount ||
+    stopDataOutputIds.length !== dataHandleCount ||
+    endDataInputIds.length !== dataHandleCount ||
+    endDataOutputIds.length !== dataHandleCount ||
+    !stopConditionInputId
   ) {
     const error = createGraphError({
-      error: new Error('Loop structure has missing handle IDs'),
+      error: new Error(
+        `Loop structure has mismatched data handle counts ` +
+          `(start in=${startDataInputIds.length}, start out=${startDataOutputIds.length}, ` +
+          `stop in=${stopDataInputIds.length}, stop out=${stopDataOutputIds.length}, ` +
+          `end in=${endDataInputIds.length}, end out=${endDataOutputIds.length})`,
+      ),
       nodeId: loopStartNodeId,
       nodeTypeId: loopStartInfo.nodeTypeId,
       nodeTypeName: loopStartInfo.nodeTypeName,
@@ -606,20 +666,21 @@ async function executeLoopBlock<
     throw error;
   }
 
-  // ── Resolve initial input from upstream ────────────
-  // Filter out the feedback edge from LoopStop → LoopStart
-  const startInputKey = qualifiedId(loopStartNodeId, startInferInputId);
-  const allStartEntries = plan.inputResolutionMap.get(startInputKey) ?? [];
-  const upstreamEntries = allStartEntries.filter(
-    (e) => e.sourceNodeId !== loopStopNodeId,
-  );
-
-  let currentValue: unknown;
-  if (upstreamEntries.length > 0) {
-    currentValue = valueStore.get(
-      upstreamEntries[0].sourceNodeId,
-      upstreamEntries[0].sourceHandleId,
+  // ── Resolve initial inputs from upstream ────────────
+  // For each data handle, find the upstream value (filtering out feedback edges from LoopStop).
+  const currentValues: unknown[] = new Array(dataHandleCount);
+  for (let i = 0; i < dataHandleCount; i++) {
+    const startInputKey = qualifiedId(loopStartNodeId, startDataInputIds[i]);
+    const allStartEntries = plan.inputResolutionMap.get(startInputKey) ?? [];
+    const upstreamEntries = allStartEntries.filter(
+      (e) => e.sourceNodeId !== loopStopNodeId,
     );
+    if (upstreamEntries.length > 0) {
+      currentValues[i] = valueStore.get(
+        upstreamEntries[0].sourceNodeId,
+        upstreamEntries[0].sourceHandleId,
+      );
+    }
   }
 
   // ── Begin loop recording ───────────────────────────
@@ -629,35 +690,58 @@ async function executeLoopBlock<
     loopStopNodeId,
     loopEndNodeId,
   );
+
+  // Build parent context fields for structural/body step recordings
+  const parentFields = parentLoopContext
+    ? {
+        parentLoopStructureId: parentLoopContext.loopStructureId,
+        parentLoopIteration: parentLoopContext.loopIteration,
+      }
+    : {};
+
+  // Pre-compute output info (doesn't change per iteration)
+  const startOutputInfo = valueStore.buildOutputInfo(
+    loopStartNodeId,
+    loopStartInfo.data,
+    plan.outputDistributionMap,
+  );
+  const stopOutputInfo = valueStore.buildOutputInfo(
+    loopStopNodeId,
+    loopStopInfo.data,
+    plan.outputDistributionMap,
+  );
+
   onNodeStateChange(loopStartNodeId, 'running');
   onNodeStateChange(loopStopNodeId, 'running');
 
   // ── Group body steps by concurrency level ──────────
-  const bodyLevelMap = new Map<number, ExecutionStep[]>();
-  for (const step of bodySteps) {
-    const group = bodyLevelMap.get(step.concurrencyLevel);
-    if (group) group.push(step);
-    else bodyLevelMap.set(step.concurrencyLevel, [step]);
+  function groupByLevel(steps: ReadonlyArray<ExecutionStep>) {
+    const map = new Map<number, ExecutionStep[]>();
+    for (const step of steps) {
+      const group = map.get(step.concurrencyLevel);
+      if (group) group.push(step);
+      else map.set(step.concurrencyLevel, [step]);
+    }
+    return [...map.entries()].sort((a, b) => a[0] - b[0]);
   }
-  const sortedBodyLevels = [...bodyLevelMap.entries()].sort(
-    (a, b) => a[0] - b[0],
+  const sortedPreStopLevels = groupByLevel(preStopSteps);
+  const sortedPostStopLevels = groupByLevel(postStopSteps);
+
+  // Pre-compute LoopEnd output info (doesn't change per iteration)
+  const endOutputInfo = valueStore.buildOutputInfo(
+    loopEndNodeId,
+    loopEndInfo.data,
+    plan.outputDistributionMap,
   );
 
-  // ── Iterate ────────────────────────────────────────
-  let lastConditionValue = false;
-
-  for (let iteration = 0; iteration < maxIterations; iteration++) {
-    if (abortSignal.aborted) break;
-
-    recorder.beginLoopIteration(loopStructureId, iteration);
-
-    // Set LoopStart's infer output (data into the body)
-    valueStore.set(loopStartNodeId, startInferOutputId, currentValue);
-
-    // Execute body steps grouped by level
-    const bodyErroredNodes = new Set<string>();
-
-    for (const [, levelSteps] of sortedBodyLevels) {
+  /** Execute a set of grouped body levels (shared by pre-stop and post-stop). */
+  async function executeBodyLevels(
+    sortedLevels: [number, ExecutionStep[]][],
+    bodyErroredNodes: Set<string>,
+    iteration: number,
+    loopPhase: LoopPhase,
+  ) {
+    for (const [, levelSteps] of sortedLevels) {
       if (abortSignal.aborted) break;
 
       const toExecute: ExecutionStep[] = [];
@@ -674,7 +758,6 @@ async function executeLoopBlock<
         }
       }
 
-      // Record skipped body steps
       for (const step of toSkip) {
         const stepNodeId = getStepNodeId(step);
         onNodeStateChange(stepNodeId, 'skipped');
@@ -686,15 +769,76 @@ async function executeLoopBlock<
           concurrencyLevel: step.concurrencyLevel,
           loopIteration: iteration,
           loopStructureId,
+          loopPhase,
+          ...parentFields,
         });
         recorder.skipStep(skipIdx);
+        await afterStep?.();
       }
 
-      // Execute non-skipped body steps concurrently within level
-      const results = await Promise.allSettled(
-        toExecute.map((step) => {
-          if (step.kind === 'standard') {
-            return executeStandardNode(
+      // In step-by-step mode (afterStep present), execute nodes sequentially
+      // so we can pause after each. In performance mode, use Promise.allSettled
+      // for concurrent execution within the level.
+      if (afterStep) {
+        for (const step of toExecute) {
+          if (abortSignal.aborted) break;
+          try {
+            if (step.kind === 'standard') {
+              await executeStandardNode(
+                step,
+                valueStore,
+                recorder,
+                plan,
+                functionImplementations,
+                state,
+                nodeInfoMap,
+                onNodeStateChange,
+                abortSignal,
+                { loopIteration: iteration, loopStructureId, maxIterations },
+                undefined, // groupContext
+                loopPhase,
+              );
+              await afterStep();
+            } else {
+              await executeOneStep(
+                step,
+                valueStore,
+                recorder,
+                plan,
+                functionImplementations,
+                state,
+                nodeInfoMap,
+                bodyErroredNodes,
+                onNodeStateChange,
+                abortSignal,
+                { loopIteration: iteration, loopStructureId },
+                afterStep,
+              );
+            }
+          } catch {
+            bodyErroredNodes.add(getStepNodeId(step));
+          }
+        }
+      } else {
+        const results = await Promise.allSettled(
+          toExecute.map((step) => {
+            if (step.kind === 'standard') {
+              return executeStandardNode(
+                step,
+                valueStore,
+                recorder,
+                plan,
+                functionImplementations,
+                state,
+                nodeInfoMap,
+                onNodeStateChange,
+                abortSignal,
+                { loopIteration: iteration, loopStructureId, maxIterations },
+                undefined, // groupContext
+                loopPhase,
+              );
+            }
+            return executeOneStep(
               step,
               valueStore,
               recorder,
@@ -702,41 +846,113 @@ async function executeLoopBlock<
               functionImplementations,
               state,
               nodeInfoMap,
+              bodyErroredNodes,
               onNodeStateChange,
               abortSignal,
-              { loopIteration: iteration, loopStructureId, maxIterations },
+              { loopIteration: iteration, loopStructureId },
             );
-          }
-          // Future: nested loops/groups inside loop body
-          return executeOneStep(
-            step,
-            valueStore,
-            recorder,
-            plan,
-            functionImplementations,
-            state,
-            nodeInfoMap,
-            bodyErroredNodes,
-            onNodeStateChange,
-            abortSignal,
-          );
-        }),
-      );
+          }),
+        );
 
-      for (let i = 0; i < results.length; i++) {
-        if (results[i].status === 'rejected') {
-          bodyErroredNodes.add(getStepNodeId(toExecute[i]));
+        for (let i = 0; i < results.length; i++) {
+          if (results[i].status === 'rejected') {
+            bodyErroredNodes.add(getStepNodeId(toExecute[i]));
+          }
         }
       }
     }
+  }
 
-    // ── Resolve LoopStop condition ──────────────────
+  // ── Iterate ────────────────────────────────────────
+  let lastConditionValue = false;
+
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
+    if (abortSignal.aborted) break;
+
+    recorder.beginLoopIteration(loopStructureId, iteration);
+
+    // ── PHASE: loopStart ──────────────────────────────
+    // Set all LoopStart data outputs (data into the body)
+    for (let i = 0; i < dataHandleCount; i++) {
+      valueStore.set(loopStartNodeId, startDataOutputIds[i], currentValues[i]);
+    }
+
+    const inputSource: 'upstream' | 'feedback' =
+      iteration === 0 ? 'upstream' : 'feedback';
+
+    {
+      const startIdx = recorder.beginStep({
+        nodeId: loopStartNodeId,
+        nodeTypeId: loopStartInfo.nodeTypeId,
+        nodeTypeName: loopStartInfo.nodeTypeName,
+        concurrencyLevel: block.concurrencyLevel,
+        loopIteration: iteration,
+        loopStructureId,
+        loopPhase: 'loopStart' as LoopPhase,
+        inputSource,
+        ...parentFields,
+      });
+
+      // Resolve inputs, filtering based on iteration for recording purposes
+      const fullInputMap = valueStore.resolveInputs(
+        loopStartNodeId,
+        loopStartInfo.data,
+        plan.inputResolutionMap,
+        nodeInfoMap,
+      );
+
+      // Filter the input map for recording: show only relevant sources
+      const filteredInputMap = new Map<string, InputHandleValue>();
+      for (const [handleName, handleValue] of fullInputMap) {
+        if (inputSource === 'upstream') {
+          // Iteration 0: filter OUT LoopStop feedback
+          const filtered = handleValue.connections.filter(
+            (c) => c.sourceNodeId !== loopStopNodeId,
+          );
+          filteredInputMap.set(handleName, {
+            ...handleValue,
+            connections: filtered,
+          });
+        } else {
+          // Iteration N>0: filter OUT upstream, show feedback only
+          const filtered = handleValue.connections.filter(
+            (c) => c.sourceNodeId === loopStopNodeId,
+          );
+          filteredInputMap.set(handleName, {
+            ...handleValue,
+            connections: filtered,
+          });
+        }
+      }
+
+      const startOutputMap = new Map<string, unknown>();
+      for (const [handleName, info] of startOutputInfo) {
+        const idx = startDataOutputIds.indexOf(info.handleId);
+        if (idx >= 0) startOutputMap.set(handleName, currentValues[idx]);
+      }
+      recorder.completeStep(
+        startIdx,
+        recordInputValues(filteredInputMap),
+        recordOutputValues(startOutputMap, startOutputInfo),
+      );
+      await afterStep?.();
+    }
+
+    // ── PHASE: preStop ──────────────────────────────
+    const bodyErroredNodes = new Set<string>();
+    await executeBodyLevels(
+      sortedPreStopLevels,
+      bodyErroredNodes,
+      iteration,
+      'preStop',
+    );
+
+    // ── PHASE: loopStop ──────────────────────────────
     const conditionKey = qualifiedId(loopStopNodeId, stopConditionInputId);
     const conditionEntries = plan.inputResolutionMap.get(conditionKey);
     let conditionValue = false;
 
     if (conditionEntries && conditionEntries.length > 0) {
-      // Check if the condition source errored
       const conditionSourceErrored = conditionEntries.some((e) =>
         bodyErroredNodes.has(e.sourceNodeId),
       );
@@ -749,28 +965,130 @@ async function executeLoopBlock<
       }
     }
 
-    // ── Resolve LoopStop infer value (pass-through) ──
-    const stopInferKey = qualifiedId(loopStopNodeId, stopInferInputId);
-    const stopInferEntries = plan.inputResolutionMap.get(stopInferKey);
-    let stopInferValue: unknown;
+    // Resolve all LoopStop data values (pass-through)
+    for (let i = 0; i < dataHandleCount; i++) {
+      const stopDataKey = qualifiedId(loopStopNodeId, stopDataInputIds[i]);
+      const stopDataEntries = plan.inputResolutionMap.get(stopDataKey);
+      let stopDataValue: unknown;
 
-    if (stopInferEntries && stopInferEntries.length > 0) {
-      stopInferValue = valueStore.get(
-        stopInferEntries[0].sourceNodeId,
-        stopInferEntries[0].sourceHandleId,
-      );
+      if (stopDataEntries && stopDataEntries.length > 0) {
+        stopDataValue = valueStore.get(
+          stopDataEntries[0].sourceNodeId,
+          stopDataEntries[0].sourceHandleId,
+        );
+      }
+
+      valueStore.set(loopStopNodeId, stopDataOutputIds[i], stopDataValue);
+      currentValues[i] = stopDataValue;
     }
 
-    // LoopStop passes data through
-    valueStore.set(loopStopNodeId, stopInferOutputId, stopInferValue);
+    // Record LoopStop
+    {
+      const stopIdx = recorder.beginStep({
+        nodeId: loopStopNodeId,
+        nodeTypeId: loopStopInfo.nodeTypeId,
+        nodeTypeName: loopStopInfo.nodeTypeName,
+        concurrencyLevel: block.concurrencyLevel,
+        loopIteration: iteration,
+        loopStructureId,
+        loopPhase: 'loopStop' as LoopPhase,
+        ...parentFields,
+      });
+      const stopInputMap = valueStore.resolveInputs(
+        loopStopNodeId,
+        loopStopInfo.data,
+        plan.inputResolutionMap,
+        nodeInfoMap,
+      );
+      const stopOutputMap = new Map<string, unknown>();
+      for (const [handleName, info] of stopOutputInfo) {
+        const idx = stopDataOutputIds.indexOf(info.handleId);
+        if (idx >= 0) stopOutputMap.set(handleName, currentValues[idx]);
+      }
+      recorder.completeStep(
+        stopIdx,
+        recordInputValues(stopInputMap),
+        recordOutputValues(stopOutputMap, stopOutputInfo),
+      );
+      await afterStep?.();
+    }
+
+    // ── PHASE: postStop (only if condition is TRUE) ──
+    if (conditionValue && sortedPostStopLevels.length > 0) {
+      await executeBodyLevels(
+        sortedPostStopLevels,
+        bodyErroredNodes,
+        iteration,
+        'postStop',
+      );
+
+      // Update currentValues from LoopEnd's resolved data inputs so
+      // post-stop transformations feed back into the next iteration.
+      for (let i = 0; i < dataHandleCount; i++) {
+        const endDataKey = qualifiedId(loopEndNodeId, endDataInputIds[i]);
+        const endDataEntries = plan.inputResolutionMap.get(endDataKey);
+        if (endDataEntries && endDataEntries.length > 0) {
+          currentValues[i] = valueStore.get(
+            endDataEntries[0].sourceNodeId,
+            endDataEntries[0].sourceHandleId,
+          );
+        }
+      }
+    }
+
+    // ── PHASE: loopEnd ──────────────────────────────────
+    // Record LoopEnd on EVERY iteration for timeline visibility.
+    // Set ValueStore outputs only on the exit iteration so downstream
+    // nodes receive final values. Record outputs only on exit so
+    // edge animation naturally only shows on the last iteration.
+    {
+      const isExitIteration = !conditionValue;
+
+      if (isExitIteration) {
+        // Set all LoopEnd outputs for downstream consumption
+        for (let i = 0; i < dataHandleCount; i++) {
+          valueStore.set(loopEndNodeId, endDataOutputIds[i], currentValues[i]);
+        }
+      }
+
+      const endIdx = recorder.beginStep({
+        nodeId: loopEndNodeId,
+        nodeTypeId: loopEndInfo.nodeTypeId,
+        nodeTypeName: loopEndInfo.nodeTypeName,
+        concurrencyLevel: block.concurrencyLevel,
+        loopIteration: iteration,
+        loopStructureId,
+        loopPhase: 'loopEnd' as LoopPhase,
+        ...parentFields,
+      });
+      const endInputMap = valueStore.resolveInputs(
+        loopEndNodeId,
+        loopEndInfo.data,
+        plan.inputResolutionMap,
+        nodeInfoMap,
+      );
+
+      // Only record outputs on exit iteration — empty outputs on continue
+      // iterations means edge animation naturally won't show.
+      const endOutputMap = new Map<string, unknown>();
+      if (isExitIteration) {
+        for (const [handleName, info] of endOutputInfo) {
+          const idx = endDataOutputIds.indexOf(info.handleId);
+          if (idx >= 0) endOutputMap.set(handleName, currentValues[idx]);
+        }
+      }
+      recorder.completeStep(
+        endIdx,
+        recordInputValues(endInputMap),
+        recordOutputValues(endOutputMap, endOutputInfo),
+      );
+      await afterStep?.();
+    }
 
     lastConditionValue = conditionValue;
-    currentValue = stopInferValue;
-
     recorder.completeLoopIteration(loopStructureId, iteration, conditionValue);
 
     if (!conditionValue) {
-      // Condition false → exit loop normally
       break;
     }
   }
@@ -799,56 +1117,30 @@ async function executeLoopBlock<
       nodeTypeName: loopStopInfo.nodeTypeName,
       concurrencyLevel: block.concurrencyLevel,
       loopStructureId,
+      loopIteration: maxIterations - 1,
+      ...parentFields,
     });
     recorder.errorStep(errIdx, error, new Map());
+    recordStructuralNodeCompletion(
+      recorder,
+      {
+        nodeId: loopEndNodeId,
+        nodeTypeId: loopEndInfo.nodeTypeId,
+        nodeTypeName: loopEndInfo.nodeTypeName,
+        concurrencyLevel: block.concurrencyLevel,
+        loopStructureId,
+        ...parentFields,
+      },
+      { status: 'errored', error },
+    );
     onNodeStateChange(loopStopNodeId, 'errored');
+    onNodeStateChange(loopEndNodeId, 'errored');
     erroredNodes.add(loopStartNodeId);
     erroredNodes.add(loopStopNodeId);
     erroredNodes.add(loopEndNodeId);
     recorder.completeLoopStructure(loopStructureId);
     throw error;
   }
-
-  // Set LoopEnd output for downstream consumption
-  valueStore.set(loopEndNodeId, endInferOutputId, currentValue);
-
-  // Record structural step records for loop triplet (replay/timeline visibility).
-  // These must be recorded AFTER the loop body so they don't interleave with
-  // body step records.
-  const tripletBase = {
-    concurrencyLevel: block.concurrencyLevel,
-    loopStructureId,
-  };
-  recordStructuralNodeCompletion(
-    recorder,
-    {
-      nodeId: loopStartNodeId,
-      nodeTypeId: loopStartInfo.nodeTypeId,
-      nodeTypeName: loopStartInfo.nodeTypeName,
-      ...tripletBase,
-    },
-    { status: 'completed' },
-  );
-  recordStructuralNodeCompletion(
-    recorder,
-    {
-      nodeId: loopStopNodeId,
-      nodeTypeId: loopStopInfo.nodeTypeId,
-      nodeTypeName: loopStopInfo.nodeTypeName,
-      ...tripletBase,
-    },
-    { status: 'completed' },
-  );
-  recordStructuralNodeCompletion(
-    recorder,
-    {
-      nodeId: loopEndNodeId,
-      nodeTypeId: loopEndInfo.nodeTypeId,
-      nodeTypeName: loopEndInfo.nodeTypeName,
-      ...tripletBase,
-    },
-    { status: 'completed' },
-  );
 
   // Mark loop nodes as completed
   onNodeStateChange(loopStartNodeId, 'completed');
@@ -945,6 +1237,7 @@ async function executeGroupScope<
   onNodeStateChange: (nodeId: string, state: NodeVisualState) => void,
   abortSignal: AbortSignal,
   groupDepth: number = 1,
+  afterStep?: () => Promise<void>,
 ): Promise<void> {
   const { groupNodeId, groupNodeTypeId, groupNodeTypeName, innerPlan } = scope;
 
@@ -1106,31 +1399,102 @@ async function executeGroupScope<
         groupDepth,
       });
       recorder.skipStep(skipIdx);
+      await afterStep?.();
     }
 
-    // Execute non-skipped inner steps concurrently.
+    // Execute non-skipped inner steps.
     // Uses innerState (not outer state) so function implementations
     // see the subtree's nodes/edges in context.state (DC-3 fix).
-    const results = await Promise.allSettled(
-      toExecute.map((step) => {
-        if (step.kind === 'standard') {
-          return executeStandardNode(
-            step,
-            scopedStore,
-            recorder,
-            innerPlan,
-            functionImplementations,
-            innerState,
-            innerNodeInfoMap,
-            onNodeStateChange,
-            abortSignal,
-            undefined, // no loopContext
-            { groupNodeId, groupNodeTypeId, groupDepth },
-          );
+    // In step-by-step mode (afterStep present), execute sequentially.
+    // In performance mode, use Promise.allSettled for concurrency.
+    if (afterStep) {
+      for (const step of toExecute) {
+        if (abortSignal.aborted) break;
+        try {
+          if (step.kind === 'standard') {
+            await executeStandardNode(
+              step,
+              scopedStore,
+              recorder,
+              innerPlan,
+              functionImplementations,
+              innerState,
+              innerNodeInfoMap,
+              onNodeStateChange,
+              abortSignal,
+              undefined, // no loopContext
+              { groupNodeId, groupNodeTypeId, groupDepth },
+            );
+            await afterStep();
+          } else if (step.kind === 'group') {
+            await executeGroupScope(
+              step,
+              scopedStore,
+              recorder,
+              innerPlan,
+              functionImplementations,
+              innerState,
+              innerNodeInfoMap,
+              innerErroredNodes,
+              onNodeStateChange,
+              abortSignal,
+              groupDepth + 1,
+              afterStep,
+            );
+          } else {
+            await executeLoopBlock(
+              step,
+              scopedStore,
+              recorder,
+              innerPlan,
+              functionImplementations,
+              innerState,
+              innerNodeInfoMap,
+              innerErroredNodes,
+              onNodeStateChange,
+              abortSignal,
+              undefined, // parentLoopContext
+              afterStep,
+            );
+          }
+        } catch {
+          innerErroredNodes.add(getStepNodeId(step));
         }
-        // Nested groups inside this group
-        if (step.kind === 'group') {
-          return executeGroupScope(
+      }
+    } else {
+      const results = await Promise.allSettled(
+        toExecute.map((step) => {
+          if (step.kind === 'standard') {
+            return executeStandardNode(
+              step,
+              scopedStore,
+              recorder,
+              innerPlan,
+              functionImplementations,
+              innerState,
+              innerNodeInfoMap,
+              onNodeStateChange,
+              abortSignal,
+              undefined, // no loopContext
+              { groupNodeId, groupNodeTypeId, groupDepth },
+            );
+          }
+          if (step.kind === 'group') {
+            return executeGroupScope(
+              step,
+              scopedStore,
+              recorder,
+              innerPlan,
+              functionImplementations,
+              innerState,
+              innerNodeInfoMap,
+              innerErroredNodes,
+              onNodeStateChange,
+              abortSignal,
+              groupDepth + 1,
+            );
+          }
+          return executeLoopBlock(
             step,
             scopedStore,
             recorder,
@@ -1141,29 +1505,15 @@ async function executeGroupScope<
             innerErroredNodes,
             onNodeStateChange,
             abortSignal,
-            groupDepth + 1,
           );
-        }
-        // Nested loops inside this group
-        return executeLoopBlock(
-          step,
-          scopedStore,
-          recorder,
-          innerPlan,
-          functionImplementations,
-          innerState,
-          innerNodeInfoMap,
-          innerErroredNodes,
-          onNodeStateChange,
-          abortSignal,
-        );
-      }),
-    );
+        }),
+      );
 
-    for (let i = 0; i < results.length; i++) {
-      if (results[i].status === 'rejected') {
-        innerHasErrors = true;
-        innerErroredNodes.add(getStepNodeId(toExecute[i]));
+      for (let i = 0; i < results.length; i++) {
+        if (results[i].status === 'rejected') {
+          innerHasErrors = true;
+          innerErroredNodes.add(getStepNodeId(toExecute[i]));
+        }
       }
     }
   }
@@ -1267,10 +1617,15 @@ async function executeOneStep<
   erroredNodes: Set<string>,
   onNodeStateChange: (nodeId: string, state: NodeVisualState) => void,
   abortSignal: AbortSignal,
+  parentLoopContext?: {
+    loopIteration: number;
+    loopStructureId: string;
+  },
+  afterStep?: () => Promise<void>,
 ): Promise<void> {
   switch (step.kind) {
     case 'standard':
-      return executeStandardNode(
+      await executeStandardNode(
         step,
         valueStore,
         recorder,
@@ -1281,6 +1636,8 @@ async function executeOneStep<
         onNodeStateChange,
         abortSignal,
       );
+      await afterStep?.();
+      return;
 
     case 'loop':
       return executeLoopBlock(
@@ -1294,6 +1651,8 @@ async function executeOneStep<
         erroredNodes,
         onNodeStateChange,
         abortSignal,
+        parentLoopContext,
+        afterStep,
       );
 
     case 'group':
@@ -1308,6 +1667,8 @@ async function executeOneStep<
         erroredNodes,
         onNodeStateChange,
         abortSignal,
+        undefined, // groupDepth
+        afterStep,
       );
   }
 }
@@ -1349,6 +1710,24 @@ async function execute<
   const erroredNodes = new Set<string>();
   const nodeInfoMap = buildNodeInfoMap(plan, state);
 
+  // ── JIT warmup ────────────────────────────────────
+  // Exercise the hot code paths (ValueStore, Map, async pipeline) so
+  // V8 compiles them before real execution starts. Without this, the
+  // first nodes pay a 20-30ms JIT cost that dwarfs their real runtime.
+  const warmupStart = performance.now();
+  {
+    const w = '__jit_warmup__';
+    valueStore.set(w, w, 0);
+    valueStore.get(w, w);
+    const m = new Map<string, unknown>();
+    m.set(w, 0);
+    m.get(w);
+    m.delete(w);
+    await Promise.allSettled([Promise.resolve(0)]);
+    valueStore.set(w, w, undefined);
+  }
+  const compilationDuration = performance.now() - warmupStart;
+
   recorder.start();
 
   // Initialize ValueStore with user-entered default values
@@ -1360,7 +1739,11 @@ async function execute<
   for (let levelIdx = 0; levelIdx < plan.levels.length; levelIdx++) {
     // Check abort signal
     if (abortSignal.aborted) {
-      return recorder.finalize('cancelled', valueStore.snapshot());
+      return recorder.finalize(
+        'cancelled',
+        valueStore.snapshot(),
+        compilationDuration,
+      );
     }
 
     const level = plan.levels[levelIdx];
@@ -1433,7 +1816,7 @@ async function execute<
       ? 'errored'
       : 'completed';
 
-  return recorder.finalize(status, valueStore.snapshot());
+  return recorder.finalize(status, valueStore.snapshot(), compilationDuration);
 }
 
 // ─────────────────────────────────────────────────────
@@ -1479,6 +1862,17 @@ async function* executeStepByStep<
   const erroredNodes = new Set<string>();
   const nodeInfoMap = buildNodeInfoMap(plan, state);
 
+  // JIT warmup (same as execute())
+  const warmupStart = performance.now();
+  {
+    const w = '__jit_warmup__';
+    valueStore.set(w, w, 0);
+    valueStore.get(w, w);
+    await Promise.allSettled([Promise.resolve(0)]);
+    valueStore.set(w, w, undefined);
+  }
+  const compilationDuration = performance.now() - warmupStart;
+
   recorder.start();
 
   initializeDefaultValues(plan, state, valueStore, nodeInfoMap);
@@ -1487,7 +1881,12 @@ async function* executeStepByStep<
 
   for (let levelIdx = 0; levelIdx < plan.levels.length; levelIdx++) {
     if (abortSignal.aborted) {
-      return recorder.finalize('cancelled', valueStore.snapshot());
+      recorder.resume(); // ensure pause is closed before finalize
+      return recorder.finalize(
+        'cancelled',
+        valueStore.snapshot(),
+        compilationDuration,
+      );
     }
 
     const level = plan.levels[levelIdx];
@@ -1497,7 +1896,12 @@ async function* executeStepByStep<
 
     for (const step of level) {
       if (abortSignal.aborted) {
-        return recorder.finalize('cancelled', valueStore.snapshot());
+        recorder.resume(); // commit pending pause before finalize
+        return recorder.finalize(
+          'cancelled',
+          valueStore.snapshot(),
+          compilationDuration,
+        );
       }
 
       const stepNodeId = getStepNodeId(step);
@@ -1517,8 +1921,61 @@ async function* executeStepByStep<
         continue;
       }
 
-      try {
-        await executeOneStep(
+      if (step.kind === 'standard') {
+        // Standard nodes: execute, then yield once
+        try {
+          await executeOneStep(
+            step,
+            valueStore,
+            recorder,
+            plan,
+            functionImplementations,
+            state,
+            nodeInfoMap,
+            erroredNodes,
+            onNodeStateChange,
+            abortSignal,
+          );
+        } catch {
+          hasErrors = true;
+          erroredNodes.add(stepNodeId);
+        }
+
+        const latestStep = recorder.getLatestStep();
+        if (latestStep) {
+          recorder.pause();
+          yield {
+            stepRecord: latestStep,
+            partialRecord: recorder.snapshot(
+              hasErrors ? 'errored' : 'completed',
+              valueStore.snapshot(),
+            ),
+          };
+          // No resume here — beginStep() of the next step commits the pause.
+          // All inter-step time is automatically captured as pause.
+        }
+      } else {
+        // Loop/group steps: use StepChannel for per-node stepping
+        const channel = new StepChannel();
+
+        const afterStep = async () => {
+          const stepRec = recorder.getLatestStep();
+          if (!stepRec) return;
+          recorder.pause();
+          await channel.push({
+            stepRecord: stepRec,
+            partialRecord: recorder.snapshot(
+              hasErrors ? 'errored' : 'completed',
+              valueStore.snapshot(),
+            ),
+          });
+          // No resume here — beginStep() of the next step commits the pause.
+          // This ensures ALL inter-step time (microtasks, channel teardown,
+          // event loop yields) is captured as pause.
+        };
+
+        // Start execution in the background — it will block at each afterStep()
+        const executionPromise = executeOneStep(
           step,
           valueStore,
           recorder,
@@ -1529,29 +1986,41 @@ async function* executeStepByStep<
           erroredNodes,
           onNodeStateChange,
           abortSignal,
+          undefined, // parentLoopContext
+          afterStep,
+        ).then(
+          () => channel.close(),
+          (err) => {
+            hasErrors = true;
+            erroredNodes.add(stepNodeId);
+            channel.closeWithError(err);
+          },
         );
-      } catch {
-        hasErrors = true;
-        erroredNodes.add(stepNodeId);
-      }
 
-      // Yield after each step for debug inspection
-      const latestStep = recorder.getLatestStep();
-      if (latestStep) {
-        recorder.pause();
-        yield {
-          stepRecord: latestStep,
-          partialRecord: recorder.snapshot(
-            hasErrors ? 'errored' : 'completed',
-            valueStore.snapshot(),
-          ),
-        };
-        recorder.resume();
+        // Pull from channel and yield each step to the caller
+        try {
+          for (;;) {
+            const payload = await channel.pull();
+            if (payload === null) break; // channel closed — execution done
+            yield payload;
+          }
+        } catch {
+          hasErrors = true;
+          erroredNodes.add(stepNodeId);
+        }
+
+        // Ensure the execution promise is settled.
+        // The recorder is still paused from the last afterStep — beginStep()
+        // of the next step will commit the pause, capturing all teardown
+        // and event loop overhead.
+        await executionPromise;
       }
     }
 
     recorder.completeLevel(levelIdx);
   }
+
+  recorder.resume(); // commit any pending pause before finalize
 
   const status = abortSignal.aborted
     ? 'cancelled'
@@ -1559,7 +2028,7 @@ async function* executeStepByStep<
       ? 'errored'
       : 'completed';
 
-  return recorder.finalize(status, valueStore.snapshot());
+  return recorder.finalize(status, valueStore.snapshot(), compilationDuration);
 }
 
 // ─────────────────────────────────────────────────────

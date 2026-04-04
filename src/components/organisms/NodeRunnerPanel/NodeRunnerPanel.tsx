@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/utils';
 import {
@@ -12,6 +12,7 @@ import type {
   ExecutionRecord,
   ExecutionStepRecord,
 } from '@/utils/nodeRunner/types';
+import { useRecordingViewState } from '@/components/organisms/FullGraph/RecordingViewStateContext';
 import { useSlideAnimation } from '@/hooks/useSlideAnimation';
 import { useResizeHandle } from '@/hooks/useResizeHandle';
 
@@ -51,15 +52,16 @@ type NodeRunnerPanelProps = {
   // ── Replay / scrub ────────────────────────────────
   onScrubTo: (stepIndex: number) => void;
 
-  // ── Drawer ──────────────────────────────────────────
-  /** Whether the drawer is open */
-  isOpen: boolean;
-  /** Called when the drawer open state changes */
-  onOpenChange: (open: boolean) => void;
+  // ── Node navigation ──────────────────────────────────
+  /** Called when prev/next navigation buttons are used to focus a node */
+  onNavigateToNode?: (nodeId: string) => void;
 
   // ── Display options ────────────────────────────────
   debugMode?: boolean;
   hideComplexValues?: boolean;
+
+  /** Ref forwarded to the panel's outer element for height measurement */
+  panelRef?: React.RefObject<HTMLDivElement | null>;
 
   /** Optional className for the root element */
   className?: string;
@@ -83,15 +85,21 @@ function NodeRunnerPanel({
   maxLoopIterations,
   onMaxLoopIterationsChange,
   onScrubTo,
-  isOpen,
-  onOpenChange,
+  onNavigateToNode,
+  panelRef,
   debugMode = false,
   hideComplexValues = false,
   className,
 }: NodeRunnerPanelProps) {
-  const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(
-    null,
-  );
+  const {
+    selectedStepIndex,
+    setSelectedStepIndex,
+    edgeValuesAnimated,
+    setEdgeValuesAnimated,
+    isRunnerPanelOpen,
+    setIsRunnerPanelOpen,
+  } = useRecordingViewState();
+
   const { size: contentHeight, onMouseDown: handleResizeStart } =
     useResizeHandle({
       initialSize: DEFAULT_CONTENT_HEIGHT,
@@ -100,14 +108,27 @@ function NodeRunnerPanel({
       direction: 'up',
     });
 
-  const { mounted, ref, style } = useSlideAnimation(isOpen);
+  const { mounted, ref: animRef, style } = useSlideAnimation(isRunnerPanelOpen);
+
+  // Combine animation ref + external panelRef
+  const combinedRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      // Set animation ref
+      (animRef as React.RefObject<HTMLDivElement | null>).current = node;
+      // Set external measurement ref
+      if (panelRef) {
+        (panelRef as React.RefObject<HTMLDivElement | null>).current = node;
+      }
+    },
+    [animRef, panelRef],
+  );
 
   // Reset inspector selection when panel closes
   useEffect(() => {
-    if (!isOpen) {
+    if (!isRunnerPanelOpen) {
       setSelectedStepIndex(null);
     }
-  }, [isOpen]);
+  }, [isRunnerPanelOpen, setSelectedStepIndex]);
 
   const selectedStepRecord =
     selectedStepIndex !== null && record
@@ -125,15 +146,20 @@ function NodeRunnerPanel({
   });
   const displayedStepRecord = selectedStepRecord ?? lastStepRecordRef.current;
 
-  const handleStepClick = useCallback((stepRecord: ExecutionStepRecord) => {
-    setSelectedStepIndex((prev) =>
-      prev === stepRecord.stepIndex ? null : stepRecord.stepIndex,
-    );
-  }, []);
+  const handleStepClick = useCallback(
+    (stepRecord: ExecutionStepRecord) => {
+      setSelectedStepIndex(
+        selectedStepIndex === stepRecord.stepIndex
+          ? null
+          : stepRecord.stepIndex,
+      );
+    },
+    [selectedStepIndex, setSelectedStepIndex],
+  );
 
   const handleCloseInspector = useCallback(() => {
     setSelectedStepIndex(null);
-  }, []);
+  }, [setSelectedStepIndex]);
 
   if (!mounted) return null;
 
@@ -142,7 +168,7 @@ function NodeRunnerPanel({
     // doesn't overflow the page and cause scrollbars.
     <div className='absolute inset-x-0 bottom-0 z-10 overflow-hidden pointer-events-none'>
       <div
-        ref={ref}
+        ref={combinedRef}
         className={cn(
           'pointer-events-auto',
           'flex flex-col overflow-hidden rounded-t-lg border border-b-0 border-secondary-dark-gray/60 bg-runner-panel-bg shadow-xl',
@@ -152,13 +178,13 @@ function NodeRunnerPanel({
       >
         {/* Window handle — three dots, also serves as resize handle */}
         <div
-          className='flex shrink-0 cursor-ns-resize items-center justify-center border-b border-runner-timeline-box-border bg-[#2b2b2b] py-2'
+          className='group/resizer flex shrink-0 cursor-ns-resize items-center justify-center border-b border-runner-timeline-box-border bg-[#2b2b2b] py-2 transition-colors hover:bg-[#353535]'
           onMouseDown={handleResizeStart}
         >
           <div className='flex gap-1.5'>
-            <span className='h-1.5 w-1.5 rounded-full bg-runner-handle-dot' />
-            <span className='h-1.5 w-1.5 rounded-full bg-runner-handle-dot' />
-            <span className='h-1.5 w-1.5 rounded-full bg-runner-handle-dot' />
+            <span className='h-1.5 w-1.5 rounded-full bg-runner-handle-dot transition-colors group-hover/resizer:bg-primary-blue' />
+            <span className='h-1.5 w-1.5 rounded-full bg-runner-handle-dot transition-colors group-hover/resizer:bg-primary-blue' />
+            <span className='h-1.5 w-1.5 rounded-full bg-runner-handle-dot transition-colors group-hover/resizer:bg-primary-blue' />
           </div>
         </div>
 
@@ -180,7 +206,7 @@ function NodeRunnerPanel({
           </div>
           <button
             type='button'
-            onClick={() => onOpenChange(false)}
+            onClick={() => setIsRunnerPanelOpen(false)}
             className='btn-press mr-3 shrink-0 rounded p-1.5 text-secondary-light-gray transition-colors hover:bg-primary-dark-gray hover:text-primary-white'
             title='Close panel'
           >
@@ -201,6 +227,7 @@ function NodeRunnerPanel({
               onScrubTo={onScrubTo}
               onStepClick={handleStepClick}
               selectedStepIndex={selectedStepIndex}
+              onNavigateToNode={onNavigateToNode}
             />
           </div>
 
@@ -214,8 +241,11 @@ function NodeRunnerPanel({
               <ExecutionStepInspector
                 stepRecord={displayedStepRecord}
                 onClose={handleCloseInspector}
+                loopRecords={record?.loopRecords}
                 hideComplexValues={hideComplexValues}
                 debugMode={debugMode}
+                edgeValuesAnimated={edgeValuesAnimated}
+                onEdgeValuesAnimatedChange={setEdgeValuesAnimated}
               />
             </div>
           )}

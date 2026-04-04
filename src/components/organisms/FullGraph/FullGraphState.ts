@@ -1,4 +1,4 @@
-import { createContext, useReducer } from 'react';
+import { createContext, useContext, useReducer } from 'react';
 import type { FullGraphProps } from './FullGraph';
 import {
   mainReducer,
@@ -6,7 +6,12 @@ import {
   type SupportedUnderlyingTypes,
 } from '@/utils';
 import type z from 'zod';
-import type { NodeVisualState, GraphError } from '@/utils/nodeRunner/types';
+import type {
+  NodeVisualState,
+  GraphError,
+  ExecutionRecord,
+  ExecutionStepRecord,
+} from '@/utils/nodeRunner/types';
 
 /**
  * Per-node runner state provided via context so the ReactFlow wrapper
@@ -22,8 +27,30 @@ const FullGraphContext = createContext<{
   allProps: FullGraphProps;
   /** Optional map of nodeId -> runner visual state. Provided by useNodeRunner. */
   nodeRunnerStates?: ReadonlyMap<string, NodeRunnerState>;
+  /** The currently inspected execution step record (when a timeline block is selected). */
+  selectedStepRecord?: ExecutionStepRecord | null;
+  /** Whether edge value display is animated (true) or static (false). */
+  edgeValuesAnimated?: boolean;
 }>(null!); //the not-null assertion (null!) is because-
 // we are creating a context that is always provided (right below)
+
+// ─────────────────────────────────────────────────────
+// RecordContext — controlled execution record state
+// ─────────────────────────────────────────────────────
+
+type RecordContextValue = {
+  executionRecord: ExecutionRecord | null;
+  setExecutionRecord: (record: ExecutionRecord | null) => void;
+};
+
+const RecordContext = createContext<RecordContextValue>({
+  executionRecord: null,
+  setExecutionRecord: () => {},
+});
+
+function useRecordContext(): RecordContextValue {
+  return useContext(RecordContext);
+}
 
 /**
  * Custom hook for managing the full graph state with reducer
@@ -138,14 +165,22 @@ function useFullGraph<
 function createContextValue(
   props: { state: unknown; dispatch: unknown },
   nodeRunnerStates?: ReadonlyMap<string, NodeRunnerState>,
+  selectedStepRecord?: ExecutionStepRecord | null,
+  edgeValuesAnimated?: boolean,
 ): React.ContextType<typeof FullGraphContext> {
   // The caller passes concrete State<D,N,U,C> + dispatch; we erase the
   // generics to match the context's default-param FullGraphProps type.
   // This is safe per the justification above.
   const allProps = props as unknown as FullGraphProps;
-  return { allProps, nodeRunnerStates };
+  return { allProps, nodeRunnerStates, selectedStepRecord, edgeValuesAnimated };
 }
 
-export { FullGraphContext, useFullGraph, createContextValue };
+export {
+  FullGraphContext,
+  useFullGraph,
+  createContextValue,
+  RecordContext,
+  useRecordContext,
+};
 
 export type { NodeRunnerState };

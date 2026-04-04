@@ -1,9 +1,22 @@
 import type { Preview } from '@storybook/react-vite';
+import { create } from 'storybook/theming';
 import '../src/index.css';
 import '@fontsource/dejavu-sans';
 
+const docsTheme = create({
+  base: 'dark',
+});
+
 const preview: Preview = {
   parameters: {
+    docs: {
+      theme: docsTheme,
+    },
+    options: {
+      storySort: {
+        order: ['Interactive Fun🎉', 'Atoms', 'Molecules', 'Organisms', '*'],
+      },
+    },
     controls: {
       matchers: {
         color: /(background|color)$/i,

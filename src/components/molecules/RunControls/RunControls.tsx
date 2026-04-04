@@ -1,15 +1,14 @@
-import { useCallback } from 'react';
-import {
-  Play,
-  Pause,
-  SkipForward,
-  Square,
-  RotateCcw,
-  ChevronUp,
-  ChevronDown,
-} from 'lucide-react';
+import { Play, Pause, SkipForward, Square, RotateCcw } from 'lucide-react';
 import { cn } from '@/utils';
+import { SliderNumberInput } from '@/components/molecules/SliderNumberInput/SliderNumberInput';
+import { Tooltip } from '@/components/atoms/Tooltip';
+import { ButtonToggle } from '@/components/molecules/ButtonToggle';
 import type { RunnerState } from '@/utils/nodeRunner/types';
+
+const RUN_MODE_OPTIONS = [
+  { value: 'instant' as const, label: 'Instant' },
+  { value: 'stepByStep' as const, label: 'Step-by-Step' },
+];
 
 /**
  * Execution mode: instant runs the whole graph then enables replay,
@@ -121,7 +120,7 @@ function ActionButton({
  *
  * Layout:
  * ```
- * ● Status | [▶] [⏸] [⏭] [⏹] [↺] | [Instant/Step] | Max loops: [10000]
+ * ● Status | [▶] [⏸] [⏭] [⏹] [↺] | [Instant/Step] | Max loops: [100]
  * ```
  */
 function RunControls({
@@ -151,18 +150,8 @@ function RunControls({
   const canStop = runnerState === 'running' || runnerState === 'paused';
   const canReset = runnerState === 'completed' || runnerState === 'errored';
 
-  const handleMaxIterationsChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = parseInt(e.target.value, 10);
-      if (!isNaN(value) && value > 0) {
-        onMaxLoopIterationsChange(value);
-      }
-    },
-    [onMaxLoopIterationsChange],
-  );
-
   return (
-    <div className='flex h-9 w-full items-center gap-2 border-b border-secondary-dark-gray bg-runner-toolbar-bg px-3'>
+    <div className='flex h-11 w-full items-center gap-2 border-b border-secondary-dark-gray bg-runner-toolbar-bg px-3'>
       {/* Status indicator */}
       <div className='flex w-[140px] items-center gap-2.5'>
         <div className='relative flex items-center justify-center'>
@@ -229,82 +218,32 @@ function RunControls({
       <div className='mx-3 h-6 w-px bg-secondary-dark-gray' />
 
       {/* Mode toggle — inset pill */}
-      <div className='flex rounded-md border border-runner-timeline-box-border bg-runner-inset-bg p-[3px]'>
-        <button
-          type='button'
-          onClick={() => onModeChange('instant')}
+      <Tooltip content='Instant runs the entire graph at once, then enables replay. Step-by-Step pauses after each node so you can inspect intermediate values.'>
+        <ButtonToggle
+          options={RUN_MODE_OPTIONS}
+          value={mode}
+          onChange={onModeChange}
           disabled={!canEdit}
-          className={cn(
-            'btn-press rounded px-3.5 py-1 text-[13px] transition-all duration-100',
-            mode === 'instant'
-              ? 'bg-primary-blue text-white'
-              : 'text-secondary-light-gray',
-            canEdit && mode !== 'instant' && 'hover:text-primary-white',
-            !canEdit && 'cursor-not-allowed opacity-50',
-          )}
-        >
-          Instant
-        </button>
-        <button
-          type='button'
-          onClick={() => onModeChange('stepByStep')}
-          disabled={!canEdit}
-          className={cn(
-            'btn-press rounded px-3.5 py-1 text-[13px] transition-all duration-100',
-            mode === 'stepByStep'
-              ? 'bg-primary-blue text-white'
-              : 'text-secondary-light-gray',
-            canEdit && mode !== 'stepByStep' && 'hover:text-primary-white',
-            !canEdit && 'cursor-not-allowed opacity-50',
-          )}
-        >
-          Step-by-Step
-        </button>
-      </div>
-
-      {/* Max iterations — pill */}
-      <div className='ml-4 flex items-center rounded-md bg-runner-pill-bg px-2.5 py-1'>
-        <span className='select-none whitespace-nowrap text-[13px] text-[#b0b0b0]'>
-          Max Loops:
-        </span>
-        <input
-          type='number'
-          value={maxLoopIterations}
-          onChange={handleMaxIterationsChange}
-          disabled={!canEdit}
-          min={1}
-          className={cn(
-            'ml-2 w-12 bg-transparent text-right font-mono text-[13px] text-[#eee] outline-none',
-            !canEdit && 'cursor-not-allowed opacity-50',
-            '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
-          )}
+          size='small'
         />
-        <div className='ml-1.5 flex cursor-pointer flex-col text-[#999]'>
-          <button
-            type='button'
-            className='flex h-2.5 items-center justify-center hover:text-primary-white'
-            onClick={() => {
-              if (canEdit) onMaxLoopIterationsChange(maxLoopIterations + 1);
-            }}
-            disabled={!canEdit}
-            tabIndex={-1}
-          >
-            <ChevronUp className='h-2.5 w-2.5' />
-          </button>
-          <button
-            type='button'
-            className='flex h-2.5 items-center justify-center hover:text-primary-white'
-            onClick={() => {
-              if (canEdit && maxLoopIterations > 1)
-                onMaxLoopIterationsChange(maxLoopIterations - 1);
-            }}
-            disabled={!canEdit}
-            tabIndex={-1}
-          >
-            <ChevronDown className='h-2.5 w-2.5' />
-          </button>
+      </Tooltip>
+
+      {/* Max iterations — slider */}
+      <Tooltip content='Maximum loop iterations before the runner throws an error. Protects against infinite loops.'>
+        <div
+          className={cn('ml-4', !canEdit && 'pointer-events-none opacity-50')}
+        >
+          <SliderNumberInput
+            name='Max Loops'
+            value={maxLoopIterations}
+            onChange={(v) =>
+              onMaxLoopIterationsChange(Math.max(1, Math.round(v)))
+            }
+            size='small'
+            decimals={0}
+          />
         </div>
-      </div>
+      </Tooltip>
     </div>
   );
 }

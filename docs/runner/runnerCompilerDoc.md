@@ -344,7 +344,7 @@ LoopExecutionBlock {
   loopStopNodeId: string                      -- loopStop node instance ID
   loopEndNodeId: string                       -- loopEnd node instance ID
   bodySteps: ReadonlyArray<ExecutionStep>     -- topologically sorted body (may contain groups)
-  maxIterations: number                       -- safety limit (default: 10000)
+  maxIterations: number                       -- safety limit (default: 100)
   concurrencyLevel: number                    -- level in the outer plan
 }
 ```
@@ -731,7 +731,7 @@ loop) won't trigger errors.
    with a warning. This prevents stack overflow from accidentally recursive
    group type definitions.
 
-3. **DEFAULT_MAX_LOOP_ITERATIONS = 10000.** Configurable via
+3. **DEFAULT_MAX_LOOP_ITERATIONS = 100.** Configurable via
    `options.maxLoopIterations`. The executor enforces this limit at runtime; the
    compiler just records it in the `LoopExecutionBlock`.
 
@@ -805,7 +805,7 @@ ExecutionPlan:
   levels: [
     [ { kind:'standard', nodeId:'A', concurrencyLevel:0 } ],
     [ { kind:'loop', loopStartNodeId:'LoopStart',
-        bodySteps:[Body1, Body2], maxIterations:10000,
+        bodySteps:[Body1, Body2], maxIterations:100,
         concurrencyLevel:1 } ],
     [ { kind:'standard', nodeId:'B', concurrencyLevel:2 } ],
   ]

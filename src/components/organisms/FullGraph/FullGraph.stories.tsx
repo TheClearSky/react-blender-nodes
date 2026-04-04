@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { FullGraph, useFullGraph } from './';
@@ -13,7 +14,21 @@ import { z } from 'zod';
 import { standardDataTypes, standardNodeTypes } from '@/utils';
 import { makeFunctionImplementationsWithAutoInfer } from '@/utils/nodeRunner/types';
 import { constructNodeOfType } from '@/utils/nodeStateManagement/nodes/constructAndModifyNodes';
-import type { InputHandleValue } from '@/utils/nodeRunner/types';
+import type {
+  InputHandleValue,
+  ExecutionRecord,
+} from '@/utils/nodeRunner/types';
+import { importExecutionRecord } from '@/utils/importExport';
+import adderLoopState from '../../../../.storybook/static/graphStates/adder-state-with-inner-noop-loop.json';
+import adderLoopRecordingJson from '../../../../.storybook/static/graphStates/adder-state-with-inner-noop-loop-instant.json';
+
+// Parse the recording JSON at module level (runs once)
+const adderLoopRecordingResult = importExecutionRecord(
+  JSON.stringify(adderLoopRecordingJson),
+  { repair: { sanitizeNonSerializableValues: true, removeOrphanSteps: true } },
+);
+const adderLoopRecording: ExecutionRecord | undefined =
+  adderLoopRecordingResult.success ? adderLoopRecordingResult.data : undefined;
 
 const meta = {
   title: 'Organisms/FullGraph',
@@ -847,9 +862,9 @@ const circuitExampleDataTypes = {
 type CircuitDataTypeId = keyof typeof circuitExampleDataTypes;
 
 const circuitExampleTypeOfNodes = {
-  andGate: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId>({
+  andGate: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'andGate'>({
     name: 'AND Gate',
-    headerColor: '#C44536',
+    headerColor: '#8B5CC8',
     locationInContextMenu: ['Logic Gates'],
     inputs: [
       { name: 'A', dataType: 'bit' },
@@ -857,9 +872,9 @@ const circuitExampleTypeOfNodes = {
     ],
     outputs: [{ name: 'Out', dataType: 'bit' }],
   }),
-  orGate: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId>({
+  orGate: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'orGate'>({
     name: 'OR Gate',
-    headerColor: '#2D5A87',
+    headerColor: '#8B5CC8',
     locationInContextMenu: ['Logic Gates'],
     inputs: [
       { name: 'A', dataType: 'bit' },
@@ -867,16 +882,16 @@ const circuitExampleTypeOfNodes = {
     ],
     outputs: [{ name: 'Out', dataType: 'bit' }],
   }),
-  notGate: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId>({
+  notGate: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'notGate'>({
     name: 'NOT Gate',
-    headerColor: '#8B5CF6',
+    headerColor: '#8B5CC8',
     locationInContextMenu: ['Logic Gates'],
     inputs: [{ name: 'In', dataType: 'bit' }],
     outputs: [{ name: 'Out', dataType: 'bit' }],
   }),
-  xorGate: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId>({
+  xorGate: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'xorGate'>({
     name: 'XOR Gate',
-    headerColor: '#B8860B',
+    headerColor: '#8B5CC8',
     locationInContextMenu: ['Logic Gates'],
     inputs: [
       { name: 'A', dataType: 'bit' },
@@ -884,9 +899,9 @@ const circuitExampleTypeOfNodes = {
     ],
     outputs: [{ name: 'Out', dataType: 'bit' }],
   }),
-  nandGate: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId>({
+  nandGate: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'nandGate'>({
     name: 'NAND Gate',
-    headerColor: '#C44536',
+    headerColor: '#8B5CC8',
     locationInContextMenu: ['Logic Gates'],
     inputs: [
       { name: 'A', dataType: 'bit' },
@@ -894,9 +909,9 @@ const circuitExampleTypeOfNodes = {
     ],
     outputs: [{ name: 'Out', dataType: 'bit' }],
   }),
-  norGate: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId>({
+  norGate: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'norGate'>({
     name: 'NOR Gate',
-    headerColor: '#2D5A87',
+    headerColor: '#8B5CC8',
     locationInContextMenu: ['Logic Gates'],
     inputs: [
       { name: 'A', dataType: 'bit' },
@@ -904,30 +919,30 @@ const circuitExampleTypeOfNodes = {
     ],
     outputs: [{ name: 'Out', dataType: 'bit' }],
   }),
-  buffer: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId>({
+  buffer: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'buffer'>({
     name: 'Buffer',
-    headerColor: '#4A9D4A',
+    headerColor: '#9B0F2B',
     locationInContextMenu: ['Utility'],
     inputs: [{ name: 'In', dataType: 'bit' }],
     outputs: [{ name: 'Out', dataType: 'bit' }],
   }),
-  bitConstant: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId>({
-    name: 'Bit Constant',
-    headerColor: '#555555',
+  bitConstant: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'bitConstant'>({
+    name: 'Bit Input',
+    headerColor: '#C75B8E',
     locationInContextMenu: ['I/O'],
     inputs: [{ name: 'Value', dataType: 'bit', allowInput: true }],
     outputs: [{ name: 'Out', dataType: 'bit' }],
   }),
-  bitDisplay: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId>({
-    name: 'Bit Display',
-    headerColor: '#555555',
+  bitDisplay: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'bitDisplay'>({
+    name: 'Bit Output',
+    headerColor: '#4A96BA',
     locationInContextMenu: ['I/O'],
     inputs: [{ name: 'In', dataType: 'bit' }],
     outputs: [],
   }),
-  counter: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId>({
+  counter: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'counter'>({
     name: 'Counter',
-    headerColor: '#B8860B',
+    headerColor: '#9B0F2B',
     locationInContextMenu: ['Utility'],
     inputs: [
       { name: 'Count', dataType: 'number', allowInput: true },
@@ -1024,114 +1039,114 @@ const circuitImplementations =
  * Build the pre-wired half-adder graph using constructNodeOfType
  * so handle IDs are generated correctly and edges are valid.
  */
-function buildHalfAdderGraph() {
-  const dt = circuitExampleDataTypes;
-  const nt = circuitExampleTypeOfNodes;
+// function buildHalfAdderGraph() {
+//   const dt = circuitExampleDataTypes;
+//   const nt = circuitExampleTypeOfNodes;
 
-  const constA = constructNodeOfType(dt, 'bitConstant', nt, 'const-a', {
-    x: 0,
-    y: 100,
-  });
-  const constB = constructNodeOfType(dt, 'bitConstant', nt, 'const-b', {
-    x: 0,
-    y: 350,
-  });
-  const andNode = constructNodeOfType(dt, 'andGate', nt, 'and-gate', {
-    x: 550,
-    y: 100,
-  });
-  const xorNode = constructNodeOfType(dt, 'xorGate', nt, 'xor-gate', {
-    x: 550,
-    y: 350,
-  });
-  const displayCarry = constructNodeOfType(
-    dt,
-    'bitDisplay',
-    nt,
-    'display-carry',
-    { x: 1100, y: 100 },
-  );
-  const displaySum = constructNodeOfType(dt, 'bitDisplay', nt, 'display-sum', {
-    x: 1100,
-    y: 350,
-  });
+//   const constA = constructNodeOfType(dt, 'bitConstant', nt, 'const-a', {
+//     x: 0,
+//     y: 100,
+//   });
+//   const constB = constructNodeOfType(dt, 'bitConstant', nt, 'const-b', {
+//     x: 0,
+//     y: 350,
+//   });
+//   const andNode = constructNodeOfType(dt, 'andGate', nt, 'and-gate', {
+//     x: 550,
+//     y: 100,
+//   });
+//   const xorNode = constructNodeOfType(dt, 'xorGate', nt, 'xor-gate', {
+//     x: 550,
+//     y: 350,
+//   });
+//   const displayCarry = constructNodeOfType(
+//     dt,
+//     'bitDisplay',
+//     nt,
+//     'display-carry',
+//     { x: 1100, y: 100 },
+//   );
+//   const displaySum = constructNodeOfType(dt, 'bitDisplay', nt, 'display-sum', {
+//     x: 1100,
+//     y: 350,
+//   });
 
-  // Set initial values on the bit constants (A=true, B=true)
-  const setInputValue = (node: typeof constA, idx: number, value: boolean) => {
-    const input = node.data.inputs?.[idx];
-    if (input && 'type' in input && input.type === 'boolean') {
-      input.value = value;
-    }
-  };
-  setInputValue(constA, 0, true);
-  setInputValue(constB, 0, true);
+//   // Set initial values on the bit constants (A=true, B=true)
+//   const setInputValue = (node: typeof constA, idx: number, value: boolean) => {
+//     const input = node.data.inputs?.[idx];
+//     if (input && 'type' in input && input.type === 'boolean') {
+//       input.value = value;
+//     }
+//   };
+//   setInputValue(constA, 0, true);
+//   setInputValue(constB, 0, true);
 
-  // Helpers to extract handle IDs from constructed nodes
-  const outId = (node: typeof constA, idx: number): string =>
-    node.data.outputs?.[idx]?.id ?? '';
-  const inId = (node: typeof constA, idx: number): string =>
-    node.data.inputs?.[idx]?.id ?? '';
+//   // Helpers to extract handle IDs from constructed nodes
+//   const outId = (node: typeof constA, idx: number): string =>
+//     node.data.outputs?.[idx]?.id ?? '';
+//   const inId = (node: typeof constA, idx: number): string =>
+//     node.data.inputs?.[idx]?.id ?? '';
 
-  const nodes = [constA, constB, andNode, xorNode, displayCarry, displaySum];
+//   const nodes = [constA, constB, andNode, xorNode, displayCarry, displaySum];
 
-  const edges = [
-    // A → AND.A, A → XOR.A (fan-out from Bit Constant A)
-    {
-      id: 'e1',
-      source: 'const-a',
-      sourceHandle: outId(constA, 0),
-      target: 'and-gate',
-      targetHandle: inId(andNode, 0),
-      type: 'configurableEdge' as const,
-    },
-    {
-      id: 'e2',
-      source: 'const-a',
-      sourceHandle: outId(constA, 0),
-      target: 'xor-gate',
-      targetHandle: inId(xorNode, 0),
-      type: 'configurableEdge' as const,
-    },
-    // B → AND.B, B → XOR.B (fan-out from Bit Constant B)
-    {
-      id: 'e3',
-      source: 'const-b',
-      sourceHandle: outId(constB, 0),
-      target: 'and-gate',
-      targetHandle: inId(andNode, 1),
-      type: 'configurableEdge' as const,
-    },
-    {
-      id: 'e4',
-      source: 'const-b',
-      sourceHandle: outId(constB, 0),
-      target: 'xor-gate',
-      targetHandle: inId(xorNode, 1),
-      type: 'configurableEdge' as const,
-    },
-    // AND → Carry Display, XOR → Sum Display
-    {
-      id: 'e5',
-      source: 'and-gate',
-      sourceHandle: outId(andNode, 0),
-      target: 'display-carry',
-      targetHandle: inId(displayCarry, 0),
-      type: 'configurableEdge' as const,
-    },
-    {
-      id: 'e6',
-      source: 'xor-gate',
-      sourceHandle: outId(xorNode, 0),
-      target: 'display-sum',
-      targetHandle: inId(displaySum, 0),
-      type: 'configurableEdge' as const,
-    },
-  ];
+//   const edges = [
+//     // A → AND.A, A → XOR.A (fan-out from Bit Constant A)
+//     {
+//       id: 'e1',
+//       source: 'const-a',
+//       sourceHandle: outId(constA, 0),
+//       target: 'and-gate',
+//       targetHandle: inId(andNode, 0),
+//       type: 'configurableEdge' as const,
+//     },
+//     {
+//       id: 'e2',
+//       source: 'const-a',
+//       sourceHandle: outId(constA, 0),
+//       target: 'xor-gate',
+//       targetHandle: inId(xorNode, 0),
+//       type: 'configurableEdge' as const,
+//     },
+//     // B → AND.B, B → XOR.B (fan-out from Bit Constant B)
+//     {
+//       id: 'e3',
+//       source: 'const-b',
+//       sourceHandle: outId(constB, 0),
+//       target: 'and-gate',
+//       targetHandle: inId(andNode, 1),
+//       type: 'configurableEdge' as const,
+//     },
+//     {
+//       id: 'e4',
+//       source: 'const-b',
+//       sourceHandle: outId(constB, 0),
+//       target: 'xor-gate',
+//       targetHandle: inId(xorNode, 1),
+//       type: 'configurableEdge' as const,
+//     },
+//     // AND → Carry Display, XOR → Sum Display
+//     {
+//       id: 'e5',
+//       source: 'and-gate',
+//       sourceHandle: outId(andNode, 0),
+//       target: 'display-carry',
+//       targetHandle: inId(displayCarry, 0),
+//       type: 'configurableEdge' as const,
+//     },
+//     {
+//       id: 'e6',
+//       source: 'xor-gate',
+//       sourceHandle: outId(xorNode, 0),
+//       target: 'display-sum',
+//       targetHandle: inId(displaySum, 0),
+//       type: 'configurableEdge' as const,
+//     },
+//   ];
 
-  return { nodes, edges };
-}
+//   return { nodes, edges };
+// }
 
-const halfAdderGraph = buildHalfAdderGraph();
+// const halfAdderGraph = buildHalfAdderGraph();
 
 // ─────────────────────────────────────────────────────
 // WithRunner Story
@@ -1140,27 +1155,43 @@ const halfAdderGraph = buildHalfAdderGraph();
 export const WithRunner: StoryObj<typeof FullGraph> = {
   args: {},
   render: () => {
-    const { state, dispatch } = useFullGraph({
+    const { state, dispatch } = useFullGraph<
+      CircuitDataTypeId,
+      CircuitNodeTypeId
+    >({
       dataTypes: circuitExampleDataTypes,
       typeOfNodes: circuitExampleTypeOfNodes,
-      nodes: halfAdderGraph.nodes,
-      edges: halfAdderGraph.edges,
-      allowedConversionsBetweenDataTypes: {},
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      nodes: adderLoopState.state.nodes as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      edges: adderLoopState.state.edges as any,
+      allowedConversionsBetweenDataTypes: {
+        bit: {
+          condition: true,
+        },
+        condition: {
+          bit: true,
+        },
+      },
       allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking: true,
       enableComplexTypeChecking: true,
       enableTypeInference: true,
       enableCycleChecking: true,
     });
 
+    const [record, setRecord] = useState(adderLoopRecording ?? null);
+
     return (
       <div
         style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}
       >
         <div style={{ flex: 1 }}>
-          <FullGraph
+          <FullGraph<CircuitDataTypeId, CircuitNodeTypeId>
             state={state}
             dispatch={dispatch}
             functionImplementations={circuitImplementations}
+            executionRecord={record}
+            onExecutionRecordChange={setRecord}
             onStateImported={(imported) =>
               console.log('State imported:', imported)
             }

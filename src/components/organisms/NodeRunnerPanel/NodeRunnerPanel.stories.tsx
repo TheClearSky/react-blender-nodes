@@ -3,6 +3,7 @@ import { useState, useCallback, useRef } from 'react';
 import { fn } from 'storybook/test';
 
 import { NodeRunnerPanel, type NodeRunnerPanelProps } from './NodeRunnerPanel';
+import { RecordingViewStateProvider } from '@/components/organisms/FullGraph/RecordingViewStateContext';
 import type { RunMode } from '@/components/molecules/RunControls/RunControls';
 import type {
   RunnerState,
@@ -93,6 +94,7 @@ function makeRecord(
     startTime: 0,
     endTime,
     totalDuration: endTime,
+    compilationDuration: 0,
     totalPauseDuration: 0,
     status: 'completed',
     steps,
@@ -630,21 +632,21 @@ const meta = {
     onStep: fn(),
     onStop: fn(),
     onReset: fn(),
-    mode: 'instant' as RunMode,
+    mode: 'instant',
     onModeChange: fn(),
-    maxLoopIterations: 10000,
+    maxLoopIterations: 100,
     onMaxLoopIterationsChange: fn(),
     onScrubTo: fn(),
-    isOpen: true,
-    onOpenChange: fn(),
     debugMode: false,
     hideComplexValues: false,
   },
   decorators: [
     (Story) => (
-      <div className='relative flex flex-col justify-end min-h-[600px] bg-[#1a1a1a]'>
-        <Story />
-      </div>
+      <RecordingViewStateProvider>
+        <div className='relative flex flex-col justify-end min-h-[600px] bg-[#1a1a1a]'>
+          <Story />
+        </div>
+      </RecordingViewStateProvider>
     ),
   ],
   tags: ['autodocs'],
@@ -717,7 +719,7 @@ export const PausedStepByStep: Story = {
     runnerState: 'paused',
     record: makeRecord(halfAdderSteps.slice(0, 3)),
     currentStepIndex: 2,
-    mode: 'stepByStep' as RunMode,
+    mode: 'stepByStep',
   },
 };
 
@@ -727,7 +729,7 @@ export const Running: Story = {
     runnerState: 'running',
     record: makeRecord(halfAdderSteps.slice(0, 2)),
     currentStepIndex: 1,
-    mode: 'instant' as RunMode,
+    mode: 'instant',
   },
 };
 
@@ -1488,6 +1490,7 @@ function buildLoopWithError(): {
       duration: 0.6,
       conditionValue: true,
       stepRecords: [steps[steps.length - 1]],
+      nestedLoopRecords: new Map(),
     });
   }
 
@@ -1562,6 +1565,7 @@ function buildLoopWithError(): {
     duration: 0.4,
     conditionValue: true,
     stepRecords: [steps[steps.length - 1]],
+    nestedLoopRecords: new Map(),
   });
 
   // Downstream skipped
@@ -1717,6 +1721,7 @@ function buildLoopInsideGroupExecution(): {
       duration: 0.5,
       conditionValue: iter + 1 < 3, // continue while not reached max
       stepRecords: [steps[steps.length - 1]],
+      nestedLoopRecords: new Map(),
     });
   }
 
@@ -1916,11 +1921,9 @@ export const AllStatesComparison: Story = {
               onReset={fn()}
               mode={mode}
               onModeChange={fn()}
-              maxLoopIterations={10000}
+              maxLoopIterations={100}
               onMaxLoopIterationsChange={fn()}
               onScrubTo={fn()}
-              isOpen={true}
-              onOpenChange={fn()}
             />
           </div>
         ))}
@@ -1958,7 +1961,7 @@ export const InteractiveLifecycle: Story = {
   render: () => {
     const [runnerState, setRunnerState] = useState<RunnerState>('idle');
     const [mode, setMode] = useState<RunMode>('instant');
-    const [maxIterations, setMaxIterations] = useState(10000);
+    const [maxIterations, setMaxIterations] = useState(100);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [visibleSteps, setVisibleSteps] = useState(0);
     const [log, setLog] = useState<string[]>([]);
@@ -2148,8 +2151,6 @@ export const InteractiveLifecycle: Story = {
           maxLoopIterations={maxIterations}
           onMaxLoopIterationsChange={setMaxIterations}
           onScrubTo={setCurrentStepIndex}
-          isOpen={true}
-          onOpenChange={fn()}
         />
       </div>
     );
@@ -2223,11 +2224,9 @@ export const InteractiveReplay: Story = {
           onReset={fn()}
           mode='instant'
           onModeChange={fn()}
-          maxLoopIterations={10000}
+          maxLoopIterations={100}
           onMaxLoopIterationsChange={fn()}
           onScrubTo={setCurrentStepIndex}
-          isOpen={true}
-          onOpenChange={fn()}
         />
       </div>
     );
@@ -2285,11 +2284,9 @@ export const InteractiveErrorInspection: Story = {
           onReset={fn()}
           mode='instant'
           onModeChange={fn()}
-          maxLoopIterations={10000}
+          maxLoopIterations={100}
           onMaxLoopIterationsChange={fn()}
           onScrubTo={setCurrentStepIndex}
-          isOpen={true}
-          onOpenChange={fn()}
         />
       </div>
     );
@@ -2356,11 +2353,9 @@ export const InteractiveLoopReplay: Story = {
           onReset={fn()}
           mode='instant'
           onModeChange={fn()}
-          maxLoopIterations={10000}
+          maxLoopIterations={100}
           onMaxLoopIterationsChange={fn()}
           onScrubTo={setCurrentStepIndex}
-          isOpen={true}
-          onOpenChange={fn()}
         />
       </div>
     );
@@ -2413,11 +2408,9 @@ export const InteractiveGroupReplay: Story = {
           onReset={fn()}
           mode='instant'
           onModeChange={fn()}
-          maxLoopIterations={10000}
+          maxLoopIterations={100}
           onMaxLoopIterationsChange={fn()}
           onScrubTo={setCurrentStepIndex}
-          isOpen={true}
-          onOpenChange={fn()}
         />
       </div>
     );
@@ -2493,11 +2486,9 @@ export const InteractiveDisplayOptions: Story = {
           onReset={fn()}
           mode='instant'
           onModeChange={fn()}
-          maxLoopIterations={10000}
+          maxLoopIterations={100}
           onMaxLoopIterationsChange={fn()}
           onScrubTo={setCurrentStepIndex}
-          isOpen={true}
-          onOpenChange={fn()}
           debugMode={debugMode}
           hideComplexValues={hideComplex}
         />
@@ -2530,7 +2521,7 @@ export const InteractiveModeSwitching: Story = {
   render: () => {
     const [runnerState, setRunnerState] = useState<RunnerState>('idle');
     const [mode, setMode] = useState<RunMode>('instant');
-    const [maxIterations, setMaxIterations] = useState(10000);
+    const [maxIterations, setMaxIterations] = useState(100);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [visibleSteps, setVisibleSteps] = useState(0);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2671,8 +2662,6 @@ export const InteractiveModeSwitching: Story = {
           maxLoopIterations={maxIterations}
           onMaxLoopIterationsChange={setMaxIterations}
           onScrubTo={setCurrentStepIndex}
-          isOpen={true}
-          onOpenChange={fn()}
         />
       </div>
     );
@@ -2708,54 +2697,54 @@ export const InteractiveScenarioSwitcher: Story = {
       {
         label: 'Half-Adder',
         record: halfAdderRecord,
-        state: 'completed' as RunnerState,
+        state: 'completed',
       },
       {
         label: 'Large Pipeline',
         record: largePipelineRecord,
-        state: 'completed' as RunnerState,
+        state: 'completed',
       },
       {
         label: 'With Errors',
         record: errorRecord,
-        state: 'errored' as RunnerState,
+        state: 'errored',
       },
       {
         label: 'Loop (Counter)',
         record: loopRecord,
-        state: 'completed' as RunnerState,
+        state: 'completed',
       },
       {
         label: 'Group (Half-Adder)',
         record: groupRecord,
-        state: 'completed' as RunnerState,
+        state: 'completed',
       },
       {
         label: 'Full Adder',
         record: fullAdderRecord,
-        state: 'completed' as RunnerState,
+        state: 'completed',
       },
       {
         label: '4-bit RCA (5+3=8)',
         record: rippleCarryAdderRecord,
-        state: 'completed' as RunnerState,
+        state: 'completed',
       },
       {
         label: 'Nested Groups',
         record: nestedGroupRecord,
-        state: 'completed' as RunnerState,
+        state: 'completed',
       },
       {
         label: 'Loop Error',
         record: loopErrorRecord,
-        state: 'errored' as RunnerState,
+        state: 'errored',
       },
       {
         label: 'Loop in Group',
         record: loopInsideGroupRecord,
-        state: 'completed' as RunnerState,
+        state: 'completed',
       },
-    ];
+    ] as const;
 
     const [scenarioIdx, setScenarioIdx] = useState(0);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -2798,11 +2787,9 @@ export const InteractiveScenarioSwitcher: Story = {
           onReset={fn()}
           mode='instant'
           onModeChange={fn()}
-          maxLoopIterations={10000}
+          maxLoopIterations={100}
           onMaxLoopIterationsChange={fn()}
           onScrubTo={setCurrentStepIndex}
-          isOpen={true}
-          onOpenChange={fn()}
         />
       </div>
     );

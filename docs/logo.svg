@@ -1,8 +1,75 @@
-<svg fill="none" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-  <rect fill="#c94452" height="72" rx="16" width="72" x="24" y="24"/>
-  <path d="M24 42 C 50 42, 60 60, 96 60" fill="none" stroke="#f0c850" stroke-linecap="round" stroke-width="4"/>
-  <path d="M24 78 C 50 78, 60 60, 96 60" fill="none" stroke="#f0c850" stroke-linecap="round" stroke-width="4"/>
-  <circle cx="24" cy="42" fill="#c94452" r="8" stroke="#1e1e1e" stroke-width="3"/>
-  <circle cx="24" cy="78" fill="#c94452" r="8" stroke="#1e1e1e" stroke-width="3"/>
-  <circle cx="96" cy="60" fill="#c94452" r="8" stroke="#1e1e1e" stroke-width="3"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -15 330 330">
+  <!-- Background -->
+  <rect x="-15" y="-15" width="330" height="330" fill="#0e1939"/>
+
+  <!-- Grid -->
+  <g stroke="#a1ccf7" stroke-width="1.5">
+    <line x1="110" y1="30" x2="110" y2="270"/>
+    <line x1="190" y1="30" x2="190" y2="270"/>
+    <line x1="30" y1="110" x2="270" y2="110"/>
+    <line x1="30" y1="190" x2="270" y2="190"/>
+  </g>
+
+  <!-- Outer Frame -->
+  <rect x="30" y="30" width="240" height="240" fill="none" stroke="#3170a0" stroke-width="6" stroke-linejoin="miter"/>
+
+  <!-- Corner Brackets -->
+  <g stroke="#97ccf7" stroke-width="6" fill="none" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M 287 155 L 295 155 L 295 163"/>
+    <path d="M 178 280 L 170 280 L 170 272"/>
+  </g>
+
+  <!-- Connection Cable / Edge Shadow -->
+  <path d="M 130 80 C 170 80, 140 225, 180 225" stroke="#3d579e" stroke-width="8" fill="none" stroke-linecap="round"/>
+
+  <!-- Top Box -->
+  <g stroke="#3170a0" stroke-width="6" stroke-linejoin="round">
+    <polygon points="30,30 45,15 45,115 30,130" fill="#d05a5d"/>
+    <polygon points="30,130 45,115 145,115 130,130" fill="#d05a5d"/>
+    <rect x="45" y="15" width="100" height="100" fill="#ee7678"/>
+  </g>
+
+  <!-- Bottom Box -->
+  <g stroke="#3170a0" stroke-width="6" stroke-linejoin="round">
+    <polygon points="180,180 195,165 195,255 180,270" fill="#d1b747"/>
+    <polygon points="180,270 195,255 285,255 270,270" fill="#d1b747"/>
+    <rect x="195" y="165" width="90" height="90" fill="#f2db68"/>
+  </g>
+
+  <!-- Connection Cable Front -->
+  <path d="M 145 65 C 185 65, 155 210, 195 210" stroke="#a1ccf7" stroke-width="8" fill="none" stroke-linecap="round"/>
+
+  <!-- Nodes -->
+  <circle cx="145" cy="65" r="9" fill="#ee7678" stroke="#3170a0" stroke-width="6"/>
+  <circle cx="195" cy="210" r="9" fill="#f2db68" stroke="#3170a0" stroke-width="6"/>
+
+  <!-- Sparkles -->
+  <g fill="#ffffff">
+    <polygon points="70,4 71.5,7.5 75,9 71.5,10.5 70,14 68.5,10.5 65,9 68.5,7.5"/>
+    <polygon points="250,61 251.5,63.5 254,65 251.5,66.5 250,69 248.5,66.5 246,65 248.5,63.5"/>
+    <rect x="58.5" y="248.5" width="4" height="4"/>
+  </g>
+
+  <g fill="#f6e16a">
+    <polygon points="190,76 191.5,78.5 194,80 191.5,81.5 190,84 188.5,81.5 186,80 188.5,78.5"/>
+    <polygon points="135,281 136.5,283.5 139,285 136.5,286.5 135,289 133.5,286.5 131,285 133.5,283.5"/>
+    <rect x="128.5" y="158.5" width="4" height="4"/>
+  </g>
+
+  <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <g stroke="#ffffff" stroke-width="4">
+      <path d="M 56 31 L 64 31 M 60 27 L 60 35"/>
+    </g>
+    <g stroke="#ffffff" stroke-width="3">
+      <path d="M 289 200 L 295 200 M 292 197 L 292 203"/>
+      <path d="M 281 106 L 289 114 M 281 114 L 289 106"/>
+    </g>
+    <g stroke="#f6e16a" stroke-width="3">
+      <path d="M 17 101 L 23 101 M 20 98 L 20 104"/>
+      <path d="M 147 130 L 153 130 M 150 127 L 150 133"/>
+      <path d="M 292 262 L 298 262 M 295 259 L 295 265"/>
+      <path d="M 37 217 L 43 223 M 37 223 L 43 217"/>
+      <path d="M 217 47 L 223 53 M 217 53 L 223 47"/>
+    </g>
+  </g>
 </svg>

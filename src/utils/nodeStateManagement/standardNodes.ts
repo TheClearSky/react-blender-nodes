@@ -4,14 +4,14 @@ import {
 } from './types';
 
 const standardNodeContextMenu = {
-  locationInContextMenu: ['Standard Nodes'] as string[],
+  locationInContextMenu: ['Standard Nodes'],
   priorityInContextMenu: 200,
-} as const;
+};
 
 const groupNodeContextMenu = {
-  locationInContextMenu: ['Group Nodes'] as string[],
+  locationInContextMenu: ['Group Nodes'],
   priorityInContextMenu: 100,
-} as const;
+};
 
 const standardDataTypeNames = [
   'groupInfer',

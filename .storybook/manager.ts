@@ -10,3 +10,8 @@ const theme = create({
 addons.setConfig({
   theme,
 });
+
+// Collapse the addon panel on first load by setting its height to 0
+addons.register('collapse-panel', (api) => {
+  api.setSizes({ bottomPanelHeight: 0 });
+});

@@ -21,13 +21,6 @@ import type {
 import { importExecutionRecord } from '@/utils/importExport';
 import adderLoopState from '../../../../.storybook/static/graphStates/adder-state-with-inner-noop-loop.json';
 import adderLoopRecordingJson from '../../../../.storybook/static/graphStates/adder-state-with-inner-noop-loop-instant.json';
-import { addons } from 'storybook/manager-api';
-
-addons.setConfig({
-  layoutCustomisations: {
-    showPanel: () => false, // Forces panel closed on load
-  },
-});
 
 // Parse the recording JSON at module level (runs once)
 const adderLoopRecordingResult = importExecutionRecord(

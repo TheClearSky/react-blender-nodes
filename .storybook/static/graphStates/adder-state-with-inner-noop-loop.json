@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exportedAt": "2026-04-04T13:18:37.999Z",
+  "exportedAt": "2026-04-04T16:54:40.839Z",
   "state": {
     "dataTypes": {
       "bit": {
@@ -652,8 +652,8 @@
       {
         "id": "4fuwxnj86u035u8z6lbi",
         "position": {
-          "x": 4648.250062453166,
-          "y": 189.9795547168876
+          "x": 4071.945589551132,
+          "y": 184.75625133711088
         },
         "sourcePosition": "right",
         "targetPosition": "left",
@@ -867,8 +867,8 @@
       {
         "id": "x32hrrjo7uc8mvdwtpty",
         "position": {
-          "x": 5284.181440979132,
-          "y": 2.9174812378213915
+          "x": 4770.55660863442,
+          "y": 1.1763801112291503
         },
         "sourcePosition": "right",
         "targetPosition": "left",
@@ -1122,7 +1122,7 @@
           "nodeTypeUniqueId": "xorGate",
           "showNodeOpenButton": false
         },
-        "selected": false,
+        "selected": true,
         "measured": {
           "width": 400,
           "height": 248
@@ -1439,8 +1439,8 @@
       {
         "id": "r2jvgauk38lxx6lnzxc2",
         "position": {
-          "x": 6006.766999361056,
-          "y": -21.782162972815428
+          "x": 5446.132436598352,
+          "y": -30.487668605776662
         },
         "sourcePosition": "right",
         "targetPosition": "left",
@@ -1483,8 +1483,8 @@
       {
         "id": "j8uny8sp5oke701pw8zq",
         "position": {
-          "x": 6031.517039813732,
-          "y": 171.33230654510754
+          "x": 5444.7659601521445,
+          "y": 157.40349753236956
         },
         "sourcePosition": "right",
         "targetPosition": "left",
@@ -1523,419 +1523,6 @@
           "height": 161
         },
         "dragging": false
-      },
-      {
-        "id": "9ld9lknck32xxltbiuau",
-        "position": {
-          "x": 2974.497326245337,
-          "y": 1029.4477836205972
-        },
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "type": "configurableNode",
-        "width": 400,
-        "data": {
-          "name": "Loop Start",
-          "headerColor": "#1d1d1d",
-          "inputs": [
-            {
-              "id": "dbcs6ywwb8std88jv2za",
-              "name": "Out",
-              "handleColor": "#00BFFF",
-              "allowInput": true,
-              "type": "boolean",
-              "handleShape": "rectangle",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Bit",
-                  "underlyingType": "boolean",
-                  "color": "#00BFFF",
-                  "shape": "rectangle",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "bit"
-              },
-              "inferredDataType": {
-                "dataTypeObject": {
-                  "name": "Bit",
-                  "underlyingType": "boolean",
-                  "color": "#00BFFF",
-                  "shape": "rectangle",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "bit"
-              }
-            },
-            {
-              "id": "kyhztyrddkrvk0trbpr8",
-              "name": "",
-              "handleColor": "#333333",
-              "type": "unsupportedDirectly",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Loop Infer",
-                  "underlyingType": "inferFromConnection",
-                  "color": "#333333"
-                },
-                "dataTypeUniqueId": "loopInfer"
-              }
-            }
-          ],
-          "outputs": [
-            {
-              "id": "yv7ajayx5o9rz8rqcoat",
-              "name": "Bind Loop Nodes",
-              "handleColor": "#8c52d1",
-              "maxConnections": 1,
-              "type": "unsupportedDirectly",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Bind Loop Nodes",
-                  "underlyingType": "noEquivalent",
-                  "color": "#8c52d1",
-                  "maxConnections": 1
-                },
-                "dataTypeUniqueId": "bindLoopNodes"
-              }
-            },
-            {
-              "id": "gpo9bbfqx27x0mu4ofst",
-              "name": "Out",
-              "handleColor": "#00BFFF",
-              "allowInput": true,
-              "type": "boolean",
-              "handleShape": "rectangle",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Bit",
-                  "underlyingType": "boolean",
-                  "color": "#00BFFF",
-                  "shape": "rectangle",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "bit"
-              },
-              "inferredDataType": {
-                "dataTypeObject": {
-                  "name": "Bit",
-                  "underlyingType": "boolean",
-                  "color": "#00BFFF",
-                  "shape": "rectangle",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "bit"
-              }
-            },
-            {
-              "id": "9sh1rtp63uxwyaqf9qew",
-              "name": "",
-              "handleColor": "#333333",
-              "type": "unsupportedDirectly",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Loop Infer",
-                  "underlyingType": "inferFromConnection",
-                  "color": "#333333"
-                },
-                "dataTypeUniqueId": "loopInfer"
-              }
-            }
-          ],
-          "nodeTypeUniqueId": "loopStart",
-          "showNodeOpenButton": false
-        },
-        "selected": false,
-        "measured": {
-          "width": 400,
-          "height": 365
-        },
-        "dragging": false
-      },
-      {
-        "id": "ifb8xksowyszrstdwp1p",
-        "position": {
-          "x": 3557.636893729571,
-          "y": 853.8275296093043
-        },
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "type": "configurableNode",
-        "width": 400,
-        "data": {
-          "name": "Loop Stop",
-          "headerColor": "#1d1d1d",
-          "inputs": [
-            {
-              "id": "gob1lrl77p2uw9worlmc",
-              "name": "Bind Loop Nodes",
-              "handleColor": "#8c52d1",
-              "maxConnections": 1,
-              "type": "unsupportedDirectly",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Bind Loop Nodes",
-                  "underlyingType": "noEquivalent",
-                  "color": "#8c52d1",
-                  "maxConnections": 1
-                },
-                "dataTypeUniqueId": "bindLoopNodes"
-              }
-            },
-            {
-              "id": "xkhge7ttaddjeh0djlzc",
-              "name": "Continue If Condition Is True",
-              "handleColor": "#cca6d6",
-              "allowInput": true,
-              "type": "boolean",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Condition",
-                  "underlyingType": "boolean",
-                  "color": "#cca6d6",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "condition"
-              }
-            },
-            {
-              "id": "n8xjok4i70vzo8mcn37m",
-              "name": "Out",
-              "handleColor": "#00BFFF",
-              "allowInput": true,
-              "type": "boolean",
-              "handleShape": "rectangle",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Bit",
-                  "underlyingType": "boolean",
-                  "color": "#00BFFF",
-                  "shape": "rectangle",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "bit"
-              },
-              "inferredDataType": {
-                "dataTypeObject": {
-                  "name": "Bit",
-                  "underlyingType": "boolean",
-                  "color": "#00BFFF",
-                  "shape": "rectangle",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "bit"
-              }
-            },
-            {
-              "id": "kq97yq2bstifbf1gqgyz",
-              "name": "",
-              "handleColor": "#333333",
-              "type": "unsupportedDirectly",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Loop Infer",
-                  "underlyingType": "inferFromConnection",
-                  "color": "#333333"
-                },
-                "dataTypeUniqueId": "loopInfer"
-              }
-            }
-          ],
-          "outputs": [
-            {
-              "id": "kfyca85gaek4mnif0aaa",
-              "name": "Bind Loop Nodes",
-              "handleColor": "#8c52d1",
-              "maxConnections": 1,
-              "type": "unsupportedDirectly",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Bind Loop Nodes",
-                  "underlyingType": "noEquivalent",
-                  "color": "#8c52d1",
-                  "maxConnections": 1
-                },
-                "dataTypeUniqueId": "bindLoopNodes"
-              }
-            },
-            {
-              "id": "qjxjb3uqjg8wb3gl9tui",
-              "name": "Out",
-              "handleColor": "#00BFFF",
-              "allowInput": true,
-              "type": "boolean",
-              "handleShape": "rectangle",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Bit",
-                  "underlyingType": "boolean",
-                  "color": "#00BFFF",
-                  "shape": "rectangle",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "bit"
-              },
-              "inferredDataType": {
-                "dataTypeObject": {
-                  "name": "Bit",
-                  "underlyingType": "boolean",
-                  "color": "#00BFFF",
-                  "shape": "rectangle",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "bit"
-              }
-            },
-            {
-              "id": "4mml14o3o3ke00tjfdcz",
-              "name": "",
-              "handleColor": "#333333",
-              "type": "unsupportedDirectly",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Loop Infer",
-                  "underlyingType": "inferFromConnection",
-                  "color": "#333333"
-                },
-                "dataTypeUniqueId": "loopInfer"
-              }
-            }
-          ],
-          "nodeTypeUniqueId": "loopStop",
-          "showNodeOpenButton": false
-        },
-        "selected": false,
-        "measured": {
-          "width": 400,
-          "height": 452
-        },
-        "dragging": false
-      },
-      {
-        "id": "lfuod7lfwoleze4ek29i",
-        "position": {
-          "x": 4089.489999368704,
-          "y": 717.5539309732196
-        },
-        "sourcePosition": "right",
-        "targetPosition": "left",
-        "type": "configurableNode",
-        "width": 400,
-        "data": {
-          "name": "Loop End",
-          "headerColor": "#1d1d1d",
-          "inputs": [
-            {
-              "id": "etxhid7vazs2wp7dqm6m",
-              "name": "Bind Loop Nodes",
-              "handleColor": "#8c52d1",
-              "maxConnections": 1,
-              "type": "unsupportedDirectly",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Bind Loop Nodes",
-                  "underlyingType": "noEquivalent",
-                  "color": "#8c52d1",
-                  "maxConnections": 1
-                },
-                "dataTypeUniqueId": "bindLoopNodes"
-              }
-            },
-            {
-              "id": "r8x0h2rds6mrgqk3cpk2",
-              "name": "Out",
-              "handleColor": "#00BFFF",
-              "allowInput": true,
-              "type": "boolean",
-              "handleShape": "rectangle",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Bit",
-                  "underlyingType": "boolean",
-                  "color": "#00BFFF",
-                  "shape": "rectangle",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "bit"
-              },
-              "inferredDataType": {
-                "dataTypeObject": {
-                  "name": "Bit",
-                  "underlyingType": "boolean",
-                  "color": "#00BFFF",
-                  "shape": "rectangle",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "bit"
-              }
-            },
-            {
-              "id": "b63j146pd2s6bzv08yrf",
-              "name": "",
-              "handleColor": "#333333",
-              "type": "unsupportedDirectly",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Loop Infer",
-                  "underlyingType": "inferFromConnection",
-                  "color": "#333333"
-                },
-                "dataTypeUniqueId": "loopInfer"
-              }
-            }
-          ],
-          "outputs": [
-            {
-              "id": "o2h9z5bgorlwka5zjyv9",
-              "name": "Out",
-              "handleColor": "#00BFFF",
-              "allowInput": true,
-              "type": "boolean",
-              "handleShape": "rectangle",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Bit",
-                  "underlyingType": "boolean",
-                  "color": "#00BFFF",
-                  "shape": "rectangle",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "bit"
-              },
-              "inferredDataType": {
-                "dataTypeObject": {
-                  "name": "Bit",
-                  "underlyingType": "boolean",
-                  "color": "#00BFFF",
-                  "shape": "rectangle",
-                  "allowInput": true
-                },
-                "dataTypeUniqueId": "bit"
-              }
-            },
-            {
-              "id": "dfaabv53yxolbli6g6h1",
-              "name": "",
-              "handleColor": "#333333",
-              "type": "unsupportedDirectly",
-              "dataType": {
-                "dataTypeObject": {
-                  "name": "Loop Infer",
-                  "underlyingType": "inferFromConnection",
-                  "color": "#333333"
-                },
-                "dataTypeUniqueId": "loopInfer"
-              }
-            }
-          ],
-          "nodeTypeUniqueId": "loopEnd",
-          "showNodeOpenButton": false
-        },
-        "selected": false,
-        "measured": {
-          "width": 400,
-          "height": 365
-        },
-        "dragging": false
       }
     ],
     "edges": [
@@ -1945,8 +1532,7 @@
         "target": "4fuwxnj86u035u8z6lbi",
         "sourceHandle": "y4xm4z7j3eevpah8144l",
         "targetHandle": "err9sylegv3ar48vys6k",
-        "type": "configurableEdge",
-        "selected": false
+        "type": "configurableEdge"
       },
       {
         "id": "so0clztbaxn9y8atndl6",
@@ -2045,6 +1631,14 @@
         "type": "configurableEdge"
       },
       {
+        "id": "1a7r6a7yl6dc9dwgw5si",
+        "source": "lwvckqpjaxt8a63fsxqk",
+        "target": "gw9tfhpwmeqw6ge4yf5j",
+        "sourceHandle": "7jrjccqlyd6b7dharza1",
+        "targetHandle": "fodn0709i5sihecroq6e",
+        "type": "configurableEdge"
+      },
+      {
         "id": "j60hpsbnetwfim5bj8pb",
         "source": "gw9tfhpwmeqw6ge4yf5j",
         "target": "eplzks4gjrvedc4zqjy2",
@@ -2075,54 +1669,6 @@
         "sourceHandle": "8qmrl0ywj5xoorfa6fpn",
         "targetHandle": "imtmpt7adh96d10vih5m",
         "type": "configurableEdge"
-      },
-      {
-        "id": "tkxnvwew3klmtdyo2n0k",
-        "source": "9ld9lknck32xxltbiuau",
-        "target": "ifb8xksowyszrstdwp1p",
-        "sourceHandle": "yv7ajayx5o9rz8rqcoat",
-        "targetHandle": "gob1lrl77p2uw9worlmc",
-        "type": "configurableEdge"
-      },
-      {
-        "id": "tnla3e70ehajuesmxa83",
-        "source": "ifb8xksowyszrstdwp1p",
-        "target": "lfuod7lfwoleze4ek29i",
-        "sourceHandle": "kfyca85gaek4mnif0aaa",
-        "targetHandle": "etxhid7vazs2wp7dqm6m",
-        "type": "configurableEdge"
-      },
-      {
-        "id": "3jpdmefcf3u8k27jp96b",
-        "source": "lwvckqpjaxt8a63fsxqk",
-        "target": "9ld9lknck32xxltbiuau",
-        "sourceHandle": "7jrjccqlyd6b7dharza1",
-        "targetHandle": "dbcs6ywwb8std88jv2za",
-        "type": "configurableEdge"
-      },
-      {
-        "id": "3kr9zuurpybcbozw00uu",
-        "source": "9ld9lknck32xxltbiuau",
-        "target": "ifb8xksowyszrstdwp1p",
-        "sourceHandle": "gpo9bbfqx27x0mu4ofst",
-        "targetHandle": "n8xjok4i70vzo8mcn37m",
-        "type": "configurableEdge"
-      },
-      {
-        "id": "dsclcq4zru9008zftckk",
-        "source": "ifb8xksowyszrstdwp1p",
-        "target": "lfuod7lfwoleze4ek29i",
-        "sourceHandle": "qjxjb3uqjg8wb3gl9tui",
-        "targetHandle": "r8x0h2rds6mrgqk3cpk2",
-        "type": "configurableEdge"
-      },
-      {
-        "id": "ucyia45m1o7kqrbi3vmc",
-        "source": "lfuod7lfwoleze4ek29i",
-        "target": "gw9tfhpwmeqw6ge4yf5j",
-        "sourceHandle": "o2h9z5bgorlwka5zjyv9",
-        "targetHandle": "fodn0709i5sihecroq6e",
-        "type": "configurableEdge"
       }
     ],
     "allowedConversionsBetweenDataTypes": {
@@ -2138,9 +1684,9 @@
     "enableTypeInference": true,
     "enableCycleChecking": true,
     "viewport": {
-      "x": 92.23516025109893,
-      "y": 42.559448602716145,
-      "zoom": 0.180609315563412
+      "x": -74.70828982742478,
+      "y": 106.4973450438475,
+      "zoom": 0.24860251862191574
     }
   }
 }

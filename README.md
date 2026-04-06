@@ -7,7 +7,9 @@
   a flexible and customizable node-based graph editor for web applications.
 </p>
 
-[![spring-easing's badge](https://deno.bundlejs.com/?q=%40theclearsky%2Freact-blender-nodes&badge=detailed&badge-style=for-the-badge)](https://bundlejs.com/?q=%40theclearsky%2Freact-blender-nodes)
+<p align="center">
+  <a href="https://bundlejs.com/?q=%40theclearsky%2Freact-blender-nodes"><img src="https://deno.bundlejs.com/?q=%40theclearsky%2Freact-blender-nodes&badge=detailed&badge-style=for-the-badge" alt="spring-easing's badge" /></a>
+</p>
 
 ![React Blender Nodes Banner](./docs/screenshots/banner.png)
 

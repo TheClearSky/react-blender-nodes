@@ -7,11 +7,13 @@
   a flexible and customizable node-based graph editor for web applications.
 </p>
 
+[![spring-easing's badge](https://deno.bundlejs.com/?q=%40theclearsky%2Freact-blender-nodes&badge=detailed&badge-style=for-the-badge)](https://bundlejs.com/?q=%40theclearsky%2Freact-blender-nodes)
+
 ![React Blender Nodes Banner](./docs/screenshots/banner.png)
 
 ## Quick Links
 
-- [![Storybook](https://img.shields.io/badge/Storybook-FF4785?style=for-the-badge&logo=storybook&logoColor=white)](https://theclearsky.github.io/react-blender-nodes/?path=/story/components-organisms-fullgraph--playground) -
+- [![Storybook](https://img.shields.io/badge/Storybook-FF4785?style=for-the-badge&logo=storybook&logoColor=white)](https://theclearsky.github.io/react-blender-nodes/?path=/story/organisms-fullgraph--with-runner) -
   Interactive examples and component playground
 - [![NPM](https://img.shields.io/badge/NPM-%23CB3837.svg?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/@theclearsky/react-blender-nodes) -
   Install and use in your project
@@ -180,7 +182,7 @@ https://github.com/user-attachments/assets/72d9384a-e9ca-4223-906a-dc422fb66f49
     conversions
   - **Cycle Detection**: Prevent infinite loops in your node graphs
 - **Multiple Data Types**: Support for diverse data structures
-  - Basic types: `string`, `number`
+  - Basic types: `string`, `number`, `boolean`
   - Complex types: Custom objects with Zod schemas
   - Special types: `inferFromConnection`, `noEquivalent`
 - **Runtime Safety**: Catch type errors before they break your application
@@ -246,6 +248,110 @@ const functionImplementations = makeFunctionImplementationsWithAutoInfer({
   functionImplementations={functionImplementations}
 />;
 ```
+
+### useNodeRunner Hook
+
+For advanced control over graph execution, use the `useNodeRunner` hook directly
+instead of relying on the built-in runner UI:
+
+```tsx
+import { FullGraph, useFullGraph, useNodeRunner } from 'react-blender-nodes';
+
+function MyExecutableGraph() {
+  const { state, dispatch } = useFullGraph(initialState);
+
+  const {
+    // State
+    runnerState, // 'idle' | 'compiling' | 'running' | 'paused' | 'completed' | 'errored'
+    nodeVisualStates, // Map<nodeId, 'idle' | 'running' | 'completed' | 'errored' | 'skipped'>
+    executionRecord, // Full execution recording with per-step timing and I/O snapshots
+    currentStepIndex, // Index of the currently active/viewed step
+
+    // Actions
+    run, // Start execution (mode-aware: instant or step-by-step)
+    pause, // Pause during step-by-step execution
+    resume, // Resume paused step-by-step execution
+    step, // Advance one step (starts a new run if idle)
+    stop, // Abort the current execution
+    reset, // Clear all execution state back to idle
+    replayTo, // Seek to a specific step index in a completed recording
+    loadRecord, // Load an imported ExecutionRecord (validates against current graph)
+
+    // Settings
+    mode, // Current execution mode: 'instant' | 'stepByStep'
+    setMode, // Switch execution mode
+    maxLoopIterations, // Max iterations before a loop is force-stopped
+    setMaxLoopIterations,
+  } = useNodeRunner({
+    state,
+    functionImplementations,
+    options: { maxLoopIterations: 100 },
+  });
+
+  return (
+    <div>
+      <button onClick={run}>Run</button>
+      <button onClick={step}>Step</button>
+      <button onClick={pause}>Pause</button>
+      <button onClick={resume}>Resume</button>
+      <button onClick={stop}>Stop</button>
+      <button onClick={reset}>Reset</button>
+      <p>Status: {runnerState}</p>
+      <FullGraph state={state} dispatch={dispatch} />
+    </div>
+  );
+}
+```
+
+### Import/Export & Automatic Repair
+
+Graph state and execution recordings can be exported to JSON and re-imported
+later. On import, the library validates the structure and can automatically
+repair common issues via opt-in repair strategies.
+
+#### State Import Repair Strategies
+
+Pass a `repair` object to `importGraphState` to enable automatic fixes:
+
+```tsx
+import { importGraphState } from 'react-blender-nodes';
+
+const result = importGraphState(json, {
+  dataTypes: myDataTypes,
+  typeOfNodes: myTypeOfNodes,
+  repair: {
+    removeOrphanEdges: true, // Remove edges whose source or target node doesn't exist
+    removeDuplicateNodeIds: true, // Deduplicate nodes with the same ID (keep first)
+    removeDuplicateEdgeIds: true, // Deduplicate edges with the same ID (keep first)
+    fillMissingDefaults: true, // Fill missing optional fields (viewport, etc.) with defaults
+    rehydrateDataTypeObjects: true, // Rebuild handle dataType objects from provided dataTypes
+  },
+});
+
+if (result.success) {
+  // result.data is the repaired State
+  // result.warnings contains info about what was repaired
+} else {
+  // result.errors contains fatal validation issues
+}
+```
+
+#### Recording Import Repair Strategies
+
+Pass a `repair` object to `importExecutionRecord` for recording-specific fixes:
+
+```tsx
+import { importExecutionRecord } from 'react-blender-nodes';
+
+const result = importExecutionRecord(json, {
+  repair: {
+    sanitizeNonSerializableValues: true, // Replace non-serializable values with "[non-serializable]"
+    removeOrphanSteps: true, // Remove steps referencing nodes not present in the record
+  },
+});
+```
+
+All repair strategies default to `false` and must be explicitly enabled.
 
 ## Usage Examples
 
@@ -452,8 +558,22 @@ The main graph editor component with full ReactFlow integration.
 
 ```tsx
 interface FullGraphProps {
+  /** The current state of the graph including nodes, edges, and type definitions */
   state: State;
+  /** Dispatch function for updating the graph state */
   dispatch: Dispatch;
+  /** Function implementations for each node type, enables the runner when provided */
+  functionImplementations?: FunctionImplementations;
+  /** Called when state is successfully imported. Receives the raw parsed state. */
+  onStateImported?: (importedState: State) => void;
+  /** Called when a recording is successfully imported. Receives the parsed ExecutionRecord. */
+  onRecordingImported?: (record: ExecutionRecord) => void;
+  /** Called when import validation fails. Receives the error messages. */
+  onImportError?: (errors: string[]) => void;
+  /** Controlled execution record. When provided, FullGraph uses this instead of internal state. */
+  executionRecord?: ExecutionRecord | null;
+  /** Called whenever the execution record changes (run completes, reset, load, etc.). */
+  onExecutionRecordChange?: (record: ExecutionRecord | null) => void;
 }
 ```
 
@@ -463,17 +583,36 @@ Customizable node component with dynamic inputs and outputs.
 
 ```tsx
 interface ConfigurableNodeProps {
+  /** Unique identifier for the node (shown when enableDebugMode is true) */
+  id?: string;
+  /** Display name of the node */
   name?: string;
+  /** Background color of the node header */
   headerColor?: string;
+  /** Array of inputs and input panels */
   inputs?: (ConfigurableNodeInput | ConfigurableNodeInputPanel)[];
+  /** Array of output sockets */
   outputs?: ConfigurableNodeOutput[];
+  /** Whether the node is currently inside a ReactFlow context */
   isCurrentlyInsideReactFlow?: boolean;
+  /** Props for the node resizer component */
+  nodeResizerProps?: NodeResizerWithMoreControlsProps;
+  /** Node type unique id */
+  nodeTypeUniqueId?: string;
+  /** Whether to show the node open button (used by node groups) */
+  showNodeOpenButton?: boolean;
+  /** Runner visual state for this node (undefined = no runner overlay) */
+  runnerVisualState?: NodeVisualState;
+  /** Errors from the runner for this node */
+  runnerErrors?: ReadonlyArray<GraphError>;
+  /** Warnings from the runner for this node */
+  runnerWarnings?: ReadonlyArray<string>;
 }
 ```
 
 ## 🔗 Links
 
-- [📖 Storybook Documentation](https://theclearsky.github.io/react-blender-nodes/?path=/story/components-organisms-fullgraph--playground)
+- [📖 Storybook Documentation](https://theclearsky.github.io/react-blender-nodes/?path=/story/organisms-fullgraph--with-runner)
 - [📦 NPM Package](https://www.npmjs.com/package/@theclearsky/react-blender-nodes)
 - [🐛 Report Issues](https://github.com/TheClearSky/react-blender-nodes/issues)
 - [💡 Request Features](https://github.com/TheClearSky/react-blender-nodes/discussions)

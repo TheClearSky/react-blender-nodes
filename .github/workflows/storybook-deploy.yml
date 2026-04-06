@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout to repo in current branch
         uses: actions/checkout@v6
+        with:
+          node-version: '24.x'
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -30,6 +32,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: storybook-static
+          node-version: '24.x'
 
   # Deployment job
   deploy-storybook:
@@ -47,3 +50,5 @@ jobs:
         uses: actions/deploy-pages@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          node-version: '24.x'

@@ -782,7 +782,7 @@ function LoopIterationBlockInner({
         </span>
       ) : (
         <span
-          className='flex items-center justify-center text-[9px] font-medium text-[#eee] select-none'
+          className='flex items-center justify-center text-[9px] font-medium text-[#eee] select-none w-full'
           style={{ lineHeight: `${blockHeight}px` }}
         >
           {iterRecord.iteration}

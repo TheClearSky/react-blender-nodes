@@ -806,7 +806,7 @@ tracking (`getDependencyGraphBetweenNodeTypes`) supports recursion checking.
 
 ### -> [Loops](../features/loopsDoc.md)
 
-Loop nodes (from `nodes/loops.ts`) have special connection validation rules
+Loop nodes (from `nodes/loops/`) have special connection validation rules
 checked via `isLoopConnectionValid` during `ADD_EDGE_BY_REACT_FLOW`. Loop node
 deletion is validated by `canRemoveLoopNodesAndEdges` in the `onBeforeDelete`
 handler.

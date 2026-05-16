@@ -1,7 +1,7 @@
 import { useClickedOutside } from '@/hooks/useClickedOutside';
 import { convertStringToNumber, sanitizeNumberToShowAsText } from '@/utils';
 import { cn } from '@/utils/cnHelper';
-import { forwardRef, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * Props for the Input component
@@ -15,6 +15,10 @@ type InputProps = {
    * The class name for the input, overrides the default styles
    */
   className?: string;
+  /** Size variant. "normal" is the canvas-friendly 2x default, "small" is compact for panels/drawers. */
+  size?: 'normal' | 'small';
+  /** When true, calls onChange on every keystroke instead of only on blur/Enter. */
+  liveUpdate?: boolean;
 } & (
   | {
       /**
@@ -69,7 +73,17 @@ type InputProps = {
  * - Can cancel the change for numbers by clearing the input and clicking outside the input
  */
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ placeholder = 'Input', className, ...discriminatedProps }, ref) => {
+  (
+    {
+      placeholder = 'Input',
+      className,
+      size = 'normal',
+      liveUpdate,
+      ...discriminatedProps
+    },
+    ref,
+  ) => {
+    const isSmall = size === 'small';
     //Sanitize the value to be a string or a number, depending on the allowOnlyNumbers prop
     //For numbers, we remove the trailing zeros after the decimal point if the number is an integer, also we set the number of decimals to 5 by default
     const sanitizedValue = useMemo(() => {
@@ -92,12 +106,21 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     //Internal states
     const [valueInner, setValueInner] = useState(sanitizedValue ?? '');
     const [inputRef, setInputRef] = useState<HTMLInputElement | null>(null);
+    const isFocusedRef = useRef(false);
 
     //Derived states
     const valueToUse = discriminatedProps.value ?? valueInner;
     const [temporaryValueWhenClicked, setTemporaryValueWhenClicked] = useState(
       valueToUse.toString(),
     );
+
+    // Re-sync temporaryValueWhenClicked when the parent changes the value prop,
+    // but only when the input is not focused (to avoid clobbering user typing)
+    useEffect(() => {
+      if (!isFocusedRef.current && sanitizedValue !== undefined) {
+        setTemporaryValueWhenClicked(sanitizedValue);
+      }
+    }, [sanitizedValue]);
 
     //Handlers
     /**
@@ -111,6 +134,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         }
       }
       setTemporaryValueWhenClicked(value);
+      if (liveUpdate && !discriminatedProps.allowOnlyNumbers) {
+        discriminatedProps.onChange?.(value);
+      }
     }
 
     /**
@@ -143,9 +169,12 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       <input
         type='text'
         className={cn(
-          'h-[44px] rounded-md text-primary-white bg-primary-black font-main px-4 \
-        text-[27px] leading-[27px] outline-none focus-visible:outline-none! \
+          'rounded-md text-primary-white bg-primary-black font-main \
+        outline-none focus-visible:outline-none! \
         border-secondary-dark-gray border w-max min-w-0 placeholder:text-[#6B6B6B]',
+          isSmall
+            ? 'h-[28px] px-3 text-[16px] leading-[16px]'
+            : 'h-[44px] px-4 text-[27px] leading-[27px]',
           className,
         )}
         placeholder={placeholder}
@@ -165,11 +194,15 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             handleSettingValueFromTemporaryValue();
           }
         }}
+        onFocus={() => {
+          isFocusedRef.current = true;
+        }}
         onMouseMove={(e) => {
           e.preventDefault();
           e.stopPropagation();
         }}
         onBlur={(e) => {
+          isFocusedRef.current = false;
           e.preventDefault();
           e.stopPropagation();
           handleSettingValueFromTemporaryValue();

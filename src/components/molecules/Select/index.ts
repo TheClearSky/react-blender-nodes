@@ -7,17 +7,15 @@ export {
   SelectLabel,
   SelectItem,
   SelectSeparator,
-  SelectScrollUpButton,
-  SelectScrollDownButton,
+  SelectUnsupportedItem,
 } from './Select';
 
 export type {
+  SelectProps,
   SelectTriggerProps,
-  SelectContentProps,
-  SelectLabelProps,
-  SelectItemProps,
-  SelectSeparatorProps,
-  SelectScrollUpButtonProps,
-  SelectScrollDownButtonProps,
   SelectValueProps,
+  SelectContentProps,
+  SelectItemProps,
+  SelectLabelProps,
+  SelectSeparatorProps,
 } from './Select';

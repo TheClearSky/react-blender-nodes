@@ -395,16 +395,14 @@ function checkComplexTypeCompatibilityAfterEdgeAddition<
   //Both are complex
   if (isSourceHandleComplex && isTargetHandleComplex) {
     //Check if they are the same type
-    //Either the data types are exactly the same, or the complex schemas are exactly the same
+    //Either the data type IDs match, or the complex schema references are identical
+    //(data types are immutable singletons defined once in state, so reference
+    //equality is sufficient — two handles sharing a data type point to the same object)
     const areTheComplexTypesSame =
       resultantSourceHandleDataType.dataTypeUniqueId ===
         resultantTargetHandleDataType.dataTypeUniqueId ||
-      JSON.stringify(
-        resultantSourceHandleDataType.dataTypeObject.complexSchema,
-      ) ===
-        JSON.stringify(
-          resultantTargetHandleDataType.dataTypeObject.complexSchema,
-        );
+      resultantSourceHandleDataType.dataTypeObject.complexSchema ===
+        resultantTargetHandleDataType.dataTypeObject.complexSchema;
     if (!areTheComplexTypesSame) {
       return {
         validation: {

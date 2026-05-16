@@ -94,7 +94,7 @@ function makeRecord(
     startTime: 0,
     endTime,
     totalDuration: endTime,
-    compilationDuration: 0,
+    warmupDuration: 0,
     totalPauseDuration: 0,
     status: 'completed',
     steps,

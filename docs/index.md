@@ -106,7 +106,8 @@
 |                                                                           |
 |  NodeStatusIndicator                 State export/import                  |
 |  Input, Button, Checkbox             Recording export/import              |
-|  Badge, Separator, Collapsible       Validation & repair                  |
+|  Badge (planned), Separator (planned) Validation & repair                 |
+|  Collapsible (planned)                                                    |
 |  ScrollableButtonContainer           JSON serialization                   |
 |  useDrag, useClickedOutside                                               |
 |  useSlideAnimation, useResizeHandle                                       |
@@ -280,13 +281,13 @@ used across the entire codebase, see
 
 ### Adding a New UI Atom
 
-| Doc                                           | Why                                           |
-| --------------------------------------------- | --------------------------------------------- |
-| [uiPrimitivesDoc.md](./ui/uiPrimitivesDoc.md) | Existing atoms: Badge, Separator, Collapsible |
-| [hooksDoc.md](./hooks/hooksDoc.md)            | Custom hooks available for reuse              |
-| [tailwindDoc.md](./external/tailwindDoc.md)   | Styling patterns, cn() helper, color tokens   |
-| [storybookDoc.md](./external/storybookDoc.md) | Story writing conventions                     |
-| [radixUIDoc.md](./external/radixUIDoc.md)     | Radix UI integration pattern                  |
+| Doc                                           | Why                                                               |
+| --------------------------------------------- | ----------------------------------------------------------------- |
+| [uiPrimitivesDoc.md](./ui/uiPrimitivesDoc.md) | Existing atoms + planned: Badge, Separator, Collapsible (planned) |
+| [hooksDoc.md](./hooks/hooksDoc.md)            | Custom hooks available for reuse                                  |
+| [tailwindDoc.md](./external/tailwindDoc.md)   | Styling patterns, cn() helper, color tokens                       |
+| [storybookDoc.md](./external/storybookDoc.md) | Story writing conventions                                         |
+| [radixUIDoc.md](./external/radixUIDoc.md)     | Radix UI integration pattern                                      |
 
 ### Working with State/Reducer
 
@@ -352,12 +353,12 @@ used across the entire codebase, see
 
 ### UI Atoms, Hooks & Utilities
 
-| #   | Feature             | Doc                                                         | Description                                                          |
-| --- | ------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------- |
-| 22  | NodeStatusIndicator | [nodeStatusIndicatorDoc.md](./ui/nodeStatusIndicatorDoc.md) | Visual state overlay: running/completed/errored/warning borders      |
-| 23  | Input Components    | [inputComponentsDoc.md](./ui/inputComponentsDoc.md)         | Text input, number slider, checkbox, button atoms                    |
-| 24  | UI Primitives       | [uiPrimitivesDoc.md](./ui/uiPrimitivesDoc.md)               | Badge, Separator, Collapsible, ScrollableButtonContainer             |
-| 25  | Custom Hooks        | [hooksDoc.md](./hooks/hooksDoc.md)                          | useDrag, useClickedOutside, useSlideAnimation, useResizeHandle, etc. |
+| #   | Feature             | Doc                                                         | Description                                                                            |
+| --- | ------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 22  | NodeStatusIndicator | [nodeStatusIndicatorDoc.md](./ui/nodeStatusIndicatorDoc.md) | Visual state overlay: running/completed/errored/warning borders                        |
+| 23  | Input Components    | [inputComponentsDoc.md](./ui/inputComponentsDoc.md)         | Text input, number slider, checkbox, button atoms                                      |
+| 24  | UI Primitives       | [uiPrimitivesDoc.md](./ui/uiPrimitivesDoc.md)               | Badge (planned), Separator (planned), Collapsible (planned), ScrollableButtonContainer |
+| 25  | Custom Hooks        | [hooksDoc.md](./hooks/hooksDoc.md)                          | useDrag, useClickedOutside, useSlideAnimation, useResizeHandle, etc.                   |
 
 ### Import/Export
 
@@ -390,10 +391,10 @@ src/
 |   |   +-- constructAndModifyHandles.ts  Edge add/remove with validation
 |   |   +-- nodes/
 |   |       +-- nodeGroups.ts         Group subtree operations
-|   |       +-- loops.ts             Loop triplet operations
+|   |       +-- loops/                Loop triplet operations (folder)
 |   +-- nodeRunner/
 |   |   +-- compiler.ts              5-phase compilation pipeline
-|   |   +-- executor.ts              Async execution engine
+|   |   +-- executor/                Async execution engine (folder)
 |   |   +-- useNodeRunner.ts         React hook state machine
 |   |   +-- executionRecorder.ts     Execution recording
 |   |   +-- valueStore.ts            Runtime value propagation
@@ -418,9 +419,9 @@ src/
 |   |   +-- ExecutionTimeline/         Timeline scrubber
 |   |   +-- ExecutionStepInspector/    Step detail viewer
 |   +-- atoms/
-|       +-- Badge/                    Status badges
-|       +-- Separator/                Divider line
-|       +-- Collapsible/             Expand/collapse section
+|       +-- Badge/                    Status badges (planned)
+|       +-- Separator/                Divider line (planned)
+|       +-- Collapsible/             Expand/collapse section (planned)
 |       +-- NodeStatusIndicator/      Runner visual overlay
 |       +-- ScrollableButtonContainer/ Horizontal scroll
 +-- hooks/

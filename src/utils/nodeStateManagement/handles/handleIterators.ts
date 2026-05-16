@@ -7,6 +7,82 @@ import type {
   NonPanelTypesOfHandles,
 } from './types';
 
+/**
+ * Casts a handle array element to a non-panel handle type.
+ *
+ * Safe when the caller has already verified `!('inputs' in element)`,
+ * which excludes ConfigurableNodeInputPanel and TypeOfInputPanel.
+ * TypeScript cannot narrow generic `TypeSupplied[number]` through
+ * property-existence checks, so we use an explicit cast.
+ */
+function asNonPanelHandle<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+  TypeSupplied extends AllTypesOfHandles<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  > = AllTypesOfHandles<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+>(
+  element: TypeSupplied[number],
+): NonPanelTypesOfHandles<
+  DataTypeUniqueId,
+  NodeTypeUniqueId,
+  UnderlyingType,
+  ComplexSchemaType,
+  TypeSupplied
+> {
+  return element as NonPanelTypesOfHandles<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType,
+    TypeSupplied
+  >;
+}
+
+/**
+ * Casts a value to the `TypeSupplied` handle-array type.
+ *
+ * Used in two scenarios where TypeScript's type system is too conservative:
+ * 1. A panel's inner `inputs` array is structurally compatible with
+ *    `TypeSupplied` but TS cannot prove it through the generic constraint.
+ * 2. A single element indexed from `inputsOrOutputs` needs to be treated
+ *    as the full array type (for `parentArray` in the return value) because
+ *    output types will never reach the panel branch at runtime.
+ */
+function asHandleArray<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+  TypeSupplied extends AllTypesOfHandles<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  > = AllTypesOfHandles<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+>(value: unknown): TypeSupplied {
+  return value as TypeSupplied;
+}
+
 function getResultantIndexIncludingNegativeIndices(
   index: number,
   arrayLength: number,
@@ -119,14 +195,13 @@ function handleIteratorIncludingIndices<
         const index1Before = nextIndex1;
         nextIndex1 = advanceIndexIncludingNegativeIndices(nextIndex1);
         nextIndex2 = 0;
-        //@ts-expect-error - we know that the value is not a ConfigurableNodeInputPanel
-        const finalValue: NonPanelTypesOfHandles<
+        const finalValue = asNonPanelHandle<
           DataTypeUniqueId,
           NodeTypeUniqueId,
           UnderlyingType,
           ComplexSchemaType,
           TypeSupplied
-        > = inputOrOutput;
+        >(inputOrOutput);
         return {
           value: {
             value: finalValue,
@@ -155,8 +230,13 @@ function handleIteratorIncludingIndices<
                 index1: nextIndex1,
                 index2: nextIndex2,
               },
-              //@ts-expect-error - we know that the value is not a ConfigurableNodeInputPanel
-              parentArray: inputOrOutput.inputs,
+              parentArray: asHandleArray<
+                DataTypeUniqueId,
+                NodeTypeUniqueId,
+                UnderlyingType,
+                ComplexSchemaType,
+                TypeSupplied
+              >(inputOrOutput.inputs),
               parentArrayIndex: nextIndex2,
             },
             done: true,
@@ -207,22 +287,27 @@ function handleIteratorIncludingIndices<
           //This will immediately become 0 on next iteration
           resetIndex2ToZeroOrNegativeOne = true;
         }
-        //@ts-expect-error - we know that the value is not a ConfigurableNodeInputPanel
-        const finalValue: NonPanelTypesOfHandles<
+        const finalValue = asNonPanelHandle<
           DataTypeUniqueId,
           NodeTypeUniqueId,
           UnderlyingType,
           ComplexSchemaType,
           TypeSupplied
-        > = input;
-        //@ts-expect-error - we know this is parent array, and the error is - output types can't be returned, but output types will never reach here
-        const parentArray: TypeSupplied =
+        >(input);
+        const parentArray = asHandleArray<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType,
+          TypeSupplied
+        >(
           inputsOrOutputs[
             getResultantIndexIncludingNegativeIndices(
               index1Before,
               inputsOrOutputs.length,
             )
-          ];
+          ],
+        );
         return {
           value: {
             value: finalValue,
@@ -239,8 +324,23 @@ function handleIteratorIncludingIndices<
       }
     },
   });
-  //@ts-expect-error - we know that the iterator is correct, the constructor of iterator loses the generic type
-  return iterator;
+  // Iterator.from loses the generic type parameters, so we cast back
+  return iterator as IteratorObject<
+    HandleAndRelatedInformation<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType,
+      TypeSupplied
+    >,
+    HandleAndRelatedInformationWhenNotFound<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType,
+      TypeSupplied
+    >
+  >;
 }
 
 function handleIterator<

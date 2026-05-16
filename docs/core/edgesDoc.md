@@ -65,7 +65,7 @@ Relationships:
 +-----------------------------------------------------------------------+
 |                                                                       |
 |  addEdgeWithTypeChecking()                                            |
-|    |-- isLoopConnectionValid()         (loops.ts)                     |
+|    |-- isLoopConnectionValid()         (loops/loopValidation.ts)      |
 |    |-- inferTypesAfterEdgeAddition()   (newOrRemovedEdgeValidation.ts) |
 |    |     |-- inferTypeAcrossTheNodeForHandleOfDataType() (typeInf...)  |
 |    |     |     '-- inferTypeOnHandleAfterConnectingWithAnotherHandle() |
@@ -387,7 +387,7 @@ This is the central orchestrator for edge addition. It:
 
 ### 4. Loop connection validation
 
-**File:** `nodes/loops.ts:1379+`
+**File:** `nodes/loops/loopValidation.ts:415+`
 
 Called first in the validation pipeline via `isLoopConnectionValid()`. This
 validates:

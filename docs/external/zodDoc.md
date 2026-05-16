@@ -132,7 +132,7 @@ Files that carry this generic parameter include:
 - `handles/types.ts`, `handleGetters.ts`, `handleSetters.ts`,
   `handleIterators.ts` — handle manipulation
 - `edges/typeInference.ts` — type inference across connections
-- `nodes/nodeGroups.ts`, `nodes/loops.ts` — group and loop node handling
+- `nodes/nodeGroups.ts`, `nodes/loops/` — group and loop node handling
 - `nodeRunner/` — compiler, executor, and related types
 - `importExport/` — export, import, and serialization types
 
@@ -302,5 +302,5 @@ generic through its compiler, executor, and type definitions. While the runner
 does not directly validate values against Zod schemas at execution time, the
 type parameter ensures that the State passed to the runner maintains full type
 safety with respect to complex schemas. The runner's types (`compiler.ts`,
-`executor.ts`, `groupCompiler.ts`, `loopCompiler.ts`, `types.ts`) all propagate
+`executor/`, `groupCompiler.ts`, `loopCompiler.ts`, `types.ts`) all propagate
 `ComplexSchemaType extends z.ZodType` to maintain this invariant.

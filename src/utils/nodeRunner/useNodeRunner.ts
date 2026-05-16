@@ -134,16 +134,18 @@ function computeVisualStatesAtStep(
   // Loop triplet step records are appended AFTER body steps (high stepIndex),
   // so without this override they'd show as "idle" while the body replays.
   for (const [, loopRec] of record.loopRecords) {
-    const bodyIndices: number[] = [];
+    let minBody = Infinity;
+    let maxBody = -Infinity;
+    let bodyCount = 0;
     for (const iter of loopRec.iterations) {
       for (const stepRec of iter.stepRecords) {
-        bodyIndices.push(stepRec.stepIndex);
+        const idx = stepRec.stepIndex;
+        if (idx < minBody) minBody = idx;
+        if (idx > maxBody) maxBody = idx;
+        bodyCount++;
       }
     }
-    if (bodyIndices.length === 0) continue;
-
-    const minBody = Math.min(...bodyIndices);
-    const maxBody = Math.max(...bodyIndices);
+    if (bodyCount === 0) continue;
 
     // If replaying within the body range, loop nodes should show as "running"
     if (stepIndex >= minBody && stepIndex <= maxBody) {
@@ -159,9 +161,13 @@ function computeVisualStatesAtStep(
     const innerSteps = groupRec.innerRecord.steps;
     if (innerSteps.length === 0) continue;
 
-    const innerIndices = innerSteps.map((s) => s.stepIndex);
-    const minInner = Math.min(...innerIndices);
-    const maxInner = Math.max(...innerIndices);
+    let minInner = Infinity;
+    let maxInner = -Infinity;
+    for (const s of innerSteps) {
+      const idx = s.stepIndex;
+      if (idx < minInner) minInner = idx;
+      if (idx > maxInner) maxInner = idx;
+    }
 
     if (stepIndex >= minInner && stepIndex <= maxInner) {
       states.set(groupNodeId, 'running');
@@ -415,6 +421,17 @@ function useNodeRunner<
   const shouldContinueRef = useRef(false);
   /** Guard against running actions after unmount */
   const isMountedRef = useRef(true);
+  /** Terminate the active generator without requiring a valid return value.
+   *  Generator.return() expects the return type, but we're just discarding it. */
+  const terminateGenerator = useCallback(() => {
+    const generator = generatorRef.current;
+    if (generator) {
+      (generator.return as (value?: unknown) => Promise<unknown>)(undefined);
+      generatorRef.current = null;
+    }
+  }, []);
+  /** Internal-only: captures the last error for debugging */
+  const lastErrorRef = useRef<unknown>(null);
 
   // ── Cleanup on unmount ────────────────────────────────
   useEffect(() => {
@@ -422,7 +439,7 @@ function useNodeRunner<
     return () => {
       isMountedRef.current = false;
       abortControllerRef.current?.abort();
-      generatorRef.current = null;
+      terminateGenerator();
       shouldContinueRef.current = false;
     };
   }, []);
@@ -432,12 +449,14 @@ function useNodeRunner<
   // holds the exact reference). Only sync for truly external changes
   // (e.g., parent loading a different recording).
   const prevRecordRef = useRef(executionRecord);
-  if (
-    isControlled &&
-    executionRecord !== prevRecordRef.current &&
-    executionRecord !== lastSetRecordRef.current
-  ) {
+  useEffect(() => {
+    if (!isControlled) return;
+    if (executionRecord === prevRecordRef.current) return;
     prevRecordRef.current = executionRecord;
+
+    // If this is a record we set ourselves, just track it — no state sync needed.
+    if (executionRecord === lastSetRecordRef.current) return;
+
     if (executionRecord) {
       const lastIdx = Math.max(0, executionRecord.steps.length - 1);
       setCurrentStepIndex(lastIdx);
@@ -459,9 +478,7 @@ function useNodeRunner<
       setNodeVisualStates(EMPTY_VISUAL_STATES);
       setRunnerState('idle');
     }
-  } else if (isControlled && executionRecord !== prevRecordRef.current) {
-    prevRecordRef.current = executionRecord;
-  }
+  }, [executionRecord, isControlled]);
 
   // ── Warning detection on state/implementation change ──
   useEffect(() => {
@@ -489,7 +506,10 @@ function useNodeRunner<
       return compile(state, functionImplementations, {
         maxLoopIterations,
       });
-    } catch {
+    } catch (e) {
+      lastErrorRef.current = e;
+      if (process.env.NODE_ENV !== 'production')
+        console.error('react-blender-nodes runner error:', e);
       if (isMountedRef.current) {
         setRunnerState('errored');
       }
@@ -522,7 +542,7 @@ function useNodeRunner<
     liveVisualStatesRef.current = finalStates;
     setNodeVisualStates(finalStates);
 
-    generatorRef.current = null;
+    terminateGenerator();
 
     setRunnerState(
       record.status === 'cancelled'
@@ -564,7 +584,10 @@ function useNodeRunner<
 
       if (!isMountedRef.current) return;
       finalizeRun(record);
-    } catch {
+    } catch (e) {
+      lastErrorRef.current = e;
+      if (process.env.NODE_ENV !== 'production')
+        console.error('react-blender-nodes runner error:', e);
       if (isMountedRef.current) {
         flushVisualStates();
         setRunnerState('errored');
@@ -625,11 +648,14 @@ function useNodeRunner<
         // Graph had zero steps or completed immediately
         finalizeRun(result.value);
       }
-    } catch {
+    } catch (e) {
+      lastErrorRef.current = e;
+      if (process.env.NODE_ENV !== 'production')
+        console.error('react-blender-nodes runner error:', e);
       if (isMountedRef.current) {
         flushVisualStates();
         setRunnerState('errored');
-        generatorRef.current = null;
+        terminateGenerator();
       }
     }
   }, [
@@ -678,11 +704,14 @@ function useNodeRunner<
         } else {
           finalizeRun(result.value);
         }
-      } catch {
+      } catch (e) {
+        lastErrorRef.current = e;
+        if (process.env.NODE_ENV !== 'production')
+          console.error('react-blender-nodes runner error:', e);
         if (isMountedRef.current) {
           flushVisualStates();
           setRunnerState('errored');
-          generatorRef.current = null;
+          terminateGenerator();
         }
       }
     })();
@@ -723,12 +752,15 @@ function useNodeRunner<
           setNodeVisualStates(
             computeVisualStatesAtStep(partialRecord, stepRecord.stepIndex),
           );
-        } catch {
+        } catch (e) {
+          lastErrorRef.current = e;
+          if (process.env.NODE_ENV !== 'production')
+            console.error('react-blender-nodes runner error:', e);
           shouldContinueRef.current = false;
           if (isMountedRef.current) {
             flushVisualStates();
             setRunnerState('errored');
-            generatorRef.current = null;
+            terminateGenerator();
           }
           return;
         }
@@ -745,7 +777,7 @@ function useNodeRunner<
   const stop = useCallback(() => {
     shouldContinueRef.current = false;
     abortControllerRef.current?.abort();
-    generatorRef.current = null;
+    terminateGenerator();
 
     if (isMountedRef.current) {
       flushVisualStates();
@@ -757,7 +789,7 @@ function useNodeRunner<
   const reset = useCallback(() => {
     shouldContinueRef.current = false;
     abortControllerRef.current?.abort();
-    generatorRef.current = null;
+    terminateGenerator();
 
     if (isMountedRef.current) {
       liveVisualStatesRef.current = new Map();
@@ -799,7 +831,7 @@ function useNodeRunner<
       // Stop any in-flight execution
       shouldContinueRef.current = false;
       abortControllerRef.current?.abort();
-      generatorRef.current = null;
+      terminateGenerator();
 
       // Load the record into runner state (same as finalizeRun)
       finalizeRun(record);

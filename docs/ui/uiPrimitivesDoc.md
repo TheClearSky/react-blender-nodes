@@ -4,9 +4,12 @@
 
 UI Primitives are the foundational layout and display atoms used across the
 react-blender-nodes library. They provide consistent visual building blocks —
-badges, dividers, collapsible sections, scrollable containers, node resizing
-controls, and connection line rendering — that higher-level components compose
-into complete interfaces.
+scrollable containers, node resizing controls, and connection line rendering —
+that higher-level components compose into complete interfaces.
+
+> **Note:** Badge, Separator, and Collapsible are **planned but not yet
+> implemented**. Their sections below describe the intended design
+> specification.
 
 All primitives follow the same conventions:
 
@@ -21,6 +24,7 @@ All primitives follow the same conventions:
 |                                                      |
 |  +--------+  +-----------+  +-------------+          |
 |  | Badge  |  | Separator |  | Collapsible |          |
+|  |(planned)|  | (planned) |  |  (planned)  |          |
 |  +--------+  +-----------+  +-------------+          |
 |                                                      |
 |  +---------------------------+  +-----------------+  |
@@ -36,6 +40,9 @@ All primitives follow the same conventions:
 ---
 
 ## Badge
+
+> **Status: Planned** — This component is not yet implemented. The API below is
+> a design specification.
 
 **File:** `src/components/atoms/Badge/Badge.tsx`
 
@@ -83,6 +90,9 @@ import { Badge } from '@/components/atoms';
 ---
 
 ## Separator
+
+> **Status: Planned** — This component is not yet implemented. The API below is
+> a design specification.
 
 **File:** `src/components/atoms/Separator/Separator.tsx`
 
@@ -137,6 +147,9 @@ import { Separator } from '@/components/atoms';
 ---
 
 ## Collapsible
+
+> **Status: Planned** — This component is not yet implemented. The API below is
+> a design specification.
 
 **File:** `src/components/atoms/Collapsible/Collapsible.tsx`
 
@@ -352,7 +365,7 @@ Both types share the same min/max, aspect ratio, and callback props.
 ## ConfigurableConnection
 
 **File:**
-`src/components/atoms/ConfiguableConnection/ConfigurableConnection.tsx`
+`src/components/atoms/ConfigurableConnection/ConfigurableConnection.tsx`
 
 A custom connection-line component rendered by ReactFlow while the user drags
 from a handle to create a new edge. It automatically colours the in-progress
@@ -425,9 +438,9 @@ import { ConfigurableConnection } from '@/components/atoms';
    positioned over the scroll content. Items near the edges can be partially
    obscured by the arrow. There is no built-in padding offset for this.
 
-3. **ConfigurableConnection folder typo** — The folder is named
-   `ConfiguableConnection` (missing the "r" in "Configurable"). Imports must use
-   the misspelled path.
+3. **ConfigurableConnection folder typo** — The folder was previously named
+   `ConfiguableConnection` (missing the "r" in "Configurable"). This has been
+   fixed; the folder is now correctly named `ConfigurableConnection`.
 
 4. **NodeResizerWithMoreControls line hit area** — Line controls use `!w-4` /
    `!h-4` with `!important` to override ReactFlow defaults. This works but is

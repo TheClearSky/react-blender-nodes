@@ -1,200 +1,259 @@
 import { useReactFlow, useNodeId } from '@xyflow/react';
 import { Input } from '@/components/atoms';
 import { SliderNumberInput } from '@/components/molecules';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  SelectUnsupportedItem,
+} from '@/components/molecules/Select/Select';
 import type { ConfigurableNodeInput } from '../ConfigurableNode';
 import { updateHandleInNodeDataMatchingHandleId } from '@/utils/nodeStateManagement/handles/handleSetters';
 import { Checkbox } from '@/components/atoms/Checkbox/Checkbox';
+import { useInputComponentRegistry } from '@/components/organisms/FullGraph/InputComponentRegistryContext';
 
-/**
- * Props for the ReactFlowAwareInput component
- */
 type ReactFlowAwareInputProps = {
-  /** The input configuration */
   input: ConfigurableNodeInput;
 };
 
-/**
- * ReactFlow-aware input component that automatically updates node data
- *
- * This component renders the appropriate input component (Input or SliderNumberInput)
- * and automatically updates the ReactFlow node data when values change. It integrates
- * with the ReactFlow context to maintain state consistency.
- *
- * @param props - The component props
- * @returns JSX element containing the appropriate input component
- */
+function StringSelectForNode({
+  input,
+  onValueChange,
+}: {
+  input: ConfigurableNodeInput & {
+    type: 'string';
+    allowedStrings: readonly string[];
+  };
+  onValueChange: (value: string | undefined) => void;
+}) {
+  return (
+    <Select
+      value={input.value ?? ''}
+      onValueChange={onValueChange}
+      allowDeselect
+      renderInline
+    >
+      <SelectTrigger>
+        <SelectValue placeholder={input.name} unsupportedLabel='unsupported' />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectUnsupportedItem />
+        {input.allowedStrings.map((option) => (
+          <SelectItem key={option} value={option}>
+            {option}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
   const reactflowContext = useReactFlow();
   const nodeId = useNodeId();
-  return input.type === 'string' ? (
-    <Input
-      placeholder={input.name}
-      value={input.value}
-      onChange={(newValue) => {
-        input.onChange?.(newValue);
-        reactflowContext.setNodes((nodes) =>
-          nodes.map((currentNode) => {
-            if (currentNode.id === nodeId) {
-              return {
-                ...currentNode,
-                data: updateHandleInNodeDataMatchingHandleId(
-                  currentNode.data,
-                  input.id,
-                  { value: newValue },
-                  true,
-                  false,
-                  false,
-                ),
-              };
-            }
-            return currentNode;
-          }),
-        );
-      }}
-      allowOnlyNumbers={false}
-      className='w-full'
-    />
-  ) : input.type === 'number' ? (
-    <SliderNumberInput
-      name={input.name}
-      value={input.value}
-      onChange={(newValue) => {
-        input.onChange?.(newValue);
-        reactflowContext.setNodes((nodes) =>
-          nodes.map((currentNode) => {
-            if (currentNode.id === nodeId) {
-              return {
-                ...currentNode,
-                data: updateHandleInNodeDataMatchingHandleId(
-                  currentNode.data,
-                  input.id,
-                  { value: newValue },
-                  true,
-                  false,
-                  false,
-                ),
-              };
-            }
-            return currentNode;
-          }),
-        );
-      }}
-      className='w-full'
-    />
-  ) : input.type === 'boolean' ? (
-    <div className='flex items-center gap-2 w-full'>
-      <Checkbox
-        checked={input.value}
-        onCheckedChange={(newValue) => {
-          if (newValue !== 'indeterminate') {
-            input.onChange?.(newValue);
-            reactflowContext.setNodes((nodes) =>
-              nodes.map((currentNode) => {
-                if (currentNode.id === nodeId) {
-                  return {
-                    ...currentNode,
-                    data: updateHandleInNodeDataMatchingHandleId(
-                      currentNode.data,
-                      input.id,
-                      { value: newValue },
-                      true,
-                      false,
-                      false,
-                    ),
-                  };
-                }
-                return currentNode;
-              }),
-            );
+  const inputComponentRegistry = useInputComponentRegistry();
+  const updateNodeValue = (newValue: unknown) => {
+    reactflowContext.setNodes((nodes) =>
+      nodes.map((currentNode) => {
+        if (currentNode.id === nodeId) {
+          return {
+            ...currentNode,
+            data: updateHandleInNodeDataMatchingHandleId(
+              currentNode.data,
+              input.id,
+              { value: newValue },
+              true,
+              false,
+              false,
+            ),
+          };
+        }
+        return currentNode;
+      }),
+    );
+  };
+
+  if (input.type === 'string') {
+    return input.allowedStrings && input.allowedStrings.length > 0 ? (
+      <StringSelectForNode
+        input={
+          input as ConfigurableNodeInput & {
+            type: 'string';
+            allowedStrings: readonly string[];
           }
+        }
+        onValueChange={(newValue) => {
+          if (newValue !== undefined) input.onChange?.(newValue);
+          updateNodeValue(newValue);
         }}
       />
-      <p className='text-primary-white text-[27px] leading-[27px] font-main truncate'>
-        {input.name}
-      </p>
-    </div>
-  ) : null;
+    ) : (
+      <Input
+        placeholder={input.name}
+        value={input.value}
+        onChange={(newValue) => {
+          input.onChange?.(newValue);
+          updateNodeValue(newValue);
+        }}
+        allowOnlyNumbers={false}
+        className='w-full'
+      />
+    );
+  }
+
+  if (input.type === 'number') {
+    return (
+      <SliderNumberInput
+        name={input.name}
+        value={input.value}
+        onChange={(newValue) => {
+          input.onChange?.(newValue);
+          updateNodeValue(newValue);
+        }}
+        className='w-full'
+      />
+    );
+  }
+
+  if (input.type === 'boolean') {
+    return (
+      <div className='flex items-center gap-2 w-full'>
+        <Checkbox
+          checked={input.value}
+          onCheckedChange={(newValue) => {
+            if (newValue !== 'indeterminate') {
+              input.onChange?.(newValue);
+              updateNodeValue(newValue);
+            }
+          }}
+        />
+        <p className='text-primary-white text-[27px] leading-[27px] font-main truncate'>
+          {input.name}
+        </p>
+      </div>
+    );
+  }
+
+  if (input.type === 'unsupportedDirectly' && input.dataType) {
+    const CustomComponent =
+      inputComponentRegistry?.[input.dataType.dataTypeUniqueId];
+    if (CustomComponent) {
+      return (
+        <CustomComponent
+          value={input.value}
+          onChange={(newValue) => {
+            input.onChange?.(newValue);
+            updateNodeValue(newValue);
+          }}
+          name={input.name}
+          dataTypeId={input.dataType.dataTypeUniqueId}
+        />
+      );
+    }
+  }
+
+  return null;
 };
 
-/**
- * Props for the ContextAwareInput component
- */
 type ContextAwareInputProps = {
-  /** The input configuration */
   input: ConfigurableNodeInput;
-  /** Whether the component is currently inside a ReactFlow context */
   isCurrentlyInsideReactFlow: boolean;
 };
 
-/**
- * Context-aware input component that handles both connected and unconnected inputs
- *
- * This component intelligently renders either a label (for connected inputs) or an
- * input component (for unconnected inputs) based on the connection state. It uses
- * the ReactFlow context to determine if an input is connected to other nodes.
- *
- * Features:
- * - Automatically detects input connection state
- * - Renders appropriate UI based on connection status
- * - Integrates with ReactFlow's connection system
- * - Supports both string and number input types
- *
- * @param props - The component props
- * @returns JSX element containing either a label or input component
- *
- * @example
- * ```tsx
- * <ContextAwareInput
- *   input={{
- *     id: 'input1',
- *     name: 'Value',
- *     type: 'string',
- *     dataType: 'stringType',
- *     allowInput: true,
- *     value: 'Hello World',
- *   }}
- *   isCurrentlyInsideReactFlow={true}
- * />
- * ```
- */
 const ContextAwareInput = ({
   input,
   isCurrentlyInsideReactFlow,
 }: ContextAwareInputProps) => {
+  const inputComponentRegistry = useInputComponentRegistry();
+
   if (isCurrentlyInsideReactFlow) {
     return <ReactFlowAwareInput input={input} />;
   }
 
-  return input.type === 'string' ? (
-    <Input
-      placeholder={input.name}
-      value={input.value}
-      onChange={input.onChange}
-      allowOnlyNumbers={false}
-      className='w-full'
-    />
-  ) : input.type === 'number' ? (
-    <SliderNumberInput
-      name={input.name}
-      value={input.value}
-      onChange={input.onChange}
-      className='w-full'
-    />
-  ) : input.type === 'boolean' ? (
-    <div className='flex items-center gap-2 w-full'>
-      <Checkbox
-        checked={input.value}
-        onCheckedChange={(newValue) => {
-          if (newValue !== 'indeterminate') {
-            input.onChange?.(newValue);
-          }
+  if (input.type === 'string') {
+    return input.allowedStrings && input.allowedStrings.length > 0 ? (
+      <Select
+        value={input.value ?? ''}
+        onValueChange={(newValue) => {
+          if (newValue !== undefined) input.onChange?.(newValue);
         }}
+        allowDeselect
+      >
+        <SelectTrigger>
+          <SelectValue
+            placeholder={input.name}
+            unsupportedLabel='unsupported'
+          />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectUnsupportedItem />
+          {input.allowedStrings.map((option) => (
+            <SelectItem key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    ) : (
+      <Input
+        placeholder={input.name}
+        value={input.value}
+        onChange={input.onChange}
+        allowOnlyNumbers={false}
+        className='w-full'
       />
-      <p className='text-primary-white text-[27px] leading-[27px] font-main truncate'>
-        {input.name}
-      </p>
-    </div>
-  ) : null;
+    );
+  }
+
+  if (input.type === 'number') {
+    return (
+      <SliderNumberInput
+        name={input.name}
+        value={input.value}
+        onChange={input.onChange}
+        className='w-full'
+      />
+    );
+  }
+
+  if (input.type === 'boolean') {
+    return (
+      <div className='flex items-center gap-2 w-full'>
+        <Checkbox
+          checked={input.value}
+          onCheckedChange={(newValue) => {
+            if (newValue !== 'indeterminate') {
+              input.onChange?.(newValue);
+            }
+          }}
+        />
+        <p className='text-primary-white text-[27px] leading-[27px] font-main truncate'>
+          {input.name}
+        </p>
+      </div>
+    );
+  }
+
+  if (input.type === 'unsupportedDirectly' && input.dataType) {
+    const CustomComponent =
+      inputComponentRegistry?.[input.dataType.dataTypeUniqueId];
+    if (CustomComponent) {
+      return (
+        <CustomComponent
+          value={input.value}
+          onChange={(newValue) => {
+            input.onChange?.(newValue);
+          }}
+          name={input.name}
+          dataTypeId={input.dataType.dataTypeUniqueId}
+        />
+      );
+    }
+  }
+
+  return null;
 };
 
 export { ContextAwareInput, ReactFlowAwareInput };

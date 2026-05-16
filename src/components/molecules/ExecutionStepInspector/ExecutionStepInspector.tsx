@@ -50,7 +50,10 @@ function typeSummary(value: unknown): string {
   if (value instanceof Map) return `Map(${value.size})`;
   if (Array.isArray(value)) return `Array(${value.length})`;
   if (typeof value === 'function') return 'function';
-  return `Object(${Object.keys(value as Record<string, unknown>).length})`;
+  if (typeof value === 'object' && value !== null) {
+    return `Object(${Object.keys(value).length})`;
+  }
+  return `Object(?)`;
 }
 
 function isComplex(value: unknown): boolean {

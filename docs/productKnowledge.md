@@ -648,7 +648,10 @@ These properties are always maintained by the library:
 
 - **Acyclicity**: The graph is always a DAG (no directed cycles), enforced by
   the validation pipeline
-- **Single input source**: Each input handle has at most one incoming edge
+- **Input connection limits**: Each input handle can accept multiple incoming
+  edges by default. The `maxConnections` property on a data type or handle
+  controls how many edges can connect; only `bindLoopNodes` explicitly sets
+  `maxConnections: 1`
 - **Multiple output targets**: Output handles can feed any number of target
   handles
 - **Loop triplet integrity**: loopStart/loopStop/loopEnd must always form a

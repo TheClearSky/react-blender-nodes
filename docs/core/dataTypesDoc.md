@@ -221,7 +221,7 @@ node groups and loops.
 
 ### SupportedUnderlyingTypes
 
-Defined in [types.ts:9-21](src/utils/nodeStateManagement/types.ts#L9-L21):
+Defined in [types.ts:9-16](src/utils/nodeStateManagement/types.ts#L9-L16):
 
 ```typescript
 const supportedUnderlyingTypes = [

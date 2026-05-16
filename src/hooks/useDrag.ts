@@ -68,6 +68,9 @@ function useDrag({
   );
   const elementSize = useRef<{ width: number; height: number } | null>(null);
 
+  const mouseMoveRef = useRef<((e: MouseEvent) => void) | null>(null);
+  const mouseUpRef = useRef<((e: MouseEvent) => void) | null>(null);
+
   const dragRef = useCallback((element: HTMLElement | null) => {
     setDragElement(element);
   }, []);
@@ -92,29 +95,6 @@ function useDrag({
 
       setIsDragging(true);
 
-      const handleMouseUp = (event: MouseEvent) => {
-        if (preventDefaultAndStopPropagation) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-        document.removeEventListener('mouseup', handleMouseUp);
-        document.removeEventListener('mousemove', handleMouseMove);
-
-        setIsDragging(false);
-
-        // Check if this was a click (small movement) rather than a drag
-        if (initialMouseDownPosition.current) {
-          const distance = Math.sqrt(
-            (event.clientX - initialMouseDownPosition.current.x) ** 2 +
-              (event.clientY - initialMouseDownPosition.current.y) ** 2,
-          );
-
-          if (distance < clickThreshold) {
-            onClick?.();
-          }
-        }
-      };
-
       const handleMouseMove = (event: MouseEvent) => {
         if (preventDefaultAndStopPropagation) {
           event.preventDefault();
@@ -131,6 +111,33 @@ function useDrag({
         onMove?.(movementX, movementY, deltaX, deltaY, width, height);
       };
 
+      const handleMouseUp = (event: MouseEvent) => {
+        if (preventDefaultAndStopPropagation) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('mousemove', handleMouseMove);
+        mouseMoveRef.current = null;
+        mouseUpRef.current = null;
+
+        setIsDragging(false);
+
+        // Check if this was a click (small movement) rather than a drag
+        if (initialMouseDownPosition.current) {
+          const distance = Math.sqrt(
+            (event.clientX - initialMouseDownPosition.current.x) ** 2 +
+              (event.clientY - initialMouseDownPosition.current.y) ** 2,
+          );
+
+          if (distance < clickThreshold) {
+            onClick?.();
+          }
+        }
+      };
+
+      mouseMoveRef.current = handleMouseMove;
+      mouseUpRef.current = handleMouseUp;
       document.addEventListener('mouseup', handleMouseUp);
       document.addEventListener('mousemove', handleMouseMove);
     };
@@ -139,6 +146,14 @@ function useDrag({
 
     return () => {
       dragElement.removeEventListener('mousedown', handleMouseDown);
+      if (mouseMoveRef.current) {
+        document.removeEventListener('mousemove', mouseMoveRef.current);
+        mouseMoveRef.current = null;
+      }
+      if (mouseUpRef.current) {
+        document.removeEventListener('mouseup', mouseUpRef.current);
+        mouseUpRef.current = null;
+      }
     };
   }, [
     dragElement,

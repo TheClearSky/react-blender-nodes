@@ -370,7 +370,7 @@ function serializeExecutionRecord(
     startTime: record.startTime,
     endTime: record.endTime,
     totalDuration: record.totalDuration,
-    compilationDuration: record.compilationDuration,
+    warmupDuration: record.warmupDuration,
     totalPauseDuration: record.totalPauseDuration,
     status: record.status,
     steps: record.steps.map(serializeStepRecord),
@@ -419,7 +419,7 @@ function deserializeExecutionRecord(
     startTime: obj.startTime,
     endTime: obj.endTime,
     totalDuration: obj.totalDuration,
-    compilationDuration: obj.compilationDuration ?? 0,
+    warmupDuration: obj.warmupDuration ?? 0,
     totalPauseDuration: obj.totalPauseDuration ?? 0,
     status: obj.status,
     steps: (obj.steps ?? []).map((s: SerializedStepRecord) =>
@@ -441,9 +441,18 @@ function deserializeExecutionRecord(
 // ─────────────────────────────────────────────────────
 
 /**
- * Deep-clone a value using structuredClone (available in all modern runtimes).
- * Falls back to JSON round-trip if structuredClone isn't available,
- * stripping non-serializable values in the process.
+ * Deep-clone a value.
+ *
+ * 1. Attempts `structuredClone` first — handles most JS types (Date, Map,
+ *    Set, ArrayBuffer, etc.) but throws on functions and Zod schemas.
+ * 2. Falls back to `JSON.parse(JSON.stringify(...))` which is **JSON-safe
+ *    only**: it silently strips `Map`, `Set`, `Date` (to string), `undefined`,
+ *    `BigInt` (throws), functions, and symbols.
+ *
+ * **Callers must ensure** the input contains only JSON-safe data, or strip
+ * non-serializable fields before calling. Current callers
+ * ({@link stripHandleNonSerializable} in `StateSerializer.serialize`) already
+ * remove Zod schemas and callbacks, so the fallback is safe for existing usage.
  */
 function deepClone<T>(value: T): T {
   if (typeof structuredClone === 'function') {

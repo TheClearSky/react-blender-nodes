@@ -21,16 +21,17 @@ import layer rehydrates or reconstructs them.
 
 ### Source files
 
-| File                                      | Responsibility                                |
-| ----------------------------------------- | --------------------------------------------- |
-| `src/utils/importExport/index.ts`         | Public API barrel                             |
-| `src/utils/importExport/types.ts`         | All type definitions                          |
-| `src/utils/importExport/stateExport.ts`   | `exportGraphState`                            |
-| `src/utils/importExport/stateImport.ts`   | `importGraphState`                            |
-| `src/utils/importExport/recordExport.ts`  | `exportExecutionRecord`                       |
-| `src/utils/importExport/recordImport.ts`  | `importExecutionRecord`                       |
-| `src/utils/importExport/validation.ts`    | Structural validators                         |
-| `src/utils/importExport/serialization.ts` | Serialization helpers, stripping, rehydration |
+| File                                        | Responsibility                                                                                                                                                                     |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/utils/importExport/index.ts`           | Public API barrel                                                                                                                                                                  |
+| `src/utils/importExport/types.ts`           | All type definitions                                                                                                                                                               |
+| `src/utils/importExport/stateExport.ts`     | `exportGraphState`                                                                                                                                                                 |
+| `src/utils/importExport/stateImport.ts`     | `importGraphState`                                                                                                                                                                 |
+| `src/utils/importExport/recordExport.ts`    | `exportExecutionRecord`                                                                                                                                                            |
+| `src/utils/importExport/recordImport.ts`    | `importExecutionRecord`                                                                                                                                                            |
+| `src/utils/importExport/validation.ts`      | Structural validators                                                                                                                                                              |
+| `src/utils/importExport/stateSerializer.ts` | Encapsulates state serialization logic used by `exportGraphState` -- deep-clones and strips non-serializable fields (complexSchema, onChange callbacks, dataTypeObject references) |
+| `src/utils/importExport/serialization.ts`   | Serialization helpers, stripping, rehydration                                                                                                                                      |
 
 ---
 
@@ -255,6 +256,23 @@ Stripping is applied to:
 
 Everything else (node positions, edge connections, viewport, feature flags, node
 group stack) passes through unchanged.
+
+### StateSerializer class
+
+**Location:** `src/utils/importExport/stateSerializer.ts`
+
+`StateSerializer` is a static utility class that encapsulates the
+clone-and-strip logic used by `exportGraphState`. Static methods:
+
+- `serialize(state)` -- deep-clones the state, strips all non-serializable
+  fields, and wraps the result in an `ExportedGraphState` envelope.
+- `serializeNode(node)` -- strips non-serializable handle fields from a single
+  already-cloned node object.
+- `stripDataTypes(cloned)` -- removes `complexSchema` from each dataType
+  (mutates in place).
+- `stripTypeOfNodes(cloned)` -- removes non-serializable fields from typeOfNodes
+  handle definitions, including panel-nested inputs and subtree nodes (mutates
+  in place).
 
 ---
 

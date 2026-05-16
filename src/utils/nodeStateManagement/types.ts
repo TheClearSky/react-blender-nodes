@@ -48,7 +48,7 @@ const supportedUnderlyingTypesMap = {
 function isSupportedUnderlyingType(
   type: string,
 ): type is SupportedUnderlyingTypes {
-  return Boolean(supportedUnderlyingTypesMap[type as SupportedUnderlyingTypes]);
+  return type in supportedUnderlyingTypesMap;
 }
 
 /**
@@ -94,6 +94,8 @@ type DataType<
       allowInput?: boolean;
       /** Maximum number of connections for this data type */
       maxConnections?: number;
+      /** When set on a string type, renders a select dropdown instead of a free-text input. */
+      allowedStrings?: readonly string[];
     };
 
 /**
@@ -338,6 +340,57 @@ function makeAllowedConversionsBetweenDataTypesWithAutoInfer<
 }
 
 /**
+ * Constraints on how many nodes of each type may exist in different scopes.
+ *
+ * - If undefined on State: no constraints at all
+ * - If a node type has no entry: no constraints for that type
+ * - Each field is optional; only provided fields are enforced (AND-ed together)
+ * - Only checked during ADD_NODE (max) and node deletion (min)
+ *
+ * @template NodeTypeUniqueId - Unique identifier type for node types
+ */
+type NodeCountConstraints<NodeTypeUniqueId extends string = string> = Partial<
+  Record<
+    NodeTypeUniqueId,
+    {
+      /** Minimum count across root + all group subtrees combined */
+      minAcrossAllNodes?: number;
+      /** Maximum count across root + all group subtrees combined */
+      maxAcrossAllNodes?: number;
+      /** Minimum count within each individual group subtree (checked per-group) */
+      minWithinANodeGroup?: number;
+      /** Maximum count within each individual group subtree (checked per-group) */
+      maxWithinANodeGroup?: number;
+      /** Minimum count in the root scope only */
+      minInRoot?: number;
+      /** Maximum count in the root scope only */
+      maxInRoot?: number;
+    }
+  >
+>;
+
+/**
+ * Helper function to create node count constraints with automatic type inference
+ *
+ * @template NodeTypeUniqueId - Unique identifier type for node types
+ * @param input - The node count constraints
+ * @returns The constraints with proper typing
+ *
+ * @example
+ * ```tsx
+ * const constraints = makeNodeCountConstraintsWithAutoInfer({
+ *   dataSource: { maxAcrossAllNodes: 3, maxInRoot: 2 },
+ *   outputNode: { minInRoot: 1, maxInRoot: 1 },
+ * });
+ * ```
+ */
+function makeNodeCountConstraintsWithAutoInfer<
+  NodeTypeUniqueId extends string = string,
+>(input: NodeCountConstraints<NodeTypeUniqueId>) {
+  return input;
+}
+
+/**
  * Complete state definition for the graph system
  *
  * @template DataTypeUniqueId - Unique identifier type for data types
@@ -455,6 +508,24 @@ type State<
   enableRecursionChecking?: boolean;
 
   /**
+   * Optional constraints on how many nodes of each type may exist.
+   * If not provided, no constraints are enforced.
+   * Only checked during ADD_NODE (max) and node deletion (min).
+   *
+   * @default undefined
+   */
+  nodeCountConstraints?: NodeCountConstraints<NodeTypeUniqueId>;
+
+  /**
+   * Node types to hide from the "Add Node" context menu.
+   * If not provided, all node types are shown.
+   * Use `standardHiddenNodeTypesInContextMenu` from standardNodes for the default set.
+   *
+   * @default undefined
+   */
+  hiddenNodeTypesInContextMenu?: Partial<Record<NodeTypeUniqueId, true>>;
+
+  /**
    * Whether to enable debugging mode
    * - If not provided, is considered disabled
    * - When disabled, no debug information is displayed in the graph
@@ -533,6 +604,7 @@ export {
   makeDataTypeWithAutoInfer,
   makeTypeOfNodeWithAutoInfer,
   makeAllowedConversionsBetweenDataTypesWithAutoInfer,
+  makeNodeCountConstraintsWithAutoInfer,
   makeStateWithAutoInfer,
   supportedUnderlyingTypesMap,
   isValidDataTypeId,
@@ -543,5 +615,6 @@ export type {
   TypeOfNode,
   TypeOfInput,
   TypeOfInputPanel,
+  NodeCountConstraints,
   State,
 };

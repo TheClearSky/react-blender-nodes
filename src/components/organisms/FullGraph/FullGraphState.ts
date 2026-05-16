@@ -1,10 +1,12 @@
-import { createContext, useContext, useReducer } from 'react';
-import type { FullGraphProps } from './FullGraph';
 import {
-  mainReducer,
-  type State,
-  type SupportedUnderlyingTypes,
-} from '@/utils';
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+} from 'react';
+import type { FullGraphProps } from './FullGraph';
+import { type State, type SupportedUnderlyingTypes } from '@/utils';
 import type z from 'zod';
 import type {
   NodeVisualState,
@@ -12,6 +14,8 @@ import type {
   ExecutionRecord,
   ExecutionStepRecord,
 } from '@/utils/nodeRunner/types';
+import type { GraphEvent } from '@/utils/nodeStateManagement/graphEvent';
+import { createGraphStore, type GraphStore } from './graphStore';
 
 /**
  * Per-node runner state provided via context so the ReactFlow wrapper
@@ -120,6 +124,39 @@ function useRecordContext(): RecordContextValue {
  * });
  * ```
  */
+/**
+ * Optional configuration for `useFullGraph`.
+ *
+ * Currently the only field is `onGraphEvent` — a unified observability
+ * channel for the entire reducer + commit lifecycle. See
+ * `src/utils/nodeStateManagement/graphEvent.ts` for the event taxonomy.
+ *
+ * The handler is captured via a ref so identity changes don't recreate
+ * `dispatch`. Pass an inline function freely.
+ */
+type UseFullGraphOptions<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+> = {
+  /**
+   * Fires for every dispatched action (`action:applied`/`action:rejected`)
+   * and every render commit (`state:committed`). Combine with
+   * `<FullGraph>`'s `onGraphEvent` to also receive UI-only events.
+   */
+  onGraphEvent?: (
+    event: GraphEvent<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >,
+  ) => void;
+};
+
 function useFullGraph<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
@@ -134,18 +171,72 @@ function useFullGraph<
     UnderlyingType,
     ComplexSchemaType
   >,
+  options?: UseFullGraphOptions<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
 ) {
-  const [state, dispatch] = useReducer(
-    mainReducer<
+  // Latest-value ref for the consumer's onGraphEvent callback. The store
+  // closes over a getter (not the value) so identity changes from
+  // render-to-render don't force store recreation.
+  const onGraphEventRef = useRef<
+    UseFullGraphOptions<
       DataTypeUniqueId,
       NodeTypeUniqueId,
       UnderlyingType,
       ComplexSchemaType
-    >,
-    initialState,
+    >['onGraphEvent']
+  >(options?.onGraphEvent);
+  onGraphEventRef.current = options?.onGraphEvent;
+
+  // Create the external store EXACTLY ONCE per hook instance. `useRef`
+  // with lazy init is the pattern React docs prescribe for this case;
+  // initialState is captured at first render (same behavior as
+  // `useReducer(mainReducer, initialState)` had — initialState changes
+  // after first render are ignored, which is the documented contract).
+  const storeRef = useRef<GraphStore<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  > | null>(null);
+  if (storeRef.current === null) {
+    storeRef.current = createGraphStore<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >(initialState, () => onGraphEventRef.current);
+  }
+  const store = storeRef.current;
+
+  // React subscribes to the external store. This is React 18's official
+  // primitive for non-React state — concurrent-rendering safe, batch-
+  // friendly, tear-resistant. Same hook React-Redux v8+ uses internally.
+  // Third arg is the SSR snapshot fallback (we just return the same
+  // state — it's serializable).
+  const state = useSyncExternalStore(
+    store.subscribe,
+    store.getState,
+    store.getState,
   );
 
-  return { state, dispatch };
+  // Render-commit barrier — fires after React commits any change to the
+  // node or edge counts. This is the canonical signal that the new
+  // nodes' React fibers (handles, listeners) are fully attached. It
+  // CANNOT be moved into the store's dispatch because dispatch runs
+  // before React commits to the DOM.
+  useEffect(() => {
+    onGraphEventRef.current?.({
+      kind: 'state:committed',
+      nodeCount: state.nodes.length,
+      edgeCount: state.edges.length,
+    });
+  }, [state.nodes.length, state.edges.length]);
+
+  return { state, dispatch: store.dispatch };
 }
 
 /**
@@ -183,4 +274,4 @@ export {
   useRecordContext,
 };
 
-export type { NodeRunnerState };
+export type { NodeRunnerState, UseFullGraphOptions };

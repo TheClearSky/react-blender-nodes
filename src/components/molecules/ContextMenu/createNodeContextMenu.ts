@@ -1,6 +1,7 @@
 import { PlusIcon } from 'lucide-react';
 import { createElement, type ActionDispatch } from 'react';
 import type { ContextMenuItem } from './ContextMenu';
+import { typedKeys } from '@/utils/typedKeys';
 import type {
   State,
   SupportedUnderlyingTypes,
@@ -39,6 +40,7 @@ type CreateNodeContextMenuProps<
   >;
   setContextMenu: (menu: { isOpen: boolean; position: XYPosition }) => void;
   contextMenuPosition: XYPosition;
+  hiddenNodeTypesInContextMenu?: Partial<Record<NodeTypeUniqueId, true>>;
   /**
    * Whether to allow recursion
    * - If not provided, is considered true
@@ -134,15 +136,14 @@ function createNodeContextMenu<
   contextMenuPosition,
   isRecursionAllowed = true,
   currentNodeType,
+  hiddenNodeTypesInContextMenu,
 }: CreateNodeContextMenuProps<
   DataTypeUniqueId,
   NodeTypeUniqueId,
   UnderlyingType,
   ComplexSchemaType
 >): ContextMenuItem[] {
-  const nodeTypeKeys = Object.keys(typeOfNodes) as Array<
-    keyof typeof typeOfNodes
-  >;
+  const nodeTypeKeys = typedKeys(typeOfNodes);
 
   if (nodeTypeKeys.length === 0) {
     return [];
@@ -173,7 +174,7 @@ function createNodeContextMenu<
   const filteredNodeTypeKeys = filterNodeTypeKeys(
     nodeTypeKeys,
     isRecursionAllowed,
-  );
+  ).filter((id) => !hiddenNodeTypesInContextMenu?.[id]);
 
   // Build tree from location paths
   const root: MenuTreeNode[] = [];

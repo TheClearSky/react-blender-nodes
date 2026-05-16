@@ -641,7 +641,7 @@ class ExecutionRecorder {
       startTime: scope.startTime,
       endTime: now,
       totalDuration: now - scope.startTime,
-      compilationDuration: 0,
+      warmupDuration: 0,
       totalPauseDuration: this.getEffectivePauseDuration(),
       status,
       steps: scopedSteps,
@@ -752,7 +752,7 @@ class ExecutionRecorder {
       startTime: this.startTime,
       endTime: now,
       totalDuration: now - this.startTime,
-      compilationDuration: 0,
+      warmupDuration: 0,
       totalPauseDuration: this.getEffectivePauseDuration(),
       status,
       steps: [...this.steps],
@@ -770,7 +770,7 @@ class ExecutionRecorder {
   finalize(
     status: ExecutionRecordStatus,
     finalValues: ReadonlyMap<string, unknown>,
-    compilationDuration = 0,
+    warmupDuration = 0,
   ): ExecutionRecord {
     const endTime = this.timer.now();
 
@@ -779,7 +779,7 @@ class ExecutionRecorder {
       startTime: this.startTime,
       endTime,
       totalDuration: endTime - this.startTime,
-      compilationDuration,
+      warmupDuration,
       totalPauseDuration: this.getEffectivePauseDuration(),
       status,
       steps: this.steps,

@@ -132,8 +132,8 @@ selection box to be selected. The `'x'` key is included alongside
 | `addEdge`           | `constructAndModifyHandles.ts`                       | Adds edge with ReactFlow's built-in dedup check              |
 | `applyEdgeChanges`  | `mainReducer.ts`, `constructAndModifyHandles.ts`     | Applies edge change objects to edge array                    |
 | `applyNodeChanges`  | `mainReducer.ts`                                     | Applies node change objects to node array                    |
-| `getOutgoers`       | `constructAndModifyHandles.ts`, `loops.ts`           | DFS traversal for cycle detection and loop validation        |
-| `getIncomers`       | `loops.ts`                                           | Upstream traversal for loop validation                       |
+| `getOutgoers`       | `constructAndModifyHandles.ts`, `loops/`             | DFS traversal for cycle detection and loop validation        |
+| `getIncomers`       | `loops/`                                             | Upstream traversal for loop validation                       |
 | `getConnectedEdges` | `newOrRemovedEdgeValidation.ts`                      | Finds all edges connected to a node for type inference reset |
 | `getBezierPath`     | `ConfigurableEdge.tsx`, `ConfigurableConnection.tsx` | Computes SVG bezier curve for edge rendering                 |
 
@@ -435,7 +435,7 @@ newOrRemovedEdgeValidation.ts                           getConnectedEdges
 
 nodes/constructAndModifyNodes.ts                        Position, XYPosition
 
-nodes/loops.ts                                          getOutgoers, getIncomers
+nodes/loops/                                            getOutgoers, getIncomers
 
 createNodeContextMenu.ts                                XYPosition
 

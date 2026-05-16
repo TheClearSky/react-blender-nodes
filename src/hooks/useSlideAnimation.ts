@@ -69,6 +69,13 @@ function useSlideAnimation(
     if (!isOpen) {
       anim.onfinish = () => setMounted(false);
     }
+
+    return () => {
+      if (animRef.current) {
+        animRef.current.onfinish = null;
+        animRef.current.cancel();
+      }
+    };
   }, [isOpen, mounted, durationMs, hiddenTransform, visibleTransform, easing]);
 
   // Inline style keeps the element at the hidden position on first paint

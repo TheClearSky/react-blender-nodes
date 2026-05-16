@@ -82,7 +82,7 @@ function inferTypeOnHandleAfterConnectingWithAnotherHandle<
     Object.assign(handle, updateValues);
     return handle;
   } else {
-    return produce(handle, (draft) => {
+    return produce(handle, (draft: typeof handle) => {
       Object.assign(draft, updateValues);
       return draft;
     });
@@ -145,7 +145,7 @@ function inferTypeAcrossTheNodeForHandleOfDataType<
       }
     });
   } else {
-    return produce(nodeData, (draft) => {
+    return produce(nodeData, (draft: typeof nodeData) => {
       transformHandlesInNodeDataInPlace<
         UnderlyingType,
         NodeTypeUniqueId,

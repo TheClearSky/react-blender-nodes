@@ -33,8 +33,8 @@ function formatEdgeValue(value: unknown): string {
   }
   if (value instanceof Map) return `Map(${value.size})`;
   if (Array.isArray(value)) return `[${value.length}]`;
-  if (typeof value === 'object')
-    return `{${Object.keys(value as Record<string, unknown>).length}}`;
+  if (typeof value === 'object' && value !== null)
+    return `{${Object.keys(value).length}}`;
   return String(value);
 }
 

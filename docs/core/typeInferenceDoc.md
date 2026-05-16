@@ -466,7 +466,7 @@ enters `loopStop` input, and so on.
 
 ### addDuplicateHandlesToLoopNodesAfterInference
 
-**File**: `src/utils/nodeStateManagement/nodes/loops.ts`
+**File**: `src/utils/nodeStateManagement/nodes/loops/loopHandleSync.ts`
 
 After a loop node's infer handle gets inferred:
 

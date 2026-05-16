@@ -65,7 +65,7 @@ function topologicalSortWithLevels(
   }
 
   // If we didn't process all nodes, there's a cycle
-  // (should not happen due to upstream cycle checking, but guard anyway)
+  // (should not happen due to upstream cycle checking)
   if (processedCount < nodeIds.length) {
     const processedSet = new Set<string>();
     for (const level of levels) {
@@ -73,11 +73,11 @@ function topologicalSortWithLevels(
         processedSet.add(id);
       }
     }
-    const unprocessed = nodeIds.filter((id) => !processedSet.has(id));
-    // Place remaining nodes in a final level rather than silently dropping them
-    if (unprocessed.length > 0) {
-      levels.push(unprocessed);
-    }
+    const unprocessedNodeIds = nodeIds.filter((id) => !processedSet.has(id));
+    throw new Error(
+      'Topological sort detected cycle among nodes: ' +
+        [...unprocessedNodeIds].join(', '),
+    );
   }
 
   return levels;

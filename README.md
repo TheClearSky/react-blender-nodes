@@ -232,8 +232,11 @@ your graph into an execution plan and runs it — with full debugging support.
 ### Usage
 
 ```tsx
-import { FullGraph, useFullGraph } from 'react-blender-nodes';
-import { makeFunctionImplementationsWithAutoInfer } from 'react-blender-nodes';
+import {
+  FullGraph,
+  useFullGraph,
+  makeFunctionImplementationsWithAutoInfer,
+} from 'react-blender-nodes';
 
 // Define what each node type does when executed
 const functionImplementations = makeFunctionImplementationsWithAutoInfer({
@@ -243,12 +246,18 @@ const functionImplementations = makeFunctionImplementationsWithAutoInfer({
   },
 });
 
-// Pass implementations to FullGraph to enable the runner
-<FullGraph
-  state={state}
-  dispatch={dispatch}
-  functionImplementations={functionImplementations}
-/>;
+function MyExecutableGraph() {
+  const { state, dispatch } = useFullGraph(initialState);
+
+  // Pass implementations to FullGraph to enable the runner
+  return (
+    <FullGraph
+      state={state}
+      dispatch={dispatch}
+      functionImplementations={functionImplementations}
+    />
+  );
+}
 ```
 
 ### useNodeRunner Hook

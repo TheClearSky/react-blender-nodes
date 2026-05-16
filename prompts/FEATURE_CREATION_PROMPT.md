@@ -1103,15 +1103,15 @@ Each directory re-exports its contents.
 **Real example** (from `atoms/index.ts`):
 
 ```typescript
-export * from './Badge';
+export * from './Accordion';
 export * from './Button';
-export * from './Collapsible';
 export * from './ConfigurableEdge';
 export * from './Input';
 export * from './NodeResizerWithMoreControls';
 export * from './NodeStatusIndicator';
 export * from './ScrollableButtonContainer';
-export * from './Separator';
+export * from './Tooltip';
+// Note: Badge, Collapsible, Separator are planned but not yet implemented
 ```
 
 ### Path Aliases
@@ -1339,11 +1339,11 @@ src/
 |   |   +-- nodes/
 |   |       +-- constructAndModifyNodes.ts  Node construction from TypeOfNode
 |   |       +-- nodeGroups.ts         Group subtree operations
-|   |       +-- loops.ts             Loop triplet operations
+|   |       +-- loops/                Loop triplet operations (folder)
 |   +-- nodeRunner/
 |   |   +-- types.ts                  RunnerState, ExecutionStep, FunctionImplementation, GraphError
 |   |   +-- compiler.ts              5-phase compilation pipeline
-|   |   +-- executor.ts              Async execution engine
+|   |   +-- executor/                Async execution engine (folder)
 |   |   +-- useNodeRunner.ts         React hook state machine
 |   |   +-- executionRecorder.ts     Execution recording
 |   |   +-- valueStore.ts            ValueStore class, MinimalNodeData
@@ -1374,7 +1374,7 @@ src/
 |   |   +-- ExecutionTimeline/        Timeline + zoom/pan + scrub hooks
 |   |   +-- ExecutionStepInspector/   Step detail panel
 |   +-- atoms/
-|       +-- Badge/, Button/, Input/, Separator/, Collapsible/
+|       +-- Badge/ (planned), Button/, Input/, Separator/ (planned), Collapsible/ (planned)
 |       +-- NodeStatusIndicator/      Visual state overlay
 |       +-- ConfigurableEdge/         Edge rendering
 |       +-- ScrollableButtonContainer/
@@ -1540,7 +1540,8 @@ When creating a new feature:
 |                                                                           |
 |  NodeStatusIndicator                 State export/import                  |
 |  Input, Button, Checkbox             Recording export/import              |
-|  Badge, Separator, Collapsible       Validation & repair                  |
+|  Badge (planned), Separator (planned) Validation & repair                 |
+|  Collapsible (planned)                                                    |
 |  ScrollableButtonContainer           JSON serialization                   |
 |  useDrag, useClickedOutside                                               |
 |  useSlideAnimation, useResizeHandle                                       |
@@ -1681,12 +1682,12 @@ For deep dives into specific areas, consult these docs.
 
 ### Atoms, Hooks & Utilities
 
-| Doc                                 | Covers                                                               |
-| ----------------------------------- | -------------------------------------------------------------------- |
-| `docs/ui/nodeStatusIndicatorDoc.md` | Visual state overlay: running/completed/errored/warning borders      |
-| `docs/ui/inputComponentsDoc.md`     | Text input, number slider, checkbox, button atoms                    |
-| `docs/ui/uiPrimitivesDoc.md`        | Badge, Separator, Collapsible, ScrollableButtonContainer             |
-| `docs/hooks/hooksDoc.md`            | useDrag, useClickedOutside, useSlideAnimation, useResizeHandle, etc. |
+| Doc                                 | Covers                                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------------------------- |
+| `docs/ui/nodeStatusIndicatorDoc.md` | Visual state overlay: running/completed/errored/warning borders                        |
+| `docs/ui/inputComponentsDoc.md`     | Text input, number slider, checkbox, button atoms                                      |
+| `docs/ui/uiPrimitivesDoc.md`        | Badge (planned), Separator (planned), Collapsible (planned), ScrollableButtonContainer |
+| `docs/hooks/hooksDoc.md`            | useDrag, useClickedOutside, useSlideAnimation, useResizeHandle, etc.                   |
 
 ### Import/Export
 

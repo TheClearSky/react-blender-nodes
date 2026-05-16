@@ -1,8 +1,8 @@
 /**
  * Generates a random alphanumeric string of specified length
  *
- * This function creates a cryptographically random string using Math.random()
- * converted to base-36. It efficiently handles long strings by generating
+ * This function creates a pseudo-random string (uses Math.random()) converted
+ * to base-36. Not suitable for security-sensitive use cases. It efficiently handles long strings by generating
  * multiple segments and concatenating them.
  *
  * @param length - The desired length of the random string

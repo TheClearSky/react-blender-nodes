@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { Toaster, toast } from 'sonner';
 
 import { FullGraph, useFullGraph } from './';
 import { Position } from '@xyflow/react';
@@ -11,7 +12,13 @@ import {
 import { handleShapesMap } from '@/components/organisms/ConfigurableNode';
 import state1 from './PlaygroundState1.json';
 import { z } from 'zod';
-import { standardDataTypes, standardNodeTypes } from '@/utils';
+import {
+  standardDataTypes,
+  standardNodeTypes,
+  standardNodeCountConstraints,
+  standardHiddenNodeTypesInContextMenu,
+  type SupportedUnderlyingTypes,
+} from '@/utils';
 import { makeFunctionImplementationsWithAutoInfer } from '@/utils/nodeRunner/types';
 import { constructNodeOfType } from '@/utils/nodeStateManagement/nodes/constructAndModifyNodes';
 import type {
@@ -19,6 +26,8 @@ import type {
   ExecutionRecord,
 } from '@/utils/nodeRunner/types';
 import { importExecutionRecord } from '@/utils/importExport';
+import { ColorPicker } from '@/components/molecules/ColorPicker/ColorPicker';
+import type { OklchColor } from '@/components/molecules/ColorPicker/lib/types';
 import adderLoopState from '../../../../.storybook/static/graphStates/adder-state-with-inner-noop-loop.json';
 import adderLoopRecordingJson from '../../../../.storybook/static/graphStates/adder-state-with-inner-noop-loop-instant.json';
 
@@ -423,6 +432,7 @@ export const Playground: StoryObj<typeof FullGraph> = {
       dataTypes: exampleDataTypes,
       typeOfNodes: exampleTypeOfNodes,
       enableTypeInference: true,
+      nodeCountConstraints: standardNodeCountConstraints,
       nodes: state1.nodes as Nodes,
       edges: state1.edges as Edges,
     });
@@ -538,6 +548,8 @@ export const WithControlledInputs: StoryObj<typeof FullGraph> = {
           type: 'configurableEdge',
         },
       ],
+      nodeCountConstraints: standardNodeCountConstraints,
+      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
 
     return <FullGraph state={state} dispatch={dispatch} />;
@@ -732,6 +744,8 @@ export const WithHandleShapes: StoryObj<typeof FullGraph> = {
           type: 'configurableEdge',
         },
       ],
+      nodeCountConstraints: standardNodeCountConstraints,
+      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
 
     return <FullGraph state={state} dispatch={dispatch} />;
@@ -757,6 +771,8 @@ export const WithTypeCheckingAndConversions: StoryObj<typeof FullGraph> = {
       enableComplexTypeChecking: true,
       enableTypeInference: true,
       enableDebugMode: true,
+      nodeCountConstraints: standardNodeCountConstraints,
+      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
 
     return (
@@ -807,8 +823,9 @@ export const WithCycleChecking: StoryObj<typeof FullGraph> = {
       typeOfNodes: exampleTypeOfNodes,
       nodes: [],
       edges: [],
-      //Enable cycle checking
       enableCycleChecking: true,
+      nodeCountConstraints: standardNodeCountConstraints,
+      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
 
     return (
@@ -855,6 +872,13 @@ const circuitExampleDataTypes = {
     color: '#FF6B6B',
     shape: handleShapesMap.circle,
     allowInput: true,
+  }),
+  gateMode: makeDataTypeWithAutoInfer({
+    name: 'Gate Mode',
+    underlyingType: 'string',
+    color: '#FECA57',
+    allowInput: true,
+    allowedStrings: ['AND', 'OR', 'XOR', 'NAND', 'NOR', 'XNOR'],
   }),
   ...standardDataTypes,
 } as const;
@@ -953,6 +977,20 @@ const circuitExampleTypeOfNodes = {
       { name: 'Reached Max', dataType: 'bit' },
     ],
   }),
+  configurableGate: makeTypeOfNodeWithAutoInfer<
+    CircuitDataTypeId,
+    'configurableGate'
+  >({
+    name: 'Configurable Gate',
+    headerColor: '#6B5B95',
+    locationInContextMenu: ['Logic Gates'],
+    inputs: [
+      { name: 'A', dataType: 'bit' },
+      { name: 'B', dataType: 'bit' },
+      { name: 'Mode', dataType: 'gateMode', allowInput: true },
+    ],
+    outputs: [{ name: 'Out', dataType: 'bit' }],
+  }),
   ...standardNodeTypes,
 } as const;
 
@@ -1021,6 +1059,21 @@ const circuitImplementations =
         ['Count + 1', count + 1],
         ['Reached Max', count + 1 >= max],
       ]);
+    },
+    configurableGate: (inputs) => {
+      const a = Boolean(getFirstInputVal(inputs.get('A'), false));
+      const b = Boolean(getFirstInputVal(inputs.get('B'), false));
+      const mode = String(getFirstInputVal(inputs.get('Mode'), 'AND'));
+      const operations: Record<string, (x: boolean, y: boolean) => boolean> = {
+        AND: (x, y) => x && y,
+        OR: (x, y) => x || y,
+        XOR: (x, y) => x !== y,
+        NAND: (x, y) => !(x && y),
+        NOR: (x, y) => !(x || y),
+        XNOR: (x, y) => x === y,
+      };
+      const operation = operations[mode] ?? operations['AND'];
+      return new Map([['Out', operation(a, b)]]);
     },
   });
 
@@ -1177,6 +1230,8 @@ export const WithRunner: StoryObj<typeof FullGraph> = {
       enableComplexTypeChecking: true,
       enableTypeInference: true,
       enableCycleChecking: true,
+      nodeCountConstraints: standardNodeCountConstraints,
+      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
 
     const [record, setRecord] = useState(adderLoopRecording ?? null);
@@ -1201,6 +1256,195 @@ export const WithRunner: StoryObj<typeof FullGraph> = {
             onImportError={(errors) => console.error('Import errors:', errors)}
           />
         </div>
+      </div>
+    );
+  },
+};
+
+export const EmptyRunnerPlayground: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    // ─── E2E observable event log + reject toaster ────────────────────
+    //
+    // Story-only instrumentation. Tests rely on:
+    //   1. Sonner toasts for reducer-level rejection reasons
+    //      (V3/V4/V5/V8 fire `action:rejected` with `error.message`).
+    //   2. DOM diffs (node count, edge count, handle classes) for
+    //      handle-level rejections (V1/MC) which never reach the
+    //      reducer and emit no events.
+    //   3. The hidden `e2e-event-count` / `e2e-last-event` divs for
+    //      verifying the event stream itself (NOT for primary
+    //      action verification — see codingGuidelines).
+    //
+    // None of this ships: sonner is a devDependency and `*.stories.tsx`
+    // is excluded from the published bundle.
+    const [eventCount, setEventCount] = useState(0);
+    const [lastEvent, setLastEvent] = useState<unknown>(null);
+    // Capped ring buffer of the most recent events. Bounded so a long-
+    // running session can't pin large amounts of memory; tests only ever
+    // need to scan a few seconds of history.
+    const EVENT_LOG_CAP = 100;
+    const [eventLog, setEventLog] = useState<unknown[]>([]);
+    const recordEvent = (event: unknown) => {
+      setEventCount((c) => c + 1);
+      setLastEvent(event);
+      setEventLog((log) => {
+        const next = log.concat([event]);
+        return next.length > EVENT_LOG_CAP
+          ? next.slice(next.length - EVENT_LOG_CAP)
+          : next;
+      });
+
+      // Surface human-readable rejection text via toast so tests can
+      // read the reject reason without poking at the event stream.
+      const e = event as {
+        kind: string;
+        error?: { message?: string; code?: string };
+        isValid?: boolean | null;
+      };
+      if (e.kind === 'action:rejected' && e.error) {
+        // Title = error code (always present, machine-readable).
+        // Description = error message (may be empty for some validation paths).
+        // Tests assert on either — see e2e/actions/toast/toast.actions.ts.
+        toast.error(e.error.code ?? 'ACTION_REJECTED', {
+          description: e.error.message ?? '',
+          id: 'e2e-last-reject',
+        });
+      } else if (e.kind === 'ui:drag:ended' && e.isValid === false) {
+        toast.warning('CONNECTION_REFUSED', {
+          description: 'Handle-level rejection (maxConnections or structural)',
+          id: 'e2e-last-reject',
+        });
+      }
+    };
+
+    const { state, dispatch } = useFullGraph<
+      CircuitDataTypeId,
+      CircuitNodeTypeId
+    >(
+      {
+        dataTypes: circuitExampleDataTypes,
+        typeOfNodes: circuitExampleTypeOfNodes,
+        nodes: [],
+        edges: [],
+        allowedConversionsBetweenDataTypes: {
+          bit: {
+            condition: true,
+          },
+          condition: {
+            bit: true,
+          },
+        },
+        allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking: true,
+        enableComplexTypeChecking: true,
+        enableTypeInference: true,
+        enableCycleChecking: true,
+        nodeCountConstraints: standardNodeCountConstraints,
+        hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
+      },
+      {
+        // Reducer-layer events (action:applied, action:rejected,
+        // state:committed) come from useFullGraph's wrapped dispatch.
+        onGraphEvent: recordEvent,
+      },
+    );
+
+    const [record, setRecord] = useState<ExecutionRecord | null>(null);
+
+    return (
+      <div
+        style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div style={{ flex: 1 }}>
+          <FullGraph<CircuitDataTypeId, CircuitNodeTypeId>
+            state={state}
+            dispatch={dispatch}
+            functionImplementations={circuitImplementations}
+            executionRecord={record}
+            onExecutionRecordChange={setRecord}
+            onStateImported={(imported) =>
+              console.log('State imported:', imported)
+            }
+            onRecordingImported={(record) =>
+              console.log('Recording imported:', record)
+            }
+            onImportError={(errors) => console.error('Import errors:', errors)}
+            // UI-layer events (ui:drag:ended, ui:delete:attempted,
+            // ui:state:imported, ui:recording:imported) come from
+            // FullGraph. Same handler — single subscription point.
+            onGraphEvent={recordEvent}
+          />
+        </div>
+        {/* E2E test-only observability — invisible to the user. */}
+        <div
+          data-testid='e2e-event-count'
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            opacity: 0,
+            pointerEvents: 'none',
+          }}
+        >
+          {eventCount}
+        </div>
+        <div
+          data-testid='e2e-last-event'
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            opacity: 0,
+            pointerEvents: 'none',
+          }}
+        >
+          {lastEvent ? JSON.stringify(lastEvent) : ''}
+        </div>
+        {/*
+          Full event log (last ~100 events as a JSON array). Tests
+          consume this for ordered-sequence assertions ("after Add
+          Node, the next 3 events were action:applied/state:committed/
+          action:applied for UPDATE_NODE_BY_REACT_FLOW"). Reading a
+          slice of this is how the events-stream verification test
+          asserts that the event-emission contract holds.
+        */}
+        <div
+          data-testid='e2e-event-log'
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            opacity: 0,
+            pointerEvents: 'none',
+            // Constrain visual footprint even at opacity:0 — sonner's
+            // hidden-but-mounted contract is sensitive to overlays.
+            width: 0,
+            height: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {JSON.stringify(eventLog)}
+        </div>
+        {/*
+          Sonner Toaster — story-only. Tests read `[data-sonner-toast]`
+          elements to verify rejection reasons and dismiss them via
+          `[data-button]` (the close X). Position bottom-right so it
+          never overlaps the runner panel resizer at the bottom.
+        */}
+        <Toaster
+          position='top-right'
+          richColors
+          closeButton
+          toastOptions={{
+            // Short duration in case a test forgets to dismiss; sonner
+            // queues new toasts under the same id, so missing dismiss
+            // doesn't leak across cases.
+            duration: 4000,
+            // Make the toast container easy to address from Playwright.
+            // Sonner renders each toast with `data-sonner-toast` and a
+            // `data-type` of 'success'|'error'|'warning'|'info'.
+          }}
+        />
       </div>
     );
   },
@@ -1369,6 +1613,8 @@ export const FullAdderCircuit: StoryObj<typeof FullGraph> = {
       enableComplexTypeChecking: true,
       enableTypeInference: true,
       enableCycleChecking: true,
+      nodeCountConstraints: standardNodeCountConstraints,
+      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
 
     return (
@@ -1658,6 +1904,8 @@ export const RippleCarryAdder: StoryObj<typeof FullGraph> = {
       enableComplexTypeChecking: true,
       enableTypeInference: true,
       enableCycleChecking: true,
+      nodeCountConstraints: standardNodeCountConstraints,
+      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
 
     return (
@@ -1865,6 +2113,8 @@ export const LoopCounterCircuit: StoryObj<typeof FullGraph> = {
       enableComplexTypeChecking: true,
       enableTypeInference: true,
       enableCycleChecking: true,
+      nodeCountConstraints: standardNodeCountConstraints,
+      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
 
     return (
@@ -1876,6 +2126,160 @@ export const LoopCounterCircuit: StoryObj<typeof FullGraph> = {
             state={state}
             dispatch={dispatch}
             functionImplementations={circuitImplementations}
+          />
+        </div>
+      </div>
+    );
+  },
+};
+
+// ─────────────────────────────────────────────────────
+// Custom Input Components Demo
+//
+// Demonstrates the inputComponents registry: a map from
+// DataTypeUniqueId → ComponentType<InputComponentProps>
+// that lets consumers provide custom input widgets for
+// unsupportedDirectly data types.
+// ─────────────────────────────────────────────────────
+
+const colorDataTypes = {
+  color: makeDataTypeWithAutoInfer({
+    name: 'Color',
+    underlyingType: 'complex',
+    complexSchema: z.string(),
+    color: '#E91E63',
+    allowInput: true,
+  }),
+  number: makeDataTypeWithAutoInfer({
+    name: 'Number',
+    underlyingType: 'number',
+    color: '#FF6B6B',
+    allowInput: true,
+  }),
+  ...standardDataTypes,
+} as const;
+
+type ColorDataTypeId = keyof typeof colorDataTypes;
+
+const colorNodeTypes = {
+  colorSource: makeTypeOfNodeWithAutoInfer<ColorDataTypeId, 'colorSource'>({
+    name: 'Color Source',
+    headerColor: '#880E4F',
+    inputs: [{ name: 'Color', dataType: 'color', allowInput: true }],
+    outputs: [{ name: 'Color', dataType: 'color' }],
+  }),
+  colorMixer: makeTypeOfNodeWithAutoInfer<ColorDataTypeId, 'colorMixer'>({
+    name: 'Color Mixer',
+    headerColor: '#4A148C',
+    inputs: [
+      { name: 'Color A', dataType: 'color' },
+      { name: 'Color B', dataType: 'color' },
+      { name: 'Ratio', dataType: 'number', allowInput: true },
+    ],
+    outputs: [{ name: 'Mixed', dataType: 'color' }],
+  }),
+  colorDisplay: makeTypeOfNodeWithAutoInfer<ColorDataTypeId, 'colorDisplay'>({
+    name: 'Color Display',
+    headerColor: '#1B5E20',
+    inputs: [{ name: 'Color', dataType: 'color' }],
+    outputs: [],
+  }),
+  ...standardNodeTypes,
+} as const;
+
+type ColorNodeTypeId = keyof typeof colorNodeTypes;
+
+const colorImplementations =
+  makeFunctionImplementationsWithAutoInfer<ColorNodeTypeId>({
+    colorSource: (inputs) => {
+      const color = String(getFirstInputVal(inputs.get('Color'), '#ffffff'));
+      return new Map([['Color', color]]);
+    },
+    colorMixer: (inputs) => {
+      const colorA = String(getFirstInputVal(inputs.get('Color A'), '#000000'));
+      const colorB = String(getFirstInputVal(inputs.get('Color B'), '#ffffff'));
+      const ratio = Number(getFirstInputVal(inputs.get('Ratio'), 0.5));
+      const parseHex = (hex: string) => {
+        const h = hex.replace('#', '');
+        return [
+          parseInt(h.substring(0, 2), 16),
+          parseInt(h.substring(2, 4), 16),
+          parseInt(h.substring(4, 6), 16),
+        ];
+      };
+      const [r1, g1, b1] = parseHex(colorA);
+      const [r2, g2, b2] = parseHex(colorB);
+      const t = Math.max(0, Math.min(1, ratio));
+      const mixed = `#${[
+        Math.round(r1 * (1 - t) + r2 * t),
+        Math.round(g1 * (1 - t) + g2 * t),
+        Math.round(b1 * (1 - t) + b2 * t),
+      ]
+        .map((c) => c.toString(16).padStart(2, '0'))
+        .join('')}`;
+      return new Map([['Mixed', mixed]]);
+    },
+    colorDisplay: () => new Map(),
+  });
+
+export const CustomInputComponents: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    const { state, dispatch } = useFullGraph<
+      ColorDataTypeId,
+      ColorNodeTypeId,
+      SupportedUnderlyingTypes,
+      z.ZodType
+    >({
+      dataTypes: colorDataTypes,
+      typeOfNodes: colorNodeTypes,
+      nodes: [],
+      edges: [],
+      enableTypeInference: true,
+      enableCycleChecking: true,
+      nodeCountConstraints: standardNodeCountConstraints,
+      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
+    });
+
+    const [record, setRecord] = useState<ExecutionRecord | null>(null);
+
+    return (
+      <div
+        style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div style={{ flex: 1 }}>
+          <FullGraph<
+            ColorDataTypeId,
+            ColorNodeTypeId,
+            SupportedUnderlyingTypes,
+            z.ZodType
+          >
+            state={state}
+            dispatch={dispatch}
+            functionImplementations={colorImplementations}
+            executionRecord={record}
+            onExecutionRecordChange={setRecord}
+            inputComponents={{
+              color: ({ value, onChange }) => (
+                <ColorPicker.Root
+                  value={typeof value === 'string' ? value : '#ffffff'}
+                  onValueChange={(_color: OklchColor, formatted: string) =>
+                    onChange(formatted)
+                  }
+                  defaultFormat='hex'
+                >
+                  <ColorPicker.Area className='w-full aspect-square' />
+                  <ColorPicker.Hue />
+                  <div className='flex items-center gap-2'>
+                    <ColorPicker.Preview className='w-8 h-8 shrink-0' />
+                    <ColorPicker.CssInput size='normal' />
+                  </div>
+                </ColorPicker.Root>
+              ),
+              number: ({ name }) => (
+                <div data-testid='custom-number'>Custom Number: {name}</div>
+              ),
+            }}
           />
         </div>
       </div>

@@ -25,3 +25,7 @@ dist-ssr
 
 *storybook.log
 storybook-static
+test-results/
+.playwright-mcp/
+.claude/
+playwright-report/

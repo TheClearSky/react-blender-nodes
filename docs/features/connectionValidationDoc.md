@@ -15,7 +15,7 @@ The validation pipeline is implemented across three primary files:
   `addEdgeWithTypeChecking` and `willAddingEdgeCreateCycle`
 - `newOrRemovedEdgeValidation.ts` — implements type inference, complex type
   checking, and type conversion validation
-- `nodes/loops.ts` — implements loop-specific connection and deletion validation
+- `nodes/loops/` — implements loop-specific connection and deletion validation
 
 ## Entity-Relationship Diagram
 
@@ -65,7 +65,7 @@ mainReducer (ADD_EDGE_BY_REACT_FLOW)
         |
         +-- getHandleFromNodeDataMatchingHandleId()
         |
-        +-- isLoopConnectionValid()        [nodes/loops.ts]
+        +-- isLoopConnectionValid()        [nodes/loops/loopValidation.ts]
         |     +-- getLoopStructureFromNode()
         |     +-- verifyLoopStructureUniformHandleInference()
         |     +-- getNodesInLoopRegion()
@@ -83,7 +83,7 @@ mainReducer (ADD_EDGE_BY_REACT_FLOW)
 
 FullGraph.tsx (onBeforeDelete)
   |
-  +-- canRemoveLoopNodesAndEdges()         [nodes/loops.ts]
+  +-- canRemoveLoopNodesAndEdges()         [nodes/loops/loopValidation.ts]
         +-- getLoopStructureFromNode()
 ```
 
@@ -267,8 +267,8 @@ string — the reducer simply `break`s).
 
 ### 3. Loop Connection Validation
 
-**Location:** `isLoopConnectionValid` in `nodes/loops.ts`, line 1379 **Flag:**
-Always active (no feature flag)
+**Location:** `isLoopConnectionValid` in `nodes/loops/loopValidation.ts`, line
+415 **Flag:** Always active (no feature flag)
 
 Validates connections involving loop nodes (loopStart, loopStop, loopEnd). This
 is the most complex validation layer, handling three cases:
@@ -420,7 +420,7 @@ edge directly.
 
 ### canRemoveLoopNodesAndEdges
 
-**Location:** `nodes/loops.ts`, line 1877
+**Location:** `nodes/loops/loopValidation.ts`, line 913
 
 Validates that deletion operations do not break loop structure integrity. Two
 rules are enforced:

@@ -41,8 +41,23 @@ type MinimalNodeData = {
 /**
  * Builds the qualified handle ID used as a key in the ValueStore.
  * Format: "nodeId:handleId"
+ *
+ * **Important:** `nodeId` and `handleId` must NOT contain `:` or `>`
+ * characters. `:` is the internal separator between node and handle IDs,
+ * and `>` is the scope separator used by {@link ValueStore.createScope}.
+ * Using these characters in IDs will cause data corruption in the runner.
  */
 function qualifiedId(nodeId: string, handleId: string): string {
+  if (process.env.NODE_ENV !== 'production') {
+    if (nodeId.includes(':') || nodeId.includes('>'))
+      console.warn(
+        `react-blender-nodes: Node ID "${nodeId}" contains reserved characters (: or >). This may cause data corruption in the runner.`,
+      );
+    if (handleId.includes(':') || handleId.includes('>'))
+      console.warn(
+        `react-blender-nodes: Handle ID "${handleId}" contains reserved characters (: or >). This may cause data corruption in the runner.`,
+      );
+  }
   return `${nodeId}:${handleId}`;
 }
 
@@ -275,8 +290,19 @@ class ValueStore {
    * Create a scoped store for group execution.
    * The scoped store prefixes all IDs with "groupNodeId>" and
    * falls back to the parent store for reads.
+   *
+   * **Important:** The `prefix` (typically a groupNodeId) must NOT contain
+   * `>` or `:` characters. `>` is the scope separator and `:` is the
+   * handle separator used by {@link qualifiedId}. Using these characters
+   * will cause key collisions and data corruption.
    */
   createScope(prefix: string): ValueStore {
+    if (process.env.NODE_ENV !== 'production') {
+      if (prefix.includes('>') || prefix.includes(':'))
+        console.warn(
+          `react-blender-nodes: Scope prefix "${prefix}" contains reserved characters (> or :). This may cause data corruption in the runner.`,
+        );
+    }
     return new ValueStore(`${prefix}>`, this);
   }
 

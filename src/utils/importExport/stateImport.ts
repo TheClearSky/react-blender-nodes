@@ -1,3 +1,8 @@
+// NOTE: Export serialization is encapsulated in StateSerializer (./stateSerializer.ts).
+// Deserialization/import logic lives here. A StateDeserializer class is not warranted
+// because import involves validation, repair strategies, and rehydration — concerns
+// that don't map cleanly to a single serialize/deserialize pair.
+
 import type { z } from 'zod';
 import type {
   State,

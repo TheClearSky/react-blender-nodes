@@ -1,32 +1,10 @@
 import { type State, type SupportedUnderlyingTypes } from './types';
 import { z } from 'zod';
 import { produce } from 'immer';
-import { generateRandomString } from '../randomGeneration';
-import {
-  constructNodeOfType,
-  getCurrentNodesAndEdgesFromState,
-  setCurrentNodesAndEdgesToStateWithMutatingState,
-} from './nodes/constructAndModifyNodes';
-import {
-  addEdgeWithTypeChecking,
-  removeEdgeWithTypeChecking,
-  willAddingEdgeCreateCycle,
-} from './constructAndModifyHandles';
-import {
-  applyEdgeChanges,
-  applyNodeChanges,
-  type Connection,
-  type XYPosition,
-  type Viewport,
-} from '@xyflow/react';
+import { type Connection, type XYPosition, type Viewport } from '@xyflow/react';
 import type { EdgeChanges, NodeChanges } from '@/components';
-import {
-  standardNodeTypeNamesMap,
-  groupNodeContextMenu,
-} from './standardNodes';
-
-/** Length of generated random IDs for nodes */
-const lengthOfIds = 20;
+import { validateAction } from './planApply/validators';
+import { applyPlan } from './planApply/applyPlan';
 
 /** Available action types for the graph state reducer */
 const actionTypes = [
@@ -41,6 +19,8 @@ const actionTypes = [
   'ADD_NODE_GROUP',
   'SET_VIEWPORT',
   'REPLACE_STATE',
+  'UPDATE_NODE_TYPE',
+  'ADD_LOOP',
 ] as const;
 
 /** Map of action types for type-safe action dispatching */
@@ -56,6 +36,8 @@ const actionTypesMap = {
   [actionTypes[8]]: actionTypes[8],
   [actionTypes[9]]: actionTypes[9],
   [actionTypes[10]]: actionTypes[10],
+  [actionTypes[11]]: actionTypes[11],
+  [actionTypes[12]]: actionTypes[12],
 } as const;
 
 /**
@@ -178,6 +160,32 @@ type Action<
           ComplexSchemaType
         >;
       };
+    }
+  | {
+      /** Update properties of a node type definition (name, headerColor, inputs, outputs) */
+      type: typeof actionTypesMap.UPDATE_NODE_TYPE;
+      payload: {
+        /** ID of the node type to update */
+        nodeTypeId: NodeTypeUniqueId;
+        /** Partial updates to apply */
+        updates: {
+          name?: string;
+          headerColor?: string;
+          inputs?: (
+            | import('./types').TypeOfInput<DataTypeUniqueId>
+            | import('./types').TypeOfInputPanel<DataTypeUniqueId>
+          )[];
+          outputs?: import('./types').TypeOfInput<DataTypeUniqueId>[];
+        };
+      };
+    }
+  | {
+      /** Add a complete loop triplet (loopStart + loopStop + loopEnd) with bind edges */
+      type: typeof actionTypesMap.ADD_LOOP;
+      payload: {
+        /** Position where loopStart is placed; loopStop and loopEnd auto-spread to the right */
+        position: XYPosition;
+      };
     };
 
 /**
@@ -273,284 +281,22 @@ function mainReducer<
   const newState = produce(
     oldState,
     (
-      newState: State<
+      draft: State<
         DataTypeUniqueId,
         NodeTypeUniqueId,
         UnderlyingType,
         ComplexSchemaType
       >,
     ) => {
-      switch (action.type) {
-        case actionTypesMap.ADD_NODE:
-          const nodeType = action.payload.type;
-          const nodeId = generateRandomString(lengthOfIds);
-          const position = action.payload.position;
-
-          const node: (typeof newState.nodes)[number] = constructNodeOfType(
-            newState.dataTypes,
-            nodeType,
-            newState.typeOfNodes,
-            nodeId,
-            position,
-          );
-          newState = setCurrentNodesAndEdgesToStateWithMutatingState(newState, [
-            ...getCurrentNodesAndEdgesFromState(newState).nodes,
-            node,
-          ]);
-          break;
-        case actionTypesMap.ADD_NODE_AND_SELECT:
-          const nodeTypeAndSelect = action.payload.type;
-          const nodeIdAndSelect = generateRandomString(lengthOfIds);
-          const positionAndSelect = action.payload.position;
-
-          const nodeAndSelect: (typeof newState.nodes)[number] =
-            constructNodeOfType(
-              newState.dataTypes,
-              nodeTypeAndSelect,
-              newState.typeOfNodes,
-              nodeIdAndSelect,
-              positionAndSelect,
-            );
-          newState = setCurrentNodesAndEdgesToStateWithMutatingState(
-            newState,
-            getCurrentNodesAndEdgesFromState(newState).nodes.map((node) => ({
-              ...node,
-              selected: false,
-            })),
-          );
-          //Set the node to selected
-          newState = setCurrentNodesAndEdgesToStateWithMutatingState(newState, [
-            ...getCurrentNodesAndEdgesFromState(newState).nodes,
-            { ...nodeAndSelect, selected: true },
-          ]);
-          break;
-        case actionTypesMap.UPDATE_NODE_BY_REACT_FLOW:
-          const nodeChanges = action.payload.changes;
-          for (const nodeChange of nodeChanges) {
-            newState = setCurrentNodesAndEdgesToStateWithMutatingState(
-              newState,
-              applyNodeChanges(
-                [nodeChange],
-                getCurrentNodesAndEdgesFromState(newState).nodes,
-              ),
-            );
-          }
-          break;
-        case actionTypesMap.UPDATE_EDGES_BY_REACT_FLOW:
-          const edgeChanges = action.payload.changes;
-          for (const edgeChange of edgeChanges) {
-            if (edgeChange.type !== 'remove') {
-              newState = setCurrentNodesAndEdgesToStateWithMutatingState(
-                newState,
-                undefined,
-                applyEdgeChanges(
-                  [edgeChange],
-                  getCurrentNodesAndEdgesFromState(newState).edges,
-                ),
-              );
-              continue;
-            }
-            const { id: edgeId } = edgeChange;
-            const edge = getCurrentNodesAndEdgesFromState(newState).edges.find(
-              (edge) => edge.id === edgeId,
-            );
-            if (!edge) {
-              continue;
-            }
-            const removedEdgeResult = removeEdgeWithTypeChecking(
-              edge,
-              {
-                ...newState,
-                nodes: getCurrentNodesAndEdgesFromState(newState).nodes,
-                edges: getCurrentNodesAndEdgesFromState(newState).edges,
-              },
-              edgeChange,
-            );
-            if (!removedEdgeResult.validation.isValid) {
-              continue;
-            }
-            newState = setCurrentNodesAndEdgesToStateWithMutatingState(
-              newState,
-              removedEdgeResult.updatedNodes,
-              removedEdgeResult.updatedEdges,
-            );
-          }
-
-          break;
-        case actionTypesMap.ADD_EDGE_BY_REACT_FLOW:
-          const newEdge = action.payload.edge;
-
-          const { sourceHandle, targetHandle, source, target } = newEdge;
-
-          // Get current nodes and edges for cycle checking
-          const currentNodesAndEdgesForCycleCheck =
-            getCurrentNodesAndEdgesFromState(newState);
-
-          if (
-            newState.enableCycleChecking &&
-            willAddingEdgeCreateCycle(
-              {
-                ...newState,
-                nodes: currentNodesAndEdgesForCycleCheck.nodes,
-                edges: currentNodesAndEdgesForCycleCheck.edges,
-              },
-              source,
-              target,
-            )
-          ) {
-            break;
-          }
-
-          if (!source || !target || !sourceHandle || !targetHandle) {
-            break;
-          }
-
-          // Get current nodes and edges with group node IDs
-          const currentNodesAndEdges =
-            getCurrentNodesAndEdgesFromState(newState);
-
-          // Use the addEdgeWithTypeChecking function
-          const addedEdgeResult = addEdgeWithTypeChecking(
-            source,
-            sourceHandle,
-            target,
-            targetHandle,
-            {
-              ...newState,
-              nodes: currentNodesAndEdges.nodes,
-              edges: currentNodesAndEdges.edges,
-            },
-            currentNodesAndEdges.inputNodeId,
-            currentNodesAndEdges.outputNodeId,
-            newState,
-          );
-          if (!addedEdgeResult.validation.isValid) {
-            break;
-          }
-          break;
-        case actionTypesMap.OPEN_NODE_GROUP:
-          //If nodeId is provided, we are opening an instance of the node group
-          if ('nodeId' in action.payload) {
-            const openNodeId = action.payload.nodeId;
-            // Find the node to get its type
-            const nodeToOpen = getCurrentNodesAndEdgesFromState(
-              newState,
-            ).nodes.find((node) => node.id === openNodeId);
-            if (!nodeToOpen) {
-              break;
-            }
-            const nodeType = nodeToOpen.data.nodeTypeUniqueId;
-            if (!nodeType) {
-              break;
-            }
-            const nodeTypeToOpen = newState.typeOfNodes[nodeType];
-            if (!nodeTypeToOpen || !nodeTypeToOpen.subtree) {
-              //Not a valid node group
-              break;
-            }
-            //Push the node group onto the stack (instance opening)
-            newState.openedNodeGroupStack = [
-              ...(newState.openedNodeGroupStack || []),
-              {
-                nodeType: nodeType,
-                nodeId: openNodeId,
-                previousViewport: newState.viewport,
-              },
-            ];
-          } else {
-            //Clear the stack and push the node group onto the stack (original opening hence has no nodeId)
-            const nodeType = action.payload.nodeType;
-            const nodeTypeToOpen = newState.typeOfNodes[nodeType];
-            if (!nodeTypeToOpen || !nodeTypeToOpen.subtree) {
-              //Not a valid node group
-              break;
-            }
-            //No history
-            newState.openedNodeGroupStack = [
-              {
-                nodeType: nodeType,
-                previousViewport:
-                  newState.openedNodeGroupStack?.[0]?.previousViewport ||
-                  newState.viewport,
-              },
-            ];
-          }
-          newState.viewport = undefined;
-          break;
-        case actionTypesMap.CLOSE_NODE_GROUP:
-          const lastOpenedNodeGroup =
-            newState.openedNodeGroupStack?.[
-              newState.openedNodeGroupStack.length - 1
-            ];
-          if (
-            lastOpenedNodeGroup &&
-            'previousViewport' in lastOpenedNodeGroup
-          ) {
-            newState.viewport = lastOpenedNodeGroup.previousViewport;
-          }
-          newState.openedNodeGroupStack = newState.openedNodeGroupStack?.slice(
-            0,
-            -1,
-          );
-          break;
-        case actionTypesMap.ADD_NODE_GROUP:
-          const groupNodeType = generateRandomString(lengthOfIds);
-          const groupInputNodeId = generateRandomString(lengthOfIds);
-          const groupInputNode: (typeof newState.nodes)[number] =
-            constructNodeOfType(
-              newState.dataTypes,
-              //@ts-ignore we assume standard node types are always added in state
-              standardNodeTypeNamesMap.groupInput,
-              newState.typeOfNodes,
-              groupInputNodeId,
-              { x: -500, y: 0 },
-            );
-          const groupOutputNodeId = generateRandomString(lengthOfIds);
-          const groupOutputNode: (typeof newState.nodes)[number] =
-            constructNodeOfType(
-              newState.dataTypes,
-              //@ts-ignore we assume standard node types are always added in state
-              standardNodeTypeNamesMap.groupOutput,
-              newState.typeOfNodes,
-              groupOutputNodeId,
-              { x: 500, y: 0 },
-            );
-          const numberOfNodeGroups = (
-            Object.keys(newState.typeOfNodes) as unknown as Array<
-              keyof typeof newState.typeOfNodes
-            >
-          ).filter((key) => newState.typeOfNodes[key].subtree).length;
-          const nodeGroup: (typeof newState.typeOfNodes)[NodeTypeUniqueId] = {
-            name: 'Node Group ' + (numberOfNodeGroups + 1).toString(),
-            headerColor: '#344621',
-            ...groupNodeContextMenu,
-            inputs: [],
-            outputs: [],
-            subtree: {
-              nodes: [groupInputNode, groupOutputNode],
-              edges: [],
-              numberOfReferences: 0,
-              inputNodeId: groupInputNodeId,
-              outputNodeId: groupOutputNodeId,
-            },
-          };
-          newState.typeOfNodes[groupNodeType as NodeTypeUniqueId] = nodeGroup;
-          newState.openedNodeGroupStack = [
-            {
-              nodeType: groupNodeType as NodeTypeUniqueId,
-              previousViewport:
-                newState.openedNodeGroupStack?.[0]?.previousViewport ||
-                newState.viewport,
-            },
-          ];
-          newState.viewport = undefined;
-          break;
-        case actionTypesMap.SET_VIEWPORT:
-          newState.viewport = action.payload.viewport;
-          break;
-        case actionTypesMap.REPLACE_STATE:
-          return action.payload.state;
+      const planResult = validateAction(oldState, action);
+      if (planResult !== null) {
+        if (planResult.ok) {
+          const returnValue = applyPlan(draft, planResult.value);
+          if (returnValue !== undefined) return returnValue;
+        }
+        return;
       }
+      // No legacy fallback needed — all actions migrated
     },
   );
   return newState;

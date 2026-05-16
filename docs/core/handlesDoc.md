@@ -197,7 +197,7 @@ react-blender-nodes
 |
 +-- Dynamic Handle Addition
 |   +-- nodeGroups.ts  addDuplicateHandleToNodeGroupAfterInference
-|   +-- loops.ts       addDuplicateHandlesToLoopNodesAfterInference
+|   +-- loops/         addDuplicateHandlesToLoopNodesAfterInference
 |
 +-- Runner Integration
     +-- types.ts  InputHandleValue, OutputHandleInfo, InputConnectionValue

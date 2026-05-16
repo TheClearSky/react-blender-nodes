@@ -55,7 +55,7 @@ const ScrollableButtonContainer = forwardRef<
       observeChildren,
     });
 
-    useImperativeHandle(ref, () => listRef.current as HTMLDivElement);
+    useImperativeHandle(ref, () => listRef.current!);
 
     const showStart = showArrows && canScrollStart && !disabled;
     const showEnd = showArrows && canScrollEnd && !disabled;

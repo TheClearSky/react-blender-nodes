@@ -7,6 +7,7 @@ import {
 } from '../types';
 import { Position, type XYPosition } from '@xyflow/react';
 import { generateRandomString } from '../../randomGeneration';
+import { typedKeys } from '../../typedKeys';
 import type {
   ConfigurableNodeInput,
   ConfigurableNodeInputPanel,
@@ -117,6 +118,7 @@ function constructInputOrOutputOfType<
       maxConnections: resultantMaxConnections,
       type: 'string' as const,
       handleShape: matchingDataTypeFromAllDataTypes.shape,
+      allowedStrings: matchingDataTypeFromAllDataTypes.allowedStrings,
       dataType: {
         dataTypeObject: matchingDataTypeFromAllDataTypes,
         dataTypeUniqueId: typeOfDataTypeInNode.dataType,
@@ -559,8 +561,8 @@ function getDependencyGraphBetweenNodeTypes<
   const nodeToNodeDependencies: Partial<
     Record<NodeTypeUniqueId, Set<NodeTypeUniqueId>>
   > = {};
-  for (const nodeType of Object.keys(state.typeOfNodes)) {
-    const nodeTypeData = state.typeOfNodes[nodeType as NodeTypeUniqueId];
+  for (const nodeType of typedKeys(state.typeOfNodes)) {
+    const nodeTypeData = state.typeOfNodes[nodeType];
     const subtree = nodeTypeData.subtree;
     if (!subtree || subtree.nodes.length === 0) {
       continue;
@@ -570,16 +572,12 @@ function getDependencyGraphBetweenNodeTypes<
       if (!nodeTypeOfDependency) {
         continue;
       }
-      nodeToNodeDependencies[nodeType as NodeTypeUniqueId] =
-        nodeToNodeDependencies[nodeType as NodeTypeUniqueId] || new Set();
-      nodeToNodeDependencies[nodeType as NodeTypeUniqueId]?.add(
-        nodeTypeOfDependency,
-      );
+      nodeToNodeDependencies[nodeType] =
+        nodeToNodeDependencies[nodeType] || new Set();
+      nodeToNodeDependencies[nodeType]?.add(nodeTypeOfDependency);
       nodeToNodeDependents[nodeTypeOfDependency] =
         nodeToNodeDependents[nodeTypeOfDependency] || new Set();
-      nodeToNodeDependents[nodeTypeOfDependency]?.add(
-        nodeType as NodeTypeUniqueId,
-      );
+      nodeToNodeDependents[nodeTypeOfDependency]?.add(nodeType);
     }
   }
   return { nodeToNodeDependents, nodeToNodeDependencies };

@@ -98,16 +98,21 @@ function useAutoScroll({
 
     updateScrollState();
 
-    const reachedEnd =
-      (direction < 0 && !canScrollStart) || (direction > 0 && !canScrollEnd);
+    // Read scroll bounds directly from the DOM to avoid stale closure
+    // over React state (canScrollStart/canScrollEnd are async and may
+    // be stale inside the rAF callback).
+    const pos = el[axis.pos];
+    const size = el[axis.size];
+    const full = el[axis.full];
+    const atStart = pos <= 0;
+    const atEnd = pos + size >= full - 1;
+    const reachedEnd = (direction < 0 && atStart) || (direction > 0 && atEnd);
     if (reachedEnd) {
       stopAutoScroll();
       return;
     }
     scrollRafRef.current = requestAnimationFrame(tickScroll);
   }, [
-    canScrollEnd,
-    canScrollStart,
     disabled,
     getAxis,
     scrollSpeedPxPerFrame,

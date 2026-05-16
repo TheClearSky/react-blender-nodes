@@ -7,6 +7,8 @@ import {
 import type { SupportedUnderlyingTypes } from '@/utils';
 import { z } from 'zod';
 import { FullGraphContext } from '../../FullGraph/FullGraphState';
+import { ErrorBoundary } from '@/components/atoms/ErrorBoundary';
+import { AlertTriangle } from 'lucide-react';
 
 /** State type for configurable nodes in ReactFlow */
 type ConfigurableNodeState<
@@ -99,16 +101,51 @@ const ConfigurableNodeReactFlowWrapper = forwardRef<
   const nodeRunnerState = fullGraphContext?.nodeRunnerStates?.get(id);
 
   return (
-    <ConfigurableNode
-      isCurrentlyInsideReactFlow={true}
-      id={id}
-      className='w-full'
-      {...data}
-      runnerVisualState={nodeRunnerState?.visualState}
-      runnerErrors={nodeRunnerState?.errors}
-      runnerWarnings={nodeRunnerState?.warnings}
-      ref={ref}
-    />
+    <ErrorBoundary
+      resetKey={JSON.stringify(data)}
+      fallback={({ error, reset }) => (
+        <div
+          data-slot='error-boundary-node'
+          className='flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-red-500/50 bg-zinc-900 p-4 text-zinc-300'
+          style={{ minHeight: 80 }}
+        >
+          <div className='flex items-center gap-1.5'>
+            <AlertTriangle className='h-4 w-4 text-red-400' />
+            <span className='text-xs font-medium text-red-400'>
+              Render Error
+            </span>
+          </div>
+          <p className='text-center text-[10px] text-zinc-500'>
+            {data.name ?? 'Node'} &mdash; {error.message}
+          </p>
+          <button
+            type='button'
+            onClick={reset}
+            className='mt-1 rounded border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400 transition-colors hover:bg-zinc-700'
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      onError={(error, errorInfo) => {
+        console.error(
+          `[ConfigurableNode:${id}] Render error:`,
+          error,
+          errorInfo,
+        );
+      }}
+    >
+      <ConfigurableNode
+        isCurrentlyInsideReactFlow={true}
+        id={id}
+        className='w-full'
+        {...data}
+        runnerVisualState={nodeRunnerState?.visualState}
+        runnerErrors={nodeRunnerState?.errors}
+        runnerWarnings={nodeRunnerState?.warnings}
+        ref={ref}
+      />
+    </ErrorBoundary>
   );
 });
 

@@ -339,7 +339,7 @@ the outer group's `TypeOfNode` definition by
 ### 1. Creation (ADD_NODE_GROUP)
 
 Handled in
-[mainReducer.ts:496-544](src/utils/nodeStateManagement/mainReducer.ts#L496-L544):
+[mainReducer.ts:519-570](src/utils/nodeStateManagement/mainReducer.ts#L519-L570):
 
 1. Generate a random `nodeType` ID for the group.
 2. Create a `groupInput` node at position `(-500, 0)`.
@@ -354,7 +354,7 @@ Handled in
 ### 2. Opening for editing (OPEN_NODE_GROUP)
 
 Handled in
-[mainReducer.ts:431-478](src/utils/nodeStateManagement/mainReducer.ts#L431-L478).
+[mainReducer.ts:454-502](src/utils/nodeStateManagement/mainReducer.ts#L454-L502).
 Two variants:
 
 **Instance opening** (with `nodeId`):
@@ -396,7 +396,7 @@ When an edge is added inside the group that connects to a `groupInfer` handle on
 ### 5. Closing the group (CLOSE_NODE_GROUP)
 
 Handled in
-[mainReducer.ts:480-495](src/utils/nodeStateManagement/mainReducer.ts#L480-L495):
+[mainReducer.ts:503-518](src/utils/nodeStateManagement/mainReducer.ts#L503-L518):
 
 1. Restores `state.viewport` from the last stack entry's `previousViewport`.
 2. Pops the last entry from `openedNodeGroupStack` via `slice(0, -1)`.
@@ -601,8 +601,8 @@ since they are data mapping points, not executable nodes.
 ### Group execution (input/output value mapping)
 
 `executeGroupScope` at
-[executor.ts:924-1241](src/utils/nodeRunner/executor.ts#L924-L1241) runs a
-compiled group:
+[executor/executeGroupScope.ts](src/utils/nodeRunner/executor/executeGroupScope.ts)
+runs a compiled group:
 
 ```
 1. Mark the group node as "running" in the UI.

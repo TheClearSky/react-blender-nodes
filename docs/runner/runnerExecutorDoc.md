@@ -33,7 +33,8 @@ Key responsibilities:
 7. Record all execution events via `ExecutionRecorder` for timeline replay.
 8. Support cooperative cancellation via `AbortSignal`.
 
-Primary source: `src/utils/nodeRunner/executor.ts`
+Primary source: `src/utils/nodeRunner/executor/` (folder with per-responsibility
+modules)
 
 ## Entity-Relationship Diagram
 
@@ -177,7 +178,7 @@ react-blender-nodes
 │   ├── Runner Compiler (compiler.ts)
 │   │   └── Produces ExecutionPlan
 │   │
-│   ├── >>> Runner Executor (executor.ts) <<<
+│   ├── >>> Runner Executor (executor/) <<<
 │   │   ├── execute()              Performance mode entry point
 │   │   ├── executeStepByStep()    Debug mode entry point (AsyncGenerator)
 │   │   ├── executeOneStep()       Dispatcher: standard | loop | group

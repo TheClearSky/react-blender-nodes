@@ -10,7 +10,12 @@ import {
 } from './handleGetters';
 import { produce } from 'immer';
 import type { AllTypesOfNodeData, InstantiatedNodeData } from '../nodes/types';
-import type { HandleIndices, NonPanelTypesOfHandles } from './types';
+import type {
+  HandleIndices,
+  AllTypesOfHandles,
+  NonPanelTypesOfHandles,
+} from './types';
+import { ensureUniqueHandleName } from './ensureUniqueHandleName';
 
 function transformHandlesInNodeDataInPlace<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
@@ -130,7 +135,7 @@ function updateHandleInNodeDataMatchingHandleId<
     }
     return nodeData;
   } else {
-    return produce(nodeData, (draft) => {
+    return produce(nodeData, (draft: typeof nodeData) => {
       const handle = getHandleFromNodeDataMatchingHandleId<
         DataTypeUniqueId,
         NodeTypeUniqueId,
@@ -187,7 +192,7 @@ function updateHandleInNodeDataUsingHandleIndices<
 
     return nodeData;
   } else {
-    return produce(nodeData, (draft) => {
+    return produce(nodeData, (draft: typeof nodeData) => {
       const handle = getHandleFromNodeDataFromIndices<
         DataTypeUniqueId,
         NodeTypeUniqueId,
@@ -204,6 +209,66 @@ function updateHandleInNodeDataUsingHandleIndices<
   }
 }
 
+/**
+ * Collects all existing handle names for a given direction ('input' or 'output')
+ * from a node's data, flattening panels via the handle iterator.
+ */
+function collectExistingHandleNames<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  nodeData: AllTypesOfNodeData<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+  direction: 'input' | 'output',
+): string[] {
+  const handlesArray =
+    direction === 'input' ? nodeData.inputs : nodeData.outputs;
+  if (!handlesArray) return [];
+  const iterator = handleIteratorIncludingIndices<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType,
+    AllTypesOfHandles<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >
+  >(
+    handlesArray as AllTypesOfHandles<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >,
+    direction,
+  );
+  const names: string[] = [];
+  for (const { value } of iterator) {
+    if (value && 'name' in value && typeof value.name === 'string') {
+      names.push(value.name);
+    }
+  }
+  return names;
+}
+
+/**
+ * Inserts or deletes a handle at a specific position in a node's inputs or outputs.
+ *
+ * By default, ensures the inserted handle's name is unique among its siblings
+ * (all inputs or all outputs on the same node). If the name collides, a numeric
+ * suffix is appended: "Name 2", "Name 3", etc. Callers can disable this by
+ * passing `ensureUniqueName: false`.
+ */
 function insertOrDeleteHandleInNodeDataUsingHandleIndices<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
   NodeTypeUniqueId extends string = string,
@@ -231,8 +296,26 @@ function insertOrDeleteHandleInNodeDataUsingHandleIndices<
     | NonNullable<TypeSupplied['outputs']>[number],
   mutate = true,
   beforeOrAfterIndex: 'before' | 'after' = 'before',
+  ensureUniqueName = true,
 ) {
   if (mutate) {
+    if (
+      ensureUniqueName &&
+      'name' in handleToInsert &&
+      typeof (handleToInsert as { name?: unknown }).name === 'string'
+    ) {
+      const existingNames = collectExistingHandleNames<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >(nodeData, handleIndices.type);
+      const namedHandle = handleToInsert as { name: string };
+      namedHandle.name = ensureUniqueHandleName(
+        namedHandle.name,
+        existingNames,
+      );
+    }
     const handle = getHandleFromNodeDataFromIndices<
       DataTypeUniqueId,
       NodeTypeUniqueId,
@@ -257,7 +340,26 @@ function insertOrDeleteHandleInNodeDataUsingHandleIndices<
     }
     return nodeData;
   } else {
-    return produce(nodeData, (draft) => {
+    return produce(nodeData, (draft: typeof nodeData) => {
+      if (
+        ensureUniqueName &&
+        'name' in handleToInsert &&
+        typeof (handleToInsert as { name?: unknown }).name === 'string'
+      ) {
+        const existingNames = collectExistingHandleNames<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        >(draft as TypeSupplied, handleIndices.type);
+        handleToInsert = {
+          ...handleToInsert,
+          name: ensureUniqueHandleName(
+            (handleToInsert as { name: string }).name,
+            existingNames,
+          ),
+        };
+      }
       const handle = getHandleFromNodeDataFromIndices<
         DataTypeUniqueId,
         NodeTypeUniqueId,

@@ -114,7 +114,7 @@ executeLoopBlock
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                          STATE MANAGEMENT                               │
 │                                                                         │
-│  standardNodes.ts          loops.ts             constructAndModifyHandles│
+│  standardNodes.ts          loops/               constructAndModifyHandles│
 │  ┌──────────────┐    ┌──────────────────┐    ┌──────────────────────┐   │
 │  │ loopStart    │    │ isLoopNode()     │    │ addEdgeWithType-     │   │
 │  │ loopStop     │    │ isLoopConnection │    │ Checking()           │   │
@@ -136,7 +136,7 @@ executeLoopBlock
 ├─────────────────────────────────────────────────────────────────────────┤
 │                            RUNNER                                       │
 │                                                                         │
-│  loopCompiler.ts              executor.ts              types.ts         │
+│  loopCompiler.ts              executor/                 types.ts         │
 │  ┌──────────────────┐    ┌──────────────────┐    ┌─────────────────┐   │
 │  │ compileLoop-     │    │ executeLoopBlock()│    │ LoopExecution-  │   │
 │  │   Structures()   │───>│   per-iteration   │    │   Block         │   │
@@ -260,8 +260,9 @@ Handle index constants are exported from `standardNodes.ts`:
 
 ### isLoopConnectionValid
 
-Located in `loops.ts:1379`. This is the primary validation function called by
-`addEdgeWithTypeChecking` whenever a new edge involves a loop node.
+Located in `loops/loopValidation.ts:415`. This is the primary validation
+function called by `addEdgeWithTypeChecking` whenever a new edge involves a loop
+node.
 
 **Three cases:**
 
@@ -312,8 +313,8 @@ Located in `loops.ts:1379`. This is the primary validation function called by
 
 ### canRemoveLoopNodesAndEdges
 
-Located in `loops.ts:1877`. Called by `FullGraph.tsx` in the `onBeforeDelete`
-handler.
+Located in `loops/loopValidation.ts:913`. Called by `FullGraph.tsx` in the
+`onBeforeDelete` handler.
 
 **Rules:**
 
@@ -327,8 +328,8 @@ handler.
 
 ### addDuplicateHandlesToLoopNodesAfterInference
 
-Located in `loops.ts:82`. Called during edge addition when type inference occurs
-on a loop node's infer handle.
+Located in `loops/loopHandleSync.ts:25`. Called during edge addition when type
+inference occurs on a loop node's infer handle.
 
 **Mechanism:**
 
@@ -360,8 +361,8 @@ message asking the user to complete existing connections first.
 
 ### getLoopStructureFromNode
 
-Located in `loops.ts:694`. Given any loop node, traverses the `bindLoopNodes`
-edges to find the complete triplet.
+Located in `loops/loopStructure.ts:134`. Given any loop node, traverses the
+`bindLoopNodes` edges to find the complete triplet.
 
 **Algorithm:**
 
@@ -376,8 +377,8 @@ edges to find the complete triplet.
 
 ### getNodesInLoopRegion
 
-Located in `loops.ts:404`. Identifies all nodes inside the loop body using
-bidirectional BFS.
+Located in `loops/loopRegion.ts:83`. Identifies all nodes inside the loop body
+using bidirectional BFS.
 
 **Returns two sets:**
 
@@ -421,7 +422,7 @@ Located in `loopCompiler.ts:37`. Called during the compilation phase.
 
 ### Loop Execution (`executeLoopBlock`)
 
-Located in `executor.ts:494`. The core loop execution logic.
+Located in `executor/executeLoopBlock.ts`. The core loop execution logic.
 
 **Per-iteration steps:**
 

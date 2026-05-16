@@ -101,7 +101,7 @@ compile()
   |     Detects structural bindLoopNodes edges to exclude from data flow maps
   |
   +-- isLoopNode()                         [Phase 2]
-  |     src/utils/nodeStateManagement/nodes/loops.ts
+  |     src/utils/nodeStateManagement/nodes/loops/loopIdentification.ts
   |     Checks if nodeTypeId is loopStart, loopStop, or loopEnd
   |
   +-- isStandardNodeType()                 [Phase 2]
@@ -116,11 +116,11 @@ compile()
   |     src/utils/nodeRunner/loopCompiler.ts
   |     |
   |     +-- getLoopStructureFromNode()
-  |     |     src/utils/nodeStateManagement/nodes/loops.ts
+  |     |     src/utils/nodeStateManagement/nodes/loops/loopStructure.ts
   |     |     Finds loop triplet (start, stop, end) from any loop node
   |     |
   |     +-- getNodesInLoopRegion()
-  |     |     src/utils/nodeStateManagement/nodes/loops.ts
+  |     |     src/utils/nodeStateManagement/nodes/loops/loopRegion.ts
   |     |     BFS from loopStart to discover body nodes
   |     |
   |     +-- topologicalSortWithLevels()
@@ -257,7 +257,7 @@ react-blender-nodes
     |                             InputResolutionEntry, OutputDistributionEntry
     |
     +-- Runner Executor
-    |   +-- executor.ts           Consumes ExecutionPlan, calls FunctionImplementations
+    |   +-- executor/             Consumes ExecutionPlan, calls FunctionImplementations
     |   +-- valueStore.ts         Stores intermediate values during execution
     |
     +-- Runner Hook
@@ -877,7 +877,7 @@ the dependency graph.
 ### -> [Loops (compiles loop structures)](../features/loopsDoc.md)
 
 The compiler delegates to `compileLoopStructures()` in Phase 3. It uses loop
-utilities from `src/utils/nodeStateManagement/nodes/loops.ts`:
+utilities from `src/utils/nodeStateManagement/nodes/loops/`:
 
 - `isLoopNode()` — checks if a node type is one of the 3 loop types
 - `getLoopStructureFromNode()` — finds the complete triplet from any loop node

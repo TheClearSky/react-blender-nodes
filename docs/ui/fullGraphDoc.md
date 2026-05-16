@@ -208,7 +208,7 @@ FullGraph (outer)
 
 ### FullGraph (outer wrapper)
 
-Defined at `src/components/organisms/FullGraph/FullGraph.tsx:766-802`.
+Defined at `src/components/organisms/FullGraph/FullGraph.tsx:530-579`.
 
 The outermost component. Its sole job is to wrap children in:
 

@@ -62,6 +62,8 @@ type ConfigurableNodeInput<
       value?: string;
       /** Callback when the input value changes */
       onChange?: (value: string) => void;
+      /** When set, renders a select dropdown instead of a free-text input */
+      allowedStrings?: readonly string[];
     }
   | {
       /** Number input type */

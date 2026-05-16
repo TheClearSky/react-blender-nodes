@@ -6,8 +6,8 @@ import { cn } from '@/utils/cnHelper';
 
 const buttonVariants = cva(
   'inline-flex items-center justify-center gap-2 cursor-pointer \
-  py-2 px-4 rounded-md transition-all \
-  text-[27px] leading-[27px] font-main whitespace-nowrap text-primary-white \
+  rounded-md transition-all \
+  font-main whitespace-nowrap text-primary-white \
   disabled:cursor-not-allowed disabled:bg-secondary-dark-gray disabled:opacity-50 outline-none focus-visible:outline-none border',
   {
     variants: {
@@ -22,10 +22,15 @@ const buttonVariants = cva(
         true: '',
         false: '',
       },
+      size: {
+        normal: 'py-2 px-4 text-[27px] leading-[27px]',
+        small: 'py-2 px-3 text-[16px] leading-[13px] rounded-sm',
+      },
     },
     defaultVariants: {
       color: 'dark',
       applyHoverStyles: true,
+      size: 'normal',
     },
     compoundVariants: [
       {
@@ -109,14 +114,19 @@ type ButtonProps = ComponentProps<'button'> &
  * ```
  */
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, color, asChild = false, applyHoverStyles, ...props }, ref) => {
+  (
+    { className, color, size, asChild = false, applyHoverStyles, ...props },
+    ref,
+  ) => {
     const Comp = asChild ? Slot : 'button';
 
     return (
       <Comp
         ref={ref}
         data-slot='button'
-        className={cn(buttonVariants({ color, className, applyHoverStyles }))}
+        className={cn(
+          buttonVariants({ color, size, className, applyHoverStyles }),
+        )}
         {...props}
       />
     );

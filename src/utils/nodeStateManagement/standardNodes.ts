@@ -1,6 +1,7 @@
 import {
   makeDataTypeWithAutoInfer,
   makeTypeOfNodeWithAutoInfer,
+  type NodeCountConstraints,
 } from './types';
 
 const standardNodeContextMenu = {
@@ -181,6 +182,29 @@ const standardNodeTypes = {
   }),
 };
 
+const standardHiddenNodeTypesInContextMenu: Partial<Record<string, true>> = {
+  [standardNodeTypeNamesMap.groupInput]: true,
+  [standardNodeTypeNamesMap.groupOutput]: true,
+  [standardNodeTypeNamesMap.loopStart]: true,
+  [standardNodeTypeNamesMap.loopStop]: true,
+  [standardNodeTypeNamesMap.loopEnd]: true,
+};
+
+const standardNodeCountConstraints: NodeCountConstraints = {
+  [standardNodeTypeNamesMap.groupInput]: {
+    maxInRoot: 0,
+    minInRoot: 0,
+    minWithinANodeGroup: 1,
+    maxWithinANodeGroup: 1,
+  },
+  [standardNodeTypeNamesMap.groupOutput]: {
+    maxInRoot: 0,
+    minInRoot: 0,
+    minWithinANodeGroup: 1,
+    maxWithinANodeGroup: 1,
+  },
+};
+
 const loopStartInputInferHandleIndex = 0;
 const loopStartOutputInferHandleIndex = 1;
 const loopStopInputInferHandleIndex = 2;
@@ -193,6 +217,8 @@ export {
   groupNodeContextMenu,
   standardDataTypes,
   standardNodeTypes,
+  standardHiddenNodeTypesInContextMenu,
+  standardNodeCountConstraints,
   standardDataTypeNames,
   standardNodeTypeNames,
   standardDataTypeNamesMap,

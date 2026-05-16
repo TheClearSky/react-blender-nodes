@@ -137,7 +137,7 @@ ExecutionRecord
 |                                    v                            |
 |  +-------------------+    +------------------+                  |
 |  | ValueStore        |<-->| Executor         |                  |
-|  | (valueStore.ts)   |    | (executor.ts)    |                  |
+|  | (valueStore.ts)   |    | (executor/)      |                  |
 |  +-------------------+    +--------+---------+                  |
 |                                    |                            |
 |                            uses    |                            |
@@ -560,7 +560,7 @@ if (result.success) {
 
 ## Relationships with Other Features
 
-### -> [Runner Executor (`executor.ts`)](runnerExecutorDoc.md)
+### -> [Runner Executor (`executor/`)](runnerExecutorDoc.md)
 
 The executor is the primary consumer of `ExecutionRecorder`. It creates a
 recorder instance at the start of each run and calls its methods throughout

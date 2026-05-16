@@ -13,6 +13,7 @@ export type {
 
 // Export functions
 export { exportGraphState } from './stateExport';
+export { StateSerializer } from './stateSerializer';
 export { exportExecutionRecord } from './recordExport';
 
 // Import functions

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 type UseResizeHandleOptions = {
   /** Starting height/width in pixels */
@@ -42,6 +42,9 @@ function useResizeHandle({
   const startPosRef = useRef(0);
   const startSizeRef = useRef(0);
 
+  const mouseMoveRef = useRef<((e: MouseEvent) => void) | null>(null);
+  const mouseUpRef = useRef<(() => void) | null>(null);
+
   const isVertical = direction === 'up' || direction === 'down';
   const cursorStyle = isVertical ? 'ns-resize' : 'ew-resize';
   // For 'up' and 'left', dragging in the negative direction increases size
@@ -74,13 +77,32 @@ function useResizeHandle({
         document.body.style.cursor = '';
         document.removeEventListener('mousemove', handleMove);
         document.removeEventListener('mouseup', handleUp);
+        mouseMoveRef.current = null;
+        mouseUpRef.current = null;
       };
 
+      mouseMoveRef.current = handleMove;
+      mouseUpRef.current = handleUp;
       document.addEventListener('mousemove', handleMove);
       document.addEventListener('mouseup', handleUp);
     },
     [size, minSize, maxSize, isVertical, cursorStyle, sign],
   );
+
+  useEffect(() => {
+    return () => {
+      if (mouseMoveRef.current) {
+        document.removeEventListener('mousemove', mouseMoveRef.current);
+        mouseMoveRef.current = null;
+      }
+      if (mouseUpRef.current) {
+        document.removeEventListener('mouseup', mouseUpRef.current);
+        mouseUpRef.current = null;
+      }
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, []);
 
   return { size, onMouseDown };
 }

@@ -57,7 +57,7 @@ signature):**
 
 **Source:** `src/utils/nodeStateManagement/types.ts:348-355` (State),
 `src/utils/nodeStateManagement/mainReducer.ts:252-258` (mainReducer),
-`src/components/organisms/FullGraph/FullGraph.tsx:766-772` (FullGraph)
+`src/components/organisms/FullGraph/FullGraph.tsx:530-537` (FullGraph)
 
 **Key rules:**
 
@@ -246,7 +246,8 @@ function Badge({
   VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
 ```
 
-**Source:** `src/components/atoms/Badge/Badge.tsx:29-35`
+**Source:** `src/components/atoms/Button/Button.tsx:66-70` (same intersection
+pattern; Badge is planned)
 
 ### Type Guards (`is` return type)
 
@@ -417,7 +418,7 @@ const node: (typeof newState.nodes)[number] = constructNodeOfType(...);
 
 This gets the element type of the `nodes` array without importing it separately.
 
-**Source:** `mainReducer.ts:289`, `mainReducer.ts:499`, `mainReducer.ts:509`
+**Source:** `mainReducer.ts:289`, `mainReducer.ts:522`, `mainReducer.ts:532`
 
 ---
 
@@ -606,7 +607,7 @@ return (
 );
 ```
 
-**Source:** `FullGraph.tsx:509-617`
+**Source:** `FullGraph.tsx:422-434`
 
 ### Component Composition (Slot / asChild Pattern)
 
@@ -619,7 +620,7 @@ function Badge({ asChild = false, ...props }) {
 }
 ```
 
-**Source:** `Badge.tsx:29-46`
+**Source:** `Button.tsx:111-124` (same asChild/Slot pattern; Badge is planned)
 
 ### Compound Components (Radix UI Wrappers)
 
@@ -916,7 +917,7 @@ for await (const step of executeStepByStep(graph, store, signal)) {
 }
 ```
 
-**Source:** `executor.ts`
+**Source:** `executor/stepByStep.ts`
 
 ### Mutable Ref + Snapshot Pattern
 
@@ -949,7 +950,7 @@ const duration = performance.now() - startTime;
 
 Duration is stored on each `ExecutionStep` and on `GraphError` objects.
 
-**Source:** `executor.ts`, `errors.ts`
+**Source:** `executor/executeStandardNode.ts`, `errors.ts`
 
 ---
 
@@ -981,7 +982,7 @@ function mainReducer(oldState, action) {
 - `return` a new value to replace the entire state (used by `REPLACE_STATE`)
 - The produce callback receives a mutable draft typed as `State<D,N,U,C>`
 
-**Source:** `mainReducer.ts:273-554`
+**Source:** `mainReducer.ts:273-578`
 
 ### Action Typing with `typeof actionTypesMap.X`
 
@@ -1069,8 +1070,8 @@ const record = executionRecordRef.current?.();
 The ref type is `React.RefObject<(() => T) | null>` — a ref to a nullable
 function.
 
-**Source:** `FullGraph.tsx:169-175` (type), `FullGraph.tsx:183-204` (effect),
-`FullGraph.tsx:393` (read)
+**Source:** `useGraphImportExport.tsx:75-78` (type),
+`useGraphImportExport.tsx:107-115` (ref), `useGraphImportExport.tsx:173` (read)
 
 ### SVG Arrow Ref (Floating UI)
 
@@ -1176,7 +1177,7 @@ const badgeVariants = cva(
 
 Component uses: `cn(badgeVariants({ variant }), className)`
 
-**Source:** `Badge.tsx:7-27`, also used in `Button.tsx`
+**Source:** `Button.tsx:7-58` (cva variants; Badge is planned)
 
 ### data-slot / data-variant Attributes
 
@@ -1468,7 +1469,7 @@ async function* processSteps(steps, valueStore, signal) {
 }
 ```
 
-**Source:** `executor.ts`
+**Source:** `executor/executeLoopBlock.ts`, `executor/executeOneStep.ts`
 
 ### Minimal Types to Avoid Variance Issues
 

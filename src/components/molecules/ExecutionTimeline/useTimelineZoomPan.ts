@@ -53,40 +53,33 @@ function useTimelineZoomPan({
 
   // ── Container width tracking via ResizeObserver ──
   // The scroll container is conditionally rendered (only when record exists),
-  // so we use a ResizeObserver that re-attaches whenever the ref changes.
+  // so we use a ResizeObserver inside an effect that re-attaches whenever the
+  // ref element changes.
   const [containerWidth, setContainerWidth] = useState(0);
-  const observerRef = useRef<ResizeObserver | null>(null);
   const observedElRef = useRef<HTMLDivElement | null>(null);
 
-  // Check ref on every render — re-attach observer if the element changed.
-  // This handles the case where the scroll container mounts after the hook
-  // (e.g., when record transitions from null to non-null).
-  const container = scrollContainerRef.current;
-  if (container !== observedElRef.current) {
-    // Detach from previous element
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-      observerRef.current = null;
-    }
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+
+    // Nothing changed — skip
+    if (container === observedElRef.current) return;
     observedElRef.current = container;
 
-    if (container) {
-      setContainerWidth(container.clientWidth);
-      const observer = new ResizeObserver((entries) => {
-        const entry = entries[0];
-        if (entry) setContainerWidth(entry.contentRect.width);
-      });
-      observer.observe(container);
-      observerRef.current = observer;
-    }
-  }
+    if (!container) return;
 
-  // Cleanup on unmount
-  useEffect(() => {
+    // Seed the width synchronously so the first render has a value
+    setContainerWidth(container.clientWidth);
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setContainerWidth(entry.contentRect.width);
+    });
+    observer.observe(container);
+
     return () => {
-      observerRef.current?.disconnect();
+      observer.disconnect();
     };
-  }, []);
+  });
 
   // ── Auto-fit vs manual zoom state ──
   // When isAutoFit is true, timeScale is derived from duration + container width.

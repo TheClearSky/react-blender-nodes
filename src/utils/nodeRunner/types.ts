@@ -595,11 +595,9 @@ type ExecutionRecord = {
   /** Total execution duration (ms) — wall-clock time */
   totalDuration: number;
   /**
-   * Time spent warming up the JS engine before execution (ms).
-   * The first nodes in a session pay a JIT compilation cost; this
-   * warmup phase absorbs that cost so recorded step timings are accurate.
+   * Time spent warming up the JS engine (JIT compilation) before execution, in milliseconds.
    */
-  compilationDuration: number;
+  warmupDuration: number;
   /**
    * Total time spent paused during execution (ms).
    * Only non-zero in step-by-step mode. Subtract from totalDuration

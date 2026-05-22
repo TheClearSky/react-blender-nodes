@@ -3,9 +3,8 @@ import { Play } from 'lucide-react';
 import { z } from 'zod';
 import { useReactFlow } from '@xyflow/react';
 import {
-  FullGraphContext,
+  RunnerContext,
   useRecordContext,
-  createContextValue,
   type NodeRunnerState,
 } from './FullGraphState';
 import { useRecordingViewState } from './RecordingViewStateContext';
@@ -40,7 +39,6 @@ function RunnerOverlay<
     : never = never,
 >({
   state,
-  dispatch,
   functionImplementations,
   children,
   onExecutionRecordRef,
@@ -52,12 +50,6 @@ function RunnerOverlay<
     UnderlyingType,
     ComplexSchemaType
   >['state'];
-  dispatch: FullGraphProps<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >['dispatch'];
   functionImplementations: NonNullable<
     FullGraphProps<
       DataTypeUniqueId,
@@ -244,13 +236,12 @@ function RunnerOverlay<
   ]);
 
   return (
-    <FullGraphContext.Provider
-      value={createContextValue(
-        { state, dispatch },
+    <RunnerContext.Provider
+      value={{
         nodeRunnerStates,
         selectedStepRecord,
         edgeValuesAnimated,
-      )}
+      }}
     >
       {children}
 
@@ -284,7 +275,7 @@ function RunnerOverlay<
           Runner
         </button>
       )}
-    </FullGraphContext.Provider>
+    </RunnerContext.Provider>
   );
 }
 

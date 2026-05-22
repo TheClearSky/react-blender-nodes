@@ -842,6 +842,112 @@ function applyPlan<
       return;
     }
 
+    case 'UPDATE_LOOP': {
+      const currentView = getCurrentNodesAndEdgesFromState(draft);
+
+      function updateNodeHandles(
+        nodeId: string,
+        inHandleUpdates: Array<{ id: string; name: string }>,
+        outHandleUpdates: Array<{ id: string; name: string }>,
+        inStartIndex: number,
+        outStartIndex: number,
+      ): void {
+        const node = currentView.nodes.find((n) => n.id === nodeId);
+        if (!node) return;
+        const inputs = node.data?.inputs;
+        const outputs = node.data?.outputs;
+        if (!Array.isArray(inputs) || !Array.isArray(outputs)) return;
+
+        const inputIdMap = new Map<string, Record<string, unknown>>();
+        for (let i = inStartIndex; i < inputs.length; i++) {
+          const handle = inputs[i] as Record<string, unknown>;
+          inputIdMap.set(handle.id as string, handle);
+        }
+
+        const outputIdMap = new Map<string, Record<string, unknown>>();
+        for (let i = outStartIndex; i < outputs.length; i++) {
+          const handle = outputs[i] as Record<string, unknown>;
+          outputIdMap.set(handle.id as string, handle);
+        }
+
+        const fixedInputs = inputs.slice(0, inStartIndex);
+        const fixedOutputs = outputs.slice(0, outStartIndex);
+
+        const reorderedInputs = inHandleUpdates
+          .map((update) => {
+            const existing = inputIdMap.get(update.id);
+            if (existing) existing.name = update.name;
+            return existing;
+          })
+          .filter(Boolean);
+
+        const reorderedOutputs = outHandleUpdates
+          .map((update) => {
+            const existing = outputIdMap.get(update.id);
+            if (existing) existing.name = update.name;
+            return existing;
+          })
+          .filter(Boolean);
+
+        const remainingInputs = [...inputIdMap.values()].filter(
+          (h) => !inHandleUpdates.some((u) => u.id === (h.id as string)),
+        );
+        const remainingOutputs = [...outputIdMap.values()].filter(
+          (h) => !outHandleUpdates.some((u) => u.id === (h.id as string)),
+        );
+
+        (node.data as Record<string, unknown>).inputs = [
+          ...fixedInputs,
+          ...reorderedInputs,
+          ...remainingInputs,
+        ];
+        (node.data as Record<string, unknown>).outputs = [
+          ...fixedOutputs,
+          ...reorderedOutputs,
+          ...remainingOutputs,
+        ];
+      }
+
+      const loopStartInStart = 0;
+      const loopStartOutStart = 1;
+      const loopStopInStart = 2;
+      const loopStopOutStart = 1;
+      const loopEndInStart = 1;
+      const loopEndOutStart = 0;
+
+      updateNodeHandles(
+        plan.loopStartNodeId,
+        plan.levels.map((l) => l.handles.loopStartIn),
+        plan.levels.map((l) => l.handles.loopStartOut),
+        loopStartInStart,
+        loopStartOutStart,
+      );
+      updateNodeHandles(
+        plan.loopStopNodeId,
+        plan.levels.map((l) => l.handles.loopStopIn),
+        plan.levels.map((l) => l.handles.loopStopOut),
+        loopStopInStart,
+        loopStopOutStart,
+      );
+      updateNodeHandles(
+        plan.loopEndNodeId,
+        plan.levels.map((l) => l.handles.loopEndIn),
+        plan.levels.map((l) => l.handles.loopEndOut),
+        loopEndInStart,
+        loopEndOutStart,
+      );
+
+      return;
+    }
+
+    case 'OPEN_DRAWER':
+      draft.activeDrawer = plan.activeDrawer as typeof draft.activeDrawer;
+      return;
+
+    case 'CLOSE_DRAWER':
+      draft.activeDrawer = undefined;
+      return;
+
     default:
       throw new Error(`Unknown plan kind: ${(plan as Plan).kind}`);
   }

@@ -1,4 +1,4 @@
-{
+﻿{
   "version": 1,
   "exportedAt": "2026-04-04T16:54:40.839Z",
   "state": {
@@ -392,8 +392,7 @@
               }
             }
           ],
-          "nodeTypeUniqueId": "bitConstant",
-          "showNodeOpenButton": false
+          "nodeTypeUniqueId": "bitConstant"
         },
         "selected": false,
         "measured": {
@@ -455,8 +454,7 @@
               }
             }
           ],
-          "nodeTypeUniqueId": "bitConstant",
-          "showNodeOpenButton": false
+          "nodeTypeUniqueId": "bitConstant"
         },
         "selected": false,
         "measured": {
@@ -639,8 +637,7 @@
               }
             }
           ],
-          "nodeTypeUniqueId": "loopStart",
-          "showNodeOpenButton": false
+          "nodeTypeUniqueId": "loopStart"
         },
         "selected": false,
         "measured": {
@@ -854,8 +851,7 @@
               }
             }
           ],
-          "nodeTypeUniqueId": "loopStop",
-          "showNodeOpenButton": false
+          "nodeTypeUniqueId": "loopStop"
         },
         "selected": false,
         "measured": {
@@ -1037,8 +1033,7 @@
               }
             }
           ],
-          "nodeTypeUniqueId": "loopEnd",
-          "showNodeOpenButton": false
+          "nodeTypeUniqueId": "loopEnd"
         },
         "selected": false,
         "measured": {
@@ -1119,8 +1114,7 @@
               }
             }
           ],
-          "nodeTypeUniqueId": "xorGate",
-          "showNodeOpenButton": false
+          "nodeTypeUniqueId": "xorGate"
         },
         "selected": true,
         "measured": {
@@ -1201,8 +1195,7 @@
               }
             }
           ],
-          "nodeTypeUniqueId": "andGate",
-          "showNodeOpenButton": false
+          "nodeTypeUniqueId": "andGate"
         },
         "selected": false,
         "measured": {
@@ -1282,8 +1275,7 @@
               }
             }
           ],
-          "nodeTypeUniqueId": "xorGate",
-          "showNodeOpenButton": false
+          "nodeTypeUniqueId": "xorGate"
         },
         "selected": false,
         "measured": {
@@ -1363,8 +1355,7 @@
               }
             }
           ],
-          "nodeTypeUniqueId": "andGate",
-          "showNodeOpenButton": false
+          "nodeTypeUniqueId": "andGate"
         },
         "selected": false,
         "measured": {
@@ -1426,8 +1417,7 @@
               }
             }
           ],
-          "nodeTypeUniqueId": "notGate",
-          "showNodeOpenButton": false
+          "nodeTypeUniqueId": "notGate"
         },
         "selected": false,
         "measured": {
@@ -1470,8 +1460,7 @@
             }
           ],
           "outputs": [],
-          "nodeTypeUniqueId": "bitDisplay",
-          "showNodeOpenButton": false
+          "nodeTypeUniqueId": "bitDisplay"
         },
         "selected": false,
         "measured": {
@@ -1514,8 +1503,7 @@
             }
           ],
           "outputs": [],
-          "nodeTypeUniqueId": "bitDisplay",
-          "showNodeOpenButton": false
+          "nodeTypeUniqueId": "bitDisplay"
         },
         "selected": false,
         "measured": {

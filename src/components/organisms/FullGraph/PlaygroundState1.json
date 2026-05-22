@@ -690,8 +690,7 @@
             }
           }
         ],
-        "nodeTypeUniqueId": "inputValidator",
-        "showNodeOpenButton": false
+        "nodeTypeUniqueId": "inputValidator"
       },
       "selected": false,
       "measured": {
@@ -791,8 +790,7 @@
             }
           }
         ],
-        "nodeTypeUniqueId": "dataSource",
-        "showNodeOpenButton": false
+        "nodeTypeUniqueId": "dataSource"
       },
       "selected": false,
       "measured": {
@@ -912,8 +910,7 @@
             }
           }
         ],
-        "nodeTypeUniqueId": "dataTransformer",
-        "showNodeOpenButton": false
+        "nodeTypeUniqueId": "dataTransformer"
       },
       "selected": false,
       "measured": {
@@ -1015,8 +1012,7 @@
             }
           }
         ],
-        "nodeTypeUniqueId": "dataSink",
-        "showNodeOpenButton": false
+        "nodeTypeUniqueId": "dataSink"
       },
       "selected": false,
       "measured": {
@@ -1191,8 +1187,7 @@
             }
           }
         ],
-        "nodeTypeUniqueId": "advancedProcessor",
-        "showNodeOpenButton": false
+        "nodeTypeUniqueId": "advancedProcessor"
       },
       "selected": false,
       "measured": {

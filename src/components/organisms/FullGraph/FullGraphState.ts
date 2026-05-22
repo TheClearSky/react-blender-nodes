@@ -29,14 +29,20 @@ type NodeRunnerState = {
 
 const FullGraphContext = createContext<{
   allProps: FullGraphProps;
-  /** Optional map of nodeId -> runner visual state. Provided by useNodeRunner. */
-  nodeRunnerStates?: ReadonlyMap<string, NodeRunnerState>;
-  /** The currently inspected execution step record (when a timeline block is selected). */
-  selectedStepRecord?: ExecutionStepRecord | null;
-  /** Whether edge value display is animated (true) or static (false). */
-  edgeValuesAnimated?: boolean;
 }>(null!); //the not-null assertion (null!) is because-
 // we are creating a context that is always provided (right below)
+
+// ─────────────────────────────────────────────────────
+// RunnerContext — runner visual state (provided by RunnerOverlay)
+// ─────────────────────────────────────────────────────
+
+type RunnerContextValue = {
+  nodeRunnerStates: ReadonlyMap<string, NodeRunnerState>;
+  selectedStepRecord: ExecutionStepRecord | null;
+  edgeValuesAnimated: boolean;
+};
+
+const RunnerContext = createContext<RunnerContextValue | undefined>(undefined);
 
 // ─────────────────────────────────────────────────────
 // RecordContext — controlled execution record state
@@ -253,25 +259,21 @@ function useFullGraph<
  * because all consumer dispatches originate from user interactions
  * (right-click menu, group selector) that use the correct node type IDs.
  */
-function createContextValue(
-  props: { state: unknown; dispatch: unknown },
-  nodeRunnerStates?: ReadonlyMap<string, NodeRunnerState>,
-  selectedStepRecord?: ExecutionStepRecord | null,
-  edgeValuesAnimated?: boolean,
-): React.ContextType<typeof FullGraphContext> {
-  // The caller passes concrete State<D,N,U,C> + dispatch; we erase the
-  // generics to match the context's default-param FullGraphProps type.
-  // This is safe per the justification above.
+function createContextValue(props: {
+  state: unknown;
+  dispatch: unknown;
+}): React.ContextType<typeof FullGraphContext> {
   const allProps = props as unknown as FullGraphProps;
-  return { allProps, nodeRunnerStates, selectedStepRecord, edgeValuesAnimated };
+  return { allProps };
 }
 
 export {
   FullGraphContext,
+  RunnerContext,
   useFullGraph,
   createContextValue,
   RecordContext,
   useRecordContext,
 };
 
-export type { NodeRunnerState, UseFullGraphOptions };
+export type { NodeRunnerState, RunnerContextValue, UseFullGraphOptions };

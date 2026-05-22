@@ -82,19 +82,24 @@ function addDuplicateHandleToNodeGroupAfterInference<
 ): {
   validation: ConnectionValidationResult;
 } {
-  //!== is basically xor for boolean, we are checking if one is true and the other is false
-  //Since we should only do this if one of them is an end connection
-  //There can never be an infer connection straight from group input to group output, because information is missing
+  // XOR gate: exactly one side must be (inferFromConnection AND group boundary).
+  // Both sides infer+group (first direct GroupInput→GroupOutput) is blocked — no
+  // type information exists. After overrideDataType converts one side to concrete,
+  // the XOR opens and the infer side gets a new template handle.
   if (
     nodeGroup &&
     (isSourceHandleInferredFromConnection && isSourceNodeGroupInput) !==
       (isTargetHandleInferredFromConnection && isTargetNodeGroupOutput)
   ) {
-    const indexOfNodeToUpdateInGroup = isTargetNodeGroupOutput
-      ? targetNodeIndex
-      : sourceNodeIndex;
-    const inputOrOutputType = isTargetNodeGroupOutput ? 'input' : 'output';
-    //If an output or input node group's output or input got inferred, we need to create a duplicate output or input handle for further connections
+    // The node that was inferFromConnection is the one whose template was consumed
+    // and needs a replacement. This is NOT always the group boundary target —
+    // after overrideDataType, either side could be the infer side.
+    const indexOfNodeToUpdateInGroup = isSourceHandleInferredFromConnection
+      ? sourceNodeIndex
+      : targetNodeIndex;
+    const inputOrOutputType = isSourceHandleInferredFromConnection
+      ? 'output'
+      : 'input';
     const newDuplicateHandle = constructTypeOfHandleFromIndices(
       state.dataTypes,
       state.nodes[indexOfNodeToUpdateInGroup].data
@@ -102,18 +107,16 @@ function addDuplicateHandleToNodeGroupAfterInference<
       state.typeOfNodes,
       { type: inputOrOutputType, index1: 0, index2: undefined },
     );
-    const handleToAddName = isTargetNodeGroupOutput
-      ? targetHandle.name
-      : sourceHandle.name;
-    const handleToAddDataType = isTargetNodeGroupOutput
-      ? targetHandle.inferredDataType?.dataTypeUniqueId
-      : sourceHandle.inferredDataType?.dataTypeUniqueId;
-    const handleToAddAllowInput = isTargetNodeGroupOutput
-      ? targetHandle.inferredDataType?.dataTypeObject.allowInput
-      : sourceHandle.inferredDataType?.dataTypeObject.allowInput;
-    const handleToAddMaxConnections = isTargetNodeGroupOutput
-      ? targetHandle.inferredDataType?.dataTypeObject.maxConnections
-      : sourceHandle.inferredDataType?.dataTypeObject.maxConnections;
+    const inferredHandle = isSourceHandleInferredFromConnection
+      ? sourceHandle
+      : targetHandle;
+    const handleToAddName = inferredHandle.name;
+    const handleToAddDataType =
+      inferredHandle.inferredDataType?.dataTypeUniqueId;
+    const handleToAddAllowInput =
+      inferredHandle.inferredDataType?.dataTypeObject.allowInput;
+    const handleToAddMaxConnections =
+      inferredHandle.inferredDataType?.dataTypeObject.maxConnections;
     if (!handleToAddName || !handleToAddDataType) {
       return {
         validation: {
@@ -158,7 +161,7 @@ function addDuplicateHandleToNodeGroupAfterInference<
         maxConnections: handleToAddMaxConnections,
       },
       {
-        type: isTargetNodeGroupOutput ? 'output' : 'input',
+        type: isSourceHandleInferredFromConnection ? 'input' : 'output',
         index1: -1,
         index2: undefined,
       },

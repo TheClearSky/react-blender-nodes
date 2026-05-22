@@ -391,6 +391,15 @@ function makeNodeCountConstraintsWithAutoInfer<
 }
 
 /**
+ * Currently open drawer. UI-only state — stripped during export.
+ * Managed by OPEN_DRAWER / CLOSE_DRAWER actions.
+ */
+type ActiveDrawer =
+  | { type: 'editLoop'; nodeId: string }
+  | { type: 'editNodeType'; nodeTypeId: string }
+  | null;
+
+/**
  * Complete state definition for the graph system
  *
  * @template DataTypeUniqueId - Unique identifier type for data types
@@ -534,6 +543,13 @@ type State<
    * @default undefined
    */
   enableDebugMode?: boolean;
+
+  /**
+   * Currently open drawer. UI-only state — stripped during export.
+   * Managed by OPEN_DRAWER / CLOSE_DRAWER actions.
+   * @default undefined
+   */
+  activeDrawer?: ActiveDrawer;
 };
 
 /**
@@ -616,5 +632,6 @@ export type {
   TypeOfInput,
   TypeOfInputPanel,
   NodeCountConstraints,
+  ActiveDrawer,
   State,
 };

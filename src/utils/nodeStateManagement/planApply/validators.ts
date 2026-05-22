@@ -539,6 +539,60 @@ function validateAction<
       });
     }
 
+    case actionTypesMap.OPEN_DRAWER:
+      return ok({
+        kind: 'OPEN_DRAWER' as const,
+        activeDrawer: action.payload.activeDrawer,
+      });
+
+    case actionTypesMap.CLOSE_DRAWER:
+      return ok({ kind: 'CLOSE_DRAWER' as const });
+
+    case actionTypesMap.UPDATE_LOOP: {
+      const { loopStartNodeId, loopStopNodeId, loopEndNodeId, levels } =
+        action.payload;
+      const currentView = getCurrentNodesAndEdgesFromState(_state);
+      const loopStartNode = currentView.nodes.find(
+        (n) => n.id === loopStartNodeId,
+      );
+      const loopStopNode = currentView.nodes.find(
+        (n) => n.id === loopStopNodeId,
+      );
+      const loopEndNode = currentView.nodes.find((n) => n.id === loopEndNodeId);
+      if (!loopStartNode || !loopStopNode || !loopEndNode) {
+        return err({
+          code: 'INVALID_NODE_GROUP' as const,
+          reason: 'One or more loop nodes not found',
+        });
+      }
+
+      const handleSlots = [
+        'loopStartIn',
+        'loopStartOut',
+        'loopStopIn',
+        'loopStopOut',
+        'loopEndIn',
+        'loopEndOut',
+      ] as const;
+      for (const slot of handleSlots) {
+        const names = levels.map((l) => l.handles[slot].name);
+        if (new Set(names).size !== names.length) {
+          return err({
+            code: 'INVALID_NODE_GROUP' as const,
+            reason: `Duplicate handle name in ${slot}`,
+          });
+        }
+      }
+
+      return ok({
+        kind: 'UPDATE_LOOP' as const,
+        loopStartNodeId,
+        loopStopNodeId,
+        loopEndNodeId,
+        levels,
+      });
+    }
+
     default:
       return null; // Not yet migrated — fall through to legacy
   }

@@ -6,7 +6,7 @@ import {
 } from './../ConfigurableNode';
 import type { SupportedUnderlyingTypes } from '@/utils';
 import { z } from 'zod';
-import { FullGraphContext } from '../../FullGraph/FullGraphState';
+import { RunnerContext } from '../../FullGraph/FullGraphState';
 import { ErrorBoundary } from '@/components/atoms/ErrorBoundary';
 import { AlertTriangle } from 'lucide-react';
 
@@ -97,8 +97,8 @@ const ConfigurableNodeReactFlowWrapper = forwardRef<
   HTMLDivElement,
   Omit<ConfigurableNodeReactFlowWrapperProps, 'position'>
 >(({ data = {}, id }, ref) => {
-  const fullGraphContext = useContext(FullGraphContext);
-  const nodeRunnerState = fullGraphContext?.nodeRunnerStates?.get(id);
+  const runnerContext = useContext(RunnerContext);
+  const nodeRunnerState = runnerContext?.nodeRunnerStates?.get(id);
 
   return (
     <ErrorBoundary

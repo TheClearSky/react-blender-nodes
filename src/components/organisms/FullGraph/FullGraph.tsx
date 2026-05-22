@@ -47,6 +47,7 @@ import type {
 } from '@/utils/nodeRunner/types';
 import { RunnerOverlay } from './RunnerOverlay';
 import { canRemoveLoopNodesAndEdges } from '@/utils/nodeStateManagement/nodes/loops';
+import { standardNodeTypeNamesMap } from '@/utils/nodeStateManagement/standardNodes';
 import { hasKey } from '@/utils/nodeRunner/groupCompiler';
 import { useGraphImportExport } from './useGraphImportExport';
 import { ErrorBoundary } from '@/components/atoms/ErrorBoundary';
@@ -57,6 +58,9 @@ import {
   type InputComponentRegistry,
 } from './InputComponentRegistryContext';
 import { NodeTypeEditDrawer } from '@/components/molecules/NodeTypeEditDrawer/NodeTypeEditDrawer';
+import { LoopEditDrawer } from '@/components/molecules/LoopEditDrawer';
+import type { LoopHandleLevel } from '@/components/molecules/LoopEditDrawer';
+import { getLoopStructureFromNode } from '@/utils/nodeStateManagement/nodes/loops/loopStructure';
 import { createLoopMenuItem } from '@/components/molecules/ContextMenu/createLoopMenuItem';
 
 /**
@@ -204,13 +208,63 @@ function FullGraphWithReactFlowProvider<
     position: { x: 0, y: 0 },
   });
 
-  const [editDrawerNodeTypeId, setEditDrawerNodeTypeId] = useState<
-    string | null
-  >(null);
+  const editDrawerNodeTypeId =
+    state.activeDrawer?.type === 'editNodeType'
+      ? state.activeDrawer.nodeTypeId
+      : null;
 
   const editDrawerNodeType = editDrawerNodeTypeId
     ? state.typeOfNodes[editDrawerNodeTypeId as NodeTypeUniqueId]
     : null;
+
+  const editLoopNodeId =
+    state.activeDrawer?.type === 'editLoop' ? state.activeDrawer.nodeId : null;
+
+  const editLoopTriplet = useMemo(() => {
+    if (!editLoopNodeId) return null;
+    const currentView = getCurrentNodesAndEdgesFromState(state);
+    const node = currentView.nodes.find((n) => n.id === editLoopNodeId);
+    if (!node) return null;
+    const structure = getLoopStructureFromNode(
+      { ...state, nodes: currentView.nodes, edges: currentView.edges },
+      node,
+    );
+    if (!structure) return null;
+    return {
+      loopStartId: structure.loopStart.id,
+      loopStopId: structure.loopStop.id,
+      loopEndId: structure.loopEnd.id,
+      loopStartData: structure.loopStart.data,
+      loopStopData: structure.loopStop.data,
+      loopEndData: structure.loopEnd.data,
+    };
+  }, [editLoopNodeId, state]);
+
+  const { screenToFlowPosition, fitView, getNodes } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  const handleSaveLoop = useCallback(
+    (levels: LoopHandleLevel[]) => {
+      if (!editLoopTriplet) return;
+      dispatch({
+        type: actionTypesMap.UPDATE_LOOP,
+        payload: {
+          loopStartNodeId: editLoopTriplet.loopStartId,
+          loopStopNodeId: editLoopTriplet.loopStopId,
+          loopEndNodeId: editLoopTriplet.loopEndId,
+          levels: levels.map((l) => ({ handles: l.handles })),
+        },
+      });
+      requestAnimationFrame(() => {
+        updateNodeInternals([
+          editLoopTriplet.loopStartId,
+          editLoopTriplet.loopStopId,
+          editLoopTriplet.loopEndId,
+        ]);
+      });
+    },
+    [editLoopTriplet, dispatch, updateNodeInternals],
+  );
 
   const nodeGroups = useMemo(() => {
     const result: { id: string; name: string }[] = [];
@@ -227,9 +281,6 @@ function FullGraphWithReactFlowProvider<
   const currentNodeGroup = useMemo(() => {
     return state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
   }, [state.openedNodeGroupStack]);
-
-  const { screenToFlowPosition, fitView, getNodes } = useReactFlow();
-  const updateNodeInternals = useUpdateNodeInternals();
 
   const handleSaveNodeType = useCallback(
     (
@@ -259,8 +310,19 @@ function FullGraphWithReactFlowProvider<
 
       if (updates.inputs !== undefined || updates.outputs !== undefined) {
         requestAnimationFrame(() => {
-          const nodeIds = getNodes().map((n) => n.id);
-          updateNodeInternals(nodeIds);
+          const affectedNodeIds = getNodes()
+            .filter((node) => {
+              const typeId = node.data?.nodeTypeUniqueId;
+              return (
+                typeId === nodeTypeId ||
+                typeId === standardNodeTypeNamesMap.groupInput ||
+                typeId === standardNodeTypeNamesMap.groupOutput
+              );
+            })
+            .map((node) => node.id);
+          if (affectedNodeIds.length > 0) {
+            updateNodeInternals(affectedNodeIds);
+          }
         });
       }
     },
@@ -455,7 +517,12 @@ function FullGraphWithReactFlowProvider<
             nodeType: nodeGroup.nodeType,
           }),
         )}
-        onEditNodeType={setEditDrawerNodeTypeId}
+        onEditNodeType={(nodeTypeId: string) =>
+          dispatch({
+            type: actionTypesMap.OPEN_DRAWER,
+            payload: { activeDrawer: { type: 'editNodeType', nodeTypeId } },
+          })
+        }
       />
     </>
   );
@@ -531,7 +598,6 @@ function FullGraphWithReactFlowProvider<
               >
                 <RunnerOverlay
                   state={state}
-                  dispatch={dispatch}
                   functionImplementations={functionImplementations}
                   onExecutionRecordRef={executionRecordRef}
                   loadRecordRef={loadRecordRef}
@@ -549,13 +615,29 @@ function FullGraphWithReactFlowProvider<
 
           <NodeTypeEditDrawer
             isOpen={editDrawerNodeTypeId !== null}
-            onClose={() => setEditDrawerNodeTypeId(null)}
+            onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
             nodeTypeId={editDrawerNodeTypeId}
             nodeTypeName={editDrawerNodeType?.name ?? null}
             nodeTypeHeaderColor={editDrawerNodeType?.headerColor ?? null}
             nodeTypeInputs={editDrawerNodeType?.inputs ?? null}
             nodeTypeOutputs={editDrawerNodeType?.outputs ?? null}
             onSave={handleSaveNodeType}
+          />
+
+          <LoopEditDrawer
+            isOpen={editLoopNodeId !== null}
+            onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
+            loopStartNodeData={
+              (editLoopTriplet?.loopStartData as Record<string, unknown>) ??
+              null
+            }
+            loopStopNodeData={
+              (editLoopTriplet?.loopStopData as Record<string, unknown>) ?? null
+            }
+            loopEndNodeData={
+              (editLoopTriplet?.loopEndData as Record<string, unknown>) ?? null
+            }
+            onSave={handleSaveLoop}
           />
         </div>
       </InputComponentRegistryContext.Provider>

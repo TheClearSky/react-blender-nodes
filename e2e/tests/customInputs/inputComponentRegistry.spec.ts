@@ -6,10 +6,17 @@ import {
   addColorDisplay,
 } from '../../helpers/addNode';
 import {
-  connectHandles,
+  dragBetweenLocators,
   connectionExistsBetweenNodes,
 } from '../../actions/node/connection.actions';
-import { getNodeById } from '../../locators/graph/graphCanvas.locators';
+import {
+  getNodeById,
+  getAllEdges,
+} from '../../locators/graph/graphCanvas.locators';
+import {
+  getHandleByName,
+  getHandleByIndex,
+} from '../../locators/node/node.locators';
 import {
   clickRun,
   waitForRunnerState,
@@ -19,14 +26,10 @@ import {
   waitForInspectorOpen,
   getInspectorText,
 } from '../../actions/inspector/inspector.actions';
-import { getAllEdges } from '../../locators/graph/graphCanvas.locators';
 import { pressDelete } from '../../actions/graph/selection.actions';
-import {
-  STORY_CUSTOM_INPUT,
-  HANDLE_COLOR,
-  HANDLE_COLOR_A,
-  HANDLE_MIXED,
-} from '../../constants';
+import { STORY_CUSTOM_INPUT, HANDLE_MIXED } from '../../constants';
+
+const COLOR_INPUT_LOCATOR = 'input[aria-label="Color value"]';
 
 test.describe('Custom Input Component Registry — rendering', () => {
   test('CI1: Color Source renders a custom color picker for the complex Color type', async ({
@@ -36,9 +39,9 @@ test.describe('Custom Input Component Registry — rendering', () => {
     const sourceId = await addColorSource(page, { x: 400, y: 300 });
 
     const node = getNodeById(page, sourceId);
-    const colorInput = node.locator('input[type="color"]');
+    const colorInput = node.locator(COLOR_INPUT_LOCATOR);
     await expect(colorInput).toBeVisible();
-    await expect(colorInput).toHaveValue('#ffffff');
+    await expect(colorInput).toHaveValue('#FFFFFF');
   });
 
   test('CI2: Color Mixer renders custom color pickers for Color A/B but SliderNumberInput for Ratio (registry cannot override built-in types)', async ({
@@ -49,33 +52,31 @@ test.describe('Custom Input Component Registry — rendering', () => {
 
     const node = getNodeById(page, mixerId);
 
-    const colorInputs = node.locator('input[type="color"]');
+    const colorInputs = node.locator(COLOR_INPUT_LOCATOR);
     await expect(colorInputs).toHaveCount(2);
 
     const ratioSlider = node.locator('button', { hasText: 'Ratio' });
     await expect(ratioSlider).toBeVisible();
 
-    // The story registers a custom component for 'number', but the guard
-    // (input.type === 'unsupportedDirectly') must prevent it from
-    // overriding the native SliderNumberInput for built-in number types.
     const customNumberOverride = node.locator('[data-testid="custom-number"]');
     await expect(customNumberOverride).toHaveCount(0);
   });
 
-  test('CI3: Custom color picker shows name label initially, hex value after change', async ({
+  test('CI3: Custom color picker shows handle name label and editable hex input', async ({
     page,
   }) => {
     await navigateToStory(page, STORY_CUSTOM_INPUT);
     const sourceId = await addColorSource(page, { x: 400, y: 300 });
 
     const node = getNodeById(page, sourceId);
-    const label = node.locator('span.truncate');
+    const label = node.locator('div.truncate.text-right');
     await expect(label).toBeVisible();
     await expect(label).toHaveText('Color');
 
-    const colorInput = node.locator('input[type="color"]');
+    const colorInput = node.locator(COLOR_INPUT_LOCATOR);
     await colorInput.fill('#ff0000');
-    await expect(label).toHaveText('#ff0000');
+    await colorInput.press('Enter');
+    await expect(colorInput).toHaveValue('#FF0000');
   });
 });
 
@@ -87,13 +88,12 @@ test.describe('Custom Input Component Registry — value persistence', () => {
     const sourceId = await addColorSource(page, { x: 400, y: 300 });
 
     const node = getNodeById(page, sourceId);
-    const colorInput = node.locator('input[type="color"]');
+    const colorInput = node.locator(COLOR_INPUT_LOCATOR);
 
     await colorInput.fill('#ff0000');
+    await colorInput.press('Enter');
 
-    await expect(colorInput).toHaveValue('#ff0000');
-    const hexLabel = node.locator('span', { hasText: /#[0-9a-fA-F]{6}/ });
-    await expect(hexLabel).toHaveText('#ff0000');
+    await expect(colorInput).toHaveValue('#FF0000');
   });
 
   test('CI5: Custom input disappears when the handle receives a connection', async ({
@@ -104,19 +104,17 @@ test.describe('Custom Input Component Registry — value persistence', () => {
     await addColorSource(page, { x: 200, y: 400 });
     const mixerId = await addColorMixer(page, { x: 600, y: 300 });
 
-    await connectHandles(
+    await dragBetweenLocators(
       page,
-      sourceAId,
-      HANDLE_COLOR,
-      mixerId,
-      HANDLE_COLOR_A,
+      getHandleByName(page, sourceAId, 'Color', 'source'),
+      getHandleByIndex(page, mixerId, 'target', 0),
     );
     expect(await connectionExistsBetweenNodes(page, sourceAId, mixerId)).toBe(
       true,
     );
 
     const mixerNode = getNodeById(page, mixerId);
-    const colorInputsAfterConnect = mixerNode.locator('input[type="color"]');
+    const colorInputsAfterConnect = mixerNode.locator(COLOR_INPUT_LOCATOR);
     await expect(colorInputsAfterConnect).toHaveCount(1);
   });
 
@@ -127,10 +125,14 @@ test.describe('Custom Input Component Registry — value persistence', () => {
     const sourceId = await addColorSource(page, { x: 200, y: 300 });
     const mixerId = await addColorMixer(page, { x: 600, y: 300 });
 
-    await connectHandles(page, sourceId, HANDLE_COLOR, mixerId, HANDLE_COLOR_A);
+    await dragBetweenLocators(
+      page,
+      getHandleByName(page, sourceId, 'Color', 'source'),
+      getHandleByIndex(page, mixerId, 'target', 0),
+    );
 
     const mixerNode = getNodeById(page, mixerId);
-    await expect(mixerNode.locator('input[type="color"]')).toHaveCount(1);
+    await expect(mixerNode.locator(COLOR_INPUT_LOCATOR)).toHaveCount(1);
 
     const edgeBefore = await getAllEdges(page).count();
     const edge = getAllEdges(page).first();
@@ -138,7 +140,7 @@ test.describe('Custom Input Component Registry — value persistence', () => {
     await pressDelete(page);
     await expect(getAllEdges(page)).toHaveCount(edgeBefore - 1);
 
-    await expect(mixerNode.locator('input[type="color"]')).toHaveCount(2);
+    await expect(mixerNode.locator(COLOR_INPUT_LOCATOR)).toHaveCount(2);
   });
 });
 
@@ -152,10 +154,15 @@ test.describe('Custom Input Component Registry — runner integration', () => {
     const displayId = await addColorDisplay(page, { x: 600, y: 200 });
 
     const sourceNode = getNodeById(page, sourceId);
-    const colorInput = sourceNode.locator('input[type="color"]');
+    const colorInput = sourceNode.locator(COLOR_INPUT_LOCATOR);
     await colorInput.fill('#42abcd');
+    await colorInput.press('Enter');
 
-    await connectHandles(page, sourceId, HANDLE_COLOR, displayId, HANDLE_COLOR);
+    await dragBetweenLocators(
+      page,
+      getHandleByName(page, sourceId, 'Color', 'source'),
+      getHandleByIndex(page, displayId, 'target', 0),
+    );
 
     await clickRun(page);
     await waitForRunnerState(page, 'Completed');
@@ -169,7 +176,7 @@ test.describe('Custom Input Component Registry — runner integration', () => {
       await waitForInspectorOpen(page);
       const text = await getInspectorText(page);
       if (text.includes('Color Source')) {
-        expect(text).toContain('#42abcd');
+        expect(text.toLowerCase()).toContain('#42abcd');
         break;
       }
     }
@@ -184,10 +191,15 @@ test.describe('Custom Input Component Registry — runner integration', () => {
     const displayId = await addColorDisplay(page, { x: 600, y: 200 });
 
     const sourceNode = getNodeById(page, sourceId);
-    const colorInput = sourceNode.locator('input[type="color"]');
+    const colorInput = sourceNode.locator(COLOR_INPUT_LOCATOR);
     await colorInput.fill('#111111');
+    await colorInput.press('Enter');
 
-    await connectHandles(page, sourceId, HANDLE_COLOR, displayId, HANDLE_COLOR);
+    await dragBetweenLocators(
+      page,
+      getHandleByName(page, sourceId, 'Color', 'source'),
+      getHandleByIndex(page, displayId, 'target', 0),
+    );
 
     await clickRun(page);
     await waitForRunnerState(page, 'Completed');
@@ -197,6 +209,7 @@ test.describe('Custom Input Component Registry — runner integration', () => {
     await waitForRunnerState(page, 'Idle');
 
     await colorInput.fill('#eeeeee');
+    await colorInput.press('Enter');
 
     await clickRun(page);
     await waitForRunnerState(page, 'Completed');
@@ -208,8 +221,8 @@ test.describe('Custom Input Component Registry — runner integration', () => {
       await waitForInspectorOpen(page);
       const text = await getInspectorText(page);
       if (text.includes('Color Source')) {
-        expect(text).toContain('#eeeeee');
-        expect(text).not.toContain('#111111');
+        expect(text.toLowerCase()).toContain('#eeeeee');
+        expect(text.toLowerCase()).not.toContain('#111111');
         break;
       }
     }
@@ -226,20 +239,28 @@ test.describe('Custom Input Component Registry — runner integration', () => {
     const displayId = await addColorDisplay(page, { x: 900, y: 200 });
 
     const sourceANode = getNodeById(page, sourceAId);
-    await sourceANode.locator('input[type="color"]').fill('#000000');
+    await sourceANode.locator(COLOR_INPUT_LOCATOR).fill('#000000');
+    await sourceANode.locator(COLOR_INPUT_LOCATOR).press('Enter');
 
     const sourceBNode = getNodeById(page, sourceBId);
-    await sourceBNode.locator('input[type="color"]').fill('#ffffff');
+    await sourceBNode.locator(COLOR_INPUT_LOCATOR).fill('#ffffff');
+    await sourceBNode.locator(COLOR_INPUT_LOCATOR).press('Enter');
 
-    await connectHandles(
+    await dragBetweenLocators(
       page,
-      sourceAId,
-      HANDLE_COLOR,
-      mixerId,
-      HANDLE_COLOR_A,
+      getHandleByName(page, sourceAId, 'Color', 'source'),
+      getHandleByIndex(page, mixerId, 'target', 0),
     );
-    await connectHandles(page, sourceBId, HANDLE_COLOR, mixerId, 'Color B');
-    await connectHandles(page, mixerId, HANDLE_MIXED, displayId, HANDLE_COLOR);
+    await dragBetweenLocators(
+      page,
+      getHandleByName(page, sourceBId, 'Color', 'source'),
+      getHandleByIndex(page, mixerId, 'target', 1),
+    );
+    await dragBetweenLocators(
+      page,
+      getHandleByName(page, mixerId, HANDLE_MIXED, 'source'),
+      getHandleByIndex(page, displayId, 'target', 0),
+    );
 
     await clickRun(page);
     await waitForRunnerState(page, 'Completed');

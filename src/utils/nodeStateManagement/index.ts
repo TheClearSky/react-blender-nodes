@@ -19,5 +19,8 @@ export type {
   UpdateEdgesByReactFlowDetail,
   UpdateInputValueDetail,
   AddLoopDetail,
+  UpdateLoopDetail,
+  OpenDrawerDetail,
+  CloseDrawerDetail,
 } from './graphEvent';
 export type { ValidationError, Result } from './planApply/types';

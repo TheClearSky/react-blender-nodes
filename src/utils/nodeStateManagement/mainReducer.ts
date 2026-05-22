@@ -1,4 +1,8 @@
-import { type State, type SupportedUnderlyingTypes } from './types';
+import {
+  type State,
+  type SupportedUnderlyingTypes,
+  type ActiveDrawer,
+} from './types';
 import { z } from 'zod';
 import { produce } from 'immer';
 import { type Connection, type XYPosition, type Viewport } from '@xyflow/react';
@@ -21,6 +25,9 @@ const actionTypes = [
   'REPLACE_STATE',
   'UPDATE_NODE_TYPE',
   'ADD_LOOP',
+  'UPDATE_LOOP',
+  'OPEN_DRAWER',
+  'CLOSE_DRAWER',
 ] as const;
 
 /** Map of action types for type-safe action dispatching */
@@ -38,6 +45,9 @@ const actionTypesMap = {
   [actionTypes[10]]: actionTypes[10],
   [actionTypes[11]]: actionTypes[11],
   [actionTypes[12]]: actionTypes[12],
+  [actionTypes[13]]: actionTypes[13],
+  [actionTypes[14]]: actionTypes[14],
+  [actionTypes[15]]: actionTypes[15],
 } as const;
 
 /**
@@ -186,6 +196,36 @@ type Action<
         /** Position where loopStart is placed; loopStop and loopEnd auto-spread to the right */
         position: XYPosition;
       };
+    }
+  | {
+      /** Update handle names and order across a loop triplet */
+      type: typeof actionTypesMap.UPDATE_LOOP;
+      payload: {
+        loopStartNodeId: string;
+        loopStopNodeId: string;
+        loopEndNodeId: string;
+        levels: Array<{
+          handles: {
+            loopStartIn: { id: string; name: string };
+            loopStartOut: { id: string; name: string };
+            loopStopIn: { id: string; name: string };
+            loopStopOut: { id: string; name: string };
+            loopEndIn: { id: string; name: string };
+            loopEndOut: { id: string; name: string };
+          };
+        }>;
+      };
+    }
+  | {
+      /** Open a drawer (loop edit, node type edit) */
+      type: typeof actionTypesMap.OPEN_DRAWER;
+      payload: {
+        activeDrawer: ActiveDrawer;
+      };
+    }
+  | {
+      /** Close the currently open drawer */
+      type: typeof actionTypesMap.CLOSE_DRAWER;
     };
 
 /**

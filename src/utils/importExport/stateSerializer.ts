@@ -85,6 +85,9 @@ class StateSerializer {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cloned: any = deepClone(state);
 
+    // Strip UI-only state that shouldn't be exported
+    delete cloned.activeDrawer;
+
     // Strip non-serializable fields from each section
     StateSerializer.stripDataTypes(cloned);
     StateSerializer.stripTypeOfNodes(cloned);

@@ -209,6 +209,32 @@ export type AddLoopPlan = {
   position: XYPosition;
 };
 
+export type UpdateLoopPlan = {
+  kind: 'UPDATE_LOOP';
+  loopStartNodeId: string;
+  loopStopNodeId: string;
+  loopEndNodeId: string;
+  levels: Array<{
+    handles: {
+      loopStartIn: { id: string; name: string };
+      loopStartOut: { id: string; name: string };
+      loopStopIn: { id: string; name: string };
+      loopStopOut: { id: string; name: string };
+      loopEndIn: { id: string; name: string };
+      loopEndOut: { id: string; name: string };
+    };
+  }>;
+};
+
+export type OpenDrawerPlan = {
+  kind: 'OPEN_DRAWER';
+  activeDrawer: unknown;
+};
+
+export type CloseDrawerPlan = {
+  kind: 'CLOSE_DRAWER';
+};
+
 // ---------------------------------------------------------------------------
 // The union of all Plan types
 // ---------------------------------------------------------------------------
@@ -225,4 +251,7 @@ export type Plan =
   | AddEdgePlan
   | UpdateEdgesByReactFlowPlan
   | UpdateNodeTypePlan
-  | AddLoopPlan;
+  | AddLoopPlan
+  | UpdateLoopPlan
+  | OpenDrawerPlan
+  | CloseDrawerPlan;

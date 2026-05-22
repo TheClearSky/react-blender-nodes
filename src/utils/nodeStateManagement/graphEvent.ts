@@ -124,6 +124,18 @@ type AddLoopDetail = {
   kind: 'ADD_LOOP';
 };
 
+type UpdateLoopDetail = {
+  kind: 'UPDATE_LOOP';
+};
+
+type OpenDrawerDetail = {
+  kind: 'OPEN_DRAWER';
+};
+
+type CloseDrawerDetail = {
+  kind: 'CLOSE_DRAWER';
+};
+
 /**
  * Discriminated union of all per-action detail payloads. The kind here
  * matches the action type 1:1 so consumers can switch on either.
@@ -140,7 +152,10 @@ type ActionDetail<NodeTypeUniqueId extends string = string> =
   | UpdateEdgesByReactFlowDetail
   | UpdateInputValueDetail
   | UpdateNodeTypeDetail
-  | AddLoopDetail;
+  | AddLoopDetail
+  | UpdateLoopDetail
+  | OpenDrawerDetail
+  | CloseDrawerDetail;
 
 type ActionType = keyof typeof actionTypesMap;
 
@@ -278,6 +293,12 @@ function planToDetail<NodeTypeUniqueId extends string = string>(
       };
     case 'ADD_LOOP':
       return { kind: 'ADD_LOOP' };
+    case 'UPDATE_LOOP':
+      return { kind: 'UPDATE_LOOP' };
+    case 'OPEN_DRAWER':
+      return { kind: 'OPEN_DRAWER' };
+    case 'CLOSE_DRAWER':
+      return { kind: 'CLOSE_DRAWER' };
     default: {
       const _exhaustive: never = plan;
       void _exhaustive;
@@ -518,4 +539,7 @@ export type {
   UpdateEdgesByReactFlowDetail,
   UpdateInputValueDetail,
   AddLoopDetail,
+  UpdateLoopDetail,
+  OpenDrawerDetail,
+  CloseDrawerDetail,
 };

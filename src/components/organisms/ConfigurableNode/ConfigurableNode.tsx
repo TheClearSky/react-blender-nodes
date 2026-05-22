@@ -12,7 +12,13 @@ import {
   type HandleShape,
 } from './SupportingSubcomponents/ContextAwareHandle';
 import { ContextAwareInput } from './SupportingSubcomponents/ContextAwareInput';
-import { ContextAwareOpenButton } from './SupportingSubcomponents/ContextAwareOpenButton';
+import {
+  ContextAwareNodeHeaderActions,
+  type NodeHeaderActionDefinition,
+} from './SupportingSubcomponents/ContextAwareNodeHeaderActions';
+import { isLoopNode } from '@/utils/nodeStateManagement/nodes/loops/loopIdentification';
+import { actionTypesMap } from '@/utils/nodeStateManagement/mainReducer';
+import { Pencil, SquareMousePointerIcon } from 'lucide-react';
 import { z } from 'zod';
 import { FullGraphContext } from '../FullGraph/FullGraphState';
 import type { NodeVisualState, GraphError } from '@/utils/nodeRunner/types';
@@ -208,12 +214,6 @@ type ConfigurableNodeProps<
   nodeResizerProps?: NodeResizerWithMoreControlsProps;
   /** Node type unique id */
   nodeTypeUniqueId?: NodeTypeUniqueId;
-  /**
-   * Whether to show the node open button (square mouse pointer icon)
-   * - Used by full graph for node groups
-   * @default false
-   */
-  showNodeOpenButton?: boolean;
   /** Runner visual state for this node (undefined = no runner overlay) */
   runnerVisualState?: NodeVisualState;
   /** Errors from the runner for this node */
@@ -480,7 +480,6 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       className,
       nodeResizerProps = {},
       nodeTypeUniqueId,
-      showNodeOpenButton = false,
       runnerVisualState,
       runnerErrors,
       runnerWarnings,
@@ -492,6 +491,50 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
     const [openPanels, setOpenPanels] = useState<Set<string>>(new Set());
 
     const fullGraphContext = useContext(FullGraphContext);
+
+    const hasSubtree =
+      !!nodeTypeUniqueId &&
+      !!fullGraphContext?.allProps?.state?.typeOfNodes?.[nodeTypeUniqueId]
+        ?.subtree;
+
+    const headerActions: NodeHeaderActionDefinition[] = [];
+
+    if (nodeTypeUniqueId && isLoopNode(nodeTypeUniqueId)) {
+      headerActions.push({
+        id: 'edit-loop',
+        icon: Pencil,
+        action: {
+          type: actionTypesMap.OPEN_DRAWER,
+          payload: { activeDrawer: { type: 'editLoop', nodeId: id ?? '' } },
+        },
+      });
+    }
+
+    if (hasSubtree) {
+      headerActions.push({
+        id: 'edit-node-type',
+        icon: Pencil,
+        action: {
+          type: actionTypesMap.OPEN_DRAWER,
+          payload: {
+            activeDrawer: {
+              type: 'editNodeType',
+              nodeTypeId: nodeTypeUniqueId,
+            },
+          },
+        },
+      });
+      headerActions.push({
+        id: 'open-node-group',
+        icon: SquareMousePointerIcon,
+        iconClassName:
+          'shrink-0 w-7 h-7 aspect-square cursor-pointer hover:opacity-80',
+        action: {
+          type: actionTypesMap.OPEN_NODE_GROUP,
+          payload: { nodeId: id ?? '' },
+        },
+      });
+    }
 
     // Toggle panel open/close state
     const togglePanel = (panelId: string) => {
@@ -527,10 +570,12 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
           {fullGraphContext?.allProps?.state?.enableDebugMode && (
             <p className='shrink-0 py-2'>{id}</p>
           )}
-          <ContextAwareOpenButton
-            showButton={showNodeOpenButton}
-            isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
-          />
+          <div className='ml-auto flex items-center gap-3'>
+            <ContextAwareNodeHeaderActions
+              actions={headerActions}
+              isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+            />
+          </div>
         </div>
         <div className='min-h-[50px] rounded-b-md bg-primary-dark-gray'>
           {isCurrentlyInsideReactFlow && (

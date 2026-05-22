@@ -432,6 +432,8 @@ export const Playground: StoryObj<typeof FullGraph> = {
       dataTypes: exampleDataTypes,
       typeOfNodes: exampleTypeOfNodes,
       enableTypeInference: true,
+      enableCycleChecking: true,
+      enableRecursionChecking: true,
       nodeCountConstraints: standardNodeCountConstraints,
       nodes: state1.nodes as Nodes,
       edges: state1.edges as Edges,
@@ -548,6 +550,8 @@ export const WithControlledInputs: StoryObj<typeof FullGraph> = {
           type: 'configurableEdge',
         },
       ],
+      enableCycleChecking: true,
+      enableRecursionChecking: true,
       nodeCountConstraints: standardNodeCountConstraints,
       hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
@@ -744,6 +748,8 @@ export const WithHandleShapes: StoryObj<typeof FullGraph> = {
           type: 'configurableEdge',
         },
       ],
+      enableCycleChecking: true,
+      enableRecursionChecking: true,
       nodeCountConstraints: standardNodeCountConstraints,
       hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
@@ -770,6 +776,8 @@ export const WithTypeCheckingAndConversions: StoryObj<typeof FullGraph> = {
       allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking: true,
       enableComplexTypeChecking: true,
       enableTypeInference: true,
+      enableCycleChecking: true,
+      enableRecursionChecking: true,
       enableDebugMode: true,
       nodeCountConstraints: standardNodeCountConstraints,
       hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
@@ -824,6 +832,7 @@ export const WithCycleChecking: StoryObj<typeof FullGraph> = {
       nodes: [],
       edges: [],
       enableCycleChecking: true,
+      enableRecursionChecking: true,
       nodeCountConstraints: standardNodeCountConstraints,
       hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
@@ -1230,8 +1239,8 @@ export const WithRunner: StoryObj<typeof FullGraph> = {
       enableComplexTypeChecking: true,
       enableTypeInference: true,
       enableCycleChecking: true,
+      enableRecursionChecking: true,
       nodeCountConstraints: standardNodeCountConstraints,
-      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
 
     const [record, setRecord] = useState(adderLoopRecording ?? null);
@@ -1339,8 +1348,8 @@ export const EmptyRunnerPlayground: StoryObj<typeof FullGraph> = {
         enableComplexTypeChecking: true,
         enableTypeInference: true,
         enableCycleChecking: true,
+        enableRecursionChecking: true,
         nodeCountConstraints: standardNodeCountConstraints,
-        hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
       },
       {
         // Reducer-layer events (action:applied, action:rejected,
@@ -1613,6 +1622,7 @@ export const FullAdderCircuit: StoryObj<typeof FullGraph> = {
       enableComplexTypeChecking: true,
       enableTypeInference: true,
       enableCycleChecking: true,
+      enableRecursionChecking: true,
       nodeCountConstraints: standardNodeCountConstraints,
       hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
@@ -1904,6 +1914,7 @@ export const RippleCarryAdder: StoryObj<typeof FullGraph> = {
       enableComplexTypeChecking: true,
       enableTypeInference: true,
       enableCycleChecking: true,
+      enableRecursionChecking: true,
       nodeCountConstraints: standardNodeCountConstraints,
       hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
@@ -2113,6 +2124,7 @@ export const LoopCounterCircuit: StoryObj<typeof FullGraph> = {
       enableComplexTypeChecking: true,
       enableTypeInference: true,
       enableCycleChecking: true,
+      enableRecursionChecking: true,
       nodeCountConstraints: standardNodeCountConstraints,
       hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
@@ -2237,8 +2249,8 @@ export const CustomInputComponents: StoryObj<typeof FullGraph> = {
       edges: [],
       enableTypeInference: true,
       enableCycleChecking: true,
+      enableRecursionChecking: true,
       nodeCountConstraints: standardNodeCountConstraints,
-      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
     });
 
     const [record, setRecord] = useState<ExecutionRecord | null>(null);

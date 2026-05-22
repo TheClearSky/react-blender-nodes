@@ -16,7 +16,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { FullGraphContext } from '@/components/organisms/FullGraph/FullGraphState';
+import { RunnerContext } from '@/components/organisms/FullGraph/FullGraphState';
 
 const MAX_EDGE_VALUE_LENGTH = 12;
 
@@ -169,13 +169,13 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
       props;
 
     // ── Runner inspection: match this edge to an input or output value ──
-    const ctx = useContext(FullGraphContext);
+    const runnerCtx = useContext(RunnerContext);
 
     type MatchResult = { found: true; value: unknown } | { found: false };
 
     // Match input edges (edge.target === inspected node)
     const inputMatch = useMemo((): MatchResult => {
-      const step = ctx?.selectedStepRecord;
+      const step = runnerCtx?.selectedStepRecord;
       if (!step || props.target !== step.nodeId) return { found: false };
 
       for (const [, inputVal] of step.inputValues) {
@@ -190,7 +190,7 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
       }
       return { found: false };
     }, [
-      ctx?.selectedStepRecord,
+      runnerCtx?.selectedStepRecord,
       props.target,
       props.source,
       props.sourceHandleId,
@@ -198,7 +198,7 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
 
     // Match output edges (edge.source === inspected node)
     const outputMatch = useMemo((): MatchResult => {
-      const step = ctx?.selectedStepRecord;
+      const step = runnerCtx?.selectedStepRecord;
       if (!step || props.source !== step.nodeId || !sourceNodeData?.data)
         return { found: false };
 
@@ -214,14 +214,14 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
       if (!outputVal) return { found: false };
       return { found: true, value: outputVal.value };
     }, [
-      ctx?.selectedStepRecord,
+      runnerCtx?.selectedStepRecord,
       props.source,
       props.sourceHandleId,
       sourceNodeData,
     ]);
 
     const match = inputMatch.found ? inputMatch : outputMatch;
-    const animated = ctx?.edgeValuesAnimated ?? true;
+    const animated = runnerCtx?.edgeValuesAnimated ?? true;
     const formattedValue = match.found ? formatEdgeValue(match.value) : null;
 
     // Estimate pill width based on text length

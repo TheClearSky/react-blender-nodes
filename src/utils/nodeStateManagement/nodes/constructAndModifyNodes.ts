@@ -348,7 +348,6 @@ function constructNodeOfType<
       inputs,
       outputs,
       nodeTypeUniqueId: nodeType,
-      showNodeOpenButton: nodeTypeData.subtree !== undefined,
     },
   };
 }

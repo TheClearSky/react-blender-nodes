@@ -4,6 +4,7 @@ import type {
   LoopRecord,
   LoopIterationRecord,
   LoopPhase,
+  SwitchRecord,
 } from '@/utils/nodeRunner/types';
 
 // ─────────────────────────────────────────────────────
@@ -62,6 +63,7 @@ export type LoopIterationDisplay = {
   conditionValue: boolean;
   steps: ExecutionStepRecord[];
   nestedLoopRecords: ReadonlyMap<string, LoopRecord>;
+  nestedSwitchRecords: ReadonlyMap<string, SwitchRecord>;
 };
 
 export type AdjustedLoopIterationRecord = LoopIterationRecord & {
@@ -78,7 +80,18 @@ export type LoopSegment = {
   iterations: LoopIterationDisplay[];
 };
 
-export type TimelineSegment = FlatSegment | LoopSegment;
+export type SwitchSegment = {
+  kind: 'switch';
+  switchStructureId: string;
+  switchRecord: SwitchRecord;
+  branchTaken: boolean;
+  adjustedStartTime: number;
+  adjustedEndTime: number;
+  adjustedDuration: number;
+  steps: ExecutionStepRecord[];
+};
+
+export type TimelineSegment = FlatSegment | LoopSegment | SwitchSegment;
 
 // ─────────────────────────────────────────────────────
 // Helpers
@@ -202,7 +215,46 @@ export function buildLoopSegment(
         loopIteration: undefined,
       })),
       nestedLoopRecords: iter.nestedLoopRecords,
+      nestedSwitchRecords: iter.nestedSwitchRecords ?? new Map(),
     })),
+  };
+}
+
+/** Build a SwitchSegment from a SwitchRecord. */
+export function buildSwitchSegment(
+  switchId: string,
+  switchRec: SwitchRecord,
+  adjustForPause: boolean,
+): SwitchSegment {
+  const steps = [...switchRec.stepRecords]
+    .sort((a, b) => a.startTime - b.startTime)
+    .map((s) => ({
+      ...s,
+      startTime: adjustForPause ? s.startTime - s.pauseAdjustment : s.startTime,
+      endTime: adjustForPause ? s.endTime - s.pauseAdjustment : s.endTime,
+      switchStructureId: undefined,
+    }));
+
+  let minStart = Infinity;
+  let maxEnd = -Infinity;
+  for (const s of steps) {
+    if (s.startTime < minStart) minStart = s.startTime;
+    if (s.endTime > maxEnd) maxEnd = s.endTime;
+  }
+  if (!isFinite(minStart)) {
+    minStart = adjustForPause ? switchRec.startTime : switchRec.startTime;
+    maxEnd = adjustForPause ? switchRec.endTime : switchRec.endTime;
+  }
+
+  return {
+    kind: 'switch',
+    switchStructureId: switchId,
+    switchRecord: switchRec,
+    branchTaken: switchRec.branchTaken,
+    adjustedStartTime: minStart,
+    adjustedEndTime: maxEnd,
+    adjustedDuration: maxEnd - minStart,
+    steps,
   };
 }
 
@@ -221,13 +273,15 @@ export function buildLoopSegment(
 export function buildSegments(
   steps: readonly ExecutionStepRecord[],
   loopRecords: ReadonlyMap<string, LoopRecord>,
-  adjustForPause: boolean,
+  switchRecords: ReadonlyMap<string, SwitchRecord> = new Map(),
+  adjustForPause: boolean = false,
 ): TimelineSegment[] {
   const segments: TimelineSegment[] = [];
   let currentFlat: ExecutionStepRecord[] = [];
 
-  // Track which loop segments have been created (from step routing)
+  // Track which loop/switch segments have been created (from step routing)
   const loopSegmentMap = new Map<string, LoopSegment>();
+  const switchSegmentMap = new Map<string, SwitchSegment>();
 
   for (const step of steps) {
     // Structural loop steps (Loop Start/Stop/End) have loopStructureId but
@@ -235,7 +289,33 @@ export function buildSegments(
     const isLoopBody =
       step.loopStructureId !== undefined && step.loopIteration !== undefined;
 
-    if (!isLoopBody) {
+    // Switch steps have switchStructureId set
+    const isSwitchStep =
+      step.switchStructureId !== undefined &&
+      switchRecords.has(step.switchStructureId);
+
+    if (isSwitchStep) {
+      const switchId = step.switchStructureId!;
+
+      // Flush flat steps before the switch
+      if (!switchSegmentMap.has(switchId) && currentFlat.length > 0) {
+        segments.push({ kind: 'flat', steps: currentFlat });
+        currentFlat = [];
+      }
+
+      // Create switch segment on first encounter
+      if (!switchSegmentMap.has(switchId)) {
+        const switchRec = switchRecords.get(switchId)!;
+        const switchSeg = buildSwitchSegment(
+          switchId,
+          switchRec,
+          adjustForPause,
+        );
+        switchSegmentMap.set(switchId, switchSeg);
+        segments.push(switchSeg);
+      }
+      // Switch steps are consumed by the segment — don't add to flat
+    } else if (!isLoopBody) {
       // Check if this is a structural step for a nested loop we don't own —
       // skip it so it doesn't appear as a flat block at this level
       if (
@@ -290,7 +370,9 @@ export function buildSegments(
       const segStart =
         seg.kind === 'flat'
           ? (seg.steps[0]?.startTime ?? 0)
-          : (seg.loopRecord.iterations[0]?.startTime ?? 0);
+          : seg.kind === 'loop'
+            ? (seg.loopRecord.iterations[0]?.startTime ?? 0)
+            : seg.adjustedStartTime;
       if (segStart <= loopStart) {
         // If the preceding segment is a flat section, we may need to split it
         if (seg.kind === 'flat') {

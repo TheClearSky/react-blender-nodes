@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { Nodes, Edges } from '@/components/organisms/FullGraph/types';
 import type { HandleShape } from '@/components/organisms/ConfigurableNode';
 import type { Viewport } from '@xyflow/react';
+import type { Zone, ZoneIndex } from './zones/types';
 
 /**
  * Array of supported underlying data types
@@ -243,6 +244,8 @@ type TypeOfNode<
      * - Not allowed to be deleted or duplicated, must always be one
      */
     outputNodeId: string;
+    zones?: Record<string, Zone>;
+    zoneIndex?: ZoneIndex;
   };
 };
 
@@ -397,6 +400,7 @@ function makeNodeCountConstraintsWithAutoInfer<
 type ActiveDrawer =
   | { type: 'editLoop'; nodeId: string }
   | { type: 'editNodeType'; nodeTypeId: string }
+  | { type: 'editSwitch'; nodeId: string }
   | null;
 
 /**
@@ -550,6 +554,9 @@ type State<
    * @default undefined
    */
   activeDrawer?: ActiveDrawer;
+
+  zones?: Record<string, Zone>;
+  zoneIndex?: ZoneIndex;
 };
 
 /**

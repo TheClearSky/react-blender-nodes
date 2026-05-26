@@ -136,6 +136,7 @@ function makeLoopIterationRecord(
     duration: endTime - startTime,
     stepRecords: steps,
     nestedLoopRecords: new Map(),
+    nestedSwitchRecords: new Map(),
   };
 }
 
@@ -235,6 +236,7 @@ const mockLoopSegment: LoopSegment = {
       loopIteration: undefined,
     })),
     nestedLoopRecords: new Map(),
+    nestedSwitchRecords: new Map(),
   })),
 };
 

@@ -28,6 +28,18 @@ function BlockTooltipContent({ step }: { step: ExecutionStepRecord }) {
             <span>Iter {step.loopIteration}</span>
           </>
         )}
+        {step.switchPhase === 'trueBranch' && (
+          <>
+            <span className='text-secondary-dark-gray'>&middot;</span>
+            <span className='text-status-completed'>True Branch</span>
+          </>
+        )}
+        {step.switchPhase === 'falseBranch' && (
+          <>
+            <span className='text-secondary-dark-gray'>&middot;</span>
+            <span className='text-secondary-light-gray'>False Branch</span>
+          </>
+        )}
       </div>
     </>
   );

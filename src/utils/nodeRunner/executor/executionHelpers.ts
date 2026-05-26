@@ -17,6 +17,8 @@ import type {
 } from '../types';
 import { createGraphError } from '../errors';
 import type { MinimalNodeData } from '../valueStore';
+import { qualifiedId } from '../valueStore';
+import type { ValueStore } from '../valueStore';
 import { ExecutionRecorder } from '../executionRecorder';
 import { standardDataTypeNamesMap } from '../../nodeStateManagement/standardNodes';
 
@@ -121,6 +123,26 @@ function buildNodeInfoMap<
         }
         processSteps(step.preStopSteps);
         processSteps(step.postStopSteps);
+      } else if (step.kind === 'switch') {
+        for (const switchNodeId of [
+          step.switchStartNodeId,
+          step.switchEndNodeId,
+        ]) {
+          const node = state.nodes.find((n) => n.id === switchNodeId);
+          if (!node) continue;
+          const nodeTypeId = node.data.nodeTypeUniqueId;
+          if (!nodeTypeId) continue;
+          const typeOfNode = state.typeOfNodes[nodeTypeId];
+          map.set(switchNodeId, {
+            data: node.data,
+            typeOfNode,
+            nodeTypeId,
+            nodeTypeName: typeOfNode?.name ?? nodeTypeId,
+            concurrencyLevel: step.concurrencyLevel,
+          });
+        }
+        processSteps(step.trueBranchSteps);
+        processSteps(step.falseBranchSteps);
       } else if (step.kind === 'group') {
         const node = state.nodes.find((n) => n.id === step.groupNodeId);
         if (!node) continue;
@@ -236,6 +258,8 @@ function collectNodeIds(steps: ReadonlyArray<ExecutionStep>): string[] {
       ids.push(step.nodeId);
     } else if (step.kind === 'loop') {
       ids.push(step.loopStartNodeId);
+    } else if (step.kind === 'switch') {
+      ids.push(step.switchStartNodeId);
     } else if (step.kind === 'group') {
       ids.push(step.groupNodeId);
     }
@@ -288,6 +312,8 @@ function getStepNodeId(step: ExecutionStep): string {
       return step.nodeId;
     case 'loop':
       return step.loopStartNodeId;
+    case 'switch':
+      return step.switchStartNodeId;
     case 'group':
       return step.groupNodeId;
     default:
@@ -301,6 +327,8 @@ function getStepTypeId(step: ExecutionStep): string {
       return step.nodeTypeId;
     case 'loop':
       return 'loop';
+    case 'switch':
+      return 'switch';
     case 'group':
       return step.groupNodeTypeId;
     default:
@@ -314,6 +342,8 @@ function getStepTypeName(step: ExecutionStep): string {
       return step.nodeTypeName;
     case 'loop':
       return 'Loop';
+    case 'switch':
+      return 'Switch';
     case 'group':
       return step.groupNodeTypeName;
     default:
@@ -396,10 +426,12 @@ function initializeDefaultValues<
 // Loop-specific helpers
 // ─────────────────────────────────────────────────────
 
-/** Data type IDs that are structural (not user data) on loop nodes. */
-const LOOP_STRUCTURAL_TYPES: ReadonlySet<string> = new Set([
+/** Data type IDs that are structural (not user data) on structural nodes. */
+const STRUCTURAL_HANDLE_TYPES: ReadonlySet<string> = new Set([
   standardDataTypeNamesMap.bindLoopNodes,
   standardDataTypeNamesMap.loopInfer,
+  standardDataTypeNamesMap.bindSwitchNodes,
+  standardDataTypeNamesMap.switchInfer,
   standardDataTypeNamesMap.condition,
 ]);
 
@@ -425,7 +457,7 @@ function getDataHandleIds(
   return handles
     .filter((h) => {
       const dtId = resolveHandleDataTypeId(h);
-      return h.id && dtId && !LOOP_STRUCTURAL_TYPES.has(dtId);
+      return h.id && dtId && !STRUCTURAL_HANDLE_TYPES.has(dtId);
     })
     .map((h) => h.id!);
 }
@@ -441,6 +473,38 @@ function findConditionInputId(
   return handles.find(
     (h) => resolveHandleDataTypeId(h) === standardDataTypeNamesMap.condition,
   )?.id;
+}
+
+function resolveConditionValue(
+  nodeId: string,
+  conditionInputId: string,
+  flatInputs: ReadonlyArray<{
+    id?: string;
+    allowInput?: boolean;
+    value?: unknown;
+  }>,
+  inputResolutionMap: ExecutionPlan['inputResolutionMap'],
+  valueStore: ValueStore,
+  erroredSourceNodes?: ReadonlySet<string>,
+): boolean {
+  const key = qualifiedId(nodeId, conditionInputId);
+  const entries = inputResolutionMap.get(key);
+  if (entries && entries.length > 0) {
+    if (erroredSourceNodes) {
+      const allErrored = entries.every((e) =>
+        erroredSourceNodes.has(e.sourceNodeId),
+      );
+      if (allErrored) return false;
+    }
+    return Boolean(
+      valueStore.get(entries[0].sourceNodeId, entries[0].sourceHandleId),
+    );
+  }
+  const handle = flatInputs.find((h) => h.id === conditionInputId);
+  if (handle?.allowInput && handle.value !== undefined) {
+    return Boolean(handle.value);
+  }
+  return false;
 }
 
 // ─────────────────────────────────────────────────────
@@ -520,6 +584,7 @@ export {
   initializeDefaultValues,
   getDataHandleIds,
   findConditionInputId,
+  resolveConditionValue,
   buildInnerState,
 };
 export type { ExecutionEnv, NodeInfo, Subtree };

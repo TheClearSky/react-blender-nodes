@@ -1,6 +1,6 @@
 import type { SupportedUnderlyingTypes } from '../../nodeStateManagement/types';
 import type { z } from 'zod';
-import type { StandardExecutionStep, LoopPhase } from '../types';
+import type { StandardExecutionStep, LoopPhase, SwitchPhase } from '../types';
 import { createGraphError, buildErrorPath } from '../errors';
 import { ValueStore } from '../valueStore';
 import { isStandardNodeType, hasKey } from '../groupCompiler';
@@ -39,6 +39,10 @@ async function executeStandardNode<
       groupDepth: number;
     };
     loopPhase?: LoopPhase;
+    switchContext?: {
+      switchStructureId: string;
+    };
+    switchPhase?: SwitchPhase;
   },
 ): Promise<void> {
   const {
@@ -53,6 +57,8 @@ async function executeStandardNode<
   const loopContext = nested?.loopContext;
   const groupContext = nested?.groupContext;
   const loopPhase = nested?.loopPhase;
+  const switchContext = nested?.switchContext;
+  const switchPhase = nested?.switchPhase;
 
   const { nodeId, nodeTypeId, nodeTypeName, concurrencyLevel } = step;
 
@@ -68,6 +74,8 @@ async function executeStandardNode<
     groupNodeId: groupContext?.groupNodeId,
     groupDepth: groupContext?.groupDepth,
     loopPhase,
+    switchPhase,
+    switchStructureId: switchContext?.switchStructureId,
   });
 
   const stepStartTime = performance.now();

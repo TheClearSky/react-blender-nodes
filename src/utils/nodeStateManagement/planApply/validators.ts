@@ -539,6 +539,22 @@ function validateAction<
       });
     }
 
+    case actionTypesMap.ADD_SWITCH: {
+      if (
+        !(standardNodeTypeNamesMap.switchStart in _state.typeOfNodes) ||
+        !(standardNodeTypeNamesMap.switchEnd in _state.typeOfNodes)
+      ) {
+        return err({
+          code: 'NODE_TYPE_NOT_FOUND' as const,
+          nodeType: 'switchStart/switchEnd',
+        });
+      }
+      return ok({
+        kind: 'ADD_SWITCH' as const,
+        position: action.payload.position,
+      });
+    }
+
     case actionTypesMap.OPEN_DRAWER:
       return ok({
         kind: 'OPEN_DRAWER' as const,
@@ -589,6 +605,48 @@ function validateAction<
         loopStartNodeId,
         loopStopNodeId,
         loopEndNodeId,
+        levels,
+      });
+    }
+
+    case actionTypesMap.UPDATE_SWITCH: {
+      const { switchStartNodeId, switchEndNodeId, levels } = action.payload;
+      const currentView = getCurrentNodesAndEdgesFromState(_state);
+      const switchStartNode = currentView.nodes.find(
+        (n) => n.id === switchStartNodeId,
+      );
+      const switchEndNode = currentView.nodes.find(
+        (n) => n.id === switchEndNodeId,
+      );
+      if (!switchStartNode || !switchEndNode) {
+        return err({
+          code: 'INVALID_NODE_GROUP' as const,
+          reason: 'One or more switch nodes not found',
+        });
+      }
+
+      const switchHandleSlots = [
+        'switchStartIn',
+        'switchStartTrueOut',
+        'switchStartFalseOut',
+        'switchEndTrueIn',
+        'switchEndFalseIn',
+        'switchEndOut',
+      ] as const;
+      for (const slot of switchHandleSlots) {
+        const names = levels.map((l) => l.handles[slot].name);
+        if (new Set(names).size !== names.length) {
+          return err({
+            code: 'INVALID_NODE_GROUP' as const,
+            reason: `Duplicate handle name in ${slot}`,
+          });
+        }
+      }
+
+      return ok({
+        kind: 'UPDATE_SWITCH' as const,
+        switchStartNodeId,
+        switchEndNodeId,
         levels,
       });
     }

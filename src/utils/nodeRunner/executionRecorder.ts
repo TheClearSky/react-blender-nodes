@@ -8,8 +8,10 @@ import type {
   ConcurrencyLevelRecord,
   LoopRecord,
   LoopIterationRecord,
+  SwitchRecord,
   GroupRecord,
   LoopPhase,
+  SwitchPhase,
 } from './types';
 
 /**
@@ -48,6 +50,7 @@ type RecorderScope = {
   readonly startStepIndex: number;
   readonly startErrorIndex: number;
   readonly startLoopRecordKeys: ReadonlySet<string>;
+  readonly startSwitchRecordKeys: ReadonlySet<string>;
   readonly startGroupRecordKeys: ReadonlySet<string>;
   readonly startNestedLoopKeys: ReadonlySet<string>;
   /** Saved nesting stack — group scopes isolate loop nesting context. */
@@ -76,6 +79,7 @@ class ExecutionRecorder {
   private readonly errors: GraphError[] = [];
   private readonly concurrencyLevels: ConcurrencyLevelRecord[] = [];
   private readonly loopRecords = new Map<string, LoopRecord>();
+  private readonly switchRecords = new Map<string, SwitchRecord>();
   private readonly groupRecords = new Map<string, GroupRecord>();
   private readonly id: string;
 
@@ -140,6 +144,17 @@ class ExecutionRecorder {
   // Completed nested loop records awaiting attachment to their parent iteration
   private readonly completedNestedLoopRecords = new Map<string, LoopRecord>();
 
+  // Pending switch structure tracking
+  private readonly pendingSwitchStructures = new Map<
+    string,
+    {
+      switchStartNodeId: string;
+      switchEndNodeId: string;
+      startTime: number;
+      stepRecords: ExecutionStepRecord[];
+    }
+  >();
+
   constructor() {
     // Use crypto.randomUUID if available, otherwise fallback
     this.id =
@@ -202,6 +217,9 @@ class ExecutionRecorder {
     groupDepth?: number;
     loopPhase?: LoopPhase;
     inputSource?: 'upstream' | 'feedback';
+    switchPhase?: SwitchPhase;
+    switchStructureId?: string;
+    branchTaken?: boolean;
   }): number {
     // Commit any pending pause before recording the new step. In debug mode,
     // afterStep pauses after each step and never resumes — all inter-step
@@ -236,6 +254,9 @@ class ExecutionRecorder {
       groupDepth: params.groupDepth,
       loopPhase: params.loopPhase,
       inputSource: params.inputSource,
+      switchPhase: params.switchPhase,
+      switchStructureId: params.switchStructureId,
+      branchTaken: params.branchTaken,
     });
 
     return stepIndex;
@@ -248,6 +269,14 @@ class ExecutionRecorder {
    * iteration via the nesting stack.
    */
   private addStepToPendingIteration(step: ExecutionStepRecord): void {
+    if (step.switchStructureId !== undefined) {
+      const pendingSwitch = this.pendingSwitchStructures.get(
+        step.switchStructureId,
+      );
+      if (pendingSwitch) {
+        pendingSwitch.stepRecords.push(step);
+      }
+    }
     if (step.loopStructureId !== undefined) {
       const pending = this.pendingLoopIterations.get(step.loopStructureId);
       if (pending) {
@@ -445,6 +474,7 @@ class ExecutionRecorder {
       conditionValue,
       stepRecords: pending.stepRecords,
       nestedLoopRecords,
+      nestedSwitchRecords: new Map(),
     };
 
     // Find the parent structure (top-level or nested)
@@ -511,6 +541,50 @@ class ExecutionRecorder {
       this.loopRecords.set(loopStructureId, loopRecord);
       this.pendingLoopStructures.delete(loopStructureId);
     }
+  }
+
+  /**
+   * Record the beginning of a switch structure.
+   */
+  beginSwitchStructure(
+    switchStructureId: string,
+    switchStartNodeId: string,
+    switchEndNodeId: string,
+  ): void {
+    this.pendingSwitchStructures.set(switchStructureId, {
+      switchStartNodeId,
+      switchEndNodeId,
+      startTime: this.timer.now(),
+      stepRecords: [],
+    });
+  }
+
+  /**
+   * Finalize a switch structure recording.
+   */
+  completeSwitchStructure(
+    switchStructureId: string,
+    branchTaken: boolean,
+  ): void {
+    const pending = this.pendingSwitchStructures.get(switchStructureId);
+    if (!pending) return;
+    const now = this.timer.now();
+
+    const record: SwitchRecord = {
+      switchStructureId,
+      switchStartNodeId: pending.switchStartNodeId,
+      switchEndNodeId: pending.switchEndNodeId,
+      branchTaken,
+      startTime: pending.startTime - this.startTime,
+      endTime: now - this.startTime,
+      duration: now - pending.startTime,
+      stepRecords: pending.stepRecords,
+      nestedLoopRecords: new Map(),
+      nestedSwitchRecords: new Map(),
+    };
+
+    this.switchRecords.set(switchStructureId, record);
+    this.pendingSwitchStructures.delete(switchStructureId);
   }
 
   /**
@@ -581,6 +655,7 @@ class ExecutionRecorder {
       startStepIndex: this.steps.length,
       startErrorIndex: this.errors.length,
       startLoopRecordKeys: new Set(this.loopRecords.keys()),
+      startSwitchRecordKeys: new Set(this.switchRecords.keys()),
       startGroupRecordKeys: new Set(this.groupRecords.keys()),
       startNestedLoopKeys: new Set(this.completedNestedLoopRecords.keys()),
       savedNestingStack: savedStack,
@@ -648,6 +723,15 @@ class ExecutionRecorder {
       errors: scopedErrors,
       concurrencyLevels: [], // Not tracked per scope
       loopRecords: scopedLoopRecords,
+      switchRecords: (() => {
+        const scoped = new Map<string, SwitchRecord>();
+        for (const [id, record] of this.switchRecords) {
+          if (!scope.startSwitchRecordKeys.has(id)) {
+            scoped.set(id, record);
+          }
+        }
+        return scoped;
+      })(),
       groupRecords: scopedGroupRecords,
       finalValues: scopedValues,
     };
@@ -709,6 +793,7 @@ class ExecutionRecorder {
           conditionValue: true, // assume continuing until proven otherwise
           stepRecords: [...pending.stepRecords],
           nestedLoopRecords,
+          nestedSwitchRecords: new Map(),
         });
       }
 
@@ -759,6 +844,7 @@ class ExecutionRecorder {
       errors: [...this.errors],
       concurrencyLevels: [...this.concurrencyLevels],
       loopRecords: this.snapshotPendingLoopRecords(now),
+      switchRecords: new Map(this.switchRecords),
       groupRecords: new Map(this.groupRecords),
       finalValues: currentValues,
     };
@@ -786,6 +872,7 @@ class ExecutionRecorder {
       errors: this.errors,
       concurrencyLevels: this.concurrencyLevels,
       loopRecords: this.loopRecords,
+      switchRecords: this.switchRecords,
       groupRecords: this.groupRecords,
       finalValues,
     };

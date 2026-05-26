@@ -17,8 +17,10 @@ const groupNodeContextMenu = {
 const standardDataTypeNames = [
   'groupInfer',
   'loopInfer',
+  'switchInfer',
   'condition',
   'bindLoopNodes',
+  'bindSwitchNodes',
 ] as const;
 
 const standardDataTypeNamesMap = {
@@ -26,6 +28,8 @@ const standardDataTypeNamesMap = {
   [standardDataTypeNames[1]]: standardDataTypeNames[1],
   [standardDataTypeNames[2]]: standardDataTypeNames[2],
   [standardDataTypeNames[3]]: standardDataTypeNames[3],
+  [standardDataTypeNames[4]]: standardDataTypeNames[4],
+  [standardDataTypeNames[5]]: standardDataTypeNames[5],
 } as const;
 
 const standardNodeTypeNames = [
@@ -34,6 +38,8 @@ const standardNodeTypeNames = [
   'loopStart',
   'loopEnd',
   'loopStop',
+  'switchStart',
+  'switchEnd',
 ] as const;
 
 const standardNodeTypeNamesMap = {
@@ -42,6 +48,8 @@ const standardNodeTypeNamesMap = {
   [standardNodeTypeNames[2]]: standardNodeTypeNames[2],
   [standardNodeTypeNames[3]]: standardNodeTypeNames[3],
   [standardNodeTypeNames[4]]: standardNodeTypeNames[4],
+  [standardNodeTypeNames[5]]: standardNodeTypeNames[5],
+  [standardNodeTypeNames[6]]: standardNodeTypeNames[6],
 } as const;
 
 const standardDataTypes = {
@@ -63,6 +71,17 @@ const standardDataTypes = {
   }),
   [standardDataTypeNamesMap.bindLoopNodes]: makeDataTypeWithAutoInfer({
     name: 'Bind Loop Nodes',
+    underlyingType: 'noEquivalent',
+    color: '#8c52d1',
+    maxConnections: 1,
+  }),
+  [standardDataTypeNamesMap.switchInfer]: makeDataTypeWithAutoInfer({
+    name: 'Switch Infer',
+    underlyingType: 'inferFromConnection',
+    color: '#333333',
+  }),
+  [standardDataTypeNamesMap.bindSwitchNodes]: makeDataTypeWithAutoInfer({
+    name: 'Bind Switch Nodes',
     underlyingType: 'noEquivalent',
     color: '#8c52d1',
     maxConnections: 1,
@@ -180,6 +199,66 @@ const standardNodeTypes = {
       },
     ],
   }),
+  [standardNodeTypeNamesMap.switchStart]: makeTypeOfNodeWithAutoInfer<
+    keyof typeof standardDataTypes,
+    typeof standardNodeTypeNamesMap.switchStart
+  >({
+    name: 'Switch Start',
+    headerColor: '#1d1d1d',
+    ...standardNodeContextMenu,
+    inputs: [
+      {
+        name: '',
+        dataType: standardDataTypeNamesMap.switchInfer,
+      },
+      {
+        name: 'Condition',
+        dataType: standardDataTypeNamesMap.condition,
+      },
+    ],
+    outputs: [
+      {
+        name: 'Bind Switch Nodes',
+        dataType: standardDataTypeNamesMap.bindSwitchNodes,
+      },
+      {
+        name: '',
+        dataType: standardDataTypeNamesMap.switchInfer,
+      },
+      {
+        name: '',
+        dataType: standardDataTypeNamesMap.switchInfer,
+      },
+    ],
+  }),
+  [standardNodeTypeNamesMap.switchEnd]: makeTypeOfNodeWithAutoInfer<
+    keyof typeof standardDataTypes,
+    typeof standardNodeTypeNamesMap.switchEnd
+  >({
+    name: 'Switch End',
+    headerColor: '#1d1d1d',
+    ...standardNodeContextMenu,
+    inputs: [
+      {
+        name: 'Bind Switch Nodes',
+        dataType: standardDataTypeNamesMap.bindSwitchNodes,
+      },
+      {
+        name: '',
+        dataType: standardDataTypeNamesMap.switchInfer,
+      },
+      {
+        name: '',
+        dataType: standardDataTypeNamesMap.switchInfer,
+      },
+    ],
+    outputs: [
+      {
+        name: '',
+        dataType: standardDataTypeNamesMap.switchInfer,
+      },
+    ],
+  }),
 };
 
 const standardHiddenNodeTypesInContextMenu: Partial<Record<string, true>> = {
@@ -188,6 +267,8 @@ const standardHiddenNodeTypesInContextMenu: Partial<Record<string, true>> = {
   [standardNodeTypeNamesMap.loopStart]: true,
   [standardNodeTypeNamesMap.loopStop]: true,
   [standardNodeTypeNamesMap.loopEnd]: true,
+  [standardNodeTypeNamesMap.switchStart]: true,
+  [standardNodeTypeNamesMap.switchEnd]: true,
 };
 
 const standardNodeCountConstraints: NodeCountConstraints = {
@@ -204,6 +285,14 @@ const standardNodeCountConstraints: NodeCountConstraints = {
     maxWithinANodeGroup: 1,
   },
 };
+
+const switchStartInputInferHandleIndex = 0;
+const switchStartInputConditionHandleIndex = 1;
+const switchStartOutputInferTrueHandleIndex = 1;
+const switchStartOutputInferFalseHandleIndex = 2;
+const switchEndInputInferTrueHandleIndex = 1;
+const switchEndInputInferFalseHandleIndex = 2;
+const switchEndOutputInferHandleIndex = 0;
 
 const loopStartInputInferHandleIndex = 0;
 const loopStartOutputInferHandleIndex = 1;
@@ -229,4 +318,11 @@ export {
   loopStopOutputInferHandleIndex,
   loopEndInputInferHandleIndex,
   loopEndOutputInferHandleIndex,
+  switchStartInputInferHandleIndex,
+  switchStartInputConditionHandleIndex,
+  switchStartOutputInferTrueHandleIndex,
+  switchStartOutputInferFalseHandleIndex,
+  switchEndInputInferTrueHandleIndex,
+  switchEndInputInferFalseHandleIndex,
+  switchEndOutputInferHandleIndex,
 };

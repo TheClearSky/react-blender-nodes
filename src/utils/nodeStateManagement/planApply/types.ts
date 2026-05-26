@@ -31,6 +31,7 @@ export type ValidationError =
       detail: string;
     }
   | { code: 'LOOP_PATH_INVALID'; reason: string }
+  | { code: 'SWITCH_PATH_INVALID'; reason: string }
   | { code: 'TYPE_INFERENCE_FAILED'; reason: string }
   | {
       code: 'COMPLEX_TYPE_MISMATCH';
@@ -226,6 +227,27 @@ export type UpdateLoopPlan = {
   }>;
 };
 
+export type AddSwitchPlan = {
+  kind: 'ADD_SWITCH';
+  position: XYPosition;
+};
+
+export type UpdateSwitchPlan = {
+  kind: 'UPDATE_SWITCH';
+  switchStartNodeId: string;
+  switchEndNodeId: string;
+  levels: Array<{
+    handles: {
+      switchStartIn: { id: string; name: string };
+      switchStartTrueOut: { id: string; name: string };
+      switchStartFalseOut: { id: string; name: string };
+      switchEndTrueIn: { id: string; name: string };
+      switchEndFalseIn: { id: string; name: string };
+      switchEndOut: { id: string; name: string };
+    };
+  }>;
+};
+
 export type OpenDrawerPlan = {
   kind: 'OPEN_DRAWER';
   activeDrawer: unknown;
@@ -254,4 +276,6 @@ export type Plan =
   | AddLoopPlan
   | UpdateLoopPlan
   | OpenDrawerPlan
-  | CloseDrawerPlan;
+  | CloseDrawerPlan
+  | AddSwitchPlan
+  | UpdateSwitchPlan;

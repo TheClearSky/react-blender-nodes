@@ -8,6 +8,7 @@ import {
   constructInputOrOutputOfType,
   getCurrentNodesAndEdgesFromState,
   setCurrentNodesAndEdgesToStateWithMutatingState,
+  setCurrentZonesToState,
   getDirectDependentsOfNodeType,
 } from '../nodes/constructAndModifyNodes';
 import type { TypeOfInput, TypeOfInputPanel } from '../types';
@@ -17,6 +18,100 @@ import {
   type EdgeChange,
 } from '@xyflow/react';
 import { addDuplicateHandlesToLoopNodesAfterInference } from '../nodes/loops';
+import {
+  addDuplicateHandlesToSwitchNodesAfterInference,
+  isSwitchNode,
+  getSwitchStructureFromNode,
+} from '../nodes/switches';
+import {
+  createSwitchZones,
+  createLoopZones,
+  recomputeAllZoneMemberships,
+  rehydrateAllZones,
+} from '../zones';
+
+function applySwitchZonePrefixesOnDraft<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  draft: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+  nodeId: string,
+): void {
+  const currentView = getCurrentNodesAndEdgesFromState(draft);
+  const node = currentView.nodes.find((n) => n.id === nodeId);
+  if (!node) return;
+  const nodeType = node.data.nodeTypeUniqueId;
+  if (!nodeType) return;
+
+  const isSwitchStartNode = nodeType === standardNodeTypeNamesMap.switchStart;
+  const handles = isSwitchStartNode ? node.data.outputs : node.data.inputs;
+  if (!Array.isArray(handles) || handles.length <= 2) return;
+
+  const dataCount = handles.length - 2;
+  const trueZoneCount = Math.ceil(dataCount / 2);
+
+  for (let i = 1; i < handles.length - 1; i++) {
+    const h = handles[i] as Record<string, unknown>;
+    const name = h.name as string;
+    if (!name || name === '' || name === '​') continue;
+    if (
+      typeof name === 'string' &&
+      !name.startsWith('True: ') &&
+      !name.startsWith('False: ')
+    ) {
+      const dataIdx = i - 1;
+      h.name = (dataIdx < trueZoneCount ? 'True: ' : 'False: ') + name;
+    }
+  }
+
+  // Also do the sibling
+  const structure = getSwitchStructureFromNode(
+    { ...draft, nodes: currentView.nodes, edges: currentView.edges } as State<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >,
+    node,
+  );
+  if (structure) {
+    const sibling =
+      structure.switchStart.id === nodeId
+        ? structure.switchEnd
+        : structure.switchStart;
+    const sibType = sibling.data.nodeTypeUniqueId;
+    if (!sibType) return;
+    const isSibStart = sibType === standardNodeTypeNamesMap.switchStart;
+    const sibHandles = isSibStart ? sibling.data.outputs : sibling.data.inputs;
+    if (!Array.isArray(sibHandles) || sibHandles.length <= 2) return;
+
+    const sibDataCount = sibHandles.length - 2;
+    const sibTrueCount = Math.ceil(sibDataCount / 2);
+
+    for (let i = 1; i < sibHandles.length - 1; i++) {
+      const h = sibHandles[i] as Record<string, unknown>;
+      const name = h.name as string;
+      if (!name || name === '' || name === '​') continue;
+      if (
+        typeof name === 'string' &&
+        !name.startsWith('True: ') &&
+        !name.startsWith('False: ')
+      ) {
+        const dataIdx = i - 1;
+        h.name = (dataIdx < sibTrueCount ? 'True: ' : 'False: ') + name;
+      }
+    }
+  }
+}
 import { addDuplicateHandleToNodeGroupAfterInference } from '../nodes/nodeGroups';
 import { generateRandomString } from '@/utils/randomGeneration';
 import { typedKeys } from '@/utils/typedKeys';
@@ -343,13 +438,18 @@ function applyPlan<
     case 'SET_VIEWPORT':
       draft.viewport = plan.viewport;
       return;
-    case 'REPLACE_STATE':
-      return plan.state as State<
+    case 'REPLACE_STATE': {
+      const imported = plan.state as State<
         DataTypeUniqueId,
         NodeTypeUniqueId,
         UnderlyingType,
         ComplexSchemaType
       >;
+      const rehydrated = rehydrateAllZones(imported);
+      imported.zones = rehydrated.zones;
+      imported.zoneIndex = rehydrated.zoneIndex;
+      return imported;
+    }
 
     case 'OPEN_NODE_GROUP': {
       if (!draft.openedNodeGroupStack) draft.openedNodeGroupStack = [];
@@ -417,6 +517,36 @@ function applyPlan<
         updatedNodes = applyNodeChanges([change], updatedNodes);
       }
       setCurrentNodesAndEdgesToStateWithMutatingState(draft, updatedNodes);
+
+      // Clean up zones for removed structures in the current scope
+      {
+        const currentViewDel = getCurrentNodesAndEdgesFromState(draft);
+        const scopedZones = currentViewDel.zones;
+        if (scopedZones) {
+          const nodeIdSet = new Set(updatedNodes.map((n) => n.id));
+          let zonesChanged = false;
+          const cleanedZones = { ...scopedZones };
+          for (const zoneId of Object.keys(cleanedZones)) {
+            const zone = cleanedZones[zoneId];
+            if (zone.structureLink) {
+              if (!nodeIdSet.has(zone.structureLink.structureId)) {
+                delete cleanedZones[zoneId];
+                zonesChanged = true;
+              }
+            }
+          }
+          if (zonesChanged || Object.keys(cleanedZones).length > 0) {
+            const zr = recomputeAllZoneMemberships({
+              ...draft,
+              nodes: currentViewDel.nodes,
+              edges: currentViewDel.edges,
+              zones: cleanedZones,
+            });
+            setCurrentZonesToState(draft, zr.zones, zr.zoneIndex);
+          }
+        }
+      }
+
       return;
     }
 
@@ -546,6 +676,8 @@ function applyPlan<
       for (const { nodeId } of plan.inference.nodeDataReplacements) {
         const nodeIndex = view.nodes.findIndex((n) => n.id === nodeId);
         if (nodeIndex !== -1) {
+          const nodeTypeId = view.nodes[nodeIndex].data.nodeTypeUniqueId;
+          if (nodeTypeId && isSwitchNode(nodeTypeId)) continue;
           ensureAllHandleNamesUnique<
             UnderlyingType,
             NodeTypeUniqueId,
@@ -595,7 +727,91 @@ function applyPlan<
             targetInferred,
           );
 
-          // 4b. Group handle duplication
+          // 4b. Switch handle duplication
+          addDuplicateHandlesToSwitchNodesAfterInference(
+            {
+              ...draft,
+              nodes: updatedView.nodes,
+              edges: updatedView.edges,
+            } as State<
+              DataTypeUniqueId,
+              NodeTypeUniqueId,
+              UnderlyingType,
+              ComplexSchemaType
+            >,
+            sourceNodeIndex,
+            targetNodeIndex,
+            sourceInferred,
+            targetInferred,
+          );
+
+          // 4b-post. Apply zone prefixes to switch node zoned handles
+          if (
+            sourceNode &&
+            isSwitchNode(sourceNode.data.nodeTypeUniqueId ?? '')
+          ) {
+            applySwitchZonePrefixesOnDraft(draft, sourceNode.id);
+          }
+          if (
+            targetNode &&
+            isSwitchNode(targetNode.data.nodeTypeUniqueId ?? '')
+          ) {
+            applySwitchZonePrefixesOnDraft(draft, targetNode.id);
+          }
+
+          // 4b-post2. Dedup switch node handle names AFTER zone prefixes.
+          // Must happen after prefixes so "True: X" and "False: X" are
+          // distinct — only true cross-level duplicates (e.g. two
+          // "True: Output" in the same zone) get suffixed.
+          {
+            const switchDeduped = new Set<string>();
+            for (const { nodeId } of plan.inference.nodeDataReplacements) {
+              const switchView = getCurrentNodesAndEdgesFromState(draft);
+              const node = switchView.nodes.find((n) => n.id === nodeId);
+              if (!node) continue;
+              const ntId = node.data.nodeTypeUniqueId;
+              if (!ntId || !isSwitchNode(ntId)) continue;
+              if (!switchDeduped.has(nodeId)) {
+                ensureAllHandleNamesUnique<
+                  UnderlyingType,
+                  NodeTypeUniqueId,
+                  ComplexSchemaType,
+                  DataTypeUniqueId
+                >(node.data);
+                switchDeduped.add(nodeId);
+              }
+              const structure = getSwitchStructureFromNode(
+                {
+                  ...draft,
+                  nodes: switchView.nodes,
+                  edges: switchView.edges,
+                } as State<
+                  DataTypeUniqueId,
+                  NodeTypeUniqueId,
+                  UnderlyingType,
+                  ComplexSchemaType
+                >,
+                node,
+              );
+              if (structure) {
+                const sibling =
+                  structure.switchStart.id === nodeId
+                    ? structure.switchEnd
+                    : structure.switchStart;
+                if (!switchDeduped.has(sibling.id)) {
+                  ensureAllHandleNamesUnique<
+                    UnderlyingType,
+                    NodeTypeUniqueId,
+                    ComplexSchemaType,
+                    DataTypeUniqueId
+                  >(sibling.data);
+                  switchDeduped.add(sibling.id);
+                }
+              }
+            }
+          }
+
+          // 4c. Group handle duplication
           const nodeGroup =
             draft.openedNodeGroupStack?.[draft.openedNodeGroupStack.length - 1];
           if (nodeGroup) {
@@ -676,6 +892,21 @@ function applyPlan<
         finalView.nodes,
         finalView.edges,
       );
+
+      // 6. Recompute zone memberships for all switch structures
+      if (draft.zones && Object.keys(draft.zones).length > 0) {
+        {
+          const cv = getCurrentNodesAndEdgesFromState(draft);
+          const zr = recomputeAllZoneMemberships({
+            ...draft,
+            nodes: cv.nodes,
+            edges: cv.edges,
+            zones: cv.zones,
+          });
+          setCurrentZonesToState(draft, zr.zones, zr.zoneIndex);
+        }
+      }
+
       return;
     }
 
@@ -704,6 +935,21 @@ function applyPlan<
           }
         }
       }
+
+      // Recompute zone memberships after edge changes
+      if (draft.zones && Object.keys(draft.zones).length > 0) {
+        {
+          const cv = getCurrentNodesAndEdgesFromState(draft);
+          const zr = recomputeAllZoneMemberships({
+            ...draft,
+            nodes: cv.nodes,
+            edges: cv.edges,
+            zones: cv.zones,
+          });
+          setCurrentZonesToState(draft, zr.zones, zr.zoneIndex);
+        }
+      }
+
       return;
     }
 
@@ -839,6 +1085,25 @@ function applyPlan<
         updatedNodes,
         updatedEdges,
       );
+
+      // Create zones for the new loop structure
+      const loopZones = createLoopZones(
+        loopStartId,
+        loopStopId,
+        loopEndId,
+        loopStartNode.data as Record<string, unknown>,
+        loopStopNode.data as Record<string, unknown>,
+        loopEndNode.data as Record<string, unknown>,
+      );
+      {
+        const currentViewForZones = getCurrentNodesAndEdgesFromState(draft);
+        setCurrentZonesToState(
+          draft,
+          { ...(currentViewForZones.zones ?? {}), ...loopZones },
+          { handleToZone: {} },
+        );
+      }
+
       return;
     }
 
@@ -935,6 +1200,187 @@ function applyPlan<
         plan.levels.map((l) => l.handles.loopEndOut),
         loopEndInStart,
         loopEndOutStart,
+      );
+
+      return;
+    }
+
+    case 'ADD_SWITCH': {
+      const spreadX = 600;
+      const switchStartId = generateRandomString(lengthOfIds);
+      const switchEndId = generateRandomString(lengthOfIds);
+
+      const switchStartNode = constructNodeOfType(
+        draft.dataTypes,
+        // @ts-expect-error standard node types are always present in state.typeOfNodes
+        standardNodeTypeNamesMap.switchStart,
+        draft.typeOfNodes,
+        switchStartId,
+        plan.position,
+      );
+      const switchEndNode = constructNodeOfType(
+        draft.dataTypes,
+        // @ts-expect-error standard node types are always present in state.typeOfNodes
+        standardNodeTypeNamesMap.switchEnd,
+        draft.typeOfNodes,
+        switchEndId,
+        { x: plan.position.x + spreadX, y: plan.position.y },
+      );
+
+      const currentView = getCurrentNodesAndEdgesFromState(draft);
+      const updatedNodes = [
+        ...currentView.nodes,
+        switchStartNode as (typeof currentView.nodes)[number],
+        switchEndNode as (typeof currentView.nodes)[number],
+      ];
+
+      const switchStartOutputs = switchStartNode.data.outputs!;
+      const switchEndInputs = switchEndNode.data.inputs!;
+
+      const bindEdge = {
+        id: generateRandomString(lengthOfIds),
+        source: switchStartId,
+        target: switchEndId,
+        sourceHandle: switchStartOutputs[0].id,
+        targetHandle: switchEndInputs[0].id,
+        type: 'configurableEdge' as const,
+      };
+
+      const updatedEdges = [
+        ...currentView.edges,
+        bindEdge as (typeof currentView.edges)[number],
+      ];
+      setCurrentNodesAndEdgesToStateWithMutatingState(
+        draft,
+        updatedNodes,
+        updatedEdges,
+      );
+
+      // Create zones for the new switch structure
+      const newZones = createSwitchZones(switchStartId, switchEndId);
+      {
+        const currentViewForZones = getCurrentNodesAndEdgesFromState(draft);
+        setCurrentZonesToState(
+          draft,
+          { ...(currentViewForZones.zones ?? {}), ...newZones },
+          { handleToZone: {} },
+        );
+      }
+
+      return;
+    }
+
+    case 'UPDATE_SWITCH': {
+      const currentView = getCurrentNodesAndEdgesFromState(draft);
+
+      function reorderSwitchHandles(
+        nodeId: string,
+        flatUpdates: Array<{ id: string; name: string }>,
+        startIndex: number,
+        side: 'input' | 'output',
+        isZoned: boolean,
+        trueZoneUpdates?: Array<{ id: string; name: string }>,
+        falseZoneUpdates?: Array<{ id: string; name: string }>,
+      ): void {
+        const node = currentView.nodes.find((n) => n.id === nodeId);
+        if (!node) return;
+        const handles =
+          side === 'input'
+            ? (node.data?.inputs as unknown[] | undefined)
+            : (node.data?.outputs as unknown[] | undefined);
+        if (!Array.isArray(handles)) return;
+
+        const handleById = new Map<string, Record<string, unknown>>();
+        for (let i = startIndex; i < handles.length; i++) {
+          const h = handles[i] as Record<string, unknown>;
+          handleById.set(h.id as string, h);
+        }
+
+        const fixed = handles.slice(0, startIndex);
+        const updateIds = new Set(flatUpdates.map((u) => u.id));
+
+        for (const update of flatUpdates) {
+          const h = handleById.get(update.id);
+          if (h) h.name = update.name;
+        }
+
+        const templates = [...handleById.values()].filter(
+          (h) => !updateIds.has(h.id as string),
+        );
+
+        let reordered: unknown[];
+        if (isZoned && trueZoneUpdates && falseZoneUpdates) {
+          const trueData = trueZoneUpdates
+            .map((u) => handleById.get(u.id))
+            .filter(Boolean);
+          const falseData = falseZoneUpdates
+            .map((u) => handleById.get(u.id))
+            .filter(Boolean);
+          const trueTemplates = templates.slice(
+            0,
+            Math.ceil(templates.length / 2),
+          );
+          const falseTemplates = templates.slice(
+            Math.ceil(templates.length / 2),
+          );
+          reordered = [
+            ...trueData,
+            ...trueTemplates,
+            ...falseData,
+            ...falseTemplates,
+          ];
+        } else {
+          const data = flatUpdates
+            .map((u) => handleById.get(u.id))
+            .filter(Boolean);
+          reordered = [...data, ...templates];
+        }
+
+        (node.data as Record<string, unknown>)[
+          side === 'input' ? 'inputs' : 'outputs'
+        ] = [...fixed, ...reordered];
+      }
+
+      const trueOuts = plan.levels.map((l) => l.handles.switchStartTrueOut);
+      const falseOuts = plan.levels.map((l) => l.handles.switchStartFalseOut);
+      const trueIns = plan.levels.map((l) => l.handles.switchEndTrueIn);
+      const falseIns = plan.levels.map((l) => l.handles.switchEndFalseIn);
+
+      // SwitchStart inputs: [data..., condition, template] — not zoned
+      reorderSwitchHandles(
+        plan.switchStartNodeId,
+        plan.levels.map((l) => l.handles.switchStartIn),
+        0,
+        'input',
+        false,
+      );
+      // SwitchStart outputs: [bind, trueData..., trueTemplate, falseData..., falseTemplate] — zoned
+      reorderSwitchHandles(
+        plan.switchStartNodeId,
+        [...trueOuts, ...falseOuts],
+        1,
+        'output',
+        true,
+        trueOuts,
+        falseOuts,
+      );
+      // SwitchEnd inputs: [bind, trueData..., trueTemplate, falseData..., falseTemplate] — zoned
+      reorderSwitchHandles(
+        plan.switchEndNodeId,
+        [...trueIns, ...falseIns],
+        1,
+        'input',
+        true,
+        trueIns,
+        falseIns,
+      );
+      // SwitchEnd outputs: [data..., template] — not zoned
+      reorderSwitchHandles(
+        plan.switchEndNodeId,
+        plan.levels.map((l) => l.handles.switchEndOut),
+        0,
+        'output',
+        false,
       );
 
       return;

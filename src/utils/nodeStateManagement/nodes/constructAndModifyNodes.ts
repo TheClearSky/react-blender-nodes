@@ -6,6 +6,7 @@ import {
   type TypeOfInput,
 } from '../types';
 import { Position, type XYPosition } from '@xyflow/react';
+import type { Zone, ZoneIndex } from '../zones/types';
 import { generateRandomString } from '../../randomGeneration';
 import { typedKeys } from '../../typedKeys';
 import type {
@@ -444,21 +445,35 @@ function getCurrentNodesAndEdgesFromState<
   >['edges'];
   inputNodeId?: string;
   outputNodeId?: string;
+  zones?: Record<string, Zone>;
+  zoneIndex?: ZoneIndex;
 } {
   const topOpenedNodeGroup =
     state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
   if (!topOpenedNodeGroup) {
-    return { nodes: state.nodes, edges: state.edges };
+    return {
+      nodes: state.nodes,
+      edges: state.edges,
+      zones: state.zones,
+      zoneIndex: state.zoneIndex,
+    };
   }
   const subtree = state.typeOfNodes[topOpenedNodeGroup.nodeType].subtree;
   if (!subtree) {
-    return { nodes: state.nodes, edges: state.edges };
+    return {
+      nodes: state.nodes,
+      edges: state.edges,
+      zones: state.zones,
+      zoneIndex: state.zoneIndex,
+    };
   }
   return {
     nodes: subtree.nodes,
     edges: subtree.edges,
     inputNodeId: subtree.inputNodeId,
     outputNodeId: subtree.outputNodeId,
+    zones: subtree.zones,
+    zoneIndex: subtree.zoneIndex,
   };
 }
 
@@ -527,6 +542,43 @@ function setCurrentNodesAndEdgesToStateWithMutatingState<
     subtree.edges = [...edges];
   }
   return state;
+}
+
+function setCurrentZonesToState<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: Pick<
+    State<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >,
+    'zones' | 'zoneIndex' | 'typeOfNodes' | 'openedNodeGroupStack'
+  >,
+  zones: Record<string, Zone>,
+  zoneIndex: ZoneIndex,
+): void {
+  const topOpenedNodeGroup =
+    state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
+  if (!topOpenedNodeGroup) {
+    state.zones = zones;
+    state.zoneIndex = zoneIndex;
+    return;
+  }
+  const subtree = state.typeOfNodes[topOpenedNodeGroup.nodeType]?.subtree;
+  if (!subtree) {
+    state.zones = zones;
+    state.zoneIndex = zoneIndex;
+    return;
+  }
+  subtree.zones = zones;
+  subtree.zoneIndex = zoneIndex;
 }
 
 function getDependencyGraphBetweenNodeTypes<
@@ -779,6 +831,7 @@ export {
   constructTypeOfHandleFromIndices,
   getCurrentNodesAndEdgesFromState,
   setCurrentNodesAndEdgesToStateWithMutatingState,
+  setCurrentZonesToState,
   getDependencyGraphBetweenNodeTypes,
   getDirectDependentsOfNodeType,
   getDirectDependenciesOfNodeType,

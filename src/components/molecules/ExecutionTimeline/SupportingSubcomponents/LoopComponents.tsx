@@ -257,10 +257,17 @@ function IterationDetail({
 }) {
   const { steps } = iteration;
 
-  // Build segments using this iteration's nested loop records
+  // Build segments using this iteration's nested loop/switch records
+  const nestedSwitchRecords = iteration.nestedSwitchRecords ?? new Map();
   const segments = useMemo(
-    () => buildSegments(steps, nestedLoopRecords, adjustForPause),
-    [steps, nestedLoopRecords, adjustForPause],
+    () =>
+      buildSegments(
+        steps,
+        nestedLoopRecords,
+        nestedSwitchRecords,
+        adjustForPause,
+      ),
+    [steps, nestedLoopRecords, nestedSwitchRecords, adjustForPause],
   );
 
   if (segments.length === 0) {
@@ -290,6 +297,8 @@ function IterationDetail({
               />
             );
           }
+
+          if (segment.kind !== 'loop') return null;
 
           const loopId = segment.loopStructureId;
           const selIter = selectedIterations.get(loopId) ?? null;

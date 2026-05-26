@@ -252,7 +252,9 @@ function isStandardNodeType<T extends string>(
     nodeTypeId === standardNodeTypeNamesMap.loopStop ||
     nodeTypeId === standardNodeTypeNamesMap.loopEnd ||
     nodeTypeId === standardNodeTypeNamesMap.groupInput ||
-    nodeTypeId === standardNodeTypeNamesMap.groupOutput
+    nodeTypeId === standardNodeTypeNamesMap.groupOutput ||
+    nodeTypeId === standardNodeTypeNamesMap.switchStart ||
+    nodeTypeId === standardNodeTypeNamesMap.switchEnd
   );
 }
 

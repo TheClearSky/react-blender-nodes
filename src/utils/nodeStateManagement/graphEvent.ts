@@ -128,6 +128,14 @@ type UpdateLoopDetail = {
   kind: 'UPDATE_LOOP';
 };
 
+type AddSwitchDetail = {
+  kind: 'ADD_SWITCH';
+};
+
+type UpdateSwitchDetail = {
+  kind: 'UPDATE_SWITCH';
+};
+
 type OpenDrawerDetail = {
   kind: 'OPEN_DRAWER';
 };
@@ -154,6 +162,8 @@ type ActionDetail<NodeTypeUniqueId extends string = string> =
   | UpdateNodeTypeDetail
   | AddLoopDetail
   | UpdateLoopDetail
+  | AddSwitchDetail
+  | UpdateSwitchDetail
   | OpenDrawerDetail
   | CloseDrawerDetail;
 
@@ -295,6 +305,10 @@ function planToDetail<NodeTypeUniqueId extends string = string>(
       return { kind: 'ADD_LOOP' };
     case 'UPDATE_LOOP':
       return { kind: 'UPDATE_LOOP' };
+    case 'ADD_SWITCH':
+      return { kind: 'ADD_SWITCH' };
+    case 'UPDATE_SWITCH':
+      return { kind: 'UPDATE_SWITCH' };
     case 'OPEN_DRAWER':
       return { kind: 'OPEN_DRAWER' };
     case 'CLOSE_DRAWER':
@@ -540,6 +554,8 @@ export type {
   UpdateInputValueDetail,
   AddLoopDetail,
   UpdateLoopDetail,
+  AddSwitchDetail,
+  UpdateSwitchDetail,
   OpenDrawerDetail,
   CloseDrawerDetail,
 };

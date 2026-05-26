@@ -18,6 +18,8 @@ import {
   getLoopStructureFromNode,
   getNodesInLoopRegion,
 } from '../nodeStateManagement/nodes/loops';
+import type { Zone } from '../nodeStateManagement/zones/types';
+import { findZoneByStructure } from '../nodeStateManagement/zones';
 import { topologicalSortWithLevels } from './topologicalSort';
 import { compileGroupScopes, isGroupBoundaryNode } from './groupCompiler';
 
@@ -103,8 +105,26 @@ function compileLoopStructures<
     if (!loopStructure) continue;
 
     const { loopStart, loopStop, loopEnd } = loopStructure;
-    const { nodesInRegionStartToStop, nodesInRegionStopToEnd } =
-      getNodesInLoopRegion(state, loopStructure);
+
+    // Use zones from state if available, otherwise fall back to BFS
+    let nodesInRegionStartToStop: Set<string>;
+    let nodesInRegionStopToEnd: Set<string>;
+
+    const preStopZone: Zone | undefined = state.zones
+      ? findZoneByStructure(state.zones, loopStart.id, 'preStop')
+      : undefined;
+    const postStopZone: Zone | undefined = state.zones
+      ? findZoneByStructure(state.zones, loopStart.id, 'postStop')
+      : undefined;
+
+    if (preStopZone && postStopZone) {
+      nodesInRegionStartToStop = new Set(preStopZone.nodeIds);
+      nodesInRegionStopToEnd = new Set(postStopZone.nodeIds);
+    } else {
+      const regions = getNodesInLoopRegion(state, loopStructure);
+      nodesInRegionStartToStop = regions.nodesInRegionStartToStop;
+      nodesInRegionStopToEnd = regions.nodesInRegionStopToEnd;
+    }
 
     const allBodyNodeIds = new Set<string>([
       ...nodesInRegionStartToStop,

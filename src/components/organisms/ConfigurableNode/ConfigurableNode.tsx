@@ -17,6 +17,7 @@ import {
   type NodeHeaderActionDefinition,
 } from './SupportingSubcomponents/ContextAwareNodeHeaderActions';
 import { isLoopNode } from '@/utils/nodeStateManagement/nodes/loops/loopIdentification';
+import { isSwitchNode } from '@/utils/nodeStateManagement/nodes/switches/switchIdentification';
 import { actionTypesMap } from '@/utils/nodeStateManagement/mainReducer';
 import { Pencil, SquareMousePointerIcon } from 'lucide-react';
 import { z } from 'zod';
@@ -506,6 +507,17 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
         action: {
           type: actionTypesMap.OPEN_DRAWER,
           payload: { activeDrawer: { type: 'editLoop', nodeId: id ?? '' } },
+        },
+      });
+    }
+
+    if (nodeTypeUniqueId && isSwitchNode(nodeTypeUniqueId)) {
+      headerActions.push({
+        id: 'edit-switch',
+        icon: Pencil,
+        action: {
+          type: actionTypesMap.OPEN_DRAWER,
+          payload: { activeDrawer: { type: 'editSwitch', nodeId: id ?? '' } },
         },
       });
     }

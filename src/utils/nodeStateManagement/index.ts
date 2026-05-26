@@ -20,6 +20,8 @@ export type {
   UpdateInputValueDetail,
   AddLoopDetail,
   UpdateLoopDetail,
+  AddSwitchDetail,
+  UpdateSwitchDetail,
   OpenDrawerDetail,
   CloseDrawerDetail,
 } from './graphEvent';

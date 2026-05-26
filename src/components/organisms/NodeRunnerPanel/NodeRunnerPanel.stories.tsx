@@ -101,6 +101,7 @@ function makeRecord(
     errors: [],
     concurrencyLevels: [],
     loopRecords: new Map(),
+    switchRecords: new Map(),
     groupRecords: new Map(),
     finalValues: new Map(),
     ...overrides,
@@ -1491,6 +1492,7 @@ function buildLoopWithError(): {
       conditionValue: true,
       stepRecords: [steps[steps.length - 1]],
       nestedLoopRecords: new Map(),
+      nestedSwitchRecords: new Map(),
     });
   }
 
@@ -1566,6 +1568,7 @@ function buildLoopWithError(): {
     conditionValue: true,
     stepRecords: [steps[steps.length - 1]],
     nestedLoopRecords: new Map(),
+    nestedSwitchRecords: new Map(),
   });
 
   // Downstream skipped
@@ -1722,6 +1725,7 @@ function buildLoopInsideGroupExecution(): {
       conditionValue: iter + 1 < 3, // continue while not reached max
       stepRecords: [steps[steps.length - 1]],
       nestedLoopRecords: new Map(),
+      nestedSwitchRecords: new Map(),
     });
   }
 

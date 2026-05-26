@@ -20,6 +20,7 @@ import {
   handleCatchError,
   getDataHandleIds,
   findConditionInputId,
+  resolveConditionValue,
 } from './executionHelpers';
 import { executeStandardNode } from './executeStandardNode';
 import { executeOneStep } from './executeOneStep';
@@ -413,22 +414,14 @@ async function executeLoopBlock<
     );
 
     // ── PHASE: loopStop ──────────────────────────────
-    const conditionKey = qualifiedId(loopStopNodeId, stopConditionInputId);
-    const conditionEntries = plan.inputResolutionMap.get(conditionKey);
-    let conditionValue = false;
-
-    if (conditionEntries && conditionEntries.length > 0) {
-      const conditionSourceErrored = conditionEntries.some((e) =>
-        bodyErroredNodes.has(e.sourceNodeId),
-      );
-      if (!conditionSourceErrored) {
-        const raw = valueStore.get(
-          conditionEntries[0].sourceNodeId,
-          conditionEntries[0].sourceHandleId,
-        );
-        conditionValue = Boolean(raw);
-      }
-    }
+    const conditionValue = resolveConditionValue(
+      loopStopNodeId,
+      stopConditionInputId,
+      flattenInputs(loopStopInfo.data.inputs),
+      plan.inputResolutionMap,
+      valueStore,
+      bodyErroredNodes,
+    );
 
     // Resolve all LoopStop data values (pass-through)
     for (let i = 0; i < dataHandleCount; i++) {

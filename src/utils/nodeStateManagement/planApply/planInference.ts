@@ -15,6 +15,7 @@ import { ok, err } from './types';
 import { getHandleFromNodeDataFromIndices } from '../handles/handleGetters';
 import { inferTypeAcrossTheNodeForHandleOfDataType } from '../edges/typeInference';
 import { isLoopNode } from '../nodes/loops';
+import { isSwitchNode } from '../nodes/switches';
 
 // ---------------------------------------------------------------------------
 // planInferenceForEdgeAddition
@@ -162,6 +163,8 @@ function planInferenceForEdgeAddition<
 
   const isSourceNodeLoopNode = isLoopNode(sourceNodeData.nodeTypeUniqueId);
   const isTargetNodeLoopNode = isLoopNode(targetNodeData.nodeTypeUniqueId);
+  const isSourceNodeSwitchNode = isSwitchNode(sourceNodeData.nodeTypeUniqueId);
+  const isTargetNodeSwitchNode = isSwitchNode(targetNodeData.nodeTypeUniqueId);
 
   // ------------------------------------------------------------------
   // 3. No inference needed — neither side is inferFromConnection
@@ -221,15 +224,27 @@ function planInferenceForEdgeAddition<
       dataTypeToInferFor = targetHandleDataType.dataTypeUniqueId;
       connectedHandle = sourceHandle;
       resetInferredType = false;
-      overrideDataType = isTargetNodeGroupOutput || isTargetNodeLoopNode;
-      overrideName = isTargetNodeGroupOutput || isTargetNodeLoopNode;
+      overrideDataType =
+        isTargetNodeGroupOutput ||
+        isTargetNodeLoopNode ||
+        isTargetNodeSwitchNode;
+      overrideName =
+        isTargetNodeGroupOutput ||
+        isTargetNodeLoopNode ||
+        isTargetNodeSwitchNode;
     } else if (targetHandleInferredDataType) {
       indexOfNodeToUpdate = sourceNodeIndex;
       dataTypeToInferFor = sourceHandleDataType.dataTypeUniqueId;
       connectedHandle = targetHandle;
       resetInferredType = false;
-      overrideDataType = isSourceNodeGroupInput || isSourceNodeLoopNode;
-      overrideName = isSourceNodeGroupInput || isSourceNodeLoopNode;
+      overrideDataType =
+        isSourceNodeGroupInput ||
+        isSourceNodeLoopNode ||
+        isSourceNodeSwitchNode;
+      overrideName =
+        isSourceNodeGroupInput ||
+        isSourceNodeLoopNode ||
+        isSourceNodeSwitchNode;
     }
   }
   // Only source is inferFromConnection
@@ -246,8 +261,10 @@ function planInferenceForEdgeAddition<
     dataTypeToInferFor = sourceHandleDataType.dataTypeUniqueId;
     connectedHandle = targetHandle;
     resetInferredType = false;
-    overrideDataType = isSourceNodeGroupInput || isSourceNodeLoopNode;
-    overrideName = isSourceNodeGroupInput || isSourceNodeLoopNode;
+    overrideDataType =
+      isSourceNodeGroupInput || isSourceNodeLoopNode || isSourceNodeSwitchNode;
+    overrideName =
+      isSourceNodeGroupInput || isSourceNodeLoopNode || isSourceNodeSwitchNode;
   }
   // Only target is inferFromConnection
   else if (isTargetHandleInferredFromConnection) {
@@ -263,8 +280,10 @@ function planInferenceForEdgeAddition<
     dataTypeToInferFor = targetHandleDataType.dataTypeUniqueId;
     connectedHandle = sourceHandle;
     resetInferredType = false;
-    overrideDataType = isTargetNodeGroupOutput || isTargetNodeLoopNode;
-    overrideName = isTargetNodeGroupOutput || isTargetNodeLoopNode;
+    overrideDataType =
+      isTargetNodeGroupOutput || isTargetNodeLoopNode || isTargetNodeSwitchNode;
+    overrideName =
+      isTargetNodeGroupOutput || isTargetNodeLoopNode || isTargetNodeSwitchNode;
   }
 
   // ------------------------------------------------------------------

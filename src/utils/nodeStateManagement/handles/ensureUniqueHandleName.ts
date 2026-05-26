@@ -89,6 +89,7 @@ function ensureAllHandleNamesUnique<
     nodeData,
     (handle) => {
       if (handle.name === undefined) return;
+      if (handle.name === '' || handle.name === '​') return;
       handle.name = ensureUniqueHandleName(handle.name, seenInputs);
       seenInputs.push(handle.name);
     },
@@ -106,6 +107,7 @@ function ensureAllHandleNamesUnique<
     nodeData,
     (handle) => {
       if (handle.name === undefined) return;
+      if (handle.name === '' || handle.name === '​') return;
       handle.name = ensureUniqueHandleName(handle.name, seenOutputs);
       seenOutputs.push(handle.name);
     },

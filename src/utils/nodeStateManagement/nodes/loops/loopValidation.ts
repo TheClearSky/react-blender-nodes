@@ -20,12 +20,14 @@ import type { HandleIndices } from '../../handles/types';
 import { getResultantDataTypeOfHandleConsideringInferredType } from '../../constructAndModifyHandles';
 import { isGroupInputOrOutputNode } from '../nodeGroups';
 import { isLoopNode } from './loopIdentification';
+import { isSwitchNode, getSwitchStructureFromNode } from '../switches';
 import { getAllReachableNodes, getNodesInLoopRegion } from './loopRegion';
 import {
   getBoundaryLoopNodesOfNode,
   getLoopStructureFromNode,
 } from './loopStructure';
 import type { LoopStructure } from './types';
+import { findZoneByStructure } from '../../zones';
 
 function verifyLoopStructureUniformHandleInference<
   DataTypeUniqueId extends string = string,
@@ -721,13 +723,37 @@ function isLoopConnectionValid<
     }
 
     if (isSourceLoopNode) {
-      const { nodesInRegionStartToStop, nodesInRegionStopToEnd } =
-        getNodesInLoopRegion<
+      let nodesInRegionStartToStop: Set<string>;
+      let nodesInRegionStopToEnd: Set<string>;
+
+      const preStopZoneA = state.zones
+        ? findZoneByStructure(
+            state.zones,
+            loopStructure.loopStart.id,
+            'preStop',
+          )
+        : undefined;
+      const postStopZoneA = state.zones
+        ? findZoneByStructure(
+            state.zones,
+            loopStructure.loopStart.id,
+            'postStop',
+          )
+        : undefined;
+
+      if (preStopZoneA && postStopZoneA) {
+        nodesInRegionStartToStop = new Set(preStopZoneA.nodeIds);
+        nodesInRegionStopToEnd = new Set(postStopZoneA.nodeIds);
+      } else {
+        const regions = getNodesInLoopRegion<
           DataTypeUniqueId,
           NodeTypeUniqueId,
           UnderlyingType,
           ComplexSchemaType
         >(state, loopStructure);
+        nodesInRegionStartToStop = regions.nodesInRegionStartToStop;
+        nodesInRegionStopToEnd = regions.nodesInRegionStopToEnd;
+      }
 
       const sourceReachable = getAllReachableNodes<
         DataTypeUniqueId,
@@ -803,13 +829,38 @@ function isLoopConnectionValid<
         validation: { isValid: true },
       };
     } else if (isTargetLoopNode) {
-      const { nodesInRegionStartToStop, nodesInRegionStopToEnd } =
-        getNodesInLoopRegion<
+      let nodesInRegionStartToStop: Set<string>;
+      let nodesInRegionStopToEnd: Set<string>;
+
+      const preStopZone2 = state.zones
+        ? findZoneByStructure(
+            state.zones,
+            loopStructure.loopStart.id,
+            'preStop',
+          )
+        : undefined;
+      const postStopZone2 = state.zones
+        ? findZoneByStructure(
+            state.zones,
+            loopStructure.loopStart.id,
+            'postStop',
+          )
+        : undefined;
+
+      if (preStopZone2 && postStopZone2) {
+        nodesInRegionStartToStop = new Set(preStopZone2.nodeIds);
+        nodesInRegionStopToEnd = new Set(postStopZone2.nodeIds);
+      } else {
+        const regions = getNodesInLoopRegion<
           DataTypeUniqueId,
           NodeTypeUniqueId,
           UnderlyingType,
           ComplexSchemaType
         >(state, loopStructure);
+        nodesInRegionStartToStop = regions.nodesInRegionStartToStop;
+        nodesInRegionStopToEnd = regions.nodesInRegionStopToEnd;
+      }
+
       const targetReachable = getAllReachableNodes<
         DataTypeUniqueId,
         NodeTypeUniqueId,
@@ -1017,6 +1068,33 @@ function canRemoveLoopNodesAndEdges<
     nodesToRemoveMap[loopStructure.loopStop.id].alreadyChecked = true;
     nodesToRemoveMap[loopStructure.loopEnd.id].alreadyChecked = true;
   }
+
+  // Check switch pairs
+  for (const nodeId of nodesToRemoveMapKeys) {
+    const switchNode = nodesToRemoveMap[nodeId].node;
+    if (nodesToRemoveMap[nodeId].alreadyChecked) continue;
+    nodesToRemoveMap[nodeId].alreadyChecked = true;
+    if (!switchNode?.data.nodeTypeUniqueId) continue;
+    if (!isSwitchNode(switchNode.data.nodeTypeUniqueId)) continue;
+    const switchStructure = getSwitchStructureFromNode(state, switchNode);
+    if (!switchStructure) continue;
+
+    if (
+      nodesToRemoveMap[switchStructure.switchStart.id] === undefined ||
+      nodesToRemoveMap[switchStructure.switchEnd.id] === undefined
+    ) {
+      return {
+        validation: {
+          isValid: false,
+          reason:
+            "Switch nodes must be removed together, can't partially remove them",
+        },
+      };
+    }
+    nodesToRemoveMap[switchStructure.switchStart.id].alreadyChecked = true;
+    nodesToRemoveMap[switchStructure.switchEnd.id].alreadyChecked = true;
+  }
+
   let edgesToRemoveResultant: State<
     DataTypeUniqueId,
     NodeTypeUniqueId,
@@ -1049,44 +1127,71 @@ function canRemoveLoopNodesAndEdges<
     if (!sourceNodeType || !targetNodeType) {
       continue;
     }
-    if (!isLoopNode(sourceNodeType) || !isLoopNode(targetNodeType)) {
-      continue;
+    if (isLoopNode(sourceNodeType) && isLoopNode(targetNodeType)) {
+      const loopSourceHandle = getHandleFromNodeDataMatchingHandleId(
+        sourceHandleId,
+        sourceNode.data,
+      )?.value;
+      const loopTargetHandle = getHandleFromNodeDataMatchingHandleId(
+        targetHandleId,
+        targetNode.data,
+      )?.value;
+      if (
+        loopSourceHandle?.dataType?.dataTypeUniqueId ===
+          standardDataTypeNamesMap.bindLoopNodes &&
+        loopTargetHandle?.dataType?.dataTypeUniqueId ===
+          standardDataTypeNamesMap.bindLoopNodes
+      ) {
+        const loopStructure = getLoopStructureFromNode(state, sourceNode);
+        if (loopStructure) {
+          if (
+            nodesToRemoveMap[loopStructure.loopStart.id] === undefined ||
+            nodesToRemoveMap[loopStructure.loopStop.id] === undefined ||
+            nodesToRemoveMap[loopStructure.loopEnd.id] === undefined
+          ) {
+            return {
+              validation: {
+                isValid: false,
+                reason:
+                  'Cannot disconnect loop nodes bind edges once fully connected, to delete, select all connected loop nodes and delete them at once',
+              },
+            };
+          }
+        }
+      }
     }
 
-    const sourceHandle = getHandleFromNodeDataMatchingHandleId(
-      sourceHandleId,
-      sourceNode.data,
-    )?.value;
-    const targetHandle = getHandleFromNodeDataMatchingHandleId(
-      targetHandleId,
-      targetNode.data,
-    )?.value;
-    const sourceHandleDataTypeUniqueId =
-      sourceHandle?.dataType?.dataTypeUniqueId;
-    const targetHandleDataTypeUniqueId =
-      targetHandle?.dataType?.dataTypeUniqueId;
-    if (
-      sourceHandleDataTypeUniqueId !== standardDataTypeNamesMap.bindLoopNodes ||
-      targetHandleDataTypeUniqueId !== standardDataTypeNamesMap.bindLoopNodes
-    ) {
-      continue;
-    }
-    const loopStructure = getLoopStructureFromNode(state, sourceNode);
-    if (!loopStructure) {
-      continue;
-    }
-    if (
-      nodesToRemoveMap[loopStructure.loopStart.id] === undefined ||
-      nodesToRemoveMap[loopStructure.loopStop.id] === undefined ||
-      nodesToRemoveMap[loopStructure.loopEnd.id] === undefined
-    ) {
-      return {
-        validation: {
-          isValid: false,
-          reason:
-            'Cannot disconnect loop nodes bind edges once fully connected, to delete, select all connected loop nodes and delete them at once',
-        },
-      };
+    if (isSwitchNode(sourceNodeType) && isSwitchNode(targetNodeType)) {
+      const switchSourceHandle = getHandleFromNodeDataMatchingHandleId(
+        sourceHandleId,
+        sourceNode.data,
+      )?.value;
+      const switchTargetHandle = getHandleFromNodeDataMatchingHandleId(
+        targetHandleId,
+        targetNode.data,
+      )?.value;
+      if (
+        switchSourceHandle?.dataType?.dataTypeUniqueId ===
+          standardDataTypeNamesMap.bindSwitchNodes &&
+        switchTargetHandle?.dataType?.dataTypeUniqueId ===
+          standardDataTypeNamesMap.bindSwitchNodes
+      ) {
+        const switchStructure = getSwitchStructureFromNode(state, sourceNode);
+        if (switchStructure) {
+          if (
+            nodesToRemoveMap[switchStructure.switchStart.id] === undefined ||
+            nodesToRemoveMap[switchStructure.switchEnd.id] === undefined
+          ) {
+            return {
+              validation: {
+                isValid: false,
+                reason:
+                  'Cannot disconnect switch nodes bind edge once connected, to delete, select both switch nodes and delete them at once',
+              },
+            };
+          }
+        }
+      }
     }
   }
   return {

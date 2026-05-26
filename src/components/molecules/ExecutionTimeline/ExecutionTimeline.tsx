@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useEffect } from 'react';
+import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import {
   ChevronRight,
   ChevronLeft,
@@ -35,6 +35,7 @@ import {
 } from './SupportingSubcomponents/types';
 import { FlatSection } from './SupportingSubcomponents/FlatSection';
 import { LoopSection } from './SupportingSubcomponents/LoopComponents';
+import { SwitchSection } from './SupportingSubcomponents/SwitchComponents';
 import {
   TimeRuler,
   TimelineGrid,
@@ -105,6 +106,7 @@ function ExecutionTimeline({
     return buildSegments(
       adjustedSteps,
       record.loopRecords,
+      record.switchRecords,
       timeMode === 'execution',
     );
   }, [adjustedSteps, record, timeMode]);
@@ -135,6 +137,11 @@ function ExecutionTimeline({
       });
     }
   }, [selectedStepIndex, record]);
+
+  // Track which switch sections are expanded
+  const [expandedSwitches, setExpandedSwitches] = useState<Set<string>>(
+    new Set(),
+  );
 
   // ── Zoom & Pan ──
   const {
@@ -530,6 +537,42 @@ function ExecutionTimeline({
                         );
                       }
 
+                      if (segment.kind === 'switch') {
+                        const switchId = segment.switchStructureId;
+                        return (
+                          <SwitchSection
+                            key={`switch-${switchId}`}
+                            segment={segment}
+                            timeScale={timeScale}
+                            contentWidth={contentWidth}
+                            isExpanded={expandedSwitches.has(switchId)}
+                            onToggleExpand={() => {
+                              setExpandedSwitches((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(switchId)) next.delete(switchId);
+                                else next.add(switchId);
+                                return next;
+                              });
+                            }}
+                            selectedStepIndex={selectedStepIndex}
+                            currentStepIndex={currentStepIndex}
+                            nearestDragStepIndex={nearestDragStepIndex}
+                            onStepClick={guardedStepClick}
+                            onScrubTo={onScrubTo}
+                            adjustForPause={timeMode === 'execution'}
+                            selectedIterations={selectedIterations}
+                            onSelectIteration={(loopId, iter) => {
+                              setSelectedIterations((prev) => {
+                                const next = new Map(prev);
+                                if (iter === null) next.delete(loopId);
+                                else next.set(loopId, iter);
+                                return next;
+                              });
+                            }}
+                          />
+                        );
+                      }
+
                       const loopId = segment.loopStructureId;
                       const selIter = selectedIterations.get(loopId) ?? null;
 
@@ -543,7 +586,6 @@ function ExecutionTimeline({
                           onSelectIteration={(iter) => {
                             setSelectedIterations((prev) => {
                               const next = new Map(prev);
-                              // Toggle: click same iteration to collapse
                               if (prev.get(loopId) === iter) {
                                 next.delete(loopId);
                               } else {

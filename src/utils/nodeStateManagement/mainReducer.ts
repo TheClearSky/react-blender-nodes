@@ -28,6 +28,8 @@ const actionTypes = [
   'UPDATE_LOOP',
   'OPEN_DRAWER',
   'CLOSE_DRAWER',
+  'ADD_SWITCH',
+  'UPDATE_SWITCH',
 ] as const;
 
 /** Map of action types for type-safe action dispatching */
@@ -48,6 +50,8 @@ const actionTypesMap = {
   [actionTypes[13]]: actionTypes[13],
   [actionTypes[14]]: actionTypes[14],
   [actionTypes[15]]: actionTypes[15],
+  [actionTypes[16]]: actionTypes[16],
+  [actionTypes[17]]: actionTypes[17],
 } as const;
 
 /**
@@ -226,6 +230,32 @@ type Action<
   | {
       /** Close the currently open drawer */
       type: typeof actionTypesMap.CLOSE_DRAWER;
+    }
+  | {
+      /** Add a complete switch pair (switchStart + switchEnd) with bind edge */
+      type: typeof actionTypesMap.ADD_SWITCH;
+      payload: {
+        /** Position where switchStart is placed; switchEnd auto-spreads to the right */
+        position: XYPosition;
+      };
+    }
+  | {
+      /** Update handle names and order across a switch pair */
+      type: typeof actionTypesMap.UPDATE_SWITCH;
+      payload: {
+        switchStartNodeId: string;
+        switchEndNodeId: string;
+        levels: Array<{
+          handles: {
+            switchStartIn: { id: string; name: string };
+            switchStartTrueOut: { id: string; name: string };
+            switchStartFalseOut: { id: string; name: string };
+            switchEndTrueIn: { id: string; name: string };
+            switchEndFalseIn: { id: string; name: string };
+            switchEndOut: { id: string; name: string };
+          };
+        }>;
+      };
     };
 
 /**

@@ -6,6 +6,7 @@ import {
   type ActionDispatch,
 } from 'react';
 import { z } from 'zod';
+import { ZoneFrameOverlay } from '@/components/molecules/ZoneFrameOverlay';
 import {
   ReactFlow,
   Background,
@@ -61,7 +62,11 @@ import { NodeTypeEditDrawer } from '@/components/molecules/NodeTypeEditDrawer/No
 import { LoopEditDrawer } from '@/components/molecules/LoopEditDrawer';
 import type { LoopHandleLevel } from '@/components/molecules/LoopEditDrawer';
 import { getLoopStructureFromNode } from '@/utils/nodeStateManagement/nodes/loops/loopStructure';
+import { getSwitchStructureFromNode } from '@/utils/nodeStateManagement/nodes/switches/switchStructure';
+import { SwitchEditDrawer } from '@/components/molecules/SwitchEditDrawer';
+import type { SwitchHandleLevel } from '@/components/molecules/SwitchEditDrawer';
 import { createLoopMenuItem } from '@/components/molecules/ContextMenu/createLoopMenuItem';
+import { createSwitchMenuItem } from '@/components/molecules/ContextMenu/createSwitchMenuItem';
 
 /**
  * Props for the FullGraph component
@@ -220,6 +225,11 @@ function FullGraphWithReactFlowProvider<
   const editLoopNodeId =
     state.activeDrawer?.type === 'editLoop' ? state.activeDrawer.nodeId : null;
 
+  const editSwitchNodeId =
+    state.activeDrawer?.type === 'editSwitch'
+      ? state.activeDrawer.nodeId
+      : null;
+
   const editLoopTriplet = useMemo(() => {
     if (!editLoopNodeId) return null;
     const currentView = getCurrentNodesAndEdgesFromState(state);
@@ -264,6 +274,45 @@ function FullGraphWithReactFlowProvider<
       });
     },
     [editLoopTriplet, dispatch, updateNodeInternals],
+  );
+
+  const editSwitchPair = useMemo(() => {
+    if (!editSwitchNodeId) return null;
+    const currentView = getCurrentNodesAndEdgesFromState(state);
+    const node = currentView.nodes.find((n) => n.id === editSwitchNodeId);
+    if (!node) return null;
+    const structure = getSwitchStructureFromNode(
+      { ...state, nodes: currentView.nodes, edges: currentView.edges },
+      node,
+    );
+    if (!structure) return null;
+    return {
+      switchStartId: structure.switchStart.id,
+      switchEndId: structure.switchEnd.id,
+      switchStartData: structure.switchStart.data,
+      switchEndData: structure.switchEnd.data,
+    };
+  }, [editSwitchNodeId, state]);
+
+  const handleSaveSwitch = useCallback(
+    (levels: SwitchHandleLevel[]) => {
+      if (!editSwitchPair) return;
+      dispatch({
+        type: actionTypesMap.UPDATE_SWITCH,
+        payload: {
+          switchStartNodeId: editSwitchPair.switchStartId,
+          switchEndNodeId: editSwitchPair.switchEndId,
+          levels: levels.map((l) => ({ handles: l.handles })),
+        },
+      });
+      requestAnimationFrame(() => {
+        updateNodeInternals([
+          editSwitchPair.switchStartId,
+          editSwitchPair.switchEndId,
+        ]);
+      });
+    },
+    [editSwitchPair, dispatch, updateNodeInternals],
   );
 
   const nodeGroups = useMemo(() => {
@@ -337,6 +386,11 @@ function FullGraphWithReactFlowProvider<
   const contextMenuItems = useMemo(
     () => [
       ...createLoopMenuItem({
+        dispatch,
+        setContextMenu,
+        contextMenuPosition: screenToFlowPosition(contextMenu.position),
+      }),
+      ...createSwitchMenuItem({
         dispatch,
         setContextMenu,
         contextMenuPosition: screenToFlowPosition(contextMenu.position),
@@ -474,6 +528,10 @@ function FullGraphWithReactFlowProvider<
       >
         <Controls />
         <Background />
+        <ZoneFrameOverlay
+          zones={currentNodesAndEdges.zones}
+          nodes={currentNodesAndEdges.nodes}
+        />
         <MiniMap pannable />
       </ReactFlow>
 
@@ -638,6 +696,19 @@ function FullGraphWithReactFlowProvider<
               (editLoopTriplet?.loopEndData as Record<string, unknown>) ?? null
             }
             onSave={handleSaveLoop}
+          />
+
+          <SwitchEditDrawer
+            isOpen={editSwitchNodeId !== null}
+            onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
+            switchStartNodeData={
+              (editSwitchPair?.switchStartData as Record<string, unknown>) ??
+              null
+            }
+            switchEndNodeData={
+              (editSwitchPair?.switchEndData as Record<string, unknown>) ?? null
+            }
+            onSave={handleSaveSwitch}
           />
         </div>
       </InputComponentRegistryContext.Provider>

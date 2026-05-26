@@ -17,6 +17,7 @@ import { compile, DEFAULT_MAX_LOOP_ITERATIONS } from './compiler';
 import { execute, executeStepByStep } from './executor';
 import { isStandardNodeType, hasKey } from './groupCompiler';
 import { isLoopNode } from '../nodeStateManagement/nodes/loops';
+import { isSwitchNode } from '../nodeStateManagement/nodes/switches';
 
 // ─────────────────────────────────────────────────────
 // Types
@@ -209,6 +210,7 @@ function detectWarnings<
     // Skip built-in node types (narrows nodeTypeId to exclude standard types)
     if (isStandardNodeType(nodeTypeId)) continue;
     if (isLoopNode(nodeTypeId)) continue;
+    if (isSwitchNode(nodeTypeId)) continue;
 
     // Skip group node instances (their subtree is checked by the compiler)
     if (typeOfNode?.subtree) continue;
@@ -298,6 +300,7 @@ function validateRecordAgainstGraph<
     if (
       !isStandardNodeType(step.nodeTypeId) &&
       !isLoopNode(step.nodeTypeId) &&
+      !isSwitchNode(step.nodeTypeId) &&
       !graphNodeTypeIds.has(step.nodeTypeId)
     ) {
       missingNodeTypeIds.add(step.nodeTypeId);
@@ -324,6 +327,7 @@ function validateRecordAgainstGraph<
     if (!nodeTypeId) continue;
     if (isStandardNodeType(nodeTypeId)) continue;
     if (isLoopNode(nodeTypeId)) continue;
+    if (isSwitchNode(nodeTypeId)) continue;
     if (state.typeOfNodes[nodeTypeId]?.subtree) continue;
     if (!executedNodeIds.has(node.id)) {
       unexecutedNodes.push(node.id);

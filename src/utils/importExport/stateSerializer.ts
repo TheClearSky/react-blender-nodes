@@ -87,6 +87,8 @@ class StateSerializer {
 
     // Strip UI-only state that shouldn't be exported
     delete cloned.activeDrawer;
+    delete cloned.zones;
+    delete cloned.zoneIndex;
 
     // Strip non-serializable fields from each section
     StateSerializer.stripDataTypes(cloned);
@@ -141,6 +143,8 @@ class StateSerializer {
         // Handle subtree (for group nodes)
         if (nodeType.subtree?.nodes) {
           nodeType.subtree.nodes = nodeType.subtree.nodes.map(stripNodeHandles);
+          delete nodeType.subtree.zones;
+          delete nodeType.subtree.zoneIndex;
         }
       }
     }

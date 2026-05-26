@@ -267,6 +267,8 @@ type StandardExecutionStep = {
  */
 type LoopPhase = 'loopStart' | 'preStop' | 'loopStop' | 'postStop' | 'loopEnd';
 
+type SwitchPhase = 'switchStart' | 'trueBranch' | 'falseBranch' | 'switchEnd';
+
 /**
  * A compiled loop structure containing the loop triplet node IDs
  * and the topologically sorted body steps.
@@ -282,6 +284,15 @@ type LoopExecutionBlock = {
   postStopSteps: ReadonlyArray<ExecutionStep>;
   /** Maximum iterations before erroring (configurable, default 100) */
   maxIterations: number;
+  concurrencyLevel: number;
+};
+
+type SwitchExecutionBlock = {
+  kind: 'switch';
+  switchStartNodeId: string;
+  switchEndNodeId: string;
+  trueBranchSteps: ReadonlyArray<ExecutionStep>;
+  falseBranchSteps: ReadonlyArray<ExecutionStep>;
   concurrencyLevel: number;
 };
 
@@ -313,6 +324,7 @@ type GroupExecutionScope = {
 type ExecutionStep =
   | StandardExecutionStep
   | LoopExecutionBlock
+  | SwitchExecutionBlock
   | GroupExecutionScope;
 
 // ─────────────────────────────────────────────────────
@@ -523,6 +535,12 @@ type ExecutionStepRecord = {
    *  (iteration 0) or from LoopStop feedback (iteration N>0).
    *  Controls which edges animate and what the inspector shows. */
   inputSource?: 'upstream' | 'feedback';
+  /** Position within the switch execution lifecycle. */
+  switchPhase?: SwitchPhase;
+  /** Switch structure identifier (switchStartNodeId). */
+  switchStructureId?: string;
+  /** Which branch was taken (true = condition was true). */
+  branchTaken?: boolean;
 };
 
 /**
@@ -537,6 +555,8 @@ type LoopIterationRecord = {
   stepRecords: ReadonlyArray<ExecutionStepRecord>;
   /** Loop records for nested loops that executed within this iteration. */
   nestedLoopRecords: ReadonlyMap<string, LoopRecord>;
+  /** Switch records for nested switches that executed within this iteration. */
+  nestedSwitchRecords: ReadonlyMap<string, SwitchRecord>;
 };
 
 /**
@@ -552,6 +572,22 @@ type LoopRecord = {
   startTime: number;
   endTime: number;
   duration: number;
+};
+
+/**
+ * Complete recording of a switch structure's execution.
+ */
+type SwitchRecord = {
+  switchStructureId: string;
+  switchStartNodeId: string;
+  switchEndNodeId: string;
+  branchTaken: boolean;
+  startTime: number;
+  endTime: number;
+  duration: number;
+  stepRecords: ReadonlyArray<ExecutionStepRecord>;
+  nestedLoopRecords: ReadonlyMap<string, LoopRecord>;
+  nestedSwitchRecords: ReadonlyMap<string, SwitchRecord>;
 };
 
 /**
@@ -616,6 +652,8 @@ type ExecutionRecord = {
   loopRecords: ReadonlyMap<string, LoopRecord>;
   /** Group execution recordings, keyed by group node instance ID */
   groupRecords: ReadonlyMap<string, GroupRecord>;
+  /** Switch execution recordings, keyed by switch structure ID */
+  switchRecords: ReadonlyMap<string, SwitchRecord>;
   /** Complete ValueStore snapshot at end of execution ("nodeId:handleId" -> value) */
   finalValues: ReadonlyMap<string, unknown>;
   /** UI preferences captured when the recording was saved */
@@ -913,8 +951,10 @@ export type {
   OutputDistributionEntry,
   // Execution steps (IR)
   LoopPhase,
+  SwitchPhase,
   StandardExecutionStep,
   LoopExecutionBlock,
+  SwitchExecutionBlock,
   GroupExecutionScope,
   ExecutionStep,
   // Execution plan
@@ -930,6 +970,7 @@ export type {
   ExecutionStepRecord,
   LoopIterationRecord,
   LoopRecord,
+  SwitchRecord,
   GroupRecord,
   ConcurrencyLevelRecord,
   ExecutionRecordStatus,

@@ -5,6 +5,7 @@ import { ValueStore } from '../valueStore';
 import type { ExecutionEnv } from './executionHelpers';
 import { executeStandardNode } from './executeStandardNode';
 import { executeLoopBlock } from './executeLoopBlock';
+import { executeSwitchBlock } from './executeSwitchBlock';
 import { executeGroupScope } from './executeGroupScope';
 
 // ─────────────────────────────────────────────────────
@@ -49,6 +50,9 @@ async function executeOneStep<
         parentLoopContext,
         afterStep,
       );
+
+    case 'switch':
+      return executeSwitchBlock(step, env, valueStore, erroredNodes, afterStep);
 
     case 'group':
       return executeGroupScope(

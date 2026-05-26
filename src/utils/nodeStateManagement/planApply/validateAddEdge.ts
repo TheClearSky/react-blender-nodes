@@ -8,6 +8,7 @@ import { willAddingEdgeCreateCycle } from '../constructAndModifyHandles';
 import { getCurrentNodesAndEdgesFromState } from '../nodes/constructAndModifyNodes';
 import { getHandleFromNodeDataMatchingHandleId } from '../handles/handleGetters';
 import { isLoopConnectionValid } from '../nodes/loops';
+import { isSwitchConnectionValid } from '../nodes/switches';
 import {
   checkComplexTypeCompatibilityAfterEdgeAddition,
   checkTypeConversionCompatibilityAfterEdgeAddition,
@@ -163,9 +164,21 @@ function validateAddEdge<
   const sourceHandleIndex = sourceHandleResult.handleIndices;
   const targetHandleIndex = targetHandleResult.handleIndices;
 
+  // Build a view-scoped state for structural validation.
+  // When inside a node group, state.nodes/edges are root-level but
+  // the connecting nodes live in the subtree. Validation must see
+  // the subtree's nodes/edges to find structures and run BFS correctly.
+  const viewScopedState: typeof state = {
+    ...state,
+    nodes: view.nodes,
+    edges: view.edges,
+    zones: view.zones,
+    zoneIndex: view.zoneIndex,
+  };
+
   // 7. Loop validation
   const loopValidation = isLoopConnectionValid(
-    state,
+    viewScopedState,
     sourceNode,
     targetNode,
     sourceHandleIndex,
@@ -176,6 +189,22 @@ function validateAddEdge<
     return err({
       code: 'LOOP_PATH_INVALID',
       reason: loopValidation.validation.reason ?? 'Loop connection invalid',
+    });
+  }
+
+  // 7b. Switch validation
+  const switchValidation = isSwitchConnectionValid(
+    viewScopedState,
+    sourceNode,
+    targetNode,
+    sourceHandleIndex,
+    targetHandleIndex,
+  );
+
+  if (!switchValidation.validation.isValid) {
+    return err({
+      code: 'SWITCH_PATH_INVALID',
+      reason: switchValidation.validation.reason ?? 'Switch connection invalid',
     });
   }
 

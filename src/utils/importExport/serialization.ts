@@ -191,6 +191,7 @@ type SerializedExecutionRecord = Omit<
   | 'steps'
   | 'errors'
   | 'loopRecords'
+  | 'switchRecords'
   | 'groupRecords'
   | 'finalValues'
   | 'concurrencyLevels'
@@ -199,6 +200,7 @@ type SerializedExecutionRecord = Omit<
   errors: ReadonlyArray<SerializedGraphError>;
   concurrencyLevels: ReadonlyArray<ConcurrencyLevelRecord>;
   loopRecords: Record<string, SerializedLoopRecord>;
+  switchRecords: Record<string, unknown>;
   groupRecords: Record<string, SerializedGroupRecord>;
   finalValues: Record<string, unknown>;
 };
@@ -377,6 +379,7 @@ function serializeExecutionRecord(
     errors: record.errors.map(serializeGraphError),
     concurrencyLevels: [...record.concurrencyLevels],
     loopRecords,
+    switchRecords: Object.fromEntries([...(record.switchRecords ?? new Map())]),
     groupRecords,
     finalValues,
     ...(record.viewState ? { viewState: record.viewState } : {}),
@@ -430,6 +433,7 @@ function deserializeExecutionRecord(
     ),
     concurrencyLevels: obj.concurrencyLevels ?? [],
     loopRecords,
+    switchRecords: new Map(),
     groupRecords,
     finalValues,
     ...(obj.viewState ? { viewState: obj.viewState } : {}),

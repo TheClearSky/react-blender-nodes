@@ -54,6 +54,7 @@ function makeRecord(
     errors: [],
     concurrencyLevels: [],
     loopRecords: new Map(),
+    switchRecords: new Map(),
     groupRecords: new Map(),
     finalValues: new Map(),
     ...overrides,

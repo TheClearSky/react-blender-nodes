@@ -15,7 +15,7 @@ import {
   buildInnerState,
 } from './executionHelpers';
 import { executeStandardNode } from './executeStandardNode';
-import { executeLoopBlock } from './executeLoopBlock';
+import { executeOneStep } from './executeOneStep';
 
 // ─────────────────────────────────────────────────────
 // Execute a group scope
@@ -253,12 +253,12 @@ async function executeGroupScope<
               afterStep,
             );
           } else {
-            await executeLoopBlock(
+            await executeOneStep(
               step,
               innerEnv,
               scopedStore,
               innerErroredNodes,
-              undefined, // parentLoopContext
+              undefined,
               afterStep,
             );
           }
@@ -285,12 +285,7 @@ async function executeGroupScope<
               groupDepth + 1,
             );
           }
-          return executeLoopBlock(
-            step,
-            innerEnv,
-            scopedStore,
-            innerErroredNodes,
-          );
+          return executeOneStep(step, innerEnv, scopedStore, innerErroredNodes);
         }),
       );
 

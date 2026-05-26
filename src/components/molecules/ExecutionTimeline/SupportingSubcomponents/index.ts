@@ -4,5 +4,6 @@ export * from './TimelineBlock';
 export * from './TimelineTrack';
 export * from './FlatSection';
 export * from './LoopComponents';
+export * from './SwitchComponents';
 export * from './TimelineGrid';
 export * from './ScrubberHead';

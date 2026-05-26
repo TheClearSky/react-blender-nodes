@@ -13,8 +13,11 @@ import type {
 } from './types';
 import { getCurrentNodesAndEdgesFromState } from '../nodeStateManagement/nodes/constructAndModifyNodes';
 import { isLoopNode } from '../nodeStateManagement/nodes/loops';
+import { isSwitchNode } from '../nodeStateManagement/nodes/switches';
 import { topologicalSortWithLevels } from './topologicalSort';
 import { compileLoopStructures, isBindLoopNodesEdge } from './loopCompiler';
+import { compileSwitchStructures } from './switchCompiler';
+import { isBindSwitchNodesEdge } from './switchCompilerHelpers';
 import {
   compileGroupScopes,
   isStandardNodeType,
@@ -82,8 +85,11 @@ function compile<
 
     if (!sourceHandle || !targetHandle) continue;
 
-    // Skip bindLoopNodes edges from data flow maps (structural only, no data)
-    if (isBindLoopNodesEdge(edge, nodes)) {
+    // Skip structural bind edges from data flow maps
+    if (
+      isBindLoopNodesEdge(edge, nodes) ||
+      isBindSwitchNodesEdge(edge, nodes)
+    ) {
       continue;
     }
 
@@ -122,8 +128,9 @@ function compile<
     const nodeTypeId = node.data.nodeTypeUniqueId;
     if (!nodeTypeId) continue;
 
-    // Skip loop nodes (checked before isStandardNodeType to preserve narrowing)
+    // Skip loop/switch nodes (checked before isStandardNodeType to preserve narrowing)
     if (isLoopNode(nodeTypeId)) continue;
+    if (isSwitchNode(nodeTypeId)) continue;
     // Skip standard nodes — narrows nodeTypeId to Exclude<NodeTypeUniqueId, StandardNodeTypeName>
     if (isStandardNodeType(nodeTypeId)) continue;
 
@@ -158,6 +165,19 @@ function compile<
   );
 
   // ─────────────────────────────────────────────────────
+  // Phase 3b: Switch Compilation
+  // ─────────────────────────────────────────────────────
+
+  const { switchBlocks, switchNodeIds } = compileSwitchStructures(
+    state,
+    nodes,
+    edges,
+    functionImplementations,
+    compile,
+    depth ?? 0,
+  );
+
+  // ─────────────────────────────────────────────────────
   // Phase 4: Group Compilation
   // ─────────────────────────────────────────────────────
 
@@ -178,13 +198,15 @@ function compile<
     warnings.push(w);
   }
 
-  // Build lookup maps for loop blocks and group scopes
+  // Build lookup maps for loop blocks, switch blocks, and group scopes
   const groupScopeByNodeId = new Map(
     groupScopes.map((scope) => [scope.groupNodeId, scope]),
   );
-  // Build a map from loopStart nodeId to its block
   const loopBlockByStartId = new Map(
     loopBlocks.map((block) => [block.loopStartNodeId, block]),
+  );
+  const switchBlockByStartId = new Map(
+    switchBlocks.map((block) => [block.switchStartNodeId, block]),
   );
 
   // ─────────────────────────────────────────────────────
@@ -227,13 +249,33 @@ function compile<
     }
   }
 
-  // Remaining node IDs: non-loop, non-boundary nodes + one proxy per loop
+  // Map every switch node ID to its proxy (switchStartNodeId)
+  const nodeToSwitchProxy = new Map<string, string>();
+  for (const block of switchBlocks) {
+    const proxyId = block.switchStartNodeId;
+    nodeToSwitchProxy.set(block.switchStartNodeId, proxyId);
+    nodeToSwitchProxy.set(block.switchEndNodeId, proxyId);
+    for (const step of [...block.trueBranchSteps, ...block.falseBranchSteps]) {
+      if (step.kind === 'standard') {
+        nodeToSwitchProxy.set(step.nodeId, proxyId);
+      }
+    }
+  }
+
+  // Remaining node IDs: non-loop, non-switch, non-boundary nodes + one proxy per loop/switch
   const loopProxyIds = new Set(loopBlocks.map((b) => b.loopStartNodeId));
+  const switchProxyIds = new Set(switchBlocks.map((b) => b.switchStartNodeId));
   const remainingNodeIds = [
     ...nodes
       .map((n) => n.id)
-      .filter((id) => !loopNodeIds.has(id) && !groupBoundaryNodeIds.has(id)),
+      .filter(
+        (id) =>
+          !loopNodeIds.has(id) &&
+          !switchNodeIds.has(id) &&
+          !groupBoundaryNodeIds.has(id),
+      ),
     ...loopProxyIds,
+    ...switchProxyIds,
   ];
   const remainingSet = new Set(remainingNodeIds);
 
@@ -249,16 +291,21 @@ function compile<
   for (const edge of edges) {
     if (!edge.sourceHandle || !edge.targetHandle) continue;
     if (isBindLoopNodesEdge(edge, nodes)) continue;
+    if (isBindSwitchNodesEdge(edge, nodes)) continue;
 
-    // Redirect loop nodes to their proxy
+    // Redirect loop/switch nodes to their proxy
     let source = edge.source;
     let target = edge.target;
 
-    const sourceProxy = nodeToLoopProxy.get(source);
-    if (sourceProxy) source = sourceProxy;
+    const sourceLoopProxy = nodeToLoopProxy.get(source);
+    if (sourceLoopProxy) source = sourceLoopProxy;
+    const sourceSwitchProxy = nodeToSwitchProxy.get(source);
+    if (sourceSwitchProxy) source = sourceSwitchProxy;
 
-    const targetProxy = nodeToLoopProxy.get(target);
-    if (targetProxy) target = targetProxy;
+    const targetLoopProxy = nodeToLoopProxy.get(target);
+    if (targetLoopProxy) target = targetLoopProxy;
+    const targetSwitchProxy = nodeToSwitchProxy.get(target);
+    if (targetSwitchProxy) target = targetSwitchProxy;
 
     // Skip internal loop edges (both ends in same loop)
     if (source === target) continue;
@@ -290,10 +337,16 @@ function compile<
       if (loopProxyIds.has(nodeId)) {
         const block = loopBlockByStartId.get(nodeId);
         if (block) {
-          steps.push({
-            ...block,
-            concurrencyLevel: levelIdx,
-          });
+          steps.push({ ...block, concurrencyLevel: levelIdx });
+        }
+        continue;
+      }
+
+      // Check if this is a switch proxy
+      if (switchProxyIds.has(nodeId)) {
+        const block = switchBlockByStartId.get(nodeId);
+        if (block) {
+          steps.push({ ...block, concurrencyLevel: levelIdx });
         }
         continue;
       }
@@ -339,6 +392,9 @@ function compile<
       } else if (step.kind === 'loop') {
         // Count loop triplet + body nodes
         nodeCount += 3 + step.preStopSteps.length + step.postStopSteps.length;
+      } else if (step.kind === 'switch') {
+        nodeCount +=
+          2 + step.trueBranchSteps.length + step.falseBranchSteps.length;
       } else if (step.kind === 'group') {
         nodeCount += 1 + step.innerPlan.nodeCount;
       }

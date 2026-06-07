@@ -4,6 +4,7 @@ export { getNodesInLoopRegion } from './loopRegion';
 export { getLoopStructureFromNode } from './loopStructure';
 export {
   isLoopConnectionValid,
+  canRemoveStructuredNodesAndEdges,
   canRemoveLoopNodesAndEdges,
 } from './loopValidation';
 export type { LoopStructure } from './types';

@@ -8,6 +8,7 @@ import {
 import { Position, type XYPosition } from '@xyflow/react';
 import type { Zone, ZoneIndex } from '../zones/types';
 import { generateRandomString } from '../../randomGeneration';
+import { lengthOfIds } from '../constants';
 import { typedKeys } from '../../typedKeys';
 import type {
   ConfigurableNodeInput,
@@ -15,8 +16,6 @@ import type {
   ConfigurableNodeOutput,
 } from '@/components/organisms/ConfigurableNode/ConfigurableNode';
 import type { HandleIndices } from '../handles/types';
-
-const lengthOfIds = 20;
 
 /**
  * Constructs a ConfigurableNodeInput or ConfigurableNodeOutput from a type definition
@@ -458,7 +457,7 @@ function getCurrentNodesAndEdgesFromState<
       zoneIndex: state.zoneIndex,
     };
   }
-  const subtree = state.typeOfNodes[topOpenedNodeGroup.nodeType].subtree;
+  const subtree = state.typeOfNodes[topOpenedNodeGroup.nodeType]?.subtree;
   if (!subtree) {
     return {
       nodes: state.nodes,
@@ -523,9 +522,9 @@ function setCurrentNodesAndEdgesToStateWithMutatingState<
     }
     return state;
   }
-  const subtree = state.typeOfNodes[topOpenedNodeGroup.nodeType].subtree;
+  const subtree = state.typeOfNodes[topOpenedNodeGroup.nodeType]?.subtree;
   const references =
-    state.typeOfNodes[topOpenedNodeGroup.nodeType].subtree?.numberOfReferences;
+    state.typeOfNodes[topOpenedNodeGroup.nodeType]?.subtree?.numberOfReferences;
   if (!subtree || references !== 0) {
     if (nodes) {
       state.nodes = [...nodes];
@@ -544,6 +543,24 @@ function setCurrentNodesAndEdgesToStateWithMutatingState<
   return state;
 }
 
+/**
+ * Writes zones and zone index to the correct scope (root or subtree).
+ * Mirrors `setCurrentNodesAndEdgesToStateWithMutatingState` for zones.
+ *
+ * When inside a node group (`openedNodeGroupStack` is non-empty), writes
+ * to `subtree.zones`/`subtree.zoneIndex`. Otherwise writes to root
+ * `state.zones`/`state.zoneIndex`.
+ *
+ * @param state - The mutable state (Immer draft) to write to.
+ * @param zones - The updated zones record.
+ * @param zoneIndex - The rebuilt zone index.
+ *
+ * @example
+ * ```ts
+ * const { zones, zoneIndex } = recomputeAllZoneMemberships(scopedState);
+ * setCurrentZonesToState(draft, zones, zoneIndex);
+ * ```
+ */
 function setCurrentZonesToState<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,

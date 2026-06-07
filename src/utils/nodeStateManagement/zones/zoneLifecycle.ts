@@ -14,6 +14,17 @@ import { generateRandomString } from '@/utils/randomGeneration';
 
 const ZONE_ID_LENGTH = 16;
 
+/**
+ * Creates two enforced zones (True Branch, False Branch) for a new switch structure.
+ *
+ * @param switchStartId - The switch start node ID (used in structureLink).
+ * @param switchEndId - The switch end node ID.
+ * @param trueOutputHandleIds - Handle IDs for the true-zone outputs on SwitchStart.
+ * @param falseOutputHandleIds - Handle IDs for the false-zone outputs on SwitchStart.
+ * @param trueInputHandleIds - Handle IDs for the true-zone inputs on SwitchEnd.
+ * @param falseInputHandleIds - Handle IDs for the false-zone inputs on SwitchEnd.
+ * @returns Record of two zones keyed by their UUID IDs.
+ */
 function createSwitchZones(
   switchStartId: string,
   switchEndId: string,
@@ -67,6 +78,13 @@ function createSwitchZones(
   };
 }
 
+/**
+ * Removes all zones owned by a given structure.
+ *
+ * @param zones - The current zones record.
+ * @param structureId - The anchor node ID of the structure to remove zones for.
+ * @returns A new zones record with the structure's zones removed.
+ */
 function removeStructureZones(
   zones: Record<string, Zone>,
   structureId: string,
@@ -80,10 +98,27 @@ function removeStructureZones(
   return result;
 }
 
+/** Minimal handle shape needed for zone boundary discovery. */
+type HandleLikeForZone = {
+  id?: string;
+  dataType?: {
+    dataTypeUniqueId?: string;
+    dataTypeObject?: { underlyingType?: string };
+  };
+};
+
+/**
+ * Extracts concrete data handle IDs from a node's inputs or outputs,
+ * filtering out structural handles (bind, infer templates, condition).
+ *
+ * @param nodeData - The node's data containing inputs/outputs arrays.
+ * @param side - Whether to extract from 'inputs' or 'outputs'.
+ * @returns Array of handle IDs for concrete data handles only.
+ */
 function getDataHandleIdsFromNode(
   nodeData: {
-    inputs?: ReadonlyArray<Record<string, unknown>>;
-    outputs?: ReadonlyArray<Record<string, unknown>>;
+    inputs?: ReadonlyArray<HandleLikeForZone>;
+    outputs?: ReadonlyArray<HandleLikeForZone>;
   },
   side: 'inputs' | 'outputs',
 ): string[] {
@@ -91,11 +126,9 @@ function getDataHandleIdsFromNode(
   if (!Array.isArray(handles)) return [];
   return handles
     .filter((h) => {
-      const dtId = (h as { dataType?: { dataTypeUniqueId?: string } }).dataType
-        ?.dataTypeUniqueId;
-      const ut = (
-        h as { dataType?: { dataTypeObject?: { underlyingType?: string } } }
-      ).dataType?.dataTypeObject?.underlyingType;
+      const dtId = h.dataType?.dataTypeUniqueId;
+      if (!dtId) return false;
+      const ut = h.dataType?.dataTypeObject?.underlyingType;
       return (
         dtId !== standardDataTypeNamesMap.bindLoopNodes &&
         dtId !== standardDataTypeNamesMap.loopInfer &&
@@ -104,56 +137,49 @@ function getDataHandleIdsFromNode(
         ut !== 'inferFromConnection'
       );
     })
-    .map((h) => (h as { id?: string }).id)
+    .map((h) => h.id)
     .filter((id): id is string => Boolean(id));
 }
 
+/** Minimal node data shape needed for zone boundary handle extraction. */
+type NodeDataForZone = {
+  inputs?: ReadonlyArray<HandleLikeForZone>;
+  outputs?: ReadonlyArray<HandleLikeForZone>;
+};
+
+/**
+ * Creates two enforced zones (Pre-Stop Body, Post-Stop Body) for a new loop structure.
+ *
+ * @param loopStartId - The loop start node ID (used in structureLink).
+ * @param loopStopId - The loop stop node ID.
+ * @param loopEndId - The loop end node ID.
+ * @param loopStartData - Node data for LoopStart (used to extract boundary handle IDs).
+ * @param loopStopData - Node data for LoopStop.
+ * @param loopEndData - Node data for LoopEnd.
+ * @returns Record of two zones keyed by their UUID IDs.
+ */
 function createLoopZones(
   loopStartId: string,
   loopStopId: string,
   loopEndId: string,
-  loopStartData?: Record<string, unknown>,
-  loopStopData?: Record<string, unknown>,
-  loopEndData?: Record<string, unknown>,
+  loopStartData?: NodeDataForZone,
+  loopStopData?: NodeDataForZone,
+  loopEndData?: NodeDataForZone,
 ): Record<string, Zone> {
   const preStopId = generateRandomString(ZONE_ID_LENGTH);
   const postStopId = generateRandomString(ZONE_ID_LENGTH);
 
   const startDataOuts = loopStartData
-    ? getDataHandleIdsFromNode(
-        loopStartData as {
-          inputs?: ReadonlyArray<Record<string, unknown>>;
-          outputs?: ReadonlyArray<Record<string, unknown>>;
-        },
-        'outputs',
-      )
+    ? getDataHandleIdsFromNode(loopStartData, 'outputs')
     : [];
   const stopDataIns = loopStopData
-    ? getDataHandleIdsFromNode(
-        loopStopData as {
-          inputs?: ReadonlyArray<Record<string, unknown>>;
-          outputs?: ReadonlyArray<Record<string, unknown>>;
-        },
-        'inputs',
-      )
+    ? getDataHandleIdsFromNode(loopStopData, 'inputs')
     : [];
   const stopDataOuts = loopStopData
-    ? getDataHandleIdsFromNode(
-        loopStopData as {
-          inputs?: ReadonlyArray<Record<string, unknown>>;
-          outputs?: ReadonlyArray<Record<string, unknown>>;
-        },
-        'outputs',
-      )
+    ? getDataHandleIdsFromNode(loopStopData, 'outputs')
     : [];
   const endDataIns = loopEndData
-    ? getDataHandleIdsFromNode(
-        loopEndData as {
-          inputs?: ReadonlyArray<Record<string, unknown>>;
-          outputs?: ReadonlyArray<Record<string, unknown>>;
-        },
-        'inputs',
-      )
+    ? getDataHandleIdsFromNode(loopEndData, 'inputs')
     : [];
 
   return {
@@ -194,6 +220,26 @@ function createLoopZones(
   };
 }
 
+/**
+ * Refreshes boundary handle IDs and recomputes node membership for all
+ * zones in the given scope.
+ *
+ * Call after any edge addition/removal. The state must contain the
+ * scope-correct nodes/edges/zones — use `getCurrentNodesAndEdgesFromState`
+ * to get the right scope before calling.
+ *
+ * @param state - Scope-correct state with nodes, edges, and zones for the
+ *   current view (root or subtree).
+ * @returns Updated zones and rebuilt zone index.
+ *
+ * @example
+ * ```ts
+ * const view = getCurrentNodesAndEdgesFromState(draft);
+ * const scopedState = { ...draft, nodes: view.nodes, edges: view.edges, zones: view.zones };
+ * const { zones, zoneIndex } = recomputeAllZoneMemberships(scopedState);
+ * setCurrentZonesToState(draft, zones, zoneIndex);
+ * ```
+ */
 function recomputeAllZoneMemberships<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
@@ -269,19 +315,19 @@ function recomputeAllZoneMemberships<
     const loopEndId = structure.loopEnd.id;
 
     const startDataOuts = getDataHandleIdsFromNode(
-      structure.loopStart.data as Record<string, unknown>,
+      structure.loopStart.data,
       'outputs',
     );
     const stopDataIns = getDataHandleIdsFromNode(
-      structure.loopStop.data as Record<string, unknown>,
+      structure.loopStop.data,
       'inputs',
     );
     const stopDataOuts = getDataHandleIdsFromNode(
-      structure.loopStop.data as Record<string, unknown>,
+      structure.loopStop.data,
       'outputs',
     );
     const endDataIns = getDataHandleIdsFromNode(
-      structure.loopEnd.data as Record<string, unknown>,
+      structure.loopEnd.data,
       'inputs',
     );
 
@@ -321,6 +367,23 @@ function recomputeAllZoneMemberships<
   return { zones, zoneIndex: buildZoneIndex(zones) };
 }
 
+/**
+ * Rebuilds zones from scratch by scanning for all switch/loop structures
+ * in the state, creating their zones, and computing initial memberships.
+ *
+ * Used on import (`REPLACE_STATE`) when the incoming state has no zones
+ * field (zones are stripped on export).
+ *
+ * @param state - The imported state with nodes and edges but no zones.
+ * @returns Fully populated zones and zone index.
+ *
+ * @example
+ * ```ts
+ * const rehydrated = rehydrateAllZones(importedState);
+ * importedState.zones = rehydrated.zones;
+ * importedState.zoneIndex = rehydrated.zoneIndex;
+ * ```
+ */
 function rehydrateAllZones<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
@@ -355,9 +418,9 @@ function rehydrateAllZones<
         structure.loopStart.id,
         structure.loopStop.id,
         structure.loopEnd.id,
-        structure.loopStart.data as Record<string, unknown>,
-        structure.loopStop.data as Record<string, unknown>,
-        structure.loopEnd.data as Record<string, unknown>,
+        structure.loopStart.data,
+        structure.loopStop.data,
+        structure.loopEnd.data,
       );
       zones = { ...zones, ...newZones };
     }

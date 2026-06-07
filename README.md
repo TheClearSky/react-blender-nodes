@@ -7,6 +7,10 @@
   a flexible and customizable node-based graph editor for web applications.
 </p>
 
+> **Note**: This project is not affiliated with Blender Foundation. If you find
+> Blender useful, consider
+> [donating to support their work](https://fund.blender.org/).
+
 <p align="center">
   <a href="https://bundlejs.com/?q=%40theclearsky%2Freact-blender-nodes"><img src="https://deno.bundlejs.com/?q=%40theclearsky%2Freact-blender-nodes&badge=detailed&badge-style=for-the-badge" alt="spring-easing's badge" /></a>
 </p>
@@ -34,6 +38,13 @@ system with automatic inference, complex data validation, and comprehensive
 connection validation to ensure your node graphs are always type-safe and
 error-free.
 
+Beyond editing, the library can **execute** your graphs with a built-in runner
+and timeline debugger, compose reusable **node groups**, build control flow with
+first-class **loops** and **switches** (rendered as visual zones), edit those
+structures and node types through in-canvas **drawers**, and step backward and
+forward through every change with full **undo/redo** history. Graph state and
+execution recordings can be exported to and imported from JSON.
+
 ## Quick Start
 
 ### Installation
@@ -51,8 +62,8 @@ import {
   makeStateWithAutoInfer,
   makeTypeOfNodeWithAutoInfer,
   makeDataTypeWithAutoInfer,
-} from 'react-blender-nodes';
-import 'react-blender-nodes/style.css';
+} from '@theclearsky/react-blender-nodes';
+import '@theclearsky/react-blender-nodes/style.css';
 
 function MyNodeEditor() {
   // Define data types with auto-infer for type safety
@@ -229,6 +240,65 @@ your graph into an execution plan and runs it — with full debugging support.
 
 ![Loop Execution Timeline](./docs/screenshots/execution-timeline-loop-iterations.png)
 
+### 🔁 Loops, 🔀 Switches & Zones
+
+Build control flow directly on the canvas. Loops and switches are first-class
+structures backed by dedicated standard nodes, and each renders as a labelled
+**zone** — a frame polygon drawn around the nodes it contains.
+
+- **Loops**: Drop a loop-start / loop-stop / loop-end node triplet to define an
+  iterative body. The runner compiles the body into a `LoopExecutionBlock` and
+  records every iteration, with a configurable max-iteration safety limit.
+- **Switches**: A switch-start / switch-end pair routes execution down a `true`
+  or `false` branch based on a condition handle. The compiler resolves the taken
+  branch and skips the other, surfacing skipped nodes on the canvas.
+- **Zones**: System zones are created and re-discovered automatically as you add
+  structures or change connections. Each zone tracks the body nodes inside it
+  and can enforce connection boundaries (blocking edges that cross in or out).
+  Zones are scope-local, so structures inside a node group get their own zones.
+- **Nesting**: Loops, switches, and groups can be nested inside one another;
+  zone discovery and the compiler resolve nested structures recursively.
+
+### 🪟 In-Canvas Editors
+
+Structures and node types are edited through slide-out drawers, dispatched via
+the graph state and tracked on `state.activeDrawer`:
+
+- **Node Type editor** (`editNodeType`): rename a node type, change its header
+  color, and add, remove, or reorder its inputs and outputs.
+- **Loop editor** (`editLoop`): configure the handles carried through the loop
+  triplet, organized into levels.
+- **Switch editor** (`editSwitch`): configure the handles carried through the
+  switch pair across its true/false branches.
+
+### ↩️ Undo / Redo History
+
+Every structural edit is recorded in an Immer-patch-based undo/redo history, so
+users can freely step backward and forward.
+
+- **Patch-based**: history stores forward and inverse Immer patches per entry —
+  compact and exact, with a configurable `maxSize`.
+- **Smart undoability**: viewport changes, navigation, drawer open/close, and
+  selection-only ReactFlow updates are intentionally _not_ recorded.
+- **Batching**: `BEGIN_BATCH` / `END_BATCH` collapse a sequence of related edits
+  (e.g. a multi-node drag) into a single undo step.
+- **Keyboard shortcuts**: `<FullGraph>` listens for `Ctrl+Z` / `Ctrl+Shift+Z` /
+  `Ctrl+Y` by default (toggle with `enableUndoRedoShortcuts`).
+- **Serializable**: history can be exported and re-imported alongside graph
+  state (non-serializable patch values such as Zod schemas are stripped).
+
+### 📡 Graph Event Stream
+
+For tests, dev tooling, and telemetry, subscribe to a single unified
+observability stream via `onGraphEvent`. Reducer-layer events (`action:applied`
+/ `action:rejected` / `state:committed`) carry typed payloads (e.g. an
+`action:rejected` event carries the original `ValidationError` so you can switch
+on `.code`), and UI-layer events (`ui:drag:ended` / `ui:delete:attempted` /
+`ui:state:imported` / `ui:recording:imported`) cover moments that bypass the
+reducer. Pass the _same_ handler to both
+`useFullGraph(initialState, { onGraphEvent })` and
+`<FullGraph onGraphEvent={...} />` to receive every event.
+
 ### Usage
 
 ```tsx
@@ -236,13 +306,17 @@ import {
   FullGraph,
   useFullGraph,
   makeFunctionImplementationsWithAutoInfer,
-} from 'react-blender-nodes';
+} from '@theclearsky/react-blender-nodes';
 
-// Define what each node type does when executed
+// Define what each node type does when executed.
+// An implementation receives positional args: (inputs, outputs, context).
+// `inputs` is a ReadonlyMap keyed by handle *name*; read a connected value
+// via inputs.get('Name')?.connections[0]?.value. Return a Map of output
+// handle *names* to computed values (sync Map or Promise<Map>).
 const functionImplementations = makeFunctionImplementationsWithAutoInfer({
-  myNodeType: async ({ inputs }) => {
-    // Process inputs and return outputs
-    return { outputHandle: inputs.inputHandle * 2 };
+  myNodeType: async (inputs) => {
+    const value = Number(inputs.get('Input')?.connections[0]?.value ?? 0);
+    return new Map([['Output', value * 2]]);
   },
 });
 
@@ -266,7 +340,11 @@ For advanced control over graph execution, use the `useNodeRunner` hook directly
 instead of relying on the built-in runner UI:
 
 ```tsx
-import { FullGraph, useFullGraph, useNodeRunner } from 'react-blender-nodes';
+import {
+  FullGraph,
+  useFullGraph,
+  useNodeRunner,
+} from '@theclearsky/react-blender-nodes';
 
 function MyExecutableGraph() {
   const { state, dispatch } = useFullGraph(initialState);
@@ -274,7 +352,7 @@ function MyExecutableGraph() {
   const {
     // State
     runnerState, // 'idle' | 'compiling' | 'running' | 'paused' | 'completed' | 'errored'
-    nodeVisualStates, // Map<nodeId, 'idle' | 'running' | 'completed' | 'errored' | 'skipped'>
+    nodeVisualStates, // Map<nodeId, 'idle' | 'running' | 'completed' | 'errored' | 'skipped' | 'warning'>
     executionRecord, // Full execution recording with per-step timing and I/O snapshots
     currentStepIndex, // Index of the currently active/viewed step
 
@@ -325,7 +403,7 @@ repair common issues via opt-in repair strategies.
 Pass a `repair` object to `importGraphState` to enable automatic fixes:
 
 ```tsx
-import { importGraphState } from 'react-blender-nodes';
+import { importGraphState } from '@theclearsky/react-blender-nodes';
 
 const result = importGraphState(json, {
   dataTypes: myDataTypes,
@@ -335,7 +413,7 @@ const result = importGraphState(json, {
     removeDuplicateNodeIds: true, // Deduplicate nodes with the same ID (keep first)
     removeDuplicateEdgeIds: true, // Deduplicate edges with the same ID (keep first)
     fillMissingDefaults: true, // Fill missing optional fields (viewport, etc.) with defaults
-    rehydrateDataTypeObjects: true, // Rebuild handle dataType objects from provided dataTypes
+    rehydrateDataTypeObjects: true, // Effectively always-on — the importer always rebuilds handle dataType objects from provided dataTypes (this flag is not read)
   },
 });
 
@@ -352,12 +430,12 @@ if (result.success) {
 Pass a `repair` object to `importExecutionRecord` for recording-specific fixes:
 
 ```tsx
-import { importExecutionRecord } from 'react-blender-nodes';
+import { importExecutionRecord } from '@theclearsky/react-blender-nodes';
 
 const result = importExecutionRecord(json, {
   repair: {
-    sanitizeNonSerializableValues: true, // Replace non-serializable values with "[non-serializable]"
-    removeOrphanSteps: true, // Remove steps referencing nodes not present in the record
+    sanitizeNonSerializableValues: true, // No-op — values parsed from JSON are already serializable; kept for API symmetry
+    removeOrphanSteps: true, // Remove malformed steps missing nodeId, nodeTypeId, or stepIndex
   },
 });
 ```
@@ -514,14 +592,16 @@ Blender's aesthetic:
 
 ```css
 /* Import the default styles */
-@import 'react-blender-nodes/style.css';
+@import '@theclearsky/react-blender-nodes/style.css';
 
-/* Customize colors using CSS variables */
-:root {
-  --primary-black: #181818;
-  --primary-dark-gray: #272727;
-  --primary-gray: #3f3f3f;
-  --primary-white: #ffffff;
+/* Customize colors by overriding the theme tokens.
+   They are defined inside an `@theme inline` block and are prefixed
+   with `--color-`. */
+@theme inline {
+  --color-primary-black: #1d1d1d;
+  --color-primary-dark-gray: #303030;
+  --color-primary-gray: #545454;
+  --color-primary-white: #e6e6e6;
 }
 ```
 
@@ -558,8 +638,8 @@ includes an ASCII architecture diagram, cross-feature dependency maps, and a
 | Modifying graph editor UI    | `fullGraphDoc`, `configurableNodeDoc`, `contextMenuDoc`                     |
 | Working with state/reducer   | `stateManagementDoc`, `immerDoc`, `edgesDoc`                                |
 
-See the [full index](./docs/index.md) for all 32 feature docs with relative
-links organized by tier.
+See the [full index](./docs/index.md) for all 39 documentation files with
+relative links organized by tier.
 
 ### Component API
 
@@ -585,6 +665,12 @@ interface FullGraphProps {
   executionRecord?: ExecutionRecord | null;
   /** Called whenever the execution record changes (run completes, reset, load, etc.). */
   onExecutionRecordChange?: (record: ExecutionRecord | null) => void;
+  /** Unified observability stream for UI lifecycle events (drag end, delete-attempt verdict, import outcomes). Pair with the same handler on useFullGraph for reducer-layer events. */
+  onGraphEvent?: (event: GraphEvent) => void;
+  /** Registry of custom input components keyed by DataTypeUniqueId, for data types whose underlyingType resolves to 'unsupportedDirectly'. */
+  inputComponents?: InputComponentRegistry;
+  /** Whether to listen for Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo/redo keyboard shortcuts. Defaults to true. */
+  enableUndoRedoShortcuts?: boolean;
 }
 ```
 
@@ -610,8 +696,6 @@ interface ConfigurableNodeProps {
   nodeResizerProps?: NodeResizerWithMoreControlsProps;
   /** Node type unique id */
   nodeTypeUniqueId?: string;
-  /** Whether to show the node open button (used by node groups) */
-  showNodeOpenButton?: boolean;
   /** Runner visual state for this node (undefined = no runner overlay) */
   runnerVisualState?: NodeVisualState;
   /** Errors from the runner for this node */

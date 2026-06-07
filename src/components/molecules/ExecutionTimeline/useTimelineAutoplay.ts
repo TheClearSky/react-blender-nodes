@@ -3,6 +3,7 @@ import type {
   ExecutionRecord,
   ExecutionStepRecord,
 } from '@/utils/nodeRunner/types';
+import { MIN_BLOCK_WIDTH } from './SupportingSubcomponents/types';
 
 // ─────────────────────────────────────────────────────
 // Types
@@ -43,12 +44,6 @@ type UseTimelineAutoplayReturn = {
   /** Toggle autoplay on/off. */
   toggleAutoplay: () => void;
 };
-
-// ─────────────────────────────────────────────────────
-// Minimum block width — must match the component constant
-// ─────────────────────────────────────────────────────
-
-const MIN_BLOCK_WIDTH = 6;
 
 // ─────────────────────────────────────────────────────
 // Hook

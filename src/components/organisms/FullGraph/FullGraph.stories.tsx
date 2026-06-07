@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Toaster, toast } from 'sonner';
 
@@ -1223,10 +1223,8 @@ export const WithRunner: StoryObj<typeof FullGraph> = {
     >({
       dataTypes: circuitExampleDataTypes,
       typeOfNodes: circuitExampleTypeOfNodes,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      nodes: adderLoopState.state.nodes as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      edges: adderLoopState.state.edges as any,
+      nodes: [],
+      edges: [],
       allowedConversionsBetweenDataTypes: {
         bit: {
           condition: true,
@@ -1242,6 +1240,25 @@ export const WithRunner: StoryObj<typeof FullGraph> = {
       enableRecursionChecking: true,
       nodeCountConstraints: standardNodeCountConstraints,
     });
+
+    // Load the pre-built state via REPLACE_STATE so zones are rehydrated
+    const hasLoaded = useRef(false);
+    useEffect(() => {
+      if (hasLoaded.current) return;
+      hasLoaded.current = true;
+      dispatch({
+        type: 'REPLACE_STATE',
+        payload: {
+          state: {
+            ...state,
+            // adderLoopState is built with default generics; force it into this
+            // story's concrete state shape (deliberate cross-fixture injection).
+            nodes: adderLoopState.state.nodes as unknown as typeof state.nodes,
+            edges: adderLoopState.state.edges as unknown as typeof state.edges,
+          },
+        },
+      });
+    }, []);
 
     const [record, setRecord] = useState(adderLoopRecording ?? null);
 

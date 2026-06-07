@@ -115,6 +115,8 @@ type UpdateNodeTypeDetail = {
   updates: {
     name?: string;
     headerColor?: string;
+    /** `(TypeOfInput<D> | TypeOfInputPanel<D>)[]` / `TypeOfInput<D>[]` — generic,
+     *  mirrored as `unknown[]` from the non-generic Plan boundary (UpdateNodeTypePlan). */
     inputs?: unknown[];
     outputs?: unknown[];
   };
@@ -144,6 +146,26 @@ type CloseDrawerDetail = {
   kind: 'CLOSE_DRAWER';
 };
 
+type DeleteNodeTypeHandlesDetail = {
+  kind: 'DELETE_NODE_TYPE_HANDLES';
+  nodeTypeId: string;
+  deletedInputCount: number;
+  deletedOutputCount: number;
+  removedEdgeCount: number;
+};
+
+type DeleteLoopChannelsDetail = {
+  kind: 'DELETE_LOOP_CHANNELS';
+  removedChannelCount: number;
+  removedEdgeCount: number;
+};
+
+type DeleteSwitchChannelsDetail = {
+  kind: 'DELETE_SWITCH_CHANNELS';
+  removedChannelCount: number;
+  removedEdgeCount: number;
+};
+
 /**
  * Discriminated union of all per-action detail payloads. The kind here
  * matches the action type 1:1 so consumers can switch on either.
@@ -165,7 +187,10 @@ type ActionDetail<NodeTypeUniqueId extends string = string> =
   | AddSwitchDetail
   | UpdateSwitchDetail
   | OpenDrawerDetail
-  | CloseDrawerDetail;
+  | CloseDrawerDetail
+  | DeleteNodeTypeHandlesDetail
+  | DeleteLoopChannelsDetail
+  | DeleteSwitchChannelsDetail;
 
 type ActionType = keyof typeof actionTypesMap;
 
@@ -246,6 +271,21 @@ type GraphEvent<
     }
   | {
       kind: 'ui:recording:imported';
+    }
+
+  // === History events — emitted by the store on undo/redo/clear ===
+  | {
+      kind: 'history:undo';
+      /** Number of entries remaining in the undo stack after this undo. */
+      entriesRemaining: number;
+    }
+  | {
+      kind: 'history:redo';
+      /** Number of entries remaining in the redo stack after this redo. */
+      entriesRemaining: number;
+    }
+  | {
+      kind: 'history:cleared';
     };
 
 // ────────────────────────────────────────────────────────────────────
@@ -263,7 +303,6 @@ type GraphEvent<
  * the details by post-apply state diff (see `deriveAppliedDetailFromDiff`).
  */
 function planToDetail<NodeTypeUniqueId extends string = string>(
-  action: Action<string, NodeTypeUniqueId>,
   plan: Plan,
 ): ActionDetail<NodeTypeUniqueId> | undefined {
   switch (plan.kind) {
@@ -290,11 +329,12 @@ function planToDetail<NodeTypeUniqueId extends string = string>(
     case 'UPDATE_EDGES_RF':
       return { kind: 'UPDATE_EDGES_BY_REACT_FLOW' };
     case 'UPDATE_INPUT_VALUE':
-      // UPDATE_INPUT_VALUE plan is a stub today (validateAction returns NOOP),
-      // so this branch is currently unreachable — keep it for forward compat
-      // in case the action gets implemented.
-      void action;
-      return undefined;
+      return {
+        kind: 'UPDATE_INPUT_VALUE',
+        nodeId: plan.nodeId,
+        inputId: plan.inputId,
+        value: plan.value,
+      };
     case 'UPDATE_NODE_TYPE':
       return {
         kind: 'UPDATE_NODE_TYPE',
@@ -313,6 +353,38 @@ function planToDetail<NodeTypeUniqueId extends string = string>(
       return { kind: 'OPEN_DRAWER' };
     case 'CLOSE_DRAWER':
       return { kind: 'CLOSE_DRAWER' };
+    case 'UNDO':
+    case 'REDO':
+    case 'BEGIN_BATCH':
+    case 'END_BATCH':
+    case 'CLEAR_HISTORY':
+      return undefined;
+    case 'DELETE_NODE_TYPE_HANDLES':
+      return {
+        kind: 'DELETE_NODE_TYPE_HANDLES',
+        nodeTypeId: plan.nodeTypeId,
+        deletedInputCount: plan.cascade.deletedInputKeys.length,
+        deletedOutputCount: plan.cascade.deletedOutputKeys.length,
+        removedEdgeCount:
+          plan.cascade.rootEdgeIds.length +
+          plan.cascade.ownSubtreeEdgeIds.length +
+          Object.values(plan.cascade.subtreeEdgeIds).reduce(
+            (sum, ids) => sum + ids.length,
+            0,
+          ),
+      };
+    case 'DELETE_LOOP_CHANNELS':
+      return {
+        kind: 'DELETE_LOOP_CHANNELS',
+        removedChannelCount: plan.cascades.length,
+        removedEdgeCount: new Set(plan.cascades.flatMap((c) => c.edgeIds)).size,
+      };
+    case 'DELETE_SWITCH_CHANNELS':
+      return {
+        kind: 'DELETE_SWITCH_CHANNELS',
+        removedChannelCount: plan.cascades.length,
+        removedEdgeCount: new Set(plan.cascades.flatMap((c) => c.edgeIds)).size,
+      };
     default: {
       const _exhaustive: never = plan;
       void _exhaustive;
@@ -408,10 +480,7 @@ function diffAppliedDetail<
     }
     default:
       // For non-minting plans the regular planToDetail handles it.
-      return planToDetail<NodeTypeUniqueId>(
-        action as Action<string, NodeTypeUniqueId>,
-        plan,
-      );
+      return planToDetail<NodeTypeUniqueId>(plan);
   }
 }
 
@@ -526,10 +595,7 @@ function deriveActionEvent<
     return {
       kind: 'action:applied',
       actionType: action.type,
-      detail: planToDetail<NodeTypeUniqueId>(
-        action as Action<string, NodeTypeUniqueId>,
-        result.value,
-      ),
+      detail: planToDetail<NodeTypeUniqueId>(result.value),
     };
   }
   return deriveRejectedEvent(action, result.error);

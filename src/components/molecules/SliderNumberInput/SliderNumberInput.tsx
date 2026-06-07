@@ -114,6 +114,11 @@ const SliderNumberInput = forwardRef<
     const [isClicked, setIsClicked] = useState(false);
     const cumulativeDragRatio = useRef(0);
     const lastDragTimestamp = useRef(0);
+    // Mirrors valueInner so handleChange can compute the next value and notify
+    // the parent WITHOUT calling onChange inside the setValueInner updater
+    // (which runs during render). Updated synchronously in handleChange so
+    // rapid successive changes chain the same way the updater's `prev` did.
+    const valueInnerRef = useRef(valueInner);
 
     //Derived states
     const valueToUse = value ?? valueInner;
@@ -164,16 +169,18 @@ const SliderNumberInput = forwardRef<
 
     //Handlers
     function handleChange(difference: number) {
-      setValueInner((prev) => {
-        let newValue = prev + difference;
-        if (min !== undefined && newValue <= min) {
-          newValue = min;
-        } else if (max !== undefined && newValue >= max) {
-          newValue = max;
-        }
-        onChange(newValue);
-        return newValue;
-      });
+      let newValue = valueInnerRef.current + difference;
+      if (min !== undefined && newValue <= min) {
+        newValue = min;
+      } else if (max !== undefined && newValue >= max) {
+        newValue = max;
+      }
+      // Update the ref first so successive calls within one tick chain off the
+      // latest value; then commit state and notify the parent — both outside
+      // the updater, so onChange no longer runs during render.
+      valueInnerRef.current = newValue;
+      setValueInner(newValue);
+      onChange(newValue);
     }
     function handleIncrement(ratio: number = 0.1) {
       handleChange(stepToUse.current * ratio);
@@ -266,7 +273,11 @@ const SliderNumberInput = forwardRef<
       </div>
     ) : (
       <Input
-        className={cn('w-full', isSmall && 'h-[22px] text-[11px] px-1.5')}
+        className={cn(
+          'w-full',
+          isSmall && 'h-[22px] text-[11px] px-1.5',
+          className,
+        )}
         placeholder={name}
         value={valueToUse}
         allowOnlyNumbers

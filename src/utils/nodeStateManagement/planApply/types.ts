@@ -1,4 +1,12 @@
 import type { Viewport, XYPosition } from '@xyflow/react';
+import type { HistoryEntry } from '@/components/organisms/FullGraph/historyTypes';
+import type { HandleDeletionPlanData } from '../handles/handleDeletionAnalysis';
+import type { ChannelDeletionPlanData } from '../handles/channelDeletionAnalysis';
+import type { ActiveDrawer } from '../types';
+import type {
+  Edges,
+  EdgeChanges,
+} from '@/components/organisms/FullGraph/types';
 
 // ---------------------------------------------------------------------------
 // Result type — standard sum type for validation outcomes
@@ -121,7 +129,7 @@ export type AddNodePlan = {
 
 export type UpdateNodesByReactFlowPlan = {
   kind: 'UPDATE_NODES_RF';
-  /** `NodeChange[]` from ReactFlow. */
+  /** `NodeChanges<U,N,C,D>` from ReactFlow — generic, kept `unknown` at the non-generic Plan boundary. */
   changes: unknown;
 };
 
@@ -137,14 +145,14 @@ export type OpenNodeGroupPlan = {
   pushEntry: {
     nodeType: string;
     nodeId?: string;
-    previousViewport: unknown;
+    previousViewport: Viewport | undefined;
   };
 };
 
 export type CloseNodeGroupPlan = {
   kind: 'CLOSE_NODE_GROUP';
-  /** `Viewport | undefined` — restore the viewport when popping a group. */
-  restoreViewport: unknown;
+  /** Restore the viewport when popping a group. */
+  restoreViewport: Viewport | undefined;
 };
 
 /**
@@ -155,7 +163,7 @@ export type CloseNodeGroupPlan = {
  */
 export type AddNodeGroupPlan = {
   kind: 'ADD_NODE_GROUP';
-  previousViewport: unknown;
+  previousViewport: Viewport | undefined;
 };
 
 /**
@@ -179,11 +187,12 @@ export type AddEdgePlan = {
 };
 
 export type EdgeChangeStep =
-  | { kind: 'passthrough'; change: unknown }
+  | { kind: 'passthrough'; change: EdgeChanges[number] }
   | {
       kind: 'removal';
+      /** `Nodes<U,N,C,D>` — generic, kept `unknown` at the non-generic Plan boundary. */
       updatedNodes: unknown;
-      updatedEdges: unknown;
+      updatedEdges: Edges;
       validation: { isValid: boolean };
     };
 
@@ -250,11 +259,61 @@ export type UpdateSwitchPlan = {
 
 export type OpenDrawerPlan = {
   kind: 'OPEN_DRAWER';
-  activeDrawer: unknown;
+  activeDrawer: ActiveDrawer;
 };
 
 export type CloseDrawerPlan = {
   kind: 'CLOSE_DRAWER';
+};
+
+export type UndoPlan = {
+  kind: 'UNDO';
+  /** The history entry to undo (popped from undoStack during validation). */
+  entry: HistoryEntry;
+};
+
+export type RedoPlan = {
+  kind: 'REDO';
+  /** The history entry to redo (popped from redoStack during validation). */
+  entry: HistoryEntry;
+};
+
+export type BeginBatchPlan = {
+  kind: 'BEGIN_BATCH';
+};
+
+export type EndBatchPlan = {
+  kind: 'END_BATCH';
+};
+
+export type ClearHistoryPlan = {
+  kind: 'CLEAR_HISTORY';
+};
+
+export type DeleteNodeTypeHandlesPlan = {
+  kind: 'DELETE_NODE_TYPE_HANDLES';
+  nodeTypeId: string;
+  /** Precomputed cascade (new type inputs/outputs, edge ids per scope,
+   *  boundary handle removals). Shared with the UI preview so what the user
+   *  saw is exactly what gets removed. */
+  cascade: HandleDeletionPlanData;
+};
+
+export type DeleteLoopChannelsPlan = {
+  kind: 'DELETE_LOOP_CHANNELS';
+  loopStartNodeId: string;
+  loopStopNodeId: string;
+  loopEndNodeId: string;
+  /** One precomputed cascade per deleted channel (all in the same scope). */
+  cascades: ChannelDeletionPlanData[];
+};
+
+export type DeleteSwitchChannelsPlan = {
+  kind: 'DELETE_SWITCH_CHANNELS';
+  switchStartNodeId: string;
+  switchEndNodeId: string;
+  /** One precomputed cascade per deleted channel (all in the same scope). */
+  cascades: ChannelDeletionPlanData[];
 };
 
 // ---------------------------------------------------------------------------
@@ -278,4 +337,12 @@ export type Plan =
   | OpenDrawerPlan
   | CloseDrawerPlan
   | AddSwitchPlan
-  | UpdateSwitchPlan;
+  | UpdateSwitchPlan
+  | UndoPlan
+  | RedoPlan
+  | BeginBatchPlan
+  | EndBatchPlan
+  | ClearHistoryPlan
+  | DeleteNodeTypeHandlesPlan
+  | DeleteLoopChannelsPlan
+  | DeleteSwitchChannelsPlan;

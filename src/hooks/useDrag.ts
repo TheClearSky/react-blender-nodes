@@ -71,6 +71,24 @@ function useDrag({
   const mouseMoveRef = useRef<((e: MouseEvent) => void) | null>(null);
   const mouseUpRef = useRef<((e: MouseEvent) => void) | null>(null);
 
+  // Keep the latest callbacks/options in a ref so the drag effect can depend
+  // only on [dragElement, enabled]. Otherwise unstable onMove/onClick references
+  // make the effect re-run on every render, and its cleanup removes the
+  // in-flight document listeners — killing a drag the instant it produces a
+  // value change (the re-render tears down its own gesture).
+  const optionsRef = useRef({
+    onMove,
+    onClick,
+    clickThreshold,
+    preventDefaultAndStopPropagation,
+  });
+  optionsRef.current = {
+    onMove,
+    onClick,
+    clickThreshold,
+    preventDefaultAndStopPropagation,
+  };
+
   const dragRef = useCallback((element: HTMLElement | null) => {
     setDragElement(element);
   }, []);
@@ -79,7 +97,7 @@ function useDrag({
     if (!dragElement || !enabled) return;
 
     const handleMouseDown = (event: MouseEvent) => {
-      if (preventDefaultAndStopPropagation) {
+      if (optionsRef.current.preventDefaultAndStopPropagation) {
         event.preventDefault();
         event.stopPropagation();
       }
@@ -96,6 +114,7 @@ function useDrag({
       setIsDragging(true);
 
       const handleMouseMove = (event: MouseEvent) => {
+        const { onMove, preventDefaultAndStopPropagation } = optionsRef.current;
         if (preventDefaultAndStopPropagation) {
           event.preventDefault();
           event.stopPropagation();
@@ -112,6 +131,8 @@ function useDrag({
       };
 
       const handleMouseUp = (event: MouseEvent) => {
+        const { onClick, clickThreshold, preventDefaultAndStopPropagation } =
+          optionsRef.current;
         if (preventDefaultAndStopPropagation) {
           event.preventDefault();
           event.stopPropagation();
@@ -155,14 +176,7 @@ function useDrag({
         mouseUpRef.current = null;
       }
     };
-  }, [
-    dragElement,
-    enabled,
-    onMove,
-    onClick,
-    clickThreshold,
-    preventDefaultAndStopPropagation,
-  ]);
+  }, [dragElement, enabled]);
 
   return {
     isDragging,

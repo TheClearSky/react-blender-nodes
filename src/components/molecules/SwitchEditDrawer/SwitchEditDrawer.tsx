@@ -1,45 +1,34 @@
-import { useState, useEffect, useCallback } from 'react';
-import { X } from 'lucide-react';
-import { Button } from '@/components/atoms';
-import { useSlideAnimation } from '@/hooks/useSlideAnimation';
+import { useMemo } from 'react';
+import { RegionChannelEditDrawer } from '@/components/molecules/RegionChannelEditDrawer/RegionChannelEditDrawer';
 import { SwitchHandleLevelRow } from './SwitchHandleLevelRow';
 import type { SwitchHandleLevel } from './switchLevelConversion';
-import { extractLevelsFromSwitchNodes } from './switchLevelConversion';
-import { DragList } from '@/components/molecules/DragList';
-import type { DragListItem } from '@/components/molecules/DragList/types';
+import {
+  extractLevelsFromSwitchNodes,
+  getCommonName,
+} from './switchLevelConversion';
+import type { GetNeighborhood } from '@/components/molecules/NodeTypeEditDrawer/HandleSummaryModal';
+import type { HandleBlastRadius } from '@/utils/nodeStateManagement/handles/handleDeletionAnalysis';
 
-type LevelAdditionalProps = {
-  level: SwitchHandleLevel;
-  levelIndex: number;
+type NodeData = {
+  inputs?: ReadonlyArray<Record<string, unknown>>;
+  outputs?: ReadonlyArray<Record<string, unknown>>;
 };
-
-function levelsToItems(
-  levels: SwitchHandleLevel[],
-): DragListItem<LevelAdditionalProps>[] {
-  return levels.map((level, index) => ({
-    id: level.id,
-    name: level.handles.switchStartIn.name || `Channel ${index + 1}`,
-    additionalProperties: { level, levelIndex: index },
-  }));
-}
-
-function itemsToLevels(
-  items: DragListItem<LevelAdditionalProps>[],
-  currentLevels: SwitchHandleLevel[],
-): SwitchHandleLevel[] {
-  return items.map((item) => {
-    const levelData = item.additionalProperties?.level;
-    if (levelData) return levelData;
-    return currentLevels.find((l) => l.id === item.id) ?? currentLevels[0];
-  });
-}
 
 type SwitchEditDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
   switchStartNodeData: Record<string, unknown> | null;
   switchEndNodeData: Record<string, unknown> | null;
-  onSave: (levels: SwitchHandleLevel[]) => void;
+  /** Save the kept (reordered/renamed) channels and the channels to delete. */
+  onSave: (
+    keptLevels: SwitchHandleLevel[],
+    deletedLevels: SwitchHandleLevel[],
+  ) => void;
+  /** Compute the connections a channel deletion would break (from live state).
+   *  When omitted, channel deletion is disabled. */
+  getChannelBlastRadius?: (level: SwitchHandleLevel) => HandleBlastRadius;
+  /** Neighborhood data for a connection's inline read-only mini-map. */
+  getNeighborhood?: GetNeighborhood;
 };
 
 function SwitchEditDrawer({
@@ -48,114 +37,37 @@ function SwitchEditDrawer({
   switchStartNodeData,
   switchEndNodeData,
   onSave,
+  getChannelBlastRadius,
+  getNeighborhood,
 }: SwitchEditDrawerProps) {
-  const { mounted, ref, style } = useSlideAnimation(isOpen, {
-    hiddenTransform: 'translateX(100%)',
-    visibleTransform: 'translateX(0)',
-    durationMs: 200,
-  });
-
-  const [localLevels, setLocalLevels] = useState<SwitchHandleLevel[]>([]);
-
-  useEffect(() => {
-    if (isOpen && switchStartNodeData && switchEndNodeData) {
-      setLocalLevels(
-        extractLevelsFromSwitchNodes(
-          switchStartNodeData as {
-            inputs?: ReadonlyArray<Record<string, unknown>>;
-            outputs?: ReadonlyArray<Record<string, unknown>>;
-          },
-          switchEndNodeData as {
-            inputs?: ReadonlyArray<Record<string, unknown>>;
-            outputs?: ReadonlyArray<Record<string, unknown>>;
-          },
-        ),
-      );
-    }
-  }, [isOpen, switchStartNodeData, switchEndNodeData]);
-
-  const handleUpdateLevel = useCallback(
-    (index: number, updated: SwitchHandleLevel) => {
-      setLocalLevels((prev) => {
-        const next = [...prev];
-        next[index] = updated;
-        return next;
-      });
-    },
-    [],
-  );
-
-  const handleSave = () => {
-    onSave(localLevels);
-    onClose();
-  };
-
-  if (!mounted) return null;
+  const initialLevels = useMemo<SwitchHandleLevel[]>(() => {
+    if (!switchStartNodeData || !switchEndNodeData) return [];
+    return extractLevelsFromSwitchNodes(
+      switchStartNodeData as NodeData,
+      switchEndNodeData as NodeData,
+    );
+  }, [switchStartNodeData, switchEndNodeData]);
 
   return (
-    <div className='absolute right-0 top-0 bottom-0 w-[320px] z-20 overflow-hidden pointer-events-none'>
-      <div
-        ref={ref}
-        style={style}
-        className='w-full h-full pointer-events-auto flex flex-col bg-[#222222] border-l border-secondary-dark-gray'
-      >
-        <div className='flex items-center justify-between border-b border-secondary-dark-gray px-3 py-2.5'>
-          <span className='text-primary-white text-[16px] leading-[16px] font-main truncate'>
-            Edit Switch
-          </span>
-          <Button
-            size='small'
-            onClick={onClose}
-            className='bg-transparent border-none hover:bg-primary-gray p-1'
-          >
-            <X className='w-[18px] h-[18px]' />
-          </Button>
-        </div>
-
-        <div className='flex-1 overflow-y-auto p-3 flex flex-col gap-3'>
-          <label className='text-primary-white text-sm font-main'>
-            Data Channels ({localLevels.length})
-          </label>
-
-          {localLevels.length > 0 ? (
-            <DragList<LevelAdditionalProps>
-              items={levelsToItems(localLevels)}
-              onChange={(newItems) =>
-                setLocalLevels(itemsToLevels(newItems, localLevels))
-              }
-              maxDepth={0}
-              renderContent={(item) => {
-                const level = item.additionalProperties?.level;
-                if (!level) return null;
-                const index = localLevels.findIndex((l) => l.id === level.id);
-                return (
-                  <SwitchHandleLevelRow
-                    level={level}
-                    onUpdateLevel={(updated) =>
-                      handleUpdateLevel(index === -1 ? 0 : index, updated)
-                    }
-                  />
-                );
-              }}
-            />
-          ) : (
-            <div className='text-secondary-light-gray text-sm py-2 text-center'>
-              No data channels yet. Connect a data source to Switch Start to
-              create the first channel.
-            </div>
-          )}
-        </div>
-
-        <div className='border-t border-secondary-dark-gray px-3 py-2 flex gap-2'>
-          <Button size='small' color='lightNonPriority' onClick={handleSave}>
-            Save
-          </Button>
-          <Button size='small' color='dark' onClick={onClose}>
-            Cancel
-          </Button>
-        </div>
-      </div>
-    </div>
+    <RegionChannelEditDrawer<SwitchHandleLevel>
+      isOpen={isOpen}
+      onClose={onClose}
+      title='Edit Switch'
+      emptyStateText='No data channels yet. Connect a data source to Switch Start to create the first channel.'
+      initialLevels={initialLevels}
+      renderRow={(level, onUpdate) => (
+        <SwitchHandleLevelRow level={level} onUpdateLevel={onUpdate} />
+      )}
+      getListItemName={(level, index) =>
+        level.handles.switchStartIn.name || `Channel ${index + 1}`
+      }
+      getDeletedLabel={(level) =>
+        getCommonName(level) || level.handles.switchStartIn.name || 'Channel'
+      }
+      onSave={onSave}
+      getChannelBlastRadius={getChannelBlastRadius}
+      getNeighborhood={getNeighborhood}
+    />
   );
 }
 

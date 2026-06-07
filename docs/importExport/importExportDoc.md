@@ -5,75 +5,109 @@
 The import/export system provides serialization and deserialization of two
 primary data structures:
 
-1. **Graph State** -- the full graph definition (nodes, edges, data types, node
-   types, viewport, node group subtrees)
+1. **Graph State** -- the full graph definition (data types, node types, nodes,
+   edges, viewport, node-group navigation stack)
 2. **Execution Records** -- recorded execution traces for replay and inspection
 
-Both export paths produce versioned JSON envelopes. Both import paths validate
-structure, optionally apply repair strategies, and return a discriminated-union
-`ImportResult<T>` that is either `{ success: true, data, warnings }` or
-`{ success: false, errors, warnings }`.
+Both export paths produce versioned JSON envelopes (`version: 1`). Both import
+paths validate structure, optionally apply repair strategies, and return a
+discriminated-union `ImportResult<T>` that is either
+`{ success: true, data, warnings }` or `{ success: false, errors, warnings }`.
 
 A central challenge is that the runtime `State` and `ExecutionRecord` types
 contain non-serializable values (Zod schemas, callback functions, `ReadonlyMap`
-instances, `Error` objects). The export layer strips or converts these; the
-import layer rehydrates or reconstructs them.
+instances, `Error` objects) and UI-only state that must not round-trip. The
+export layer strips or converts these; the import layer rehydrates or
+reconstructs them.
+
+Two facts drive the whole design:
+
+- **UI-only state is stripped on export.** `StateSerializer.serialize` deletes
+  `activeDrawer`, `zones`, `zoneIndex`, and `history` from the cloned state, in
+  addition to stripping non-serializable handle fields. None of these belong in
+  a portable graph definition.
+- **Zones are rebuilt on import, not carried.** Because `zones`/`zoneIndex` are
+  stripped, importing a state via `REPLACE_STATE` re-derives them from scratch:
+  `applyPlan`'s `REPLACE_STATE` case calls `rehydrateAllZones(imported)` and
+  `delete imported.history`. The importer itself does not touch zones -- that
+  happens in the reducer when the imported state is dispatched.
 
 ### Source files
 
-| File                                        | Responsibility                                                                                                                                                                     |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/utils/importExport/index.ts`           | Public API barrel                                                                                                                                                                  |
-| `src/utils/importExport/types.ts`           | All type definitions                                                                                                                                                               |
-| `src/utils/importExport/stateExport.ts`     | `exportGraphState`                                                                                                                                                                 |
-| `src/utils/importExport/stateImport.ts`     | `importGraphState`                                                                                                                                                                 |
-| `src/utils/importExport/recordExport.ts`    | `exportExecutionRecord`                                                                                                                                                            |
-| `src/utils/importExport/recordImport.ts`    | `importExecutionRecord`                                                                                                                                                            |
-| `src/utils/importExport/validation.ts`      | Structural validators                                                                                                                                                              |
-| `src/utils/importExport/stateSerializer.ts` | Encapsulates state serialization logic used by `exportGraphState` -- deep-clones and strips non-serializable fields (complexSchema, onChange callbacks, dataTypeObject references) |
-| `src/utils/importExport/serialization.ts`   | Serialization helpers, stripping, rehydration                                                                                                                                      |
+| File                                                                   | Responsibility                                                                                                                                                                       |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/utils/importExport/index.ts`                                      | Public API barrel                                                                                                                                                                    |
+| `src/utils/importExport/types.ts`                                      | All type definitions (`ValidationIssue`, `ImportResult`, envelopes, repair strategies, options)                                                                                      |
+| `src/utils/importExport/stateExport.ts` › `exportGraphState`           | `exportGraphState` -- delegates to `StateSerializer.serialize`, JSON-stringifies                                                                                                     |
+| `src/utils/importExport/stateImport.ts` › `importGraphState`           | `importGraphState` -- parse, validate, repair, rehydrate handle dataTypes                                                                                                            |
+| `src/utils/importExport/recordExport.ts` › `exportExecutionRecord`     | `exportExecutionRecord` -- delegates to `serializeExecutionRecord`, wraps + stringifies                                                                                              |
+| `src/utils/importExport/recordImport.ts` › `importExecutionRecord`     | `importExecutionRecord` -- parse, validate, repair, `deserializeExecutionRecord`                                                                                                     |
+| `src/utils/importExport/validation.ts` › `validateGraphStateStructure` | Structural validators (`validateGraphStateStructure`, `validateExecutionRecordStructure`, `isObject`)                                                                                |
+| `src/utils/importExport/stateSerializer.ts` › `StateSerializer`        | `StateSerializer` class: deep-clones, strips UI-only state (`activeDrawer`/`zones`/`zoneIndex`/`history`) and non-serializable handle fields                                         |
+| `src/utils/importExport/serialization.ts`                              | Map<->Record conversion, `safeSerializeValue`, `GraphError` (de)serialization, full `ExecutionRecord` (de)serialization, handle strip/rehydrate, Immer-patch + history serialization |
+
+Two cross-system source files are central to integration:
+
+| File                                                                                                | Responsibility                                                                                                                                                                          |
+| --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/organisms/FullGraph/useGraphImportExport.tsx` › `useGraphImportExport`              | The hook that owns the import/export lifecycle: export handlers, `downloadJson`, hidden file inputs, `REPLACE_STATE` dispatch, ReactFlow remount, `GraphEvent` emission, recording load |
+| `src/components/organisms/FullGraph/createImportExportMenuItems.ts` › `createImportExportMenuItems` | Builds the context-menu "Import/Export" submenu                                                                                                                                         |
+| `src/utils/nodeStateManagement/planApply/applyPlan.ts` › `REPLACE_STATE`                            | `REPLACE_STATE` apply case: `rehydrateAllZones` + `delete imported.history`                                                                                                             |
+| `src/utils/nodeStateManagement/zones/zoneLifecycle.ts` › `rehydrateAllZones`                        | `rehydrateAllZones` -- rebuilds all switch/loop zones from imported nodes                                                                                                               |
 
 ---
 
 ## Entity-Relationship Diagram
 
 ```
-+---------------------+          +------------------------+
-|  ExportedGraphState  |          | ExportedExecutionRecord|
-|---------------------|          |------------------------|
-| version: 1          |          | version: 1             |
-| exportedAt: string  |          | exportedAt: string     |
-| state: {...}        |          | record: {...}          |
-+---------------------+          +------------------------+
++----------------------+          +-------------------------+
+|  ExportedGraphState  |          | ExportedExecutionRecord |
+|----------------------|          |-------------------------|
+| version: 1           |          | version: 1              |
+| exportedAt: string   |          | exportedAt: string      |
+| state: Record<...>   |          | record: Record<...>     |
++----------------------+          +-------------------------+
          |                                 |
-         | wraps                           | wraps
+         | wraps (UI-only stripped)        | wraps (Maps -> Records)
          v                                 v
-+---------------------+          +------------------------+
-|       State          |          |   ExecutionRecord      |
-|---------------------|          |------------------------|
-| dataTypes{}         |          | id                     |
-| typeOfNodes{}       |          | status                 |
-| nodes[]             |          | steps[]                |
-| edges[]             |          | errors[]               |
-| viewport?           |          | loopRecords (Map)      |
-| openedNodeGroupStack|          | groupRecords (Map)     |
-+---------------------+          | finalValues (Map)      |
-    |           |                | concurrencyLevels[]    |
-    |           |                +------------------------+
-    v           v                    |
-+--------+ +--------+               v
-| Node   | | Edge   |       +-------------------+
-|--------| |--------|       | ExecutionStepRecord|
-| id     | | id     |       |-------------------|
-| type   | | source |       | stepIndex         |
-| position | target |       | nodeId            |
-| data{} | | srcH   |       | nodeTypeId        |
-|  inputs| | tgtH   |       | status            |
-|  output| +--------+       | inputValues (Map) |
-+--------+                  | outputValues (Map)|
-                             | error?            |
-                             +-------------------+
++----------------------+          +-------------------------+
+|       State          |          |   ExecutionRecord       |
+|----------------------|          |-------------------------|
+| dataTypes{}          |          | id                      |
+| typeOfNodes{}        |          | startTime / endTime     |
+| nodes[]              |          | totalDuration           |
+| edges[]              |          | warmupDuration          |
+| viewport?            |          | totalPauseDuration      |
+| openedNodeGroupStack?|          | status                  |
+| activeDrawer?  (X)   |          | steps[]                 |
+| zones?         (X)   |          | errors[]                |
+| zoneIndex?     (X)   |          | concurrencyLevels[]     |
+| history?       (X)   |          | loopRecords (Map)       |
++----------------------+          | groupRecords (Map)      |
+    |           |                 | switchRecords (Map)     |
+    |           |                 | finalValues (Map)       |
+    v           v                 | viewState?              |
++--------+ +--------+             +-------------------------+
+| Node   | | Edge   |                 |
+|--------| |--------|                 v
+| id     | | id     |       +----------------------+
+| type   | | source |       | ExecutionStepRecord  |
+| position | target |       |----------------------|
+| data{} | | srcH   |       | stepIndex            |
+|  inputs| | tgtH   |       | nodeId / nodeTypeId  |
+|  output| +--------+       | nodeTypeName         |
++--------+                  | status               |
+                            | inputValues (Map)    |
+   (X) = stripped on export | outputValues (Map)   |
+                            | error?               |
+                            +----------------------+
 ```
+
+`ExecutionRecord` also nests recursively: `groupRecords[id].innerRecord` is a
+full `ExecutionRecord`; `loopRecords[id].iterations[].nestedLoopRecords` are
+more `LoopRecord`s. Each `LoopIterationRecord` (and each `SwitchRecord`) also
+carries a `nestedSwitchRecords` map, but -- like top-level `switchRecords` -- it
+does not round-trip (see the lossy-switch note below).
 
 ---
 
@@ -85,45 +119,56 @@ import layer rehydrates or reconstructs them.
   Runtime State
        |
        v
-  exportGraphState()
+  exportGraphState(state, options?)
        |
-       |  1. Deep clone state
-       |  2. Strip complexSchema from dataTypes
-       |  3. Strip onChange, complexSchema from handles
-       |     (inputs, outputs, panels, subtree nodes)
-       |  4. Wrap in { version: 1, exportedAt, state }
-       |  5. JSON.stringify
-       |
-       v
-  JSON string  ------>  file download / storage
+       |  StateSerializer.serialize:
+       |  1. deepClone(state) (structuredClone, JSON fallback)
+       |  2. delete activeDrawer, zones, zoneIndex, history (UI-only)
+       |  3. stripDataTypes:   delete complexSchema per dataType
+       |  4. stripTypeOfNodes: strip handles (inputs/panels/outputs),
+       |                       strip subtree.nodes handles,
+       |                       delete subtree.zones / subtree.zoneIndex
+       |  5. stripNodes:       strip handles on every node
+       |  6. wrap { version: 1, exportedAt, state }
+       |       |
+       v       v
+  JSON.stringify  ------>  file download / storage
        |
        v
   importGraphState(json, options)
        |
-       |  1. JSON.parse
-       |  2. validateGraphStateStructure (envelope + state)
-       |  3. Apply repair strategies (if enabled):
+       |  1. JSON.parse (failure -> error result)
+       |  2. validateGraphStateStructure (envelope + state shape)
+       |  3. if errors and no repair strategies enabled -> fail
+       |  4. Apply repair strategies (if enabled), in order:
        |     - removeDuplicateNodeIds
        |     - removeDuplicateEdgeIds
        |     - removeOrphanEdges
-       |     - fillMissingDefaults
-       |  4. Rehydrate complexSchema on dataTypes
-       |  5. Rehydrate handle dataTypeObjects from dataTypes
-       |  6. Filter repaired errors, check remaining
-       |  7. Type-narrow via isValidState guard
+       |     - fillMissingDefaults (viewport only)
+       |  5. Rehydrate complexSchema on dataTypes from options.dataTypes
+       |  6. ALWAYS rehydrate handle dataTypeObjects (inputs/panels/outputs)
+       |  7. Filter errors that match repaired issues; fail if any remain
+       |  8. Type-narrow via isValidState guard
        |
        v
   ImportResult<State>
        |
-       | (on success, in FullGraph)
+       | (on success, in useGraphImportExport)
        v
-  Replace dataTypes/typeOfNodes with live originals
+  Replace imported.dataTypes / typeOfNodes with live originals
        |
        v
-  dispatch(REPLACE_STATE)
+  dispatch(REPLACE_STATE, { state })
+       |              |
+       |              +--> applyPlan REPLACE_STATE case:
+       |                   rehydrateAllZones(imported)
+       |                   imported.zones / zoneIndex = rehydrated.*
+       |                   delete imported.history
+       v
+  setReactFlowKey(k => k + 1)  (force ReactFlow remount)
        |
        v
-  Force ReactFlow remount (key increment)
+  emit GraphEvent { kind: 'ui:state:imported', success: true, state }
 ```
 
 ### Recording Export/Import
@@ -132,40 +177,49 @@ import layer rehydrates or reconstructs them.
   Runtime ExecutionRecord
        |
        v
-  exportExecutionRecord()
+  exportExecutionRecord(record, options?)
        |
-       |  1. serializeExecutionRecord:
-       |     - ReadonlyMap -> Record (loopRecords, groupRecords, finalValues)
-       |     - ReadonlyMap -> Record (step inputValues, outputValues)
-       |     - GraphError.originalError -> safeSerializeValue
-       |     - Functions -> "[Function]", Symbols -> "[Symbol: ...]"
-       |     - Recursive for GroupRecord.innerRecord
-       |  2. Wrap in { version: 1, exportedAt, record }
-       |  3. JSON.stringify
+       |  serializeExecutionRecord:
+       |  - loopRecords Map -> Record (recursive iterations + nestedLoopRecords)
+       |  - groupRecords Map -> Record (recursive innerRecord, input/outputMapping)
+       |  - finalValues  Map -> Record via safeSerializeValue
+       |  - switchRecords Map -> Record via Object.fromEntries (shallow)
+       |  - steps[]: inputValues/outputValues Map -> Record,
+       |             connection + default + output values via safeSerializeValue
+       |  - errors[] + step.error via serializeGraphError (originalError -> safe)
+       |  - concurrencyLevels spread to array
+       |  - carry warmupDuration, totalPauseDuration, viewState (if present)
+       |  wrap { version: 1, exportedAt, record }
+       |       |
+       v       v
+  JSON.stringify  ------>  file download / storage
        |
        v
-  JSON string  ------>  file download / storage
+  importExecutionRecord(json, options?)
        |
-       v
-  importExecutionRecord(json, options)
-       |
-       |  1. JSON.parse
-       |  2. validateExecutionRecordStructure (envelope + record)
-       |  3. Apply repair strategies (if enabled):
-       |     - removeOrphanSteps (filter malformed steps)
-       |     - sanitizeNonSerializableValues (no-op after JSON parse)
-       |  4. Narrow via isSerializedExecutionRecord guard
-       |  5. deserializeExecutionRecord:
-       |     - Record -> ReadonlyMap for all map fields
-       |     - Reconstruct GraphError objects
-       |     - Recursive for GroupRecord.innerRecord
+       |  1. JSON.parse (failure -> error result)
+       |  2. validateExecutionRecordStructure (envelope + record shape)
+       |  3. if errors and no repair strategies enabled -> fail
+       |  4. Apply repair strategies (if enabled):
+       |     - removeOrphanSteps (filter steps missing nodeId/nodeTypeId/stepIndex)
+       |     - sanitizeNonSerializableValues (no-op after JSON.parse)
+       |  5. Filter errors that match repaired issues; fail if any remain
+       |  6. Narrow via isSerializedExecutionRecord guard
+       |  7. deserializeExecutionRecord:
+       |     - Records -> ReadonlyMap for all map fields
+       |     - reconstruct GraphError objects (originalError stays serialized)
+       |     - recursive for loops, groups; switchRecords reset to new Map()
        |
        v
   ImportResult<ExecutionRecord>
        |
-       | (on success, in FullGraph)
+       | (on success, in useGraphImportExport)
        v
-  loadRecordRef.current(result.data)  -- loads into runner
+  loadRecordRef.current(result.data) -> RecordValidationResult
+       |                                  { valid, warnings, errors }
+       v
+  if (!valid) onImportError(errors); else load + emit
+       'ui:recording:imported'
 ```
 
 ---
@@ -175,19 +229,20 @@ import layer rehydrates or reconstructs them.
 ```
 +-----------------------------------------------------------------------+
 |                          FullGraph Component                          |
+|                  (useGraphImportExport hook + UI)                     |
 |                                                                       |
-|  +-------------------+     +--------------------+                     |
-|  | Context Menu      |     | Hidden <input>     |                     |
-|  | (Import/Export)   |---->| type="file"        |                     |
-|  +-------------------+     | accept=".json"     |                     |
-|         |                  +--------------------+                     |
+|  +-------------------+     +-------------------------+                |
+|  | Context Menu      |     | FileInputElements (FC)  |                |
+|  | (Import/Export)   |---->| two hidden <input>      |                |
+|  | createImport...() |     | type="file" accept=.json|                |
+|  +-------------------+     +-------------------------+                |
 |         |                        |                                    |
 |         v                        v                                    |
-|  handleExportState()      FileReader.readAsText()                    |
+|  handleExportState()      FileReader.readAsText()                     |
 |  handleExportRecording()         |                                    |
 |         |                        v                                    |
-|         v                  handleImportState(json)                   |
-|  exportGraphState()        handleImportRecording(json)               |
+|         v                  handleImportState(text)                    |
+|  exportGraphState()        handleImportRecording(text)                |
 |  exportExecutionRecord()         |                                    |
 |         |                        v                                    |
 |         v               +------------------+                          |
@@ -198,13 +253,17 @@ import layer rehydrates or reconstructs them.
 |                         +-----------------+                           |
 |                         | Validation      |                           |
 |                         | + Repair        |                           |
-|                         | + Rehydration   |                           |
+|                         | + Rehydration / |                           |
+|                         |   Deserialize   |                           |
 |                         +-----------------+                           |
 |                                  |                                    |
 |                     +------------+-------------+                      |
 |                     v                          v                      |
-|           dispatch(REPLACE_STATE)    loadRecord(record)              |
-|           + ReactFlow remount        (into runner)                   |
+|       dispatch(REPLACE_STATE)        loadRecordRef.current(record)    |
+|       (applyPlan rehydrates zones,   -> RecordValidationResult        |
+|        deletes history)                                               |
+|       + setReactFlowKey(k => k+1)                                     |
+|       + emit GraphEvent              + emit GraphEvent                |
 +-----------------------------------------------------------------------+
 ```
 
@@ -216,29 +275,78 @@ import layer rehydrates or reconstructs them.
 
 **Signature:** `exportGraphState(state, options?) -> string`
 
-**Location:** `src/utils/importExport/stateExport.ts`
+**Location:** `src/utils/importExport/stateExport.ts` › `exportGraphState`
 
-Takes a runtime `State` object and returns a JSON string wrapped in an
-`ExportedGraphState` envelope:
+Takes a runtime `State` object and returns a JSON string. It is a thin wrapper:
+it calls `StateSerializer.serialize(state)` to build the envelope, then
+`JSON.stringify(envelope, null, options?.pretty ? 2 : undefined)`.
 
 ```ts
 type ExportedGraphState = {
   version: 1;
-  exportedAt: string; // ISO 8601
+  exportedAt: string; // ISO 8601, from new Date().toISOString()
   state: Record<string, unknown>;
 };
 ```
 
-**Options:**
+`exportGraphState` is fully generic over
+`<DataTypeUniqueId, NodeTypeUniqueId, UnderlyingType, ComplexSchemaType>`,
+mirroring the `State` generics.
+
+**Options (`ExportOptions`):**
 
 | Option   | Type      | Default | Description                   |
 | -------- | --------- | ------- | ----------------------------- |
 | `pretty` | `boolean` | `false` | 2-space indent in output JSON |
 
+### StateSerializer class
+
+**Location:** `src/utils/importExport/stateSerializer.ts` › `StateSerializer`
+
+`StateSerializer` is a static utility class that encapsulates the
+clone-and-strip logic. `exportGraphState` and the public barrel both re-export
+it.
+
+**`StateSerializer.serialize(state)`** does, in order:
+
+1. `deepClone(state)` -- `structuredClone` with a JSON-stringify fallback.
+2. Delete **UI-only state** that must not be exported:
+   `delete cloned.activeDrawer`, `delete cloned.zones`,
+   `delete cloned.zoneIndex`, `delete cloned.history`.
+3. `StateSerializer.stripDataTypes(cloned)` -- non-serializable dataType fields.
+4. `StateSerializer.stripTypeOfNodes(cloned)` -- non-serializable node-type
+   fields.
+5. `StateSerializer.stripNodes(cloned)` (private) -- node-instance handle
+   fields.
+6. Wrap in
+   `{ version: 1, exportedAt: new Date().toISOString(), state: cloned }`.
+
+**Static methods:**
+
+| Method                         | Behavior                                                                                                                                                                                                   |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `serialize(state)`             | The full pipeline above; returns an `ExportedGraphState`.                                                                                                                                                  |
+| `serializeNode(node)`          | Public helper that strips non-serializable handle fields from a single (already-cloned) node via `stripNodeHandles`. Returns a new node object.                                                            |
+| `stripDataTypes(cloned)`       | For each dataType, replaces it with `stripComplexSchema(dataType)` (removes the Zod `complexSchema`). Mutates in place.                                                                                    |
+| `stripTypeOfNodes(cloned)`     | For each node type: strips `inputs` (panels + plain handles) and `outputs`; if a `subtree` exists, strips `subtree.nodes` handles **and deletes `subtree.zones` / `subtree.zoneIndex`**. Mutates in place. |
+| `stripNodes(cloned)` (private) | Maps each node through `stripNodeHandles`. Mutates `cloned.nodes` in place.                                                                                                                                |
+
 ### What is serialized and what is stripped
 
-The function deep-clones the state (via `structuredClone` with JSON fallback),
-then walks the clone to remove non-serializable fields:
+After deep-cloning, the serializer removes two categories of data.
+
+**UI-only / runtime state (deleted wholesale):**
+
+| Field               | Location                            | Reason                                       |
+| ------------------- | ----------------------------------- | -------------------------------------------- |
+| `activeDrawer`      | `state.activeDrawer`                | Transient UI (open drawer)                   |
+| `zones`             | `state.zones`                       | Derived; rehydrated on import                |
+| `zoneIndex`         | `state.zoneIndex`                   | Derived from zones                           |
+| `history`           | `state.history`                     | Undo/redo stacks; import always starts fresh |
+| `subtree.zones`     | `typeOfNodes[id].subtree.zones`     | Derived (group-node subtree)                 |
+| `subtree.zoneIndex` | `typeOfNodes[id].subtree.zoneIndex` | Derived (group-node subtree)                 |
+
+**Non-serializable handle/dataType fields (deleted per object):**
 
 | Field           | Location                                               | Action                 |
 | --------------- | ------------------------------------------------------ | ---------------------- |
@@ -247,32 +355,16 @@ then walks the clone to remove non-serializable fields:
 | `complexSchema` | `handle.dataType.dataTypeObject.complexSchema`         | Deleted (Zod instance) |
 | `complexSchema` | `handle.inferredDataType.dataTypeObject.complexSchema` | Deleted (Zod instance) |
 
-Stripping is applied to:
+Handle stripping (`stripHandleNonSerializable`) is applied to:
 
-- Top-level `state.dataTypes`
-- Top-level `state.typeOfNodes` inputs/outputs (including panel nested inputs)
-- `typeOfNodes[id].subtree.nodes` (group node definitions)
-- `state.nodes[].data.inputs` and `state.nodes[].data.outputs`
+- Top-level `state.dataTypes` (via `stripComplexSchema`)
+- Top-level `state.typeOfNodes` inputs/outputs (including panel-nested inputs)
+- `typeOfNodes[id].subtree.nodes` handles (group-node definitions)
+- `state.nodes[].data.inputs` (including panels) and
+  `state.nodes[].data.outputs`
 
-Everything else (node positions, edge connections, viewport, feature flags, node
-group stack) passes through unchanged.
-
-### StateSerializer class
-
-**Location:** `src/utils/importExport/stateSerializer.ts`
-
-`StateSerializer` is a static utility class that encapsulates the
-clone-and-strip logic used by `exportGraphState`. Static methods:
-
-- `serialize(state)` -- deep-clones the state, strips all non-serializable
-  fields, and wraps the result in an `ExportedGraphState` envelope.
-- `serializeNode(node)` -- strips non-serializable handle fields from a single
-  already-cloned node object.
-- `stripDataTypes(cloned)` -- removes `complexSchema` from each dataType
-  (mutates in place).
-- `stripTypeOfNodes(cloned)` -- removes non-serializable fields from typeOfNodes
-  handle definitions, including panel-nested inputs and subtree nodes (mutates
-  in place).
+Everything else (node positions, edge connections, viewport, feature flags such
+as `enableTypeInference`, the `openedNodeGroupStack`) passes through unchanged.
 
 ---
 
@@ -282,85 +374,128 @@ clone-and-strip logic used by `exportGraphState`. Static methods:
 
 **Signature:** `importGraphState(json, options) -> ImportResult<State>`
 
-**Location:** `src/utils/importExport/stateImport.ts`
+**Location:** `src/utils/importExport/stateImport.ts` › `importGraphState`
 
 Parses a JSON string, validates, repairs, and rehydrates it back to a full
-`State` object.
+`State` object. The `options` argument is **required** (unlike record import).
+
+> Note: there is no `StateDeserializer` class. As documented at the top of
+> `stateImport.ts`, import involves validation, repair, and rehydration --
+> concerns that don't map cleanly onto a serialize/deserialize pair -- so the
+> import logic lives as plain functions.
 
 ### StateImportOptions
 
 ```ts
-type StateImportOptions = {
-  dataTypes: Record<DataTypeUniqueId, DataType>; // live definitions (source of truth)
-  typeOfNodes: Record<NodeTypeUniqueId, TypeOfNode>; // live definitions (source of truth)
+type StateImportOptions<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+> = {
+  /** Live data type definitions (source of truth for Zod schemas) */
+  dataTypes: Record<
+    DataTypeUniqueId,
+    DataType<UnderlyingType, ComplexSchemaType>
+  >;
+  /** Live node type definitions (source of truth for handle structure) */
+  typeOfNodes: Record<
+    NodeTypeUniqueId,
+    TypeOfNode<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >
+  >;
+  /** Called for each validation issue (error and warning) found during import */
   onValidationError?: (issue: ValidationIssue) => void;
+  /** Repair strategies to apply (all default to false) */
   repair?: Partial<StateRepairStrategies>;
 };
 ```
 
 `dataTypes` and `typeOfNodes` are **required** because they carry the
 non-serializable fields (Zod schemas, callbacks) that were stripped during
-export.
+export. `onValidationError` is invoked for every issue (both severities).
 
 ### Validation (validateGraphStateStructure)
 
-**Location:** `src/utils/importExport/validation.ts:30`
+**Location:** `src/utils/importExport/validation.ts` ›
+`validateGraphStateStructure`
 
-Checks the parsed JSON against the expected structure. Returns an array of
-`ValidationIssue` objects. Does NOT check semantic correctness (e.g., whether
+Checks the parsed JSON against the expected structure and returns an array of
+`ValidationIssue` objects. It does NOT check semantic correctness (e.g. whether
 handle dataType IDs exist in `dataTypes`).
 
 **Checks performed:**
 
-| Path                | Check                                                                                                                                                                         |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| (root)              | Must be an object                                                                                                                                                             |
-| `version`           | Must be `1`                                                                                                                                                                   |
-| `exportedAt`        | Must be a string (warning if missing)                                                                                                                                         |
-| `state`             | Must be an object                                                                                                                                                             |
-| `state.dataTypes`   | Must be an object; each entry must have `name` (string) and `underlyingType` (string)                                                                                         |
-| `state.typeOfNodes` | Must be an object; each entry must have `name` (string), `inputs` (array), `outputs` (array)                                                                                  |
-| `state.nodes`       | Must be an array; each node must have `id` (string), `position` (`{x: number, y: number}`); detects duplicate IDs (warning)                                                   |
-| `state.edges`       | Must be an array; each edge must have `id`, `source`, `target`, `sourceHandle`, `targetHandle` (all strings); detects duplicate IDs (warning), orphan source/target (warning) |
+| Path                | Check                                                                                                                                                                                  | Severity                     |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| (root)              | Must be an object                                                                                                                                                                      | error                        |
+| `version`           | Must equal `1`                                                                                                                                                                         | error                        |
+| `exportedAt`        | Must be a string                                                                                                                                                                       | warning                      |
+| `state`             | Must be an object (otherwise returns early)                                                                                                                                            | error                        |
+| `state.dataTypes`   | Must be an object; each entry must have `name` (string) and `underlyingType` (string)                                                                                                  | error                        |
+| `state.typeOfNodes` | Must be an object; each entry must have `name` (string), `inputs` (array), `outputs` (array)                                                                                           | error                        |
+| `state.nodes`       | Must be an array; each node must have `id` (string), optional `type` (string if present), `position` (`{x: number, y: number}`); duplicate node IDs flagged                            | error (dup = warning)        |
+| `state.edges`       | Must be an array; each edge must have `id`, `source`, `target`, `sourceHandle`, `targetHandle` (all strings); duplicate IDs and orphan source/target (when node set non-empty) flagged | error (dup/orphan = warning) |
 
 ### Repair Strategies (StateRepairStrategies)
 
-All strategies default to `false` and must be explicitly opted in.
+All five strategies are `boolean` and default to `false`; the importer only runs
+them when explicitly enabled. If structural errors exist but **no** repair flag
+is truthy, the import fails immediately.
 
-| Strategy                   | What it does                                                                                                         |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `removeDuplicateNodeIds`   | Keeps first occurrence of each node ID, removes subsequent duplicates                                                |
-| `removeDuplicateEdgeIds`   | Keeps first occurrence of each edge ID, removes subsequent duplicates                                                |
-| `removeOrphanEdges`        | Removes edges whose `source` or `target` does not match any node ID. Emits a warning with the count of removed edges |
-| `fillMissingDefaults`      | Sets `viewport` to `{ x: 0, y: 0, zoom: 1 }` if missing                                                              |
-| `rehydrateDataTypeObjects` | (Handled implicitly -- rehydration always runs)                                                                      |
+| Strategy                   | What it does                                                                                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `removeDuplicateNodeIds`   | Keeps the first occurrence of each node ID, drops later duplicates                                                                                      |
+| `removeDuplicateEdgeIds`   | Keeps the first occurrence of each edge ID, drops later duplicates                                                                                      |
+| `removeOrphanEdges`        | Removes edges whose `source` or `target` is not a known node ID (computed after node dedup). Pushes a warning with the removed count                    |
+| `fillMissingDefaults`      | If `state.viewport` is `undefined`, sets it to `{ x: 0, y: 0, zoom: 1 }`. (The type comment mentions "feature flags" but the code only fills viewport.) |
+| `rehydrateDataTypeObjects` | Declared in the type and accepted in the API, but rehydration of handle `dataTypeObject`s runs unconditionally regardless of this flag                  |
 
 **Repair order:**
 
 1. `removeDuplicateNodeIds`
 2. `removeDuplicateEdgeIds`
-3. `removeOrphanEdges` (uses node set after dedup)
+3. `removeOrphanEdges` (uses the node set after dedup)
 4. `fillMissingDefaults`
 
-After repair, the function filters out errors that correspond to repaired
-issues. If unrepaired errors remain, the import fails.
+After repair, the importer filters out the errors that correspond to repaired
+issues -- matching on message substrings (`"Duplicate node ID"`,
+`"Duplicate edge ID"`, `"not found"`) and the `viewport` path. If any unrepaired
+error remains, the import fails with those errors.
 
 ### Rehydration of live definitions
 
-Two rehydration passes always run (not gated by repair flags):
+Two rehydration passes run after repair (the second is **not** gated by any
+repair flag):
 
-1. **complexSchema on dataTypes:** For each imported `dataType`, if the
-   corresponding entry in `options.dataTypes` has a `complexSchema`, it is
-   copied onto the imported dataType.
+1. **complexSchema on dataTypes:** For each imported dataType ID, if the
+   matching entry in `options.dataTypes` has a truthy `complexSchema`, it is
+   copied onto the imported dataType
+   (`dt.complexSchema = providedDt.complexSchema`).
 
-2. **handle dataTypeObjects:** For each node's input/output handles (including
-   panel-nested inputs), the `dataType.dataTypeObject` and
-   `inferredDataType.dataTypeObject` are replaced with the full live dataType
-   from `options.dataTypes`, keyed by `dataTypeUniqueId`.
+2. **handle dataTypeObjects (always):** Each node runs through
+   `rehydrateNodeHandles`, which walks `data.inputs` (including panel-nested
+   `inputs`) and `data.outputs` and calls `rehydrateHandleDataType`. That helper
+   replaces `handle.dataType.dataTypeObject` and
+   `handle.inferredDataType.dataTypeObject` with the full live dataType from the
+   provided `dataTypes` map, keyed by `dataTypeUniqueId`.
 
-In `FullGraph.tsx`, the import handler goes further: it replaces the **entire**
-`dataTypes` and `typeOfNodes` on the imported state with the live originals,
-since these are type definitions that don't change between sessions.
+Finally the result is narrowed with the `isValidState` type guard (checks for
+the presence of `nodes`, `edges`, `dataTypes`, `typeOfNodes`) before returning
+`{ success: true, data: state, warnings }`.
+
+> The importer does **not** rebuild zones or restore history. That is the
+> reducer's job: when `useGraphImportExport` dispatches `REPLACE_STATE`, the
+> `applyPlan` case calls `rehydrateAllZones(imported)` to derive
+> `zones`/`zoneIndex` and `delete imported.history`. See
+> [Integration](#integration-with-fullgraph) and
+> [Relationships](#--state-management-replace_state--zone-rehydration).
 
 ---
 
@@ -370,32 +505,59 @@ since these are type definitions that don't change between sessions.
 
 **Signature:** `exportExecutionRecord(record, options?) -> string`
 
-**Location:** `src/utils/importExport/recordExport.ts`
+**Location:** `src/utils/importExport/recordExport.ts` › `exportExecutionRecord`
 
-Delegates to `serializeExecutionRecord()` to produce a JSON-safe plain object,
-then wraps it in an `ExportedExecutionRecord` envelope.
+Delegates to `serializeExecutionRecord(record)` to produce a JSON-safe plain
+object, wraps it in an `ExportedExecutionRecord` envelope
+(`{ version: 1, exportedAt, record }`), and stringifies it.
 
-### Map serialization
+```ts
+type ExportedExecutionRecord = {
+  version: 1;
+  exportedAt: string;
+  record: Record<string, unknown>;
+};
+```
 
-The `ExecutionRecord` and its nested types use `ReadonlyMap` extensively. These
-are converted to plain `Record<string, T>` objects for JSON compatibility:
+### serializeExecutionRecord
 
-| Runtime field                     | Serialized form                                       |
-| --------------------------------- | ----------------------------------------------------- |
-| `record.loopRecords` (Map)        | `Record<string, SerializedLoopRecord>`                |
-| `record.groupRecords` (Map)       | `Record<string, SerializedGroupRecord>`               |
-| `record.finalValues` (Map)        | `Record<string, unknown>`                             |
-| `step.inputValues` (Map)          | `Record<string, SerializedRecordedInputHandleValue>`  |
-| `step.outputValues` (Map)         | `Record<string, SerializedRecordedOutputHandleValue>` |
-| `groupRecord.inputMapping` (Map)  | `Record<string, unknown>`                             |
-| `groupRecord.outputMapping` (Map) | `Record<string, unknown>`                             |
+**Location:** `src/utils/importExport/serialization.ts` ›
+`serializeExecutionRecord`
 
-Additionally:
+`ExecutionRecord` and its nested types use `ReadonlyMap` extensively and embed
+`GraphError` (with an arbitrary `originalError`) and arbitrary handle values.
+Serialization produces the JSON-safe `SerializedExecutionRecord` shape:
 
-- `GraphError.originalError` is passed through `safeSerializeValue()` (Error
-  instances become `{ __type: "Error", name, message, stack }`)
-- `GroupRecord.innerRecord` is serialized recursively (groups can nest)
-- `concurrencyLevels` is spread to a plain array
+| Runtime field                                           | Serialized form / handling                                                                                                                                                                   |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`, `startTime`, `endTime`, `totalDuration`, `status` | Copied through                                                                                                                                                                               |
+| `warmupDuration`, `totalPauseDuration`                  | Copied through                                                                                                                                                                               |
+| `steps[]`                                               | Each via `serializeStepRecord`                                                                                                                                                               |
+| `step.inputValues` (Map by handleName)                  | `Record<string, SerializedRecordedInputHandleValue>`; each connection `value` + `defaultValue` run through `safeSerializeValue`                                                              |
+| `step.outputValues` (Map by handleName)                 | `Record<string, SerializedRecordedOutputHandleValue>`; `value` run through `safeSerializeValue`                                                                                              |
+| `step.error?`                                           | `serializeGraphError` (or `undefined`)                                                                                                                                                       |
+| `errors[]`                                              | Each via `serializeGraphError`                                                                                                                                                               |
+| `concurrencyLevels`                                     | Spread into a plain array                                                                                                                                                                    |
+| `loopRecords` (Map)                                     | `Record<string, SerializedLoopRecord>` (recursive: iterations -> stepRecords + `nestedLoopRecords`; each iteration's `nestedSwitchRecords` map is **not** converted and does not round-trip) |
+| `groupRecords` (Map)                                    | `Record<string, SerializedGroupRecord>` (recursive: `innerRecord` is a full `SerializedExecutionRecord`; `inputMapping`/`outputMapping` -> Record)                                           |
+| `switchRecords` (Map)                                   | `Object.fromEntries([...(record.switchRecords ?? new Map())])` -- a **shallow** Record, not deeply serialized                                                                                |
+| `finalValues` (Map)                                     | `Record<string, unknown>` via `safeSerializeValue`                                                                                                                                           |
+| `viewState?`                                            | Carried through only when present (`...(record.viewState ? { viewState } : {})`)                                                                                                             |
+
+Notes:
+
+- `GraphError.originalError` is passed through `safeSerializeValue` (an `Error`
+  instance becomes `{ __type: "Error", name, message, stack }`).
+- `GroupRecord.innerRecord` recurses through the entire
+  `serializeExecutionRecord` pipeline (node groups can nest arbitrarily deep).
+- `LoopIterationRecord.nestedLoopRecords` is only emitted when non-empty.
+- `LoopIterationRecord.nestedSwitchRecords` and
+  `SwitchRecord.nestedSwitchRecords` are **not** converted by
+  `serializeLoopIterationRecord` -- the `Map` rides the `...iter` spread
+  untouched, so it serializes to `{}` and does not round-trip (the same loss as
+  top-level `switchRecords`).
+- `switchRecords` is intentionally shallow on export and is **not**
+  reconstructed on import (see below).
 
 ---
 
@@ -406,7 +568,10 @@ Additionally:
 **Signature:**
 `importExecutionRecord(json, options?) -> ImportResult<ExecutionRecord>`
 
-**Location:** `src/utils/importExport/recordImport.ts`
+**Location:** `src/utils/importExport/recordImport.ts` › `importExecutionRecord`
+
+`options` is optional here (unlike state import) -- a record can be
+reconstructed entirely from its own JSON.
 
 ### RecordImportOptions
 
@@ -417,58 +582,97 @@ type RecordImportOptions = {
 };
 ```
 
-### Validation
+### Validation (validateExecutionRecordStructure)
 
-`validateExecutionRecordStructure` checks:
+**Location:** `src/utils/importExport/validation.ts` ›
+`validateExecutionRecordStructure`
 
-| Path                       | Check                                                                                                                                                                                |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| (root)                     | Must be an object                                                                                                                                                                    |
-| `version`                  | Must be `1`                                                                                                                                                                          |
-| `exportedAt`               | Must be a string (warning)                                                                                                                                                           |
-| `record`                   | Must be an object                                                                                                                                                                    |
-| `record.id`                | Must be a string                                                                                                                                                                     |
-| `record.startTime`         | Must be a number                                                                                                                                                                     |
-| `record.endTime`           | Must be a number                                                                                                                                                                     |
-| `record.totalDuration`     | Must be a number                                                                                                                                                                     |
-| `record.status`            | Must be one of: `completed`, `errored`, `cancelled`                                                                                                                                  |
-| `record.steps[]`           | Each must have `stepIndex` (number), `nodeId` (string), `nodeTypeId` (string), `status` (one of: `completed`, `errored`, `skipped`), `inputValues` (object), `outputValues` (object) |
-| `record.errors`            | Must be an array (warning)                                                                                                                                                           |
-| `record.concurrencyLevels` | Must be an array (warning)                                                                                                                                                           |
-| `record.loopRecords`       | If present, must be an object (warning)                                                                                                                                              |
-| `record.groupRecords`      | If present, must be an object (warning)                                                                                                                                              |
-| `record.finalValues`       | If present, must be an object (warning)                                                                                                                                              |
+| Path                       | Check                                                                                                                                                                             | Severity |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| (root)                     | Must be an object                                                                                                                                                                 | error    |
+| `version`                  | Must equal `1`                                                                                                                                                                    | error    |
+| `exportedAt`               | Must be a string                                                                                                                                                                  | warning  |
+| `record`                   | Must be an object (otherwise returns early)                                                                                                                                       | error    |
+| `record.id`                | Must be a string                                                                                                                                                                  | error    |
+| `record.startTime`         | Must be a number                                                                                                                                                                  | error    |
+| `record.endTime`           | Must be a number                                                                                                                                                                  | error    |
+| `record.totalDuration`     | Must be a number                                                                                                                                                                  | error    |
+| `record.status`            | Must be one of: `completed`, `errored`, `cancelled`                                                                                                                               | error    |
+| `record.steps[]`           | Each must have `stepIndex` (number), `nodeId` (string), `nodeTypeId` (string), `status` (one of `completed`/`errored`/`skipped`), `inputValues` (object), `outputValues` (object) | error    |
+| `record.errors`            | Must be an array                                                                                                                                                                  | warning  |
+| `record.concurrencyLevels` | Must be an array                                                                                                                                                                  | warning  |
+| `record.loopRecords`       | If present, must be an object                                                                                                                                                     | warning  |
+| `record.groupRecords`      | If present, must be an object                                                                                                                                                     | warning  |
+| `record.finalValues`       | If present, must be an object                                                                                                                                                     | warning  |
+
+> The validator does not check `warmupDuration`, `totalPauseDuration`,
+> `switchRecords`, or `viewState`; the deserializer supplies sane defaults for
+> the first two, resets `switchRecords` to an empty Map, and only carries
+> `viewState` when present.
 
 ### Repair Strategies (RecordRepairStrategies)
 
-| Strategy                        | What it does                                                                                                |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `removeOrphanSteps`             | Filters out steps missing required fields (`nodeId`, `nodeTypeId`, `stepIndex`). Emits a warning with count |
-| `sanitizeNonSerializableValues` | No-op in practice (values are already JSON after `JSON.parse`), included for API consistency                |
+| Strategy                        | What it does                                                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `removeOrphanSteps`             | Filters out steps missing required fields (`nodeId`, `nodeTypeId`, `stepIndex`). Pushes a warning with the removed count |
+| `sanitizeNonSerializableValues` | No-op in practice (values are already JSON after `JSON.parse`); kept for API symmetry                                    |
 
-After repair, the import narrows the data via `isSerializedExecutionRecord`
-(checks `id`, `status`, `steps[]`, `errors[]`), then calls
-`deserializeExecutionRecord()` to convert all `Record` fields back to
-`ReadonlyMap` instances and reconstruct `GraphError` objects.
+As with state import: if there are structural errors and no repair flag is
+truthy, the import fails immediately. After repair, errors whose `path` includes
+`"steps"` are dropped if `removeOrphanSteps` is enabled; any remaining errors
+fail the import.
+
+### deserializeExecutionRecord
+
+**Location:** `src/utils/importExport/serialization.ts` ›
+`deserializeExecutionRecord`
+
+After repair, the record is narrowed via `isSerializedExecutionRecord` (checks
+`id` string, `status` string, `steps` array, `errors` array), then deserialized:
+
+- All `Record` map fields become `ReadonlyMap`. `loopRecords`, `groupRecords`,
+  and `finalValues` are rebuilt with explicit `new Map()` loops (so each value
+  can be deserialized as it is inserted); per-step `inputValues`/`outputValues`
+  and group `inputMapping`/`outputMapping` go through the `recordToReadonlyMap`
+  helper.
+- `GraphError` objects are reconstructed via `deserializeGraphError` (the
+  `originalError` remains in its serialized form -- a real `Error` cannot be
+  rebuilt).
+- Loops deserialize recursively (`iterations` -> `stepRecords` +
+  `nestedLoopRecords`); groups deserialize recursively (`innerRecord`).
+- `warmupDuration` and `totalPauseDuration` default to `0` if absent.
+- `concurrencyLevels` defaults to `[]` if absent.
+- **`switchRecords` is reset to `new Map()`** -- switch records are not
+  round-tripped.
+- `viewState` is carried only when present.
 
 ---
 
 ## Serialization Helpers
 
+These are exported from the barrel for advanced usage: `mapToRecord`,
+`recordToReadonlyMap`, `safeSerializeValue`, `serializeGraphError`,
+`deserializeGraphError`, `serializeExecutionRecord`,
+`deserializeExecutionRecord`. (Helpers such as `deepClone`,
+`stripComplexSchema`, `stripHandleNonSerializable`, `rehydrateHandleDataType`,
+`isSerializedExecutionRecord`, `serializePatch`, and `serializeHistoryEntry` are
+exported from `serialization.ts` for internal use but are not on the public
+package barrel.)
+
 ### mapToRecord / recordToReadonlyMap
 
-```
-mapToRecord<T>(map: ReadonlyMap<string, T>) -> Record<string, T>
-recordToReadonlyMap<T>(obj: Record<string, T> | null | undefined) -> ReadonlyMap<string, T>
+```ts
+mapToRecord<T>(map: ReadonlyMap<string, T>): Record<string, T>
+recordToReadonlyMap<T>(obj: Record<string, T> | null | undefined): ReadonlyMap<string, T>
 ```
 
 Bidirectional conversion between `ReadonlyMap` and plain objects.
-`recordToReadonlyMap` handles `null`/`undefined` by returning an empty Map.
+`recordToReadonlyMap` returns an empty Map for `null`/`undefined`.
 
 ### safeSerializeValue
 
-```
-safeSerializeValue(value: unknown) -> unknown
+```ts
+safeSerializeValue(value: unknown): unknown
 ```
 
 Recursively makes a value JSON-safe:
@@ -478,7 +682,7 @@ Recursively makes a value JSON-safe:
 | `null`, `undefined`           | Pass through                                              |
 | `string`, `number`, `boolean` | Pass through                                              |
 | `function`                    | `"[Function]"`                                            |
-| `symbol`                      | `"[Symbol: ...]"`                                         |
+| `symbol`                      | `` `[Symbol: ${value.toString()}]` ``                     |
 | `bigint`                      | `value.toString()`                                        |
 | `Map`                         | Converted to `Record` (keys stringified), values recursed |
 | `Set`                         | Converted to array, values recursed                       |
@@ -489,12 +693,45 @@ Recursively makes a value JSON-safe:
 
 ### serializeGraphError / deserializeGraphError
 
-Serialize: spreads the `GraphError`, copies `path` to a plain array, runs
-`originalError` through `safeSerializeValue`.
+`serializeGraphError(err)` spreads the `GraphError`, copies `path` to a fresh
+array (`[...err.path]`), and runs `originalError` through `safeSerializeValue`.
 
-Deserialize: spreads back, ensures `path` is an array. The `originalError` stays
-in its serialized form since the original `Error` instance cannot be
-reconstructed.
+`deserializeGraphError(obj)` spreads back, ensures `path` is an array
+(defaulting to `[]`), and keeps `originalError` in its serialized form -- the
+original `Error` instance cannot be reconstructed.
+
+### deepClone / stripComplexSchema / stripHandleNonSerializable / rehydrateHandleDataType
+
+(Internal to `serialization.ts`, used by `StateSerializer` and the importer.)
+
+- `deepClone(value)` tries `structuredClone`; on failure (e.g. functions, Zod
+  schemas) it falls back to `JSON.parse(JSON.stringify(...))` with a replacer
+  that drops functions and symbols. Callers must ensure JSON-safe input or strip
+  non-serializable fields first.
+- `stripComplexSchema(dataType)` returns a copy without `complexSchema`.
+- `stripHandleNonSerializable(handle)` deletes `onChange` and strips
+  `complexSchema` from `dataType.dataTypeObject` and
+  `inferredDataType.dataTypeObject`.
+- `rehydrateHandleDataType(handle, dataTypes)` re-attaches the live dataType
+  object (carrying its Zod schema) to a handle's `dataType` and
+  `inferredDataType`, keyed by `dataTypeUniqueId`.
+
+### serializePatch / serializeHistoryEntry
+
+**Location:** `src/utils/importExport/serialization.ts` › `serializePatch`
+
+Helpers for serializing undo/redo history (an Immer-patch subsystem). They make
+each Immer `Patch`'s `value` JSON-safe via `safeSerializeValue` and produce a
+`SerializedHistoryEntry` (`patches`, `inversePatches`, `actionType`,
+`timestamp`). These build on the
+[history subsystem](../core/stateManagementDoc.md#history-subsystem) defined in
+`src/components/organisms/FullGraph/historyTypes.ts`.
+
+> **Important:** these history helpers exist but are **not** currently wired
+> into any exporter. `StateSerializer.serialize` deletes `history` before
+> serialization, and `REPLACE_STATE` deletes any incoming `history`, so history
+> never round-trips today. The helpers are infrastructure for a future "Export
+> with History" path.
 
 ---
 
@@ -513,6 +750,9 @@ type ValidationIssue = {
 - **error**: Blocks import unless a matching repair strategy is enabled
 - **warning**: Informational; included in the result but does not block import
 
+Both `validateGraphStateStructure` and `validateExecutionRecordStructure` are
+exported on the public barrel for standalone use.
+
 ### ImportResult type
 
 ```ts
@@ -521,44 +761,98 @@ type ImportResult<T> =
   | { success: false; errors: ValidationIssue[]; warnings: ValidationIssue[] };
 ```
 
-Discriminated union on `success`. On failure, `errors` contains all unrepaired
-issues. On success, `warnings` may still contain informational issues (e.g.,
-count of repaired orphan edges).
+Discriminated union on `success`. On failure, `errors` contains the unrepaired
+issues (or a single envelope/parse error). On success, `warnings` may still
+contain informational issues (missing `exportedAt`, repaired-orphan counts,
+etc.).
 
 ---
 
 ## Integration with FullGraph
 
+The lifecycle is owned by the `useGraphImportExport` hook
+(`src/components/organisms/FullGraph/useGraphImportExport.tsx` ›
+`useGraphImportExport`), consumed by `FullGraph`.
+
 ### Context menu items
 
-`createImportExportMenuItems` (in
-`src/components/organisms/FullGraph/createImportExportMenuItems.ts`) builds a
-submenu under the right-click context menu:
+`createImportExportMenuItems`
+(`src/components/organisms/FullGraph/createImportExportMenuItems.ts` ›
+`createImportExportMenuItems`) returns a single top-level `ContextMenuItem`
+(with `separator: true`) whose `subItems` form the submenu:
 
 ```
 Import/Export (ArrowDownUpIcon)
-  +-- Export State      (FileOutputIcon)   -> handleExportState
-  +-- Import State      (FileInputIcon)    -> click hidden file input
-  +-- ---separator---
-  +-- Export Recording  (FileOutputIcon)   -> handleExportRecording
-  +-- Import Recording  (FileInputIcon)    -> click hidden file input
+  +-- Export State      (FileOutputIcon)   -> onExportState
+  +-- Import State      (FileInputIcon)    -> onImportState
+  +-- Export Recording  (FileOutputIcon, separator) -> onExportRecording
+  +-- Import Recording  (FileInputIcon)    -> onImportRecording
 ```
 
-The config object receives callbacks and a `closeMenu` function; each menu item
-calls its callback then closes the menu.
+The config object (`ImportExportMenuItemsConfig`) receives the four callbacks
+and a `closeMenu` function; every `onClick` calls its callback then
+`closeMenu()`.
 
-### Hidden file inputs
+### Hidden file inputs (FileInputElements)
 
-Two hidden `<input type="file" accept=".json">` elements are rendered inside
-`FullGraphWithReactFlowProvider`:
+The hook returns a `FileInputElements` React FC that renders two hidden
+`<input type="file" accept=".json" className="hidden">` elements, wired to
+`importStateInputRef` and `importRecordingInputRef`:
 
-| Ref                       | Purpose                                                                                                                     |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `importStateInputRef`     | Triggered by "Import State" menu item. On file select, reads text via `FileReader`, calls `handleImportState(text)`         |
-| `importRecordingInputRef` | Triggered by "Import Recording" menu item. On file select, reads text via `FileReader`, calls `handleImportRecording(text)` |
+| Ref                       | Purpose                                                                                                   |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `importStateInputRef`     | "Import State" target. On change, reads text via `FileReader` and calls `handleImportState(text)`         |
+| `importRecordingInputRef` | "Import Recording" target. On change, reads text via `FileReader` and calls `handleImportRecording(text)` |
 
 Both reset `e.target.value = ''` after reading so the same file can be
-re-imported.
+re-imported. The hook deliberately captures `onGraphEvent` in a ref
+(`onGraphEventRef`) so that parent re-renders don't recreate `FileInputElements`
+and detach the inputs between the menu click and the file selection.
+
+### handleImportState
+
+`handleImportState(json)` calls `importGraphState` with `state.dataTypes` /
+`state.typeOfNodes` as the live definitions and **all** repair strategies on
+(`removeOrphanEdges`, `removeDuplicateNodeIds`, `removeDuplicateEdgeIds`,
+`fillMissingDefaults`, `rehydrateDataTypeObjects`). On success it:
+
+1. Replaces the imported `dataTypes` and `typeOfNodes` with the live originals
+   (these are immutable type definitions that should never be the
+   schema-stripped JSON copies):
+   ```ts
+   const importedState = {
+     ...result.data,
+     dataTypes: state.dataTypes,
+     typeOfNodes: state.typeOfNodes,
+   };
+   ```
+2. Dispatches
+   `{ type: actionTypesMap.REPLACE_STATE, payload: { state: importedState } }`.
+   The reducer's `REPLACE_STATE` apply then `rehydrateAllZones` and deletes any
+   `history`.
+3. Calls `setReactFlowKey(k => k + 1)` to force a full ReactFlow remount, so
+   Handle registration happens in sync with edge rendering.
+4. Emits `GraphEvent { kind: 'ui:state:imported', success: true, state }` (via
+   the ref) and calls the optional `onStateImported(importedState)` prop.
+
+On failure it maps `result.errors` to `` `${e.path}: ${e.message}` `` strings,
+emits `{ kind: 'ui:state:imported', success: false, errors }`, and calls
+`onImportError(errors)`.
+
+### handleImportRecording
+
+`handleImportRecording(json)` calls `importExecutionRecord` with
+`{ repair: { sanitizeNonSerializableValues: true, removeOrphanSteps: true } }`.
+On success it feeds the deserialized record into the runner via
+`loadRecordRef.current(...)`, which returns a
+`RecordValidationResult { valid, warnings, errors }`:
+
+- If `!valid`, calls `onImportError(loadResult.errors)` and stops.
+- If `valid` with warnings, logs them via `console.warn` but still loads.
+- Emits `GraphEvent { kind: 'ui:recording:imported' }` and calls the optional
+  `onRecordingImported(result.data)` prop.
+
+On failure it maps errors and calls `onImportError`.
 
 ### downloadJson helper
 
@@ -576,38 +870,56 @@ function downloadJson(json: string, filename: string) {
 
 Creates a temporary object URL from a Blob, triggers a download via a
 programmatic `<a>` click, then revokes the URL. Default filenames:
-`graph-state.json` for state, `execution-recording.json` for recordings.
+`graph-state.json` for state, `execution-recording.json` for recordings. Both
+export handlers pass `{ pretty: true }`.
 
 ---
 
 ## Limitations and Deprecated Patterns
 
-1. **Non-serializable fields are lost during export.** `complexSchema` (Zod
-   instances), `onChange` callbacks, and other function/class-based fields are
-   stripped. On import, these must be supplied via the `dataTypes` and
-   `typeOfNodes` options.
+1. **UI-only state never round-trips.** `activeDrawer`, `zones`, `zoneIndex`,
+   and `history` are deleted on export. Zones are rebuilt on import
+   (`rehydrateAllZones`); history starts empty.
 
-2. **Live definitions required on import.** The importer cannot reconstruct Zod
-   schemas or callbacks from JSON. The `FullGraph` integration solves this by
-   replacing the entire imported `dataTypes` and `typeOfNodes` with the current
-   live originals (since these are immutable type definitions).
+2. **Non-serializable handle fields are lost during export.** `complexSchema`
+   (Zod instances) and `onChange` callbacks are stripped. On import they are
+   supplied via the `dataTypes`/`typeOfNodes` options (and in `FullGraph`, by
+   replacing those wholesale with the live originals).
 
-3. **Error objects are not fully round-trippable.** `GraphError.originalError`
-   is serialized to a structured representation but cannot be reconstructed as a
-   real `Error` instance on import. The serialized form
-   (`{ __type: "Error", name, message, stack }`) is preserved as-is.
+3. **Live definitions required on state import.** The importer cannot
+   reconstruct Zod schemas or callbacks from JSON. `importGraphState`'s
+   `options` is therefore mandatory.
 
-4. **Map fields are converted to Records.** `ReadonlyMap<string, T>` fields in
-   `ExecutionRecord` become `Record<string, T>` in JSON. On import, they are
-   converted back. Key ordering is not guaranteed to be preserved.
+4. **`rehydrateDataTypeObjects` is effectively always-on.** The flag exists in
+   the API for symmetry, but handle `dataTypeObject` rehydration runs
+   unconditionally.
 
-5. **Version is always `1`.** There is no migration system -- if the envelope
-   version changes, existing exports will fail validation.
+5. **Error objects are not fully round-trippable.** `GraphError.originalError`
+   is serialized to `{ __type: "Error", name, message, stack }` (or another safe
+   form) and preserved as-is on import; it is never rebuilt into a real `Error`.
 
-6. **ReactFlow remount on state import.** After a state import, `FullGraph`
-   increments a key on the `<ReactFlow>` component to force a full remount. This
-   is necessary because Handle registration must happen in sync with edge
-   rendering.
+6. **Switch records are lossy.** Top-level `switchRecords` is shallow-serialized
+   on export via `Object.fromEntries` and **reset to an empty Map on import**.
+   `nestedSwitchRecords` (on every `LoopIterationRecord` and `SwitchRecord`) is
+   likewise dropped -- `serializeLoopIterationRecord` never converts it, so the
+   `Map` serializes to `{}`. Loop and group records, by contrast, round-trip
+   recursively (their `stepRecords`, `nestedLoopRecords`, and `innerRecord` are
+   preserved).
+
+7. **Map fields become Records.** `ReadonlyMap<string, T>` fields in
+   `ExecutionRecord` become `Record<string, T>` in JSON and are converted back
+   on import; key ordering is not guaranteed.
+
+8. **History serialization is unwired.**
+   `serializePatch`/`serializeHistoryEntry` exist but no exporter calls them;
+   history is always stripped.
+
+9. **Version is always `1`.** There is no migration system -- a different
+   envelope version fails validation.
+
+10. **ReactFlow remount on state import.** After a state import, `FullGraph`
+    increments a key on `<ReactFlow>` (`setReactFlowKey`) to force a remount,
+    because Handle registration must happen in sync with edge rendering.
 
 ---
 
@@ -616,7 +928,7 @@ programmatic `<a>` click, then revokes the URL. Default filenames:
 ### Exporting and downloading graph state
 
 ```ts
-import { exportGraphState } from 'react-blender-nodes';
+import { exportGraphState } from '@theclearsky/react-blender-nodes';
 
 const json = exportGraphState(state, { pretty: true });
 // json is a string -- save to file, send to server, etc.
@@ -625,26 +937,37 @@ const json = exportGraphState(state, { pretty: true });
 ### Importing graph state with repair
 
 ```ts
-import { importGraphState } from 'react-blender-nodes';
+import {
+  importGraphState,
+  actionTypesMap,
+} from '@theclearsky/react-blender-nodes';
 
 const result = importGraphState(json, {
-  dataTypes: myDataTypes,
-  typeOfNodes: myTypeOfNodes,
+  dataTypes: myDataTypes, // live definitions (required)
+  typeOfNodes: myTypeOfNodes, // live definitions (required)
   onValidationError: (issue) => console.warn(issue.path, issue.message),
   repair: {
     removeOrphanEdges: true,
     removeDuplicateNodeIds: true,
+    removeDuplicateEdgeIds: true,
     fillMissingDefaults: true,
   },
 });
 
 if (result.success) {
-  // result.data is a valid State
-  // result.warnings may contain repair info
-  dispatch({ type: 'REPLACE_STATE', payload: { state: result.data } });
+  // Replace stripped JSON definitions with the live originals before dispatch.
+  const importedState = {
+    ...result.data,
+    dataTypes: myDataTypes,
+    typeOfNodes: myTypeOfNodes,
+  };
+  // REPLACE_STATE rehydrates zones and clears history inside applyPlan.
+  dispatch({
+    type: actionTypesMap.REPLACE_STATE,
+    payload: { state: importedState },
+  });
 } else {
-  // result.errors contains unrepaired validation issues
-  console.error(result.errors);
+  console.error(result.errors); // unrepaired validation issues
 }
 ```
 
@@ -654,7 +977,7 @@ if (result.success) {
 import {
   exportExecutionRecord,
   importExecutionRecord,
-} from 'react-blender-nodes';
+} from '@theclearsky/react-blender-nodes';
 
 // Export
 const json = exportExecutionRecord(record, { pretty: true });
@@ -665,7 +988,8 @@ const result = importExecutionRecord(json, {
 });
 
 if (result.success) {
-  runner.loadRecord(result.data);
+  const { valid, warnings, errors } = runner.loadRecord(result.data);
+  if (!valid) console.error(errors);
 }
 ```
 
@@ -675,7 +999,7 @@ if (result.success) {
 import {
   validateGraphStateStructure,
   validateExecutionRecordStructure,
-} from 'react-blender-nodes';
+} from '@theclearsky/react-blender-nodes';
 
 const parsed = JSON.parse(jsonString);
 const issues = validateGraphStateStructure(parsed);
@@ -687,36 +1011,42 @@ const warnings = issues.filter((i) => i.severity === 'warning');
 
 ## Relationships with Other Features
 
-### -> [State Management (REPLACE_STATE action)](../core/stateManagementDoc.md)
+### -> [State Management (REPLACE_STATE + zone rehydration)](../core/stateManagementDoc.md)
 
-On successful state import, `FullGraph` dispatches
+On successful state import, `useGraphImportExport` dispatches
 `actionTypesMap.REPLACE_STATE` with the rehydrated state (after replacing
-`dataTypes` and `typeOfNodes` with live originals). This is the only action type
-that wholesale replaces the graph state.
+`dataTypes`/`typeOfNodes` with live originals). This is the only action that
+wholesale replaces the graph state. Its `applyPlan` case
+(`src/utils/nodeStateManagement/planApply/applyPlan.ts` › `REPLACE_STATE`) calls
+`rehydrateAllZones(imported)` to rebuild `zones`/`zoneIndex` and
+`delete imported.history`. `REPLACE_STATE` is non-undoable.
 
 ### -> [Execution Recording (ExecutionRecord serialization)](../runner/executionRecordingDoc.md)
 
-The recording export/import system serializes the full `ExecutionRecord` type
-from the runner, including nested `LoopRecord`, `GroupRecord`,
-`ExecutionStepRecord`, and `GraphError` types. All `ReadonlyMap` fields are
-bidirectionally converted.
+The recording export/import serializes the full `ExecutionRecord` type from the
+runner (`src/utils/nodeRunner/types.ts` › `ExecutionRecord`), including nested
+`LoopRecord`, `LoopIterationRecord`, `GroupRecord`, `ExecutionStepRecord`,
+`GraphError`, `ConcurrencyLevelRecord`, and `RecordingViewState`. All
+`ReadonlyMap` fields are bidirectionally converted, except `switchRecords`,
+which is lossy.
 
 ### -> [Runner Hook (loadRecord)](../runner/runnerHookDoc.md)
 
 Recording import feeds the deserialized `ExecutionRecord` into the runner via
-`loadRecordRef.current(result.data)`. The runner's `loadRecord` method returns a
-`{ valid, errors, warnings }` result that the import handler checks before
-completing.
+`loadRecordRef.current(result.data)`. The runner's `loadRecord` returns a
+`RecordValidationResult` (`{ valid, warnings, errors }`) that the import handler
+checks before completing.
 
 ### -> [FullGraph (UI integration)](../ui/fullGraphDoc.md)
 
-`FullGraph` owns the import/export lifecycle: export callbacks, hidden file
-inputs, `downloadJson`, state replacement, and ReactFlow remount. The
-`onStateImported`, `onRecordingImported`, and `onImportError` props allow parent
-components to react to import events.
+`FullGraph` (via `useGraphImportExport`) owns the import/export lifecycle:
+export callbacks, hidden file inputs (`FileInputElements`), `downloadJson`,
+state replacement, ReactFlow remount, and `GraphEvent` emission. The
+`onStateImported`, `onRecordingImported`, and `onImportError` props (plus the
+unified `onGraphEvent` stream) let parent components react to import events.
 
 ### -> [Context Menu (menu items)](../ui/contextMenuDoc.md)
 
-`createImportExportMenuItems` returns `ContextMenuItem[]` that are spread into
-the context menu alongside the node-creation menu items. The import/export
-submenu is rendered with a separator from the node menu.
+`createImportExportMenuItems` returns a `ContextMenuItem[]` whose single entry
+(rendered with a separator) carries the Import/Export submenu, spread into the
+right-click context menu alongside the node-creation items.

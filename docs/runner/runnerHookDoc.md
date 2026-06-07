@@ -10,11 +10,29 @@ step-by-step mode), exposes control actions (`run`, `pause`, `resume`, `step`,
 `stop`, `reset`), maintains per-node visual states for graph overlays, and
 provides replay capabilities via `replayTo` and record loading via `loadRecord`.
 
-The hook is consumed by the `RunnerOverlay` component inside `FullGraph`, which
-provides the visual states to `FullGraphContext` so that `ConfigurableNode`
-instances can render `NodeStatusIndicator` overlays without prop drilling.
+The hook supports a **controlled or uncontrolled execution record**. When
+`executionRecord` is passed in (even `null`), the hook treats the record as
+controlled and reports every change up through `onExecutionRecordChange`;
+otherwise it owns the record in internal state.
 
-**Source file:** `src/utils/nodeRunner/useNodeRunner.ts`
+The hook is consumed by the `RunnerOverlay` component (its own file,
+`src/components/organisms/FullGraph/RunnerOverlay.tsx` › `RunnerOverlay`), which
+is rendered by `FullGraph` only when `functionImplementations` is provided.
+`RunnerOverlay` feeds the runner's visual states into a `RunnerContext.Provider`
+so that `ConfigurableNodeReactFlowWrapper` instances can render
+`NodeStatusIndicator` overlays without prop drilling.
+
+> **Packaging note (API surface):** `useNodeRunner` is exported from
+> `src/utils/nodeRunner/index.ts`, but `src/utils/index.ts` (the package's
+> public barrel) does **not** re-export `./nodeRunner`. So `useNodeRunner`,
+> `compile`, `execute`, `ExecutionRecorder`, etc. are **not** importable from
+> `'react-blender-nodes'`. The only supported public path to the runner is
+> `FullGraph`'s optional `functionImplementations` prop, which makes `FullGraph`
+> mount `RunnerOverlay` internally. The `ExecutionRecord` shape is reachable
+> indirectly through `FullGraph`'s `executionRecord` / `onExecutionRecordChange`
+> props and the import/export helpers.
+
+**Source file:** `src/utils/nodeRunner/useNodeRunner.ts` › `useNodeRunner`
 
 ---
 
@@ -31,41 +49,42 @@ instances can render `NodeStatusIndicator` overlays without prop drilling.
 │ - nodeWarnings       │                 │ fed to
 │ - nodeErrors         │                 v
 │ - executionRecord    │        ┌─────────────────────┐
-│ - currentStepIndex   │        │ FunctionImpl's      │
-│ - mode               │        │ (user-provided      │
-│ - maxLoopIterations  │        │  per node type)     │
-└──────┬───────────────┘        └─────────────────────┘
+│   (controlled OR     │        │ FunctionImpl's      │
+│    internal)         │        │ (user-provided      │
+│ - currentStepIndex   │        │  per node type)     │
+│ - mode               │        └─────────────────────┘
+│ - maxLoopIterations  │                 │
+└──────┬───────────────┘                 │ passed to
        │                                 │
-       │ calls                           │ passed to
-       v                                 v
-┌──────────────────┐           ┌──────────────────────┐
-│    Compiler      │──────────>│    Executor          │
-│    compile()     │  produces │    execute()         │
-│                  │  Exec.    │    executeStepByStep()│
-│  Produces:       │  Plan     │                      │
-│  ExecutionPlan   │           │  Produces:           │
-│  (IR with levels)│           │  ExecutionRecord     │
-└──────────────────┘           │  (steps, errors,     │
-                               │   timing, values)    │
-                               └──────────┬───────────┘
-                                          │
-                                          │ consumed by
-                                          v
-                               ┌──────────────────────┐
-                               │ RunnerOverlay        │
-                               │ (FullGraph child)    │
-                               │                      │
-                               │ Merges into:         │
-                               │ FullGraphContext     │
-                               │   .nodeRunnerStates  │
-                               └──────────┬───────────┘
-                                          │
-                                          v
-                               ┌──────────────────────┐
-                               │ ConfigurableNode     │
-                               │   NodeStatusIndicator│
-                               │   (border overlay)   │
-                               └──────────────────────┘
+       │ calls                           v
+       v                        ┌──────────────────────┐
+┌──────────────────┐            │    Executor          │
+│    Compiler      │──────────> │    execute()         │
+│    compile()     │  produces  │    executeStepByStep()│
+│                  │  Exec.     │                      │
+│  Produces:       │  Plan      │  Produces:           │
+│  ExecutionPlan   │            │  ExecutionRecord     │
+│  (IR with levels)│            │  (steps, errors,     │
+└──────────────────┘            │   timing, values)    │
+                                └──────────┬───────────┘
+                                           │
+                                           │ consumed by
+                                           v
+                                ┌──────────────────────┐
+                                │ RunnerOverlay        │
+                                │ (FullGraph child)    │
+                                │                      │
+                                │ Merges into:         │
+                                │ RunnerContext        │
+                                │   .nodeRunnerStates  │
+                                └──────────┬───────────┘
+                                           │
+                                           v
+                                ┌──────────────────────┐
+                                │ ConfigurableNode     │
+                                │   NodeStatusIndicator│
+                                │   (outline overlay)  │
+                                └──────────────────────┘
 ```
 
 ---
@@ -73,15 +92,29 @@ instances can render `NodeStatusIndicator` overlays without prop drilling.
 ## Functional Dependency Diagram
 
 ```
-useNodeRunner(state, functionImplementations, options)
+useNodeRunner({ state, functionImplementations, options,
+                executionRecord?, onExecutionRecordChange? })
+│
+├── controlled-record bridge
+│   ├── isControlled = executionRecord !== undefined
+│   ├── executionRecord = isControlled ? controlledRecord : internalRecord
+│   └── setExecutionRecord(record)
+│       ├── lastSetRecordRef.current = record   (distinguish own vs external)
+│       ├── if (!isControlled) setInternalRecord(record)
+│       └── onExecutionRecordChange?.(record)
+│
+├── external-sync effect (controlled only)
+│   └── on a TRULY external record change (not lastSetRecordRef):
+│       rebuild currentStepIndex / nodeErrors / nodeVisualStates / runnerState
 │
 ├── detectWarnings(state, functionImplementations)
-│   └── Runs on every state/impl change (useEffect)
+│   └── Runs on state.nodes / state.typeOfNodes / impl change (useEffect)
+│   └── Skips: isStandardNodeType, isLoopNode, isSwitchNode, group instances
 │   └── Produces: nodeWarnings Map<nodeId, string[]>
 │
 ├── compileGraph()
 │   └── compile(state, functionImplementations, { maxLoopIterations })
-│   └── Produces: ExecutionPlan | null
+│   └── Produces: ExecutionPlan | null  (null + 'errored' on throw)
 │
 ├── run() ─────────────────────────────────────────┐
 │   ├── mode === 'instant'  ──> runInstant()       │
@@ -101,9 +134,9 @@ useNodeRunner(state, functionImplementations, options)
 │                                                  │
 ├── resume() ──> drain generator until done/paused │
 │                                                  │
-├── stop() ──> abort + clear generator             │
+├── stop() ──> abort + terminateGenerator()        │
 │                                                  │
-├── reset() ──> abort + clear all state to idle    │
+├── reset() ──> abort + terminate + clear to idle  │
 │                                                  │
 ├── replayTo(stepIndex) ──────────────────────────┤
 │   └── computeVisualStatesAtStep(record, index)   │
@@ -113,15 +146,20 @@ useNodeRunner(state, functionImplementations, options)
 │   └── finalizeRun(record)                        │
 │                                                  │
 ├── finalizeRun(record) ──────────────────────────┤
+│   ├── setExecutionRecord(record)                 │
 │   ├── extractNodeErrors(record)                  │
 │   ├── Build final visual states from steps       │
-│   └── Set runnerState to completed/errored       │
+│   ├── terminateGenerator()                       │
+│   └── Set runnerState completed / errored         │
 │                                                  │
 ├── handleNodeStateChange(nodeId, vs)              │
 │   └── Updates liveVisualStatesRef (mutable map)  │
 │                                                  │
-└── flushVisualStates()                            │
-    └── Copies liveVisualStatesRef to React state  │
+├── flushVisualStates()                            │
+│   └── Copies liveVisualStatesRef to React state  │
+│                                                  │
+└── terminateGenerator()                           │
+    └── generator.return(undefined); generatorRef = null
 ```
 
 ---
@@ -165,12 +203,16 @@ useNodeRunner(state, functionImplementations, options)
                   │  └────┬─────┘  └────────┬─────────┘
                   │       │                 │
                   │       v                 v
-                  │  ┌──────────┐   ┌──────────────┐
-                  │  │ liveVis. │   │ finalizeRun  │
-                  │  │ StatesRef│   │ / replayTo   │
-                  │  └────┬─────┘   └──────┬───────┘
-                  │       │                │
-                  v       v                v
+                  │  ┌──────────┐  ┌─────────────────────┐
+                  │  │ liveVis. │  │ finalizeRun /        │
+                  │  │ StatesRef│  │ replayTo / step /    │
+                  │  └────┬─────┘  │ resume               │
+                  │       │        │   └─ setExecutionRec.│
+                  │       │        │       └─ onExecution │
+                  │       │        │          RecordChange│
+                  │       │        └──────────┬───────────┘
+                  │       │                   │
+                  v       v                   v
             ┌──────────────────────────────────────┐
             │     nodeVisualStates (React state)    │
             │     nodeWarnings    (React state)     │
@@ -180,14 +222,14 @@ useNodeRunner(state, functionImplementations, options)
                                v
             ┌──────────────────────────────────────┐
             │ RunnerOverlay merges into             │
-            │ FullGraphContext.nodeRunnerStates      │
+            │ RunnerContext.nodeRunnerStates         │
             └──────────────────┬───────────────────┘
                                │
                                v
             ┌──────────────────────────────────────┐
             │ ConfigurableNodeReactFlowWrapper      │
-            │   reads context -> NodeStatusIndicator│
-            │   (border color overlay per node)     │
+            │   reads RunnerContext                 │
+            │   -> NodeStatusIndicator (outline)    │
             └──────────────────────────────────────┘
 ```
 
@@ -198,12 +240,16 @@ useNodeRunner(state, functionImplementations, options)
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │ FullGraph Component                                                  │
+│  (mounts RecordContext.Provider for the controlled record)           │
 │                                                                      │
 │  ┌───────────────────────────────────────────────────────────────┐   │
 │  │ RunnerOverlay (rendered when functionImplementations exists)   │   │
+│  │  reads useRecordContext() for controlled executionRecord        │   │
 │  │                                                               │   │
 │  │  ┌─────────────────────────────────────┐                      │   │
 │  │  │       useNodeRunner Hook            │                      │   │
+│  │  │  (executionRecord + onExecution     │                      │   │
+│  │  │   RecordChange from RecordContext)  │                      │   │
 │  │  │                                     │                      │   │
 │  │  │  ┌───────────┐  ┌───────────┐       │                      │   │
 │  │  │  │ Compiler  │  │ Executor  │       │                      │   │
@@ -227,16 +273,18 @@ useNodeRunner(state, functionImplementations, options)
 │  │                 │ runner return values                         │   │
 │  │                 v                                             │   │
 │  │  ┌──────────────────────────────┐  ┌───────────────────────┐  │   │
-│  │  │ FullGraphContext.Provider    │  │ NodeRunnerPanel        │  │   │
+│  │  │ RunnerContext.Provider       │  │ NodeRunnerPanel        │  │   │
 │  │  │  .nodeRunnerStates (merged   │  │  RunControls          │  │   │
 │  │  │   visual + warnings + errs)  │  │  ExecutionTimeline    │  │   │
-│  │  └──────────────┬───────────────┘  │  ExecutionStepInsp.   │  │   │
-│  │                 │                  └───────────────────────┘  │   │
+│  │  │  .selectedStepRecord         │  │  ExecutionStepInsp.   │  │   │
+│  │  │  .edgeValuesAnimated         │  └───────────────────────┘  │   │
+│  │  └──────────────┬───────────────┘                             │   │
+│  │                 │                                             │   │
 │  │                 v                                             │   │
 │  │  ┌──────────────────────────────┐                             │   │
 │  │  │ ConfigurableNode instances   │                             │   │
 │  │  │   NodeStatusIndicator        │                             │   │
-│  │  │   (colored border overlay)   │                             │   │
+│  │  │   (colored outline overlay)  │                             │   │
 │  │  └──────────────────────────────┘                             │   │
 │  └───────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
@@ -245,6 +293,13 @@ useNodeRunner(state, functionImplementations, options)
 ---
 
 ## State Machine
+
+`RunnerState` is
+`'idle' | 'compiling' | 'running' | 'paused' | 'completed' | 'errored'` (defined
+as `runnerStates` in `src/utils/nodeRunner/types.ts` › `runnerStates`). Note
+there is **no distinct `'cancelled'` / `'stopped'` UI state**: both `stop()` and
+an execution record whose `status === 'cancelled'` map to `runnerState`
+`'errored'`.
 
 ```
                          reset() from ANY state
@@ -297,22 +352,67 @@ useNodeRunner(state, functionImplementations, options)
 
 ### All State Transitions
 
-| From        | To          | Trigger                                    |
-| ----------- | ----------- | ------------------------------------------ |
-| `idle`      | `compiling` | `run()` or `step()` called                 |
-| `compiling` | `running`   | Compilation succeeds                       |
-| `compiling` | `errored`   | Compilation throws                         |
-| `running`   | `paused`    | `pause()` called during step-by-step drain |
-| `running`   | `paused`    | Step completes in step-by-step mode        |
-| `running`   | `completed` | All steps finish without errors            |
-| `running`   | `errored`   | Execution throws or record has errors      |
-| `running`   | `errored`   | `stop()` called (aborts execution)         |
-| `paused`    | `running`   | `resume()` or `step()` called              |
-| `paused`    | `errored`   | Error during step or stop() called         |
-| `completed` | `idle`      | `reset()` called                           |
-| `errored`   | `idle`      | `reset()` called                           |
-| _any_       | `idle`      | `reset()` called                           |
-| _any_       | `errored`   | `stop()` called                            |
+| From        | To                           | Trigger                                                          |
+| ----------- | ---------------------------- | ---------------------------------------------------------------- |
+| `idle`      | `compiling`                  | `run()` or `step()` called                                       |
+| `compiling` | `running`                    | Compilation succeeds                                             |
+| `compiling` | `errored`                    | Compilation throws                                               |
+| `running`   | `paused`                     | `pause()` ends a `resume()` drain                                |
+| `running`   | `paused`                     | Step completes in step-by-step mode (after yield)                |
+| `running`   | `completed`                  | All steps finish, record `status !== 'cancelled'` and no errors  |
+| `running`   | `errored`                    | Execution throws, record has errors, or `status === 'cancelled'` |
+| `running`   | `errored`                    | `stop()` called (aborts execution)                               |
+| `paused`    | `running`                    | `resume()` or `step()` called                                    |
+| `paused`    | `errored`                    | Error during step or `stop()` called                             |
+| `completed` | `idle`                       | `reset()` called                                                 |
+| `errored`   | `idle`                       | `reset()` called                                                 |
+| _any_       | `idle`                       | `reset()` called                                                 |
+| _any_       | `errored`                    | `stop()` called                                                  |
+| _external_  | `completed`/`errored`/`idle` | Controlled record replaced from outside (sync effect)            |
+
+> The final row reflects the controlled-record sync effect: when a parent
+> replaces `executionRecord` with a different reference (one the hook did not
+> set itself), the hook recomputes `runnerState` from `record.status` /
+> `record.errors` (or `'idle'` when the new record is `null`).
+
+---
+
+## Hook Parameters
+
+```typescript
+type UseNodeRunnerParams = {
+  state: State; // graph: nodes, edges, typeOfNodes, dataTypes
+  functionImplementations: FunctionImplementations<NodeTypeUniqueId>;
+  options?: {
+    maxLoopIterations?: number; // default DEFAULT_MAX_LOOP_ITERATIONS (100)
+  };
+  /** Controlled execution record. When provided (even null), useNodeRunner
+   *  treats the record as controlled and reads it instead of internal state. */
+  executionRecord?: ExecutionRecord | null;
+  /** Called whenever the execution record changes (run completes, reset, load). */
+  onExecutionRecordChange?: (record: ExecutionRecord | null) => void;
+};
+```
+
+`state` and the hook itself are generic over
+`<DataTypeUniqueId, NodeTypeUniqueId, UnderlyingType, ComplexSchemaType>`.
+
+### Controlled vs. uncontrolled record
+
+- **Uncontrolled** (no `executionRecord` prop): the hook stores the record in
+  internal `useState` (`internalRecord`). `onExecutionRecordChange`, if present,
+  is still called on every change.
+- **Controlled** (`executionRecord` passed, including `null`): the hook reads
+  `controlledRecord` and never writes internal state. Every internal change is
+  pushed up through `onExecutionRecordChange`. A `lastSetRecordRef` records the
+  exact reference the hook last emitted so the sync effect can ignore
+  round-trips of the hook's own updates and only resync on a _truly external_
+  change.
+- **Lazy initial state**: `runnerState`, `nodeVisualStates`, `nodeErrors`, and
+  `currentStepIndex` are lazily seeded from the record. If a record is present
+  at mount, the hook starts in `'completed'` with visual states/errors computed
+  at the last step
+  (`computeVisualStatesAtStep(record, Math.max(0, steps.length - 1))`).
 
 ---
 
@@ -325,7 +425,7 @@ type UseNodeRunnerReturn = {
   nodeVisualStates: ReadonlyMap<string, NodeVisualState>; // Per-node: 'idle' | 'running' | 'completed' | 'errored' | 'skipped' | 'warning'
   nodeWarnings: ReadonlyMap<string, ReadonlyArray<string>>; // Per-node compilation warnings
   nodeErrors: ReadonlyMap<string, ReadonlyArray<GraphError>>; // Per-node runtime errors
-  executionRecord: ExecutionRecord | null; // Full record after execution
+  executionRecord: ExecutionRecord | null; // Controlled or internal record
   currentStepIndex: number; // Current replay/scrubber position
 
   // ── Actions ────────────────────────────────
@@ -341,10 +441,18 @@ type UseNodeRunnerReturn = {
   // ── Settings ───────────────────────────────
   mode: UseNodeRunnerMode; // 'instant' | 'stepByStep'
   setMode: (mode: UseNodeRunnerMode) => void;
-  maxLoopIterations: number; // Default: 100
+  maxLoopIterations: number; // Default: 100 (DEFAULT_MAX_LOOP_ITERATIONS)
   setMaxLoopIterations: (max: number) => void;
 };
 ```
+
+`useNodeRunner`, `computeVisualStatesAtStep`, and the types
+`UseNodeRunnerParams`, `UseNodeRunnerReturn`, `UseNodeRunnerMode`, and
+`RecordValidationResult` are exported from
+`src/utils/nodeRunner/useNodeRunner.ts` › `useNodeRunner`. (The index re-exports
+`useNodeRunner`, `computeVisualStatesAtStep`, and the first three types;
+`RecordValidationResult` is exported from the module file but not re-exported by
+`src/utils/nodeRunner/index.ts`.)
 
 ---
 
@@ -354,13 +462,16 @@ type UseNodeRunnerReturn = {
 
 In instant mode (`mode === 'instant'`), `run()` delegates to `runInstant()`:
 
-1. Clear all previous state (visual states, errors, record).
-2. Create a fresh `AbortController`.
+1. Clear all previous state (visual states, errors, record, step index).
+2. Abort any prior `AbortController`, then create a fresh one.
 3. Set `runnerState` to `'compiling'` and call `compileGraph()`.
 4. If compilation succeeds, set `runnerState` to `'running'`.
-5. Call `execute(plan, ...)` which runs all steps to completion asynchronously.
+5. Call
+   `execute(plan, functionImplementations, state, { onNodeStateChange, abortSignal })`
+   which runs all steps to completion asynchronously.
 6. On completion, call `finalizeRun(record)` which sets the final visual states,
-   extracts per-node errors, and transitions to `'completed'` or `'errored'`.
+   extracts per-node errors, terminates any generator, and transitions to
+   `'completed'` or `'errored'`.
 
 The user sees the graph go from idle to running to completed in one shot.
 Post-execution replay is available via the timeline scrubber calling
@@ -371,18 +482,23 @@ Post-execution replay is available via the timeline scrubber calling
 In step-by-step mode (`mode === 'stepByStep'`), `run()` delegates to
 `runStepByStep()`:
 
-1. Clear all previous state and create a fresh `AbortController`.
+1. Clear all previous state and recreate the `AbortController`.
 2. Set `runnerState` to `'compiling'` and call `compileGraph()`.
 3. If compilation succeeds, set `runnerState` to `'running'`.
-4. Call `executeStepByStep(plan, ...)` which returns an `AsyncGenerator`.
+4. Call `executeStepByStep(plan, functionImplementations, state, ...)` which
+   returns an `AsyncGenerator`, stored in `generatorRef`.
 5. Advance the generator by one step (`gen.next()`).
-6. If the step yields (not done), flush visual states and transition to
-   `'paused'`.
+6. If the step yields (not done), set the record/step index/visual states and
+   transition to `'paused'`. If the generator is already done (e.g. zero steps),
+   call `finalizeRun(result.value)`.
 7. The user can then call `step()` to advance one more step, `resume()` to
    auto-drain all remaining steps, or `pause()` to interrupt a drain.
 
 The `AsyncGenerator` yields `{ stepRecord, partialRecord }` after each step,
-giving the hook access to the in-progress record.
+giving the hook access to the in-progress record. After each yield the hook
+updates `executionRecord` (via `setExecutionRecord`, so controlled parents see
+the partial record too), `currentStepIndex`, and `nodeVisualStates` (via
+`computeVisualStatesAtStep(partialRecord, stepRecord.stepIndex)`).
 
 ---
 
@@ -395,10 +511,11 @@ run() ──> if mode === 'instant':    runInstant()
           if mode === 'stepByStep': runStepByStep()
 ```
 
-Starts a new execution from scratch. Clears all prior state. In the
-`RunnerOverlay`, when the runner is already `'paused'`, the UI's "Run" button
-calls `resume()` instead of `run()` to continue the current execution rather
-than starting over.
+Starts a new execution from scratch. Clears all prior state. In `RunnerOverlay`,
+when the runner is already `'paused'`, the panel's "Run" button calls `resume()`
+instead of `run()` (see `handleRun` in
+`src/components/organisms/FullGraph/RunnerOverlay.tsx` › `handleRun`) to
+continue the current execution rather than starting over.
 
 ### pause()
 
@@ -414,23 +531,24 @@ iteration. The loop exits and the state transitions to `'paused'`.
 ### resume()
 
 ```
-resume() ──> shouldContinueRef = true
+resume() ──> if no generator: return
+             shouldContinueRef = true
              setRunnerState('running')
              while (shouldContinueRef):
                gen.next()
-               flush visual states
                if done: finalizeRun(record); return
+               setExecutionRecord/StepIndex/VisualStates
              if loop exits: setRunnerState('paused')  // pause() was called
 ```
 
 Auto-drains the remaining steps from the `AsyncGenerator`. On each step, updates
-the execution record, step index, and flushes visual states to React. The drain
-stops when:
+the execution record, step index, and visual states. The drain stops when:
 
-- The generator completes (all steps done) -> `finalizeRun()`
+- The generator completes (all steps done) -> `finalizeRun()`.
 - `pause()` sets `shouldContinueRef` to `false` -> transitions back to
-  `'paused'`
-- An error occurs -> transitions to `'errored'`
+  `'paused'`.
+- An error occurs -> flush visual states, `terminateGenerator()`, transition to
+  `'errored'`.
 
 ### step()
 
@@ -440,12 +558,12 @@ step() ──> if no active generator:
            else:
              setRunnerState('running')
              gen.next()
-             if not done: setRunnerState('paused')
-             if done: finalizeRun(record)
+             if not done: setExecutionRecord/StepIndex/VisualStates; 'paused'
+             if done:     finalizeRun(record)
 ```
 
 Advances the execution by exactly one step. If no generator exists (first call
-or after reset), starts a fresh step-by-step run. Otherwise, calls `gen.next()`
+or after reset), starts a fresh step-by-step run. Otherwise calls `gen.next()`
 once and returns to `'paused'`.
 
 ### stop()
@@ -453,32 +571,35 @@ once and returns to `'paused'`.
 ```
 stop() ──> shouldContinueRef = false
            abortController.abort()
-           generatorRef = null
+           terminateGenerator()      // generator.return(undefined); ref = null
            flushVisualStates()
            setRunnerState('errored')
 ```
 
 Immediately aborts any in-flight execution. The `AbortSignal` propagates to the
-executor, which checks it between steps. The state transitions to `'errored'`
-(not `'idle'`) so that the user can see which nodes completed before the abort.
-Call `reset()` to return to `'idle'`.
+executor, which checks it between steps. The generator is terminated via
+`terminateGenerator()` (which calls `generator.return(undefined)` and nulls the
+ref). The state transitions to `'errored'` (not `'idle'`) so the user can see
+which nodes completed before the abort. Call `reset()` to return to `'idle'`.
 
 ### reset()
 
 ```
 reset() ──> shouldContinueRef = false
             abortController.abort()
-            generatorRef = null
+            terminateGenerator()
             liveVisualStatesRef = new Map()
             setRunnerState('idle')
             setNodeVisualStates(EMPTY)
             setNodeErrors(EMPTY)
-            setExecutionRecord(null)
+            setExecutionRecord(null)   // notifies controlled parent
             setCurrentStepIndex(0)
 ```
 
 Returns the hook to its initial state. Clears all visual states, errors, the
-execution record, and the step index. Can be called from any state.
+execution record (propagated up via `onExecutionRecordChange`), and the step
+index. Can be called from any state. (Note: `reset()` does not clear
+`nodeWarnings`; warnings are recomputed by the `detectWarnings` effect.)
 
 ---
 
@@ -496,11 +617,14 @@ points:
 2. **`handleNodeStateChange`** writes directly to `liveVisualStatesRef.current`
    (a plain `Map`), bypassing React re-renders.
 3. **`flushVisualStates()`** copies the mutable map into a new `Map` and calls
-   `setNodeVisualStates()`, triggering a React re-render.
+   `setNodeVisualStates()`, triggering a React re-render (guarded by
+   `isMountedRef`).
 4. Flush points:
-   - In step-by-step mode: after each step yields (before pausing).
-   - In instant mode: only on error (before setting `'errored'`).
-   - On `stop()`: before setting `'errored'`.
+   - In step-by-step mode: after each step yields, visual states are set via
+     `computeVisualStatesAtStep(partialRecord, stepRecord.stepIndex)` (not
+     `flushVisualStates`).
+   - In instant mode: only on error (`flushVisualStates()` before `'errored'`).
+   - On `stop()`: `flushVisualStates()` before `'errored'`.
    - On finalize: `finalizeRun()` builds the final visual states map from the
      complete record and sets it directly.
 
@@ -522,36 +646,47 @@ After execution completes, visual states are reconstructed on demand by
 replayTo(stepIndex: number) => void
 ```
 
+It no-ops if there is no `executionRecord`.
+
 ### Algorithm: `computeVisualStatesAtStep(record, stepIndex)`
 
-The function processes the execution record in three phases:
+The exported function processes the execution record in three phases:
 
 **Phase 1: Regular Step Records**
 
 For each step in `record.steps`:
 
-- `step.stepIndex < targetIndex` -> node is `'completed'` (or
-  `'errored'`/`'skipped'` based on step status)
-- `step.stepIndex === targetIndex` -> node is `'running'`
+- `step.stepIndex < targetIndex` -> node is `'completed'` (or `'errored'` /
+  `'skipped'` based on `step.status`).
+- `step.stepIndex === targetIndex` -> node is `'running'`.
 - `step.stepIndex > targetIndex` -> node is `'idle'` (only if not already set by
-  an earlier step, since a node can appear multiple times in loop iterations)
+  an earlier step, since a node can appear multiple times across loop
+  iterations).
 
 **Phase 2: Loop Structural Node Overrides**
 
 Loop triplet step records (LoopStart, LoopStop, LoopEnd) are appended AFTER body
 steps in the record (they have high stepIndex values). Without correction,
-they'd show as `'idle'` while the body replays. This phase:
+they'd show as `'idle'` while the body replays. This phase iterates
+`record.loopRecords` and, for each loop, scans all `iterations[].stepRecords` to
+find the body's `[minBody, maxBody]` index range (skipping loops with no body
+steps). If `targetIndex` falls within that range, it forces:
 
-- Collects all body step indices for each loop record.
-- If `targetIndex` falls within `[minBodyIndex, maxBodyIndex]`, sets LoopStart
-  and LoopStop to `'running'`.
-- LoopEnd stays `'idle'` (it represents the final output after the loop).
+- `loopRec.loopStartNodeId` -> `'running'`
+- `loopRec.loopStopNodeId` -> `'running'`
+- `loopRec.loopEndNodeId` stays `'idle'` (it represents the final output after
+  the loop).
 
 **Phase 3: Group Structural Node Overrides**
 
-Same logic as loops: group node step records are appended after inner steps. If
-`targetIndex` falls within the range of inner step indices, the group node shows
-as `'running'`.
+Same logic for groups: it iterates `record.groupRecords`, scans
+`groupRec.innerRecord.steps` for the inner `[minInner, maxInner]` range, and if
+`targetIndex` falls within it, sets the group node to `'running'`.
+
+> **Note:** there is no equivalent phase for **switch** structural nodes.
+> `computeVisualStatesAtStep` does not iterate `record.switchRecords`, so during
+> replay of a switch body the SwitchStart/SwitchEnd nodes are governed only by
+> their Phase-1 step records.
 
 ### Clamping
 
@@ -560,11 +695,12 @@ out-of-bounds access.
 
 ### State Updates
 
-`replayTo` updates both:
+`replayTo` updates:
 
-- `liveVisualStatesRef.current` (for consistency if execution resumes)
-- `nodeVisualStates` React state (triggers re-render)
-- `currentStepIndex` (drives the timeline scrubber position)
+- `currentStepIndex` (drives the timeline scrubber position),
+- `liveVisualStatesRef.current` (kept in sync for consistency if execution
+  resumes), and
+- `nodeVisualStates` React state (triggers re-render).
 
 ---
 
@@ -579,27 +715,40 @@ state and, if valid, loads it into the runner.
 
 ### Validation: `validateRecordAgainstGraph(record, state)`
 
-**Fatal errors** (prevent loading):
+**Fatal errors** (prevent loading; `valid: false`):
 
-- Record has zero steps (`record.steps.length === 0`)
+- Record has zero steps (`record.steps.length === 0`), message:
+  `"Recording has no execution steps."`
 
 **Warnings** (loading proceeds but issues are surfaced):
 
-- Steps reference node IDs not present in the current graph
-- Steps reference node type IDs not registered in `state.typeOfNodes`
-- Nodes in the current graph were not covered by any step in the record
+- Steps reference node IDs not present in the current graph.
+- Steps reference node type IDs not registered in `state.typeOfNodes`. Standard
+  node types, loop nodes (`isLoopNode`), and switch nodes (`isSwitchNode`) are
+  excluded from this check. Note that group instances (`subtree`) are **not**
+  excluded here — only from the unexecuted-nodes check below.
+- Nodes in the current graph were not covered by any step in the record (this
+  check additionally skips group-instance nodes alongside standard / loop /
+  switch nodes).
 
 ### Loading Process
 
 If validation passes (`result.valid === true`):
 
-1. Stop any in-flight execution (abort controller, clear generator).
+1. Stop any in-flight execution (`shouldContinueRef = false`, abort controller,
+   `terminateGenerator()`).
 2. Call `finalizeRun(record)` to load the record as if it had just completed:
-   - Sets `executionRecord` to the imported record.
+   - Sets `executionRecord` to the imported record (propagated to controlled
+     parents via `onExecutionRecordChange`).
    - Sets `currentStepIndex` to the last step.
    - Extracts per-node errors.
    - Builds final visual states from step statuses.
-   - Sets `runnerState` to `'completed'` or `'errored'` based on record status.
+   - Sets `runnerState` to `'errored'` when `record.status === 'cancelled'` or
+     `record.errors.length > 0`, else `'completed'`.
+
+> In `RunnerOverlay`, `loadRecord` is wrapped (via `loadRecordRef`) so that on a
+> valid load it also restores `record.viewState` (selected step, edge-value
+> animation, run mode, max loop iterations, etc.).
 
 ### Return Value
 
@@ -617,30 +766,45 @@ type RecordValidationResult = {
 
 ### RunnerOverlay Component
 
-`RunnerOverlay` (in `FullGraph.tsx`) is rendered only when
-`functionImplementations` is provided to `FullGraph`. It:
+`RunnerOverlay` (in `src/components/organisms/FullGraph/RunnerOverlay.tsx` ›
+`RunnerOverlay`) is rendered by `FullGraph` only when `functionImplementations`
+is provided (inside a `RecordingViewStateProvider` and an `ErrorBoundary`). It:
 
-1. Calls `useNodeRunner({ state, functionImplementations })`.
-2. Builds a merged `nodeRunnerStates` map from `runner.nodeVisualStates`,
+1. Reads the controlled record from `useRecordContext()`
+   (`{ executionRecord, setExecutionRecord }`), which `FullGraph` populates from
+   its own `executionRecord` / `onExecutionRecordChange` props.
+2. Calls
+   `useNodeRunner({ state, functionImplementations, executionRecord, onExecutionRecordChange })`.
+3. Builds a merged `nodeRunnerStates` map from `runner.nodeVisualStates`,
    `runner.nodeWarnings`, and `runner.nodeErrors` using `useMemo`.
-3. Provides a nested `FullGraphContext.Provider` with `nodeRunnerStates` so that
-   all child nodes can read their visual state from context.
-4. Renders `NodeRunnerPanel` with all runner state and callbacks.
-5. Exposes `executionRecord` and `loadRecord` to the parent via refs for
-   import/export.
+4. Provides a `RunnerContext.Provider` (value: `nodeRunnerStates`,
+   `selectedStepRecord`, `edgeValuesAnimated`) so child nodes can read their
+   visual state from context.
+5. Renders `NodeRunnerPanel` with all runner state and callbacks.
+6. Exposes a record getter via `onExecutionRecordRef` (merging the live
+   `viewState`) and `loadRecord` via `loadRecordRef` for import/export.
+7. Syncs the panel's `selectedStepIndex` (from `RecordingViewStateContext`) to
+   `runner.replayTo` and clears the selection when a new run starts
+   (`runnerState === 'compiling' | 'idle'`).
 
-### FullGraphContext nodeRunnerStates
+### RunnerContext nodeRunnerStates
 
 ```typescript
+// src/components/organisms/FullGraph/FullGraphState.ts
 type NodeRunnerState = {
   visualState: NodeVisualState;
   errors?: ReadonlyArray<GraphError>;
   warnings?: ReadonlyArray<string>;
 };
+
+type RunnerContextValue = {
+  nodeRunnerStates: ReadonlyMap<string, NodeRunnerState>;
+  selectedStepRecord: ExecutionStepRecord | null;
+  edgeValuesAnimated: boolean;
+};
 ```
 
-The `nodeRunnerStates` map (`Map<string, NodeRunnerState>`) is built by merging
-three sources:
+The `nodeRunnerStates` map is built by merging three sources:
 
 1. **Visual states**: Each node gets its `visualState` from
    `runner.nodeVisualStates`.
@@ -649,9 +813,15 @@ three sources:
 3. **Errors**: Nodes with errors get `errors` merged. If a node has errors but
    no visual state yet, it gets `visualState: 'errored'`.
 
-This merged map flows through context to `ConfigurableNodeReactFlowWrapper`,
-which reads it and passes the appropriate state to `NodeStatusIndicator` for
-rendering colored border overlays.
+This merged map flows through `RunnerContext` to
+`ConfigurableNodeReactFlowWrapper`, which reads it and passes the appropriate
+state to `NodeStatusIndicator` for rendering colored outline overlays.
+
+> `NodeRunnerState` and `RunnerContextValue` are exported from
+> `FullGraphState.ts`, which _is_ reachable from the package root barrel (via
+> `components -> organisms -> FullGraph -> FullGraphState`). This is the one
+> runner-adjacent type that is publicly importable, unlike the
+> `src/utils/nodeRunner` exports.
 
 ---
 
@@ -661,13 +831,19 @@ rendering colored border overlays.
 
 `detectWarnings()` runs as a `useEffect` whenever `state.nodes`,
 `state.typeOfNodes`, or `functionImplementations` change. For each node in the
-graph, it checks:
+graph, it:
 
-- Skip built-in types (standard nodes like `loopStart`, `loopStop`, etc.)
-- Skip loop nodes (`isLoopNode`)
-- Skip group node instances (their subtrees are checked by the compiler)
-- For remaining nodes: if `functionImplementations[nodeTypeId]` is missing, add
-  a warning: `"No function implementation for node type \"{name}\""`
+- Skips built-in standard node types (`isStandardNodeType` — the 7 types, in
+  source order: `groupInput`, `groupOutput`, `loopStart`, `loopEnd`, `loopStop`,
+  `switchStart`, `switchEnd`).
+- Skips loop nodes (`isLoopNode`).
+- Skips switch nodes (`isSwitchNode`).
+- Skips group node instances (`typeOfNode?.subtree`; their subtrees are checked
+  by the compiler).
+- For remaining nodes: if `functionImplementations[nodeTypeId]` is missing (no
+  key via `hasKey`, or a falsy value), it adds a warning:
+  `"No function implementation for node type \"{name}\""` (where `{name}` is the
+  type's display name, falling back to the type id).
 
 Warnings are stored in `nodeWarnings: Map<nodeId, string[]>` and appear as
 orange `'warning'` overlays on nodes **before** any execution occurs.
@@ -678,40 +854,63 @@ orange `'warning'` overlays on nodes **before** any execution occurs.
 objects) after execution completes, grouping them by `nodeId` into
 `nodeErrors: Map<nodeId, GraphError[]>`.
 
-Each `GraphError` contains:
+Each `GraphError` (see `src/utils/nodeRunner/types.ts` › `GraphError`) contains:
 
-- `message`: Human-readable description
-- `nodeId`, `nodeTypeId`, `nodeTypeName`: Identity of the errored node
-- `path`: Ordered list of nodes in the execution path leading to the error
-- `loopContext`: Loop iteration details (if inside a loop)
-- `groupContext`: Group nesting details (if inside a group)
-- `timestamp`, `duration`: Timing information
-- `originalError`: The original thrown error value
+- `message`: Human-readable description.
+- `nodeId`, `nodeTypeId`, `nodeTypeName`: Identity of the errored node.
+- `handleId?`: Handle where the error manifested, if applicable.
+- `path`: Ordered list of `GraphErrorPathEntry` (nodes in the execution path
+  leading to the error).
+- `loopContext?`: `{ loopStructureId, iteration, maxIterations }` if inside a
+  loop.
+- `groupContext?`: `{ groupNodeId, groupNodeTypeId, depth }` if inside a group.
+- `timestamp`, `duration`: Timing information (ms, relative to run start).
+- `originalError`: The original thrown error value.
 
 ---
 
 ## Limitations and Deprecated Patterns
 
+- **Runner not exported from package root**: `useNodeRunner` and the rest of
+  `src/utils/nodeRunner` are not re-exported by `src/utils/index.ts`, so they
+  cannot be imported from `'react-blender-nodes'`. Consume the runner through
+  `FullGraph`'s `functionImplementations` prop (and `executionRecord` /
+  `onExecutionRecordChange` for the controlled record).
 - **No breakpoint support**: The step-by-step mode pauses after every step.
   There is no mechanism to set breakpoints on specific nodes and run until a
   breakpoint is hit.
 - **No partial replay values**: `replayTo()` reconstructs visual states only. It
   does not reconstruct the `ValueStore` at the target step; the full
   `finalValues` snapshot is only available for the end state.
+- **No switch override during replay**: unlike loops and groups,
+  `computeVisualStatesAtStep` has no phase that forces SwitchStart/SwitchEnd to
+  `'running'` while a switch body replays.
 - **Single execution**: Only one execution can be active at a time. Starting a
   new `run()` clears the previous record.
+- **No distinct cancelled state**: `stop()` and a `'cancelled'` record status
+  both surface as `runnerState === 'errored'`; there is no separate
+  `'cancelled'` / `'stopped'` UI state.
 - **Mutable ref pattern**: `liveVisualStatesRef` is a mutable `Map` outside of
   React's state management. This is intentional for performance but means visual
   states during execution are not captured in React DevTools until flushed.
+- **Deprecated step fields**: `ExecutionStepRecord.parentLoopStructureId` and
+  `parentLoopIteration` are marked `@deprecated` in favor of hierarchical
+  `LoopIterationRecord.nestedLoopRecords`; the hook itself does not read them.
 
 ---
 
 ## Examples
 
+> The imports below use the internal source path `src/utils/nodeRunner` to
+> reflect that `useNodeRunner` is **not** re-exported from the package root
+> (`src/utils/index.ts` does not re-export `./nodeRunner`). In an application
+> you would normally pass `functionImplementations` to `FullGraph` and let it
+> mount the runner; these examples show the hook directly only for illustration.
+
 ### Basic Usage (Instant Mode)
 
 ```tsx
-import { useNodeRunner } from 'react-blender-nodes';
+import { useNodeRunner } from 'src/utils/nodeRunner';
 
 function MyRunner({ state, implementations }) {
   const runner = useNodeRunner({
@@ -766,6 +965,24 @@ function DebugRunner({ state, implementations }) {
 }
 ```
 
+### Controlled Execution Record
+
+```tsx
+function ControlledRunner({ state, implementations }) {
+  const [record, setRecord] = useState<ExecutionRecord | null>(null);
+
+  const runner = useNodeRunner({
+    state,
+    functionImplementations: implementations,
+    executionRecord: record, // controlled
+    onExecutionRecordChange: setRecord, // hook reports every change up
+  });
+
+  // `record` now mirrors runner.executionRecord and can be persisted/exported.
+  return <button onClick={runner.run}>Run</button>;
+}
+```
+
 ### Loading an Imported Record
 
 ```tsx
@@ -795,8 +1012,8 @@ function ImportPanel({ runner }) {
 `useNodeRunner` calls
 `compile(state, functionImplementations, { maxLoopIterations })` via its
 `compileGraph()` helper. The compiler produces an `ExecutionPlan` (the
-intermediate representation). If compilation throws, the hook transitions to
-`'errored'`.
+intermediate representation). If compilation throws, `compileGraph()` returns
+`null` and the hook transitions to `'errored'`.
 
 ### -> [Runner Executor](runnerExecutorDoc.md)
 
@@ -806,42 +1023,51 @@ The hook uses two executor entry points:
   mode.
 - `executeStepByStep(plan, ...)`: Returns
   `AsyncGenerator<{ stepRecord, partialRecord }, ExecutionRecord>`. Used in
-  step-by-step mode. Yields after each step for manual advancement.
+  step-by-step mode. Yields after each step for manual advancement. The hook
+  terminates an in-flight generator via `generator.return(undefined)`
+  (`terminateGenerator()`).
 
 ### -> [Execution Recording](executionRecordingDoc.md)
 
 The executor produces an `ExecutionRecord` containing all step records, timing
-data, errors, loop records, and group records. The hook stores this in
-`executionRecord` state and uses it for replay via `replayTo()` and for
-exporting via the `RunnerOverlay`'s ref mechanism.
+data (including `warmupDuration` and `totalPauseDuration`), errors, and
+`loopRecords` / `switchRecords` / `groupRecords` maps. The hook stores this in
+`executionRecord` state (controlled or internal) and uses it for replay via
+`replayTo()` and for exporting via `RunnerOverlay`'s `onExecutionRecordRef`.
 
 ### -> [FullGraph Component](../ui/fullGraphDoc.md)
 
 `FullGraph` conditionally renders `RunnerOverlay` when `functionImplementations`
-is provided. `RunnerOverlay` calls `useNodeRunner` and wires the results into
-`FullGraphContext` and `NodeRunnerPanel`.
+is provided, wraps it in a `RecordContext.Provider` (controlled record) and a
+`RecordingViewStateProvider`, and exposes the record via its own
+`executionRecord` / `onExecutionRecordChange` props.
 
 ### -> [NodeRunnerPanel](../ui/nodeRunnerPanelDoc.md)
 
 The `NodeRunnerPanel` organism receives all runner state and callbacks as props
 from `RunnerOverlay`:
 
-- `runnerState` -> enables/disables control buttons
-- `record` + `currentStepIndex` -> drives the `ExecutionTimeline`
-- `onRun`, `onPause`, `onStep`, `onStop`, `onReset` -> `RunControls` buttons
-- `onScrubTo` -> wired to `runner.replayTo`
-- `mode`, `onModeChange` -> mode toggle
-- `maxLoopIterations`, `onMaxLoopIterationsChange` -> settings
+- `runnerState` -> enables/disables control buttons.
+- `record` + `currentStepIndex` -> drives the `ExecutionTimeline`.
+- `onRun` (wrapped `handleRun`), `onPause`, `onStep`, `onStop`, `onReset` ->
+  `RunControls` buttons.
+- `onScrubTo` -> wired to `runner.replayTo`.
+- `onNavigateToNode` -> centers the canvas on a node.
+- `mode`, `onModeChange` -> mode toggle.
+- `maxLoopIterations`, `onMaxLoopIterationsChange` -> settings.
 
 ### -> [NodeStatusIndicator](../ui/nodeStatusIndicatorDoc.md)
 
-`NodeStatusIndicator` is rendered by `ConfigurableNodeReactFlowWrapper`, which
-reads `nodeRunnerStates` from `FullGraphContext`. Each node's `visualState`
-determines its border color overlay (green = completed, red = errored, blue =
-running, orange = warning, gray = skipped).
+`ConfigurableNodeReactFlowWrapper` reads `nodeRunnerStates` from `RunnerContext`
+(via `useContext`) and forwards the per-node `visualState` / `errors` /
+`warnings` as `runnerVisualState` / `runnerErrors` / `runnerWarnings` props to
+`ConfigurableNode`, which is what actually renders `NodeStatusIndicator`. Each
+node's `visualState` determines its outline color overlay (green = completed,
+red = errored, blue = running, orange = warning, gray = skipped).
 
 ### -> [State Management](../core/stateManagementDoc.md)
 
 The hook reads `State` (nodes, edges, typeOfNodes) but never writes to it. State
-mutations only happen through the `dispatch` function in `FullGraph`. The hook's
-`detectWarnings` effect re-runs when state changes, keeping warnings in sync.
+mutations only happen through the graph store's `dispatch` in `FullGraph`. The
+hook's `detectWarnings` effect re-runs when `state.nodes` / `state.typeOfNodes`
+change, keeping warnings in sync.

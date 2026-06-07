@@ -20,6 +20,7 @@ import {
 } from '@xyflow/react';
 import { isLoopConnectionValid } from './nodes/loops';
 import { generateRandomString } from '../randomGeneration';
+import { lengthOfIds } from './constants';
 import type { HandleIndices } from './handles/types';
 import { inferTypesAfterEdgeAddition } from './newOrRemovedEdgeValidation';
 import type { ConfigurableEdgeState } from '@/components/atoms/ConfigurableEdge/ConfigurableEdge';
@@ -33,9 +34,6 @@ import {
 } from './nodes/constructAndModifyNodes';
 import { getHandleFromNodeDataMatchingHandleId } from './handles/handleGetters';
 import { insertOrDeleteHandleInNodeDataUsingHandleIndices } from './handles/handleSetters';
-
-/** Length of generated random IDs for edges */
-const lengthOfIds = 20;
 
 /**
  * Adds a new edge between two handles with type checking and inference

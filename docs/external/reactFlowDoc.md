@@ -30,8 +30,9 @@ const nodeTypes = {
 ```
 
 `ConfigurableNodeReactFlowWrapper` receives `NodeProps<ConfigurableNodeState>`
-from ReactFlow, extracts the node `data` and `id`, looks up runner visual state
-from `FullGraphContext`, and renders the base `ConfigurableNode`.
+from ReactFlow, extracts the node `data` and `id`, looks up per-node runner
+visual state from `RunnerContext` (`runnerContext?.nodeRunnerStates?.get(id)`),
+and renders the base `ConfigurableNode` wrapped in an `ErrorBoundary`.
 
 All nodes in the graph use this single type. Differentiation between node kinds
 (logic gates, loops, groups, etc.) happens inside `ConfigurableNode` via the
@@ -72,44 +73,68 @@ onViewportChange={(viewport) =>
 ```
 
 Viewport state is stored in the main reducer alongside nodes and edges. On
-initial load, if `state.viewport` is `undefined`, `fitView` is called
-automatically:
+initial load, if `state.viewport` is `undefined`, the effect either calls
+`fitView` (when there are nodes to frame) or dispatches a default viewport (when
+the current view is empty):
 
 ```
 useEffect(() => {
   if (state.viewport === undefined) {
-    fitView({ maxZoom: 0.5, minZoom: 0.1 });
+    if (currentNodesAndEdges.nodes.length > 0) {
+      fitView({ maxZoom: 0.5, minZoom: 0.1 });
+    } else {
+      dispatch({
+        type: actionTypesMap.SET_VIEWPORT,
+        payload: { viewport: { x: 0, y: 0, zoom: 0.45 } },
+      });
+    }
   }
-}, [state.viewport]);
+}, [state.viewport, currentNodesAndEdges.nodes.length]);
 ```
 
-Zoom is constrained to `minZoom={0.1}` and `maxZoom={1}`.
+Zoom is constrained to `minZoom={0.1}` and `maxZoom={1}` on the `<ReactFlow>`
+component.
 
 ### Event Handling
 
 All ReactFlow events are routed through the central `dispatch`:
 
-| ReactFlow Prop     | Action Dispatched                | Purpose                                         |
-| ------------------ | -------------------------------- | ----------------------------------------------- |
-| `onNodesChange`    | `UPDATE_NODE_BY_REACT_FLOW`      | Position, selection, dimension changes          |
-| `onEdgesChange`    | `UPDATE_EDGES_BY_REACT_FLOW`     | Edge selection and removal                      |
-| `onConnect`        | `ADD_EDGE_BY_REACT_FLOW`         | New connection with type-checking + cycle check |
-| `onViewportChange` | `SET_VIEWPORT`                   | Zoom, pan updates                               |
-| `onBeforeDelete`   | (inline validation, no dispatch) | Validates loop node/edge deletion constraints   |
-| `onContextMenu`    | (local state, no dispatch)       | Opens context menu at click position            |
-| `onClick`          | (local state, no dispatch)       | Closes context menu                             |
+| ReactFlow Prop     | Action Dispatched             | Purpose                                                                                |
+| ------------------ | ----------------------------- | -------------------------------------------------------------------------------------- |
+| `onNodesChange`    | `UPDATE_NODE_BY_REACT_FLOW`   | Position, selection, dimension changes; also wraps drag with `BEGIN_BATCH`/`END_BATCH` |
+| `onEdgesChange`    | `UPDATE_EDGES_BY_REACT_FLOW`  | Edge selection and removal                                                             |
+| `onConnect`        | `ADD_EDGE_BY_REACT_FLOW`      | New connection with type-checking + cycle check                                        |
+| `onConnectEnd`     | (no dispatch; `onGraphEvent`) | Fires a `ui:drag:ended` graph event with `isValid`                                     |
+| `onViewportChange` | `SET_VIEWPORT`                | Zoom, pan updates                                                                      |
+| `onBeforeDelete`   | (no dispatch; `onGraphEvent`) | Validates loop node/edge deletion constraints; fires `ui:delete:attempted`             |
+| `onContextMenu`    | (local state, no dispatch)    | Opens context menu at click position                                                   |
+| `onClick`          | (local state, no dispatch)    | Closes context menu                                                                    |
 
-The reducer applies changes one-at-a-time in a loop (not batched) to ensure each
-change sees the latest state:
+`onNodesChange` detects drag start/end (`position` changes with
+`dragging: true`/`false`) and brackets the drag with `BEGIN_BATCH` / `END_BATCH`
+so the whole drag collapses into a single undo entry.
+
+`applyPlan` (the apply stage of the Validate → Plan → Apply pipeline) applies
+changes one-at-a-time in a loop (not batched) to ensure each change sees the
+latest state. The change objects are carried unmodified on the `Plan` produced
+by `validateAction`:
 
 ```
-for (const nodeChange of nodeChanges) {
-  newState = setCurrentNodesAndEdgesToStateWithMutatingState(
-    newState,
-    applyNodeChanges([nodeChange], getCurrentNodesAndEdgesFromState(newState).nodes),
-  );
+// applyPlan.ts, case 'UPDATE_NODES_RF'
+const currentView = getCurrentNodesAndEdgesFromState(draft);
+let updatedNodes = currentView.nodes;
+for (const change of changes) {
+  updatedNodes = applyNodeChanges([change], updatedNodes);
 }
+setCurrentNodesAndEdgesToStateWithMutatingState(draft, updatedNodes);
+// (then scoped zone cleanup + recomputeAllZoneMemberships for removed structures)
 ```
+
+Note: ReactFlow change objects do not map 1:1 to the project's actions. Several
+ReactFlow change types are filtered for undo/redo purposes — only `position` and
+`remove` node changes (and `removal` edge steps) create history entries;
+`select` and `dimensions` changes are applied but not recorded (see `isUndoable`
+in the Immer doc).
 
 ### Selection
 
@@ -127,15 +152,15 @@ selection box to be selected. The `'x'` key is included alongside
 
 ### Utility Functions Used
 
-| Function            | Import Location                                      | Usage                                                        |
-| ------------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
-| `addEdge`           | `constructAndModifyHandles.ts`                       | Adds edge with ReactFlow's built-in dedup check              |
-| `applyEdgeChanges`  | `mainReducer.ts`, `constructAndModifyHandles.ts`     | Applies edge change objects to edge array                    |
-| `applyNodeChanges`  | `mainReducer.ts`                                     | Applies node change objects to node array                    |
-| `getOutgoers`       | `constructAndModifyHandles.ts`, `loops/`             | DFS traversal for cycle detection and loop validation        |
-| `getIncomers`       | `loops/`                                             | Upstream traversal for loop validation                       |
-| `getConnectedEdges` | `newOrRemovedEdgeValidation.ts`                      | Finds all edges connected to a node for type inference reset |
-| `getBezierPath`     | `ConfigurableEdge.tsx`, `ConfigurableConnection.tsx` | Computes SVG bezier curve for edge rendering                 |
+| Function            | Import Location                                                                                                | Usage                                                            |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `addEdge`           | `constructAndModifyHandles.ts`, `planApply/validateAddEdge.ts`                                                 | Adds edge with ReactFlow's built-in dedup check                  |
+| `applyEdgeChanges`  | `planApply/applyPlan.ts`, `constructAndModifyHandles.ts`                                                       | Applies edge change objects to edge array                        |
+| `applyNodeChanges`  | `planApply/applyPlan.ts`                                                                                       | Applies node change objects to node array                        |
+| `getOutgoers`       | `constructAndModifyHandles.ts`, `nodes/loops/`, `nodes/switches/switchRegion.ts`, `zones/discoverZoneNodes.ts` | DFS traversal for cycle detection and loop/switch/zone discovery |
+| `getIncomers`       | `nodes/loops/`, `nodes/switches/switchRegion.ts`, `zones/discoverZoneNodes.ts`                                 | Upstream traversal for loop/switch/zone discovery                |
+| `getConnectedEdges` | `newOrRemovedEdgeValidation.ts`                                                                                | Finds all edges connected to a node for type inference reset     |
+| `getBezierPath`     | `ConfigurableEdge.tsx`, `ConfigurableConnection.tsx`                                                           | Computes SVG bezier curve for edge rendering                     |
 
 ### Components Used
 
@@ -150,16 +175,24 @@ selection box to be selected. The `'x'` key is included alongside
 | `Handle`            | `ContextAwareHandle.tsx`                             | Connection point on nodes                  |
 | `NodeResizeControl` | `NodeResizerWithMoreControls.tsx`                    | Resize handles for nodes                   |
 
+`ZoneFrameOverlay` (`src/components/molecules/ZoneFrameOverlay`) is also
+rendered as a child of `<ReactFlow>` (between `<Background />` and
+`<MiniMap />`). It is a project component — not a `@xyflow/react` export — but
+it reads ReactFlow's viewport store via `useStore` to draw loop/switch zone
+frames in flow space.
+
 ### Hooks Used
 
-| Hook                 | Location                                              | Usage                                                    |
-| -------------------- | ----------------------------------------------------- | -------------------------------------------------------- |
-| `useReactFlow`       | `FullGraph.tsx`, `ContextAwareInput.tsx`              | `screenToFlowPosition`, `fitView`                        |
-| `useNodeConnections` | `ConfigurableNode.tsx`, `ContextAwareHandle.tsx`      | Check if a handle is connected; enforce `maxConnections` |
-| `useNodesData`       | `ConfigurableEdge.tsx`, `ConfigurableConnection.tsx`  | Fetch source/target node data for handle colors          |
-| `useStoreApi`        | `ConfigurableEdge.tsx`                                | Access ReactFlow DOM node for IntersectionObserver root  |
-| `useConnection`      | `ConfigurableConnection.tsx`                          | Get in-progress connection source handle info            |
-| `useNodeId`          | `ContextAwareOpenButton.tsx`, `ContextAwareInput.tsx` | Get current node ID from ReactFlow context               |
+| Hook                     | Location                                             | Usage                                                    |
+| ------------------------ | ---------------------------------------------------- | -------------------------------------------------------- |
+| `useReactFlow`           | `FullGraph.tsx`, `RunnerOverlay.tsx`                 | `screenToFlowPosition`, `fitView`, `getNodes`            |
+| `useUpdateNodeInternals` | `FullGraph.tsx`                                      | Force handle re-measure after loop/switch/type edits     |
+| `useNodeConnections`     | `ConfigurableNode.tsx`, `ContextAwareHandle.tsx`     | Check if a handle is connected; enforce `maxConnections` |
+| `useNodesData`           | `ConfigurableEdge.tsx`, `ConfigurableConnection.tsx` | Fetch source/target node data for handle colors          |
+| `useStoreApi`            | `ConfigurableEdge.tsx`                               | Access ReactFlow DOM node for IntersectionObserver root  |
+| `useStore`               | `ZoneFrameOverlay.tsx`                               | Read viewport transform to position zone frames          |
+| `useConnection`          | `ConfigurableConnection.tsx`                         | Get in-progress connection source handle info            |
+| `useNodeId`              | `ContextAwareInput.tsx`                              | Get current node ID from ReactFlow context               |
 
 ## Type Integration
 
@@ -198,36 +231,48 @@ The component hierarchy is:
 ```
 FullGraph (exported component)
  |
- +-- ReactFlowProvider              <-- Required by @xyflow/react
+ +-- ReactFlowProvider                <-- Required by @xyflow/react
       |
-      +-- FullGraphContext.Provider  <-- Project-specific context (allProps + nodeRunnerStates)
+      +-- FullGraphContext.Provider    <-- Project-specific context ({ allProps })
            |
-           +-- FullGraphWithReactFlowProvider  <-- Uses useReactFlow() here
+           +-- RecordContext.Provider  <-- Controlled execution record
                 |
-                +-- <ReactFlow>
+                +-- FullGraphWithReactFlowProvider  <-- Uses useReactFlow() here
                      |
-                     +-- <Controls />
-                     +-- <Background />
-                     +-- <MiniMap pannable />
+                     +-- RunnerOverlay (only when functionImplementations is set)
+                          |          provides RunnerContext (nodeRunnerStates, etc.)
+                          +-- <ReactFlow>
+                               |
+                               +-- <Controls />
+                               +-- <Background />
+                               +-- <ZoneFrameOverlay />
+                               +-- <MiniMap pannable />
 ```
 
 `ReactFlowProvider` **must** wrap any component that calls `useReactFlow()`,
-`useNodeConnections()`, `useNodesData()`, `useStoreApi()`, etc. Since the actual
-`<ReactFlow>` component is rendered inside `FullGraphWithReactFlowProvider`, the
-provider must be at the `FullGraph` level.
+`useNodeConnections()`, `useNodesData()`, `useStoreApi()`, `useStore()`, etc.
+Since the actual `<ReactFlow>` component is rendered inside
+`FullGraphWithReactFlowProvider`, the provider must be at the `FullGraph` level.
 
-`FullGraphContext` carries the project's own state (`allProps`) and optional
-runner visual states (`nodeRunnerStates`). This allows deeply nested custom node
-components to access dispatch and state without prop drilling.
+`FullGraphContext` carries only the project's props (`{ allProps }`, built by
+`createContextValue`), which gives nested custom node components access to
+`dispatch` and `state` without prop drilling. Runner visual state
+(`nodeRunnerStates`, `selectedStepRecord`, `edgeValuesAnimated`) lives in a
+**separate** `RunnerContext`, provided by `RunnerOverlay` (only mounted when
+`functionImplementations` is passed). The controlled execution record lives in
+`RecordContext`.
 
 ## Anti-Patterns and Limitations
 
-### Do Not Bypass the Reducer for State Updates
+### Do Not Bypass the Dispatch Pipeline for State Updates
 
-All node/edge mutations **must** go through `dispatch`. Directly mutating the
+All node/edge mutations **must** go through `dispatch` (which runs
+`validateAction` → `applyValidatedAction` → `applyPlan`). Directly mutating the
 arrays passed to `<ReactFlow>` will desynchronize the project state (which
-includes type inference, loop validation, group stacks, etc.) from what
-ReactFlow renders.
+includes type inference, loop/zone validation, group stacks, undo/redo history,
+etc.) from what ReactFlow renders. With the external-store path
+(`useFullGraph`), state also lives in the store closure, not React — bypassing
+`dispatch` means subscribers are never notified.
 
 ### Handle Registration Timing (reactFlowKey)
 
@@ -253,10 +298,19 @@ prop will break zoom/pan or cause the viewport to reset on every render.
 
 ### Edge Removal Validation
 
-The reducer does **not** simply apply `applyEdgeChanges` for edge removals. It
-intercepts `remove` changes, runs `removeEdgeWithTypeChecking` to reset inferred
-types on affected handles, and only applies the removal if validation passes.
-Non-remove edge changes (selection, etc.) are applied directly.
+The pipeline does **not** simply apply `applyEdgeChanges` for edge removals.
+`validateAction` packages each edge change into an `EdgeChangeStep` (a
+discriminated union on `kind`): non-remove changes become
+`{ kind: 'passthrough' }`, while `remove` changes run
+`removeEdgeWithTypeChecking` (a pure function) to reset inferred types on
+affected handles, producing
+`{ kind: 'removal'; updatedNodes; updatedEdges; validation }`. `applyPlan` then
+applies passthroughs via `applyEdgeChanges` and applies removals only when
+`validation.isValid`. After edge changes, zone memberships are recomputed
+(`recomputeAllZoneMemberships`).
+
+**Source:** `planApply/validators.ts` (`UPDATE_EDGES_BY_REACT_FLOW` case),
+`planApply/applyPlan.ts` (`UPDATE_EDGES_RF` case)
 
 ### Performance with Many Nodes
 
@@ -301,8 +355,9 @@ ReactFlow to re-register types on every render.
 
 The project uses ReactFlow in fully controlled mode -- `nodes`, `edges`, and
 `viewport` are all passed as props and updated via `dispatch`. This gives the
-reducer full authority over state transitions, enabling validation, type
-inference, and undo/redo support.
+Validate → Plan → Apply pipeline full authority over state transitions, enabling
+validation (`validateAction`), type inference, zone enforcement, and undo/redo
+history (Immer patches) — all before the change reaches `<ReactFlow>`.
 
 ### screenToFlowPosition for Coordinate Transformation
 
@@ -364,9 +419,9 @@ Wraps ReactFlow's `Handle` component with custom shapes, colors, and
 
 ### -> [State Management (applyNodeChanges, applyEdgeChanges)](../core/stateManagementDoc.md)
 
-The reducer uses `applyNodeChanges` and `applyEdgeChanges` to translate
+`applyPlan` uses `applyNodeChanges` and `applyEdgeChanges` to translate
 ReactFlow's change objects into actual array mutations, with interception for
-validation on edge removals.
+validation on edge removals decided in `validateAction`.
 
 ### -> [Edges (addEdge, getOutgoers, getConnectedEdges)](../core/edgesDoc.md)
 
@@ -393,7 +448,8 @@ File                                                    Imports
 ---------------------------------------------------------------------------------------------
 FullGraph.tsx                                           ReactFlow, Background, Controls,
                                                         MiniMap, SelectionMode, XYPosition,
-                                                        ReactFlowProvider, useReactFlow
+                                                        ReactFlowProvider, useReactFlow,
+                                                        useUpdateNodeInternals
 
 FullGraph/types.ts                                      NodeChange, EdgeChange
                                                         (+ style.css)
@@ -401,6 +457,8 @@ FullGraph/types.ts                                      NodeChange, EdgeChange
 FullGraphContextMenu.tsx                                XYPosition
 
 FullGraph.stories.tsx                                   Position
+
+RunnerOverlay.tsx                                       useReactFlow
 
 ConfigurableEdge.tsx                                    BaseEdge, getBezierPath, useNodesData,
                                                         useStoreApi, EdgeProps, Edge
@@ -416,17 +474,25 @@ ConfigurableNodeReactFlowWrapper.tsx                    NodeProps, Node, XYPosit
 ContextAwareHandle.tsx                                  Position, Handle, HandleType,
                                                         useNodeConnections
 
-ContextAwareInput.tsx                                   useReactFlow, useNodeId
+ContextAwareInput.tsx                                   useNodeId
 
-ContextAwareOpenButton.tsx                              useNodeId
+molecules/ZoneFrameOverlay/ZoneFrameOverlay.tsx        useStore
 
 NodeResizerWithMoreControls.tsx                         NodeResizeControl, ControlLinePosition,
                                                         ControlPosition, NodeResizerProps
                                                         (@xyflow/system: ResizeControlVariant,
                                                          ResizeControlDirection)
 
-mainReducer.ts                                          applyEdgeChanges, applyNodeChanges,
-                                                        Connection, XYPosition, Viewport
+mainReducer.ts                                          Connection, XYPosition, Viewport
+
+graphEvent.ts                                           Connection, XYPosition (types)
+
+planApply/applyPlan.ts                                  applyNodeChanges, applyEdgeChanges,
+                                                        EdgeChange
+
+planApply/validateAddEdge.ts                            Connection, addEdge
+
+planApply/types.ts                                      Viewport, XYPosition
 
 constructAndModifyHandles.ts                            addEdge, applyEdgeChanges,
                                                         getOutgoers, EdgeChange
@@ -435,9 +501,21 @@ newOrRemovedEdgeValidation.ts                           getConnectedEdges
 
 nodes/constructAndModifyNodes.ts                        Position, XYPosition
 
-nodes/loops/                                            getOutgoers, getIncomers
+nodes/loops/loopStructure.ts, nodes/loops/loopRegion.ts getOutgoers, getIncomers
 
-createNodeContextMenu.ts                                XYPosition
+nodes/switches/switchRegion.ts                          getOutgoers, getIncomers
+
+zones/discoverZoneNodes.ts                              getOutgoers, getIncomers
+
+ContextMenu/createNodeContextMenu.ts,                   XYPosition
+ContextMenu/createLoopMenuItem.ts,
+ContextMenu/createSwitchMenuItem.ts
 
 nodeStateManagement/types.ts                            Viewport
 ```
+
+Note: `planApply/validators.ts` packages edge `remove` changes into
+`EdgeChangeStep`s but imports its `EdgeChange`-handling types from `./types` /
+`../constructAndModifyHandles` — it does **not** import from `@xyflow/react`
+directly. The test file `__tests__/.../mainReducer.test.ts` also imports
+`@xyflow/react`.

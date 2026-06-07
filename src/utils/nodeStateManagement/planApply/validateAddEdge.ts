@@ -1,7 +1,12 @@
 import type { State, SupportedUnderlyingTypes } from '../types';
 import type { z } from 'zod';
 import type { Connection } from '@xyflow/react';
-import type { AddEdgePlan, Result, ValidationError } from './types';
+import type {
+  AddEdgePlan,
+  InferencePlan,
+  Result,
+  ValidationError,
+} from './types';
 import { ok, err } from './types';
 import { addEdge } from '@xyflow/react';
 import { willAddingEdgeCreateCycle } from '../constructAndModifyHandles';
@@ -172,8 +177,8 @@ function validateAddEdge<
     ...state,
     nodes: view.nodes,
     edges: view.edges,
-    zones: view.zones,
-    zoneIndex: view.zoneIndex,
+    ...(view.zones !== undefined && { zones: view.zones }),
+    ...(view.zoneIndex !== undefined && { zoneIndex: view.zoneIndex }),
   };
 
   // 7. Loop validation
@@ -224,8 +229,8 @@ function validateAddEdge<
   }
 
   // 9. Inference plan
-  let inferencePlan = {
-    nodeDataReplacements: [] as Array<{ nodeId: string; newData: unknown }>,
+  let inferencePlan: InferencePlan = {
+    nodeDataReplacements: [],
   };
 
   if (state.enableTypeInference) {
@@ -233,14 +238,7 @@ function validateAddEdge<
       ...state,
       nodes: view.nodes,
       edges: view.edges,
-    } as Readonly<
-      State<
-        DataTypeUniqueId,
-        NodeTypeUniqueId,
-        UnderlyingType,
-        ComplexSchemaType
-      >
-    >;
+    };
 
     const inferenceResult = planInferenceForEdgeAddition(
       stateForView,
@@ -266,12 +264,7 @@ function validateAddEdge<
     ...state,
     nodes: view.nodes,
     edges: view.edges,
-  } as State<
-    DataTypeUniqueId,
-    NodeTypeUniqueId,
-    UnderlyingType,
-    ComplexSchemaType
-  >;
+  };
 
   const projectedState = applyInferencePlanToProjection(
     stateForView,

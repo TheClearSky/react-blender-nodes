@@ -574,6 +574,46 @@ function isSerializedExecutionRecord(
   );
 }
 
+// ─────────────────────────────────────────────────────
+// Immer patch serialization (for undo/redo export)
+// ─────────────────────────────────────────────────────
+
+import type { Patch } from 'immer';
+import type {
+  HistoryEntry,
+  SerializedHistoryEntry,
+  SerializedPatch,
+} from '@/components/organisms/FullGraph/historyTypes';
+
+/**
+ * Make an Immer patch JSON-safe by running its `value` through
+ * `safeSerializeValue` (strips Zod schemas, callbacks, etc.).
+ * `remove` patches have no value and pass through unchanged.
+ */
+function serializePatch(patch: Patch): SerializedPatch {
+  const serialized: SerializedPatch = {
+    op: patch.op,
+    path: patch.path,
+  };
+  if ('value' in patch && patch.value !== undefined) {
+    serialized.value = safeSerializeValue(patch.value);
+  }
+  return serialized;
+}
+
+/**
+ * Serialize a HistoryEntry for inclusion in an exported JSON file.
+ * Strips non-serializable values from all patch data.
+ */
+function serializeHistoryEntry(entry: HistoryEntry): SerializedHistoryEntry {
+  return {
+    patches: entry.patches.map(serializePatch),
+    inversePatches: entry.inversePatches.map(serializePatch),
+    actionType: entry.actionType,
+    timestamp: entry.timestamp,
+  };
+}
+
 export {
   mapToRecord,
   recordToReadonlyMap,
@@ -587,6 +627,8 @@ export {
   stripComplexSchema,
   stripHandleNonSerializable,
   rehydrateHandleDataType,
+  serializePatch,
+  serializeHistoryEntry,
 };
 
 export type { SerializedExecutionRecord, SerializedGraphError };

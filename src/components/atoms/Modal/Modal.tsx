@@ -64,6 +64,10 @@ const modalContentVariants = cva(
         sm: 'max-w-[360px]',
         md: 'max-w-[480px]',
         lg: 'max-w-[640px]',
+        // Large, near-viewport modal with a backdrop margin (NOT literally
+        // edge-to-edge). Overrides the base w-[calc(100%-2rem)] and the
+        // inherited max-width; the base still centers and caps at max-h-[85vh].
+        fullscreen: 'w-[90vw] h-[85vh] max-w-none',
       },
     },
     defaultVariants: { size: 'md' },

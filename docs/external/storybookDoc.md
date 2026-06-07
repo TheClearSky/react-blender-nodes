@@ -22,15 +22,14 @@ running on the same Vite build pipeline as the library itself.
 |  | Button   |   | RunControls|   | FullGraph |             |
 |  | Input    |   | ContextMenu|   | Configur- |             |
 |  | Checkbox |   | Select     |   |  ableNode |             |
-|  | Badge    |   | SliderNum  |   | NodeRunner|             |
-|  | Separator|   | ExecTime-  |   |  Panel    |             |
-|  | Collapsi-|   |  line      |   +-----------+             |
-|  |  ble     |   | ExecStep-  |                             |
-|  | NodeStat-|   |  Inspector |                             |
-|  |  usInd.  |   +------------+                             |
-|  | Scrollab-|                                              |
-|  |  leBtnC. |                                              |
-|  +----------+                                              |
+|  | Accordion|   | SliderNum  |   | NodeRunner|             |
+|  | Modal    |   | ExecTime-  |   |  Panel    |             |
+|  | Tooltip  |   |  line      |   +-----------+             |
+|  | NodeStat-|   | ExecStep-  |                             |
+|  |  usInd.  |   |  Inspector |                             |
+|  | Scrollab-|   | ColorPicker|                             |
+|  |  leBtnC. |   | DragList...|                             |
+|  +----------+   +------------+                             |
 |                                                            |
 |  Addons: autodocs | a11y | vitest | test-codegen           |
 +-----------------------------------------------------------+
@@ -42,11 +41,13 @@ running on the same Vite build pipeline as the library itself.
 
 ```
 .storybook/
-  main.ts              -- Story discovery, addons, framework, Vite overrides
-  preview.ts           -- Global decorators, parameters, CSS imports
-  preview-head.html    -- Custom <style> for full-screen layout
-  manager.ts           -- Storybook UI theme (dark mode)
+  main.ts              -- Story discovery, addons, framework, staticDirs, Vite overrides
+  preview.ts           -- Global parameters, story sort, docs theme, CSS imports
+  preview-head.html    -- Favicon link + custom <style> for full-screen layout
+  manager.ts           -- Storybook UI theme (dark mode) + addon-panel collapse
+  manager-head.html    -- Manager-side <head> injection
   vitest.setup.ts      -- Portable stories setup for Vitest integration
+  static/              -- Static assets served by Storybook (favicon, graph states, colorpicker)
 ```
 
 ### main.ts
@@ -61,9 +62,12 @@ The main configuration file defines:
   - `@storybook/addon-vitest` -- In-browser test runner integration
   - `storybook-addon-test-codegen` -- Test code generation from interactions
 - **Framework**: `@storybook/react-vite`
+- **Static dirs**: `staticDirs: ['./static']` -- serves `.storybook/static`
+  (favicon, prebuilt graph-state JSON, color-picker logo HTML)
 - **Telemetry**: Disabled (`core.disableTelemetry: true`)
-- **Vite override**: Strips the `vite:dts` plugin (declaration generation is
-  unnecessary in Storybook builds)
+- **Vite override**: `viteFinal` strips the `vite:dts` plugin via
+  `withoutVitePlugins` (declaration generation is unnecessary in Storybook
+  builds)
 
 ### preview.ts
 
@@ -73,7 +77,12 @@ library.
 
 Parameters:
 
+- **docs.theme**: A dark docs theme created via `create({ base: 'dark' })` from
+  `storybook/theming`
+- **options.storySort**: Explicit sidebar order
+  `['Interactive Fun🎉', 'Atoms', 'Molecules', 'Organisms', '*']`
 - **controls.matchers**: Auto-detects color and date controls via regex
+  (`color: /(background|color)$/i`, `date: /Date$/i`)
 - **a11y.test**: Set to `'todo'` (shows violations in UI only, does not fail CI)
 
 ### preview-head.html
@@ -84,7 +93,11 @@ story to fill the entire viewport for realistic graph editing.
 
 ### manager.ts
 
-Sets the Storybook manager UI to the built-in dark theme (`themes.dark`).
+Sets the Storybook manager UI to a custom dark theme built with
+`create({ base: 'dark', brandTitle: 'react-blender-nodes', brandImage: '/favicon.svg' })`
+from `storybook/theming`. It also registers a `collapse-panel` addon that
+collapses the bottom addon panel on first load
+(`api.setSizes({ bottomPanelHeight: 0 })`).
 
 ### vitest.setup.ts
 
@@ -98,30 +111,36 @@ running component stories as Vitest tests outside of the browser.
 
 Atoms are the smallest UI primitives. Their stories follow a consistent pattern:
 
-| Component                     | Stories                                                                                                                  | Pattern Notes                            |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
-| **Button**                    | Playground, AdjustableParentWidth                                                                                        | Uses `fn()` for click actions            |
-| **Input**                     | Playground, AllowOnlyNumbers, Controlled, ControlledAllowOnlyNumbers, AdjustableParentWidth                              | Uses `useArgs()` for controlled state    |
-| **Checkbox**                  | Playground, Disabled, Controlled                                                                                         | Uses `useArgs()` for controlled state    |
-| **Badge**                     | Playground, AllVariants                                                                                                  | Variant gallery via render function      |
-| **Separator**                 | Horizontal, Vertical                                                                                                     | Orientation showcase                     |
-| **Collapsible**               | Default                                                                                                                  | Compound component (Trigger + Content)   |
-| **NodeStatusIndicator**       | Playground, Idle, Running, Completed, Errored, Skipped, Warning, ErroredWithMultipleErrors, AllStates, InteractiveCycler | State gallery + interactive state cycler |
-| **ScrollableButtonContainer** | Playground, HorizontalAdjustableWidth, Vertical, Disabled                                                                | Orientation + constraint testing         |
+| Component                     | Stories                                                                                                                                   | Pattern Notes                                                                       |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| **Button**                    | Playground, AdjustableParentWidthWithFullWidth                                                                                            | Uses `fn()` for click actions                                                       |
+| **Input**                     | Playground, AllowOnlyNumbers, Controlled, ControlledAllowOnlyNumbers, AdjustableParentWidthWithFullWidth                                  | Uses `useArgs()` for controlled state                                               |
+| **Checkbox**                  | Playground, Disabled, Controlled                                                                                                          | Uses `useArgs()` for controlled state                                               |
+| **Accordion**                 | Single, Multiple, AllCollapsed                                                                                                            | Compound component (Item/Trigger/Content) on `@radix-ui`                            |
+| **Modal**                     | Basic, Sizes, Scrollable                                                                                                                  | Compound dialog (Trigger/Content/Header/Body/Footer/Close); no `tags: ['autodocs']` |
+| **Tooltip**                   | Default, WithoutInfoIcon, PlacementTop, PlacementRight, RichContent, StructuredContent, IconTrigger, IconWithText, NarrowWidth, WideWidth | Floating-ui based; ReactNode content + placement gallery                            |
+| **NodeStatusIndicator**       | Playground, Idle, Running, Completed, Errored, Skipped, Warning, ErroredWithMultipleErrors, AllStates, InteractiveCycler                  | State gallery + interactive state cycler                                            |
+| **ScrollableButtonContainer** | Playground, HorizontalAdjustableWidth, Vertical, Disabled                                                                                 | Orientation + constraint testing                                                    |
 
 **Common atom story conventions:**
 
-1. **Playground story**: Nearly every atom exports a `Playground` story as the
-   default interactive sandbox (often just `{}`).
-2. **`tags: ['autodocs']`**: All atom stories include the autodocs tag, enabling
-   auto-generated documentation pages.
+1. **Playground story**: Most simple atoms export a `Playground` story as the
+   default interactive sandbox (often just `{}`). Compound atoms (Accordion,
+   Modal, Tooltip) instead lead with a named scenario (`Single`, `Basic`,
+   `Default`).
+2. **`tags: ['autodocs']`**: Most atom story files include the autodocs tag,
+   enabling auto-generated documentation pages. (The Modal story file is an
+   exception and does not set the tag.)
 3. **`satisfies Meta<...>`**: Type-safe meta definitions using the `satisfies`
    keyword with component prop types.
 4. **`fn()` from `storybook/test`**: Used for action-logged callback props
    (onClick, onChange, etc.).
-5. **`useArgs()` pattern**: For controlled components (Checkbox, Input), stories
-   use `useArgs()` from `storybook/internal/preview-api` to sync Storybook
-   controls with component state.
+5. **`useArgs()` pattern**: For controlled components, stories use `useArgs()`
+   to sync the Storybook controls panel with component state. The import path is
+   not consistent across files: Checkbox and Input import from the internal
+   `storybook/internal/preview-api`, while SliderNumberInput and ButtonToggle
+   import from the public `storybook/preview-api`. The public path is preferred
+   (see Anti-Pattern #1).
 6. **AdjustableParentWidth story**: Several atoms include a story with a
    `parentWidth` range control and `parentBorder` toggle to test responsive
    behavior within constrained containers.
@@ -137,15 +156,23 @@ tend to be richer, with mock data factories and multi-state showcases.
 | **ExecutionTimeline**      | Playground, NoRecord, LinearExecution, ConcurrentExecution, LargeGraph, WithErrors, WithSelectedStep, StressTestLong, InteractiveDemo, FullyCompleted                                                                                                                              | Mock data factories, zoom/pan stress test            |
 | **ExecutionStepInspector** | Playground, NoStep, CompletedStep, ErroredStep, SkippedStep, InsideLoop, InsideGroup, MultipleConnections, DefaultInputValues, RichInputsAndOutputs, DeepComplexValues, HideComplexValuesEnabled, DebugModeEnabled, DebugModeWithComplexData, AllStatuses, InteractiveStepSwitcher | Extensive mock data covering all execution scenarios |
 | **ContextMenu**            | Playground, WithIcons, DeepNesting, ActionsMenu, InteractiveExample                                                                                                                                                                                                                | Recursive submenu structure, shortcut display        |
-| **Select**                 | Playground, Controlled, WithGroups, WithSeparators, Disabled, WithDefaultValue, CustomStyling, InteractiveExample, AdjustableParentWidth                                                                                                                                           | Radix UI compound component pattern                  |
-| **SliderNumberInput**      | Playground, AdjustableParentWidth                                                                                                                                                                                                                                                  | Uses `useArgs()` for value sync                      |
+| **Select**                 | Playground, Controlled, WithDeselect, WithUnsupportedValue, WithGroups, WithSeparators, Disabled, WithDefaultValue, AdjustableParentWidth                                                                                                                                          | Custom floating-ui compound component pattern        |
+| **SliderNumberInput**      | Playground, AdjustableParentWidthWithFullWidth, SizeComparison, SmallInteger, SmallFloat, EdgeCaseSmallValue, EdgeCaseZeroValue, NoConstraints, WithRange, SmallWithRange                                                                                                          | Uses `useArgs()` for value sync; edge-case gallery   |
+| **ButtonToggle**           | (see `ButtonToggle.stories.tsx`)                                                                                                                                                                                                                                                   | Two-state toggle button                              |
+| **ColorPicker**            | (see `ColorPicker.stories.tsx`)                                                                                                                                                                                                                                                    | OKLCH color picker popover                           |
+| **DragList**               | (see `DragList.stories.tsx`)                                                                                                                                                                                                                                                       | Reorderable drag-and-drop list                       |
+| **PresetModal**            | (see `PresetModal.stories.tsx`)                                                                                                                                                                                                                                                    | Built on the Modal atom                              |
+| **NodeTypeEditDrawer**     | (see `NodeTypeEditDrawer.stories.tsx`)                                                                                                                                                                                                                                             | Node-type editing drawer                             |
+| **BlockTooltipContent**    | (in `ExecutionTimeline/SupportingSubcomponents/SupportingSubcomponents.stories.tsx`, titled `Molecules/BlockTooltipContent`)                                                                                                                                                       | Timeline block tooltip content                       |
 
 **Common molecule story conventions:**
 
-1. **Mock data factories**: Complex molecules like ExecutionTimeline and
-   ExecutionStepInspector define helper functions (`makeStep`, `makeRecord`,
-   `conn`, `inputWith`, `output`) at the top of the story file to build
-   realistic mock data without repetition.
+1. **Mock data factories**: Complex runner molecules define helper functions at
+   the top of the story file to build realistic mock data without repetition.
+   Each file declares only the subset it needs: ExecutionTimeline defines
+   `makeStep` and `makeRecord`; ExecutionStepInspector defines `conn`,
+   `inputWith`, and `output`; the NodeRunnerPanel organism story declares all
+   five (`conn`, `inputWith`, `output`, `makeStep`, `makeRecord`).
 2. **Multiple scenario variants**: Runner-related molecules include stories for
    every state in the runner state machine (idle, compiling, running, paused,
    completed, errored).
@@ -164,8 +191,8 @@ playgrounds combining multiple atoms and molecules.
 
 | Component            | Stories                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **FullGraph**        | Playground, WithControlledInputs, WithHandleShapes, WithTypeCheckingAndConversions, WithCycleChecking, WithRunner, FullAdderCircuit, RippleCarryAdder, LoopCounterCircuit                                                                                                                                                                                                                                                                                                                         |
-| **ConfigurableNode** | Playground, WithInputsAndOutputs, WithCollapsiblePanels, WithInputComponents, WithInputComponentsInPanels, AdjustableParentWidth, AllHandleShapesAsInputs, AllHandleShapesAsOutputs                                                                                                                                                                                                                                                                                                               |
+| **FullGraph**        | Playground, WithControlledInputs, WithHandleShapes, WithTypeCheckingAndConversions, WithCycleChecking, WithRunner, EmptyRunnerPlayground, FullAdderCircuit, RippleCarryAdder, LoopCounterCircuit, CustomInputComponents                                                                                                                                                                                                                                                                           |
+| **ConfigurableNode** | Playground, WithInputsAndOutputs, WithCollapsiblePanels, WithInputComponents, WithInputComponentsInPanels, AdjustableParentWidthWithFullWidth, AllHandleShapesAsInputs, AllHandleShapesAsOutputs                                                                                                                                                                                                                                                                                                  |
 | **NodeRunnerPanel**  | IdleNoRecord, CompletedHalfAdder, CompletedLargePipeline, ErroredExecution, LoopExecution, GroupExecution, PausedStepByStep, Running, Compiling, FullAdderExecution, RippleCarryAdderExecution, NestedGroupExecution, LoopWithErrorExecution, LoopInsideGroupExecution, AllStatesComparison, InteractiveLifecycle, InteractiveReplay, InteractiveErrorInspection, InteractiveLoopReplay, InteractiveGroupReplay, InteractiveDisplayOptions, InteractiveModeSwitching, InteractiveScenarioSwitcher |
 
 **Organism story conventions:**
@@ -181,7 +208,7 @@ playgrounds combining multiple atoms and molecules.
    `PlaygroundState1.json` for rapid scenario setup.
 4. **Full-screen layout**: The `preview-head.html` styles ensure FullGraph
    stories occupy the entire viewport, matching real-world usage.
-5. **NodeRunnerPanel exhaustive coverage**: With 24 exported stories,
+5. **NodeRunnerPanel exhaustive coverage**: With 23 exported stories,
    NodeRunnerPanel has the most comprehensive story coverage in the project,
    testing every combination of runner state, execution scenario, and
    interaction mode.
@@ -217,13 +244,31 @@ ensuring all stories compile without errors before any release.
 
 ### Vitest Integration
 
-```bash
-npm run test
-```
+There are two separate Vitest setups in this project, and it is important not to
+conflate them:
 
-Stories configured with portable stories (via `.storybook/vitest.setup.ts`) can
-be executed as Vitest tests, enabling CI validation of component rendering and
-accessibility.
+1. **Standalone unit tests** (what `npm run test` runs):
+
+   ```bash
+   npm run test        # alias of: vitest run --config vitest.config.ts
+   ```
+
+   This uses `vitest.config.ts`, which is intentionally **separate** from the
+   Storybook integration. It runs the standalone unit tests only
+   (`include: ['src/__tests__/**/*.test.{ts,tsx}']`, `environment: 'node'`,
+   `setupFiles: ['./src/__tests__/setup.ts']`) and does **not** execute any
+   stories. The `test:unit` / `test:unit:watch` scripts point at this same
+   config.
+
+2. **Storybook portable-stories integration** (defined in `vite.config.ts`):
+
+   Stories configured with portable stories (via `.storybook/vitest.setup.ts`)
+   can be executed as Vitest tests in a real browser. This is wired up in the
+   `test.projects` array of `vite.config.ts` via the `@storybook/addon-vitest`
+   `storybookTest()` plugin (browser mode, `provider: 'playwright'`,
+   `setupFiles: ['.storybook/vitest.setup.ts']`), enabling validation of
+   component rendering and accessibility. Because `npm run test` targets
+   `vitest.config.ts`, it does **not** run this Storybook project.
 
 ## Story Writing Conventions
 
@@ -336,10 +381,12 @@ self-contained.
 1. **Importing `useArgs` from `storybook/internal/preview-api`**: Some stories
    import from the internal path. While functional, this is an implementation
    detail that may break across Storybook major versions.
-2. **Mock data duplication**: The `conn`, `inputWith`, `output`, `makeStep`, and
-   `makeRecord` factory functions are duplicated across ExecutionTimeline,
-   ExecutionStepInspector, and NodeRunnerPanel stories. A shared test utilities
-   module could reduce this.
+2. **Mock data duplication**: The mock-data factory functions are duplicated
+   across the runner story files rather than shared, though each file declares
+   only the subset it needs (ExecutionTimeline: `makeStep`, `makeRecord`;
+   ExecutionStepInspector: `conn`, `inputWith`, `output`; NodeRunnerPanel: all
+   five). Where they overlap, the implementations are copied per-file. A shared
+   test utilities module could reduce this.
 3. **Inline JSX in args**: Stories like NodeStatusIndicator pass `<MockNode />`
    as `children` in `args`, which is not serializable and prevents those args
    from appearing in the Storybook controls panel.
@@ -373,10 +420,11 @@ self-contained.
 |                  Component Library                    |
 |                                                      |
 |  Atoms ------> Molecules ------> Organisms           |
-|  (7 stories)   (6 stories)      (3 stories)          |
+|  (8 files)     (12 files)       (3 files)            |
 |                                                      |
-|  Each component has a co-located .stories.tsx file    |
-|  Total: 17 story files, ~100+ individual stories     |
+|  Most components have a co-located .stories.tsx file  |
+|  (+1 Interactive Fun🎉/Logo Customizer story file)    |
+|  Total: 24 story files, ~205 individual stories      |
 +------------------------------------------------------+
          |                    |
          v                    v
@@ -386,7 +434,9 @@ self-contained.
   +-------------+    +------------------+
 ```
 
-Every component in the library has a corresponding story file. Stories serve as:
+Most user-facing components have a corresponding story file (several internal
+atoms such as ConfigurableConnection, ConfigurableEdge, ErrorBoundary, and
+NodeResizerWithMoreControls have no story). Stories serve as:
 
 - **Living documentation**: Auto-generated docs pages via the `autodocs` tag
 - **Visual regression baseline**: Each story is a stable, deterministic render
@@ -401,17 +451,24 @@ Every component in the library has a corresponding story file. Stories serve as:
 +------------------------------------------------------------------+
 |                                                                    |
 |  Imports:                                                          |
-|  - FullGraph + useFullGraph         (organism)                     |
-|  - standardDataTypes                (utils/nodeStateManagement)    |
-|  - standardNodeTypes                (utils/nodeStateManagement)    |
-|  - makeFunctionImplementations...   (utils/nodeRunner/types)       |
-|  - constructNodeOfType              (utils/nodeStateManagement)    |
+|  - FullGraph + useFullGraph         (./ organism barrel)           |
+|  - standardDataTypes, standardNodeTypes, standardNodeCount-        |
+|    Constraints, standardHiddenNodeTypesInContextMenu  (@/utils)    |
+|  - makeDataTypeWithAutoInfer,                                      |
+|    makeTypeOfNodeWithAutoInfer   (nodeStateManagement/types)       |
+|  - makeFunctionImplementationsWithAutoInfer (nodeRunner/types)     |
+|  - constructNodeOfType   (nodeStateManagement/nodes/...)           |
+|  - importExecutionRecord            (utils/importExport)           |
 |  - PlaygroundState1.json            (pre-built graph state)        |
-|  - handleShapesMap                  (ConfigurableNode)             |
-|  - zod                              (runtime validation)           |
+|  - graph-state JSON from .storybook/static/graphStates             |
+|  - handleShapesMap                  (organisms/ConfigurableNode)   |
+|  - ColorPicker                      (molecules/ColorPicker)        |
+|  - z (zod)                          (runtime validation)           |
+|  - Toaster, toast                   (sonner)                       |
 |                                                                    |
 |  Defines:                                                          |
-|  - Custom data types (17 types)                                    |
+|  - Custom example/circuit/color data types (spread with           |
+|    ...standardDataTypes)                                           |
 |  - Custom node types (data source, validation, transformer, etc.)  |
 |  - Function implementations for runner execution                   |
 |  - Pre-wired graph topologies (Half Adder, Full Adder, etc.)       |

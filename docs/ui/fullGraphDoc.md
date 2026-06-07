@@ -4,97 +4,142 @@
 
 FullGraph is the top-level graph editor component of `react-blender-nodes`. It
 assembles the complete visual node editing experience by integrating ReactFlow
-(the core graph renderer), a right-click context menu system, node group
-navigation, an optional graph execution runner, and state import/export
-functionality.
+(the core graph renderer), a right-click context menu, node group navigation, a
+zone frame overlay, three editor drawers (node-type / loop / switch), an
+optional graph execution runner, keyboard undo/redo, a unified observability
+event stream, a custom-input-component registry, and state/recording
+import/export.
 
-FullGraph follows a three-layer component architecture:
+FullGraph is defined in `src/components/organisms/FullGraph/FullGraph.tsx` ›
+`FullGraph`. Its folder (`src/components/organisms/FullGraph/`) also holds the
+external store, the several React contexts, the import/export hook, the
+context-menu wrapper, and the node-group selector.
 
-1. **FullGraph** (outer) -- wraps everything in `ReactFlowProvider` +
-   `FullGraphContext.Provider`
-2. **FullGraphWithReactFlowProvider** (inner) -- contains all the actual logic:
-   ReactFlow, context menu, group selector, import/export, and conditional
-   runner overlay
-3. **RunnerOverlay** (conditional) -- wraps graph content with `useNodeRunner`
-   and `NodeRunnerPanel` when `functionImplementations` is provided
+FullGraph follows a layered component architecture:
+
+1. **FullGraph** (outer wrapper) — wraps everything in `ReactFlowProvider`,
+   `FullGraphContext.Provider`, and `RecordContext.Provider`
+   (`src/components/organisms/FullGraph/FullGraph.tsx` › `FullGraph`)
+2. **FullGraphWithReactFlowProvider** (implementation) — all the actual logic:
+   ReactFlow, context menu, group selector, zone overlay, edit drawers, keyboard
+   shortcuts, drag batching, error boundaries, and conditional runner overlay
+   (`src/components/organisms/FullGraph/FullGraph.tsx` ›
+   `FullGraphWithReactFlowProvider`)
+3. **RunnerOverlay** (conditional) — wraps graph content with `useNodeRunner`
+   and `NodeRunnerPanel`, and provides `RunnerContext`. Rendered only when
+   `functionImplementations` is provided. Lives in its own file,
+   `src/components/organisms/FullGraph/RunnerOverlay.tsx` › `RunnerOverlay`
 
 All three layers are generic over four type parameters: `DataTypeUniqueId`,
 `NodeTypeUniqueId`, `UnderlyingType`, and `ComplexSchemaType`.
+
+> **Note on state ownership.** FullGraph is fully controlled — it never owns
+> graph state. State + dispatch come from `useFullGraph` (the recommended path,
+> backed by an external Redux-style store and `useSyncExternalStore`) or from a
+> raw `useReducer(mainReducer, …)`. See
+> [State Management](../core/stateManagementDoc.md).
 
 ---
 
 ## Entity-Relationship Diagram
 
 ```
-+-------------------+       +-------------------+       +-------------------+
-|   FullGraphProps   |       |      State        |       |    Action          |
-+-------------------+       +-------------------+       +-------------------+
-| state        -----+------>| nodes[]           |       | ADD_NODE           |
-| dispatch     -----+------>| edges[]           |       | ADD_NODE_AND_SELECT|
-| functionImpl?     |       | dataTypes{}       |       | UPDATE_NODE_BY_RF  |
-| onStateImported?  |       | typeOfNodes{}     |       | UPDATE_EDGES_BY_RF |
-| onRecordingImp?   |       | openedNodeGroup   |       | ADD_EDGE_BY_RF     |
-| onImportError?    |       |   Stack[]         |       | UPDATE_INPUT_VALUE |
-+-------------------+       | viewport?         |       | OPEN_NODE_GROUP    |
-                             | enableRecursion   |       | CLOSE_NODE_GROUP   |
-                             |   Checking?       |       | ADD_NODE_GROUP     |
-                             +-------------------+       | SET_VIEWPORT       |
-                                                         | REPLACE_STATE      |
-                                                         +-------------------+
++--------------------------+      +--------------------------+      +--------------------------+
+|      FullGraphProps       |      |          State           |      |         Action            |
++--------------------------+      +--------------------------+      +--------------------------+
+| state               -----+----->| openedNodeGroupStack?    |      | ADD_NODE                  |
+| dispatch            -----+----->| dataTypes{}              |      | ADD_NODE_AND_SELECT       |
+| functionImplementations? |      | typeOfNodes{}            |      | UPDATE_NODE_BY_REACT_FLOW |
+| onStateImported?         |      | nodes[]                  |      | UPDATE_EDGES_BY_REACT_FLOW|
+| onRecordingImported?     |      | edges[]                  |      | ADD_EDGE_BY_REACT_FLOW    |
+| onImportError?           |      | viewport?                |      | UPDATE_INPUT_VALUE        |
+| executionRecord?         |      | activeDrawer?            |      | OPEN_NODE_GROUP           |
+| onExecutionRecordChange? |      | zones? / zoneIndex?      |      | CLOSE_NODE_GROUP          |
+| onGraphEvent?            |      | history?                 |      | ADD_NODE_GROUP            |
+| inputComponents?         |      | enableRecursionChecking? |      | SET_VIEWPORT              |
+| enableUndoRedoShortcuts? |      | hiddenNodeTypesIn-       |      | REPLACE_STATE             |
++--------------------------+      |   ContextMenu?           |      | UPDATE_NODE_TYPE          |
+                                  +--------------------------+      | ADD_LOOP / UPDATE_LOOP    |
+                                                                    | ADD_SWITCH / UPDATE_SWITCH|
++--------------------------+      +--------------------------+      | OPEN_DRAWER / CLOSE_DRAWER|
+|    NodeRunnerState        |      |     ActiveDrawer         |      | UNDO / REDO               |
++--------------------------+      +--------------------------+      | BEGIN_BATCH / END_BATCH   |
+| visualState              |      | {editLoop, nodeId}       |      | CLEAR_HISTORY             |
+| errors?                  |      | {editNodeType,nodeTypeId}|      +--------------------------+
+| warnings?                |      | {editSwitch, nodeId}     |
++--------------------------+      | null                     |
+                                  +--------------------------+
 
-+-------------------+       +-------------------+
-| FunctionImpl.     |       | ExecutionRecord   |
-+-------------------+       +-------------------+
-| [nodeTypeId]:     |       | steps[]           |
-|   (inputs) =>     |       | errors[]          |
-|     outputs       |       | loopRecords       |
-+-------------------+       | groupRecords      |
-                             | status            |
-                             +-------------------+
-
-+-------------------+       +-------------------+
-| NodeRunnerState   |       | ContextMenuItem   |
-+-------------------+       +-------------------+
-| visualState       |       | id                |
-| errors?           |       | label             |
-| warnings?         |       | icon?             |
-+-------------------+       | onClick?          |
-                             | subItems?         |
-                             +-------------------+
++--------------------------+      +--------------------------+      +--------------------------+
+|     GraphEvent (union)    |      |     ContextMenuItem      |      |        Zone               |
++--------------------------+      +--------------------------+      +--------------------------+
+| action:applied {detail?} |      | id / label / icon?       |      | id / name / color         |
+| action:rejected {error}  |      | onClick? / subItems?     |      | nodeIds[]                 |
+| state:committed          |      | shortcut? / separator?   |      | (rendered by              |
+| ui:drag:ended            |      +--------------------------+      |  ZoneFrameOverlay)        |
+| ui:delete:attempted      |                                        +--------------------------+
+| ui:state:imported        |
+| ui:recording:imported    |
+| history:undo/redo/cleared|   (declared; no emitter)
++--------------------------+
 ```
+
+> **Note.** The `history:undo`, `history:redo`, and `history:cleared` kinds are
+> declared in the `GraphEvent` union but currently have **no emitter** — the
+> store's `dispatch` only emits `action:applied` / `action:rejected` /
+> `state:committed` (`src/components/organisms/FullGraph/graphStore.ts` ›
+> `createGraphStore`). The `ui:*` kinds are emitted by `<FullGraph>`. (The JSDoc
+> comment above the history variants in the `graphEvent.ts` **source** —
+> "History events — emitted by the store on undo/redo/clear" — is stale; no code
+> path emits these events.)
 
 ---
 
 ## Functional Dependency Diagram
 
 ```
-FullGraph (outer)
+FullGraph (outer)                          FullGraph.tsx › FullGraph
   |
-  +-- ReactFlowProvider          (from @xyflow/react)
-  +-- FullGraphContext.Provider   (provides {allProps, nodeRunnerStates?})
+  +-- ReactFlowProvider                  (from @xyflow/react)
+  +-- FullGraphContext.Provider          (provides { allProps })   FullGraphState.ts › FullGraphContext
+  +-- RecordContext.Provider             (controlled executionRecord) FullGraphState.ts › RecordContext
   |
-  +-- FullGraphWithReactFlowProvider (inner)
+  +-- FullGraphWithReactFlowProvider (inner)   FullGraph.tsx › FullGraphWithReactFlowProvider
         |
-        +-- useReactFlow()                    (screenToFlowPosition, fitView)
-        +-- createNodeContextMenu()           (node creation items)
-        +-- createImportExportMenuItems()     (import/export items)
-        +-- getCurrentNodesAndEdgesFromState() (filters by group stack)
-        +-- exportGraphState / importGraphState
-        +-- exportExecutionRecord / importExecutionRecord
-        +-- canRemoveLoopNodesAndEdges()      (deletion guard)
+        +-- useReactFlow()               (screenToFlowPosition, fitView, getNodes)
+        +-- useUpdateNodeInternals()     (re-measure handles after type/loop/switch edits)
+        +-- useGraphImportExport()       (export/import handlers + hidden file inputs)
+        +-- createLoopMenuItem()         ("Add Loop")
+        +-- createSwitchMenuItem()       ("Add Switch")
+        +-- createNodeContextMenu()      ("Add Node" submenu)
+        +-- createImportExportMenuItems()("Import/Export" submenu)
+        +-- getCurrentNodesAndEdgesFromState()  (nodes/edges/zones for the active scope)
+        +-- canRemoveLoopNodesAndEdges() (onBeforeDelete guard)
+        +-- getLoopStructureFromNode() / getSwitchStructureFromNode() (drawer data)
         |
-        +-- [conditional] RunnerOverlay
-        |     +-- useNodeRunner()             (compile, execute, replay)
-        |     +-- FullGraphContext.Provider    (nested, with nodeRunnerStates)
-        |     +-- NodeRunnerPanel             (execution controls UI)
+        +-- ErrorBoundary (graph)        wraps everything
+        |     +-- InputComponentRegistryContext.Provider (inputComponents)
         |
-        +-- ReactFlow                         (core graph renderer)
-        |     +-- Controls, Background, MiniMap
-        |     +-- ConfigurableConnection      (custom connection line)
+        +-- [conditional] RecordingViewStateProvider   RecordingViewStateContext.tsx › RecordingViewStateProvider
+        |     +-- ErrorBoundary (runner)
+        |     +-- RunnerOverlay                        RunnerOverlay.tsx › RunnerOverlay
+        |           +-- useNodeRunner()    (compile, execute, replay, record)
+        |           +-- RunnerContext.Provider (nodeRunnerStates, selectedStepRecord,
+        |           |                            edgeValuesAnimated)
+        |           +-- NodeRunnerPanel    (transport, timeline, inspector)
         |
-        +-- FullGraphContextMenu              (floating context menu)
-        +-- FullGraphNodeGroupSelector        (breadcrumb + dropdown)
-        +-- <input type="file" /> x2          (hidden import triggers)
+        +-- graphContent (shared between runner and non-runner modes)
+        |     +-- ReactFlow               (core graph renderer; key=reactFlowKey)
+        |     |     +-- Controls, Background, MiniMap (pannable)
+        |     |     +-- ZoneFrameOverlay   (convex-hull zone frames)
+        |     |     +-- ConfigurableConnection (custom drag preview)
+        |     +-- FullGraphContextMenu     (floating context menu)
+        |     +-- FullGraphNodeGroupSelector (back button + dropdown + breadcrumb)
+        |
+        +-- FileInputElements              (two hidden <input type="file">)
+        +-- NodeTypeEditDrawer             (group / node-type editor)
+        +-- LoopEditDrawer                 (loop channel editor)
+        +-- SwitchEditDrawer               (switch channel editor)
 ```
 
 ---
@@ -103,58 +148,64 @@ FullGraph (outer)
 
 ```
   User provides:
-  state, dispatch, functionImplementations?
+  state, dispatch, functionImplementations?, executionRecord?, inputComponents?, …
         |
         v
-+-------+-------+
-|   FullGraph    |  (outer)
-|  ReactFlow    |
-|   Provider     |
-+-------+-------+
++-------+--------+
+|   FullGraph     |  ReactFlowProvider
+|   (outer)       |  FullGraphContext.Provider value = createContextValue({state, dispatch})
+|                 |  RecordContext.Provider value = { executionRecord, setExecutionRecord }
++-------+--------+
         |
         v
-+-------+-----------+
-| FullGraphContext   |  createContextValue({state, dispatch})
-|   .Provider        |
-+-------+-----------+
-        |
-        v
-+-------+------------------------------+
-| FullGraphWithReactFlowProvider        |
-|                                       |
-|  state ---> getCurrentNodesAndEdges   |
-|               FromState()             |
-|                 |                     |
-|                 v                     |
-|  +-----------+   +------------------+ |
-|  | ReactFlow |   | ContextMenu      | |
-|  |  nodes    |   |  node items      | |
-|  |  edges    |   |  import/export   | |
-|  +-----------+   +------------------+ |
-|       |                               |
-|  onNodesChange ---> dispatch(         |
-|  onEdgesChange      UPDATE_NODE,      |
-|  onConnect          UPDATE_EDGES,     |
-|  onViewportChange   ADD_EDGE,         |
-|  onBeforeDelete     SET_VIEWPORT)     |
-|                                       |
-|  [if functionImplementations]         |
-|  +----------------------------------+ |
-|  | RunnerOverlay                    | |
-|  |  useNodeRunner(state, funcImpl)  | |
-|  |       |                          | |
-|  |       v                          | |
-|  |  nodeRunnerStates (Map)          | |
-|  |       |                          | |
-|  |       v                          | |
-|  |  FullGraphContext.Provider       | |
-|  |    (nested, with runner states)  | |
-|  |       |                          | |
-|  |       v                          | |
-|  |  NodeRunnerPanel                 | |
-|  |  (run/pause/step/stop/reset)     | |
-|  +----------------------------------+ |
-+---------------------------------------+
++-------+------------------------------------+
+| FullGraphWithReactFlowProvider              |
+|                                             |
+|  state ─> getCurrentNodesAndEdgesFromState  |  (filtered by openedNodeGroupStack)
+|             -> { nodes, edges, zones }      |
+|                 |                           |
+|     +-----------+   +-------------------+   |
+|     | ReactFlow |   | ContextMenu items |   |
+|     |  nodes    |   |  loop / switch    |   |
+|     |  edges    |   |  add-node         |   |
+|     |  zones    |   |  import/export    |   |
+|     +-----------+   +-------------------+   |
+|          |                                  |
+|  onNodesChange  ─> BEGIN_BATCH (drag start) |
+|                    UPDATE_NODE_BY_REACT_FLOW|
+|                    END_BATCH   (drag end)   |
+|  onEdgesChange  ─> UPDATE_EDGES_BY_REACT_FLOW
+|  onConnect      ─> ADD_EDGE_BY_REACT_FLOW   |
+|  onConnectEnd   ─> onGraphEvent(ui:drag:ended)
+|  onViewportChange ─> SET_VIEWPORT           |
+|  onBeforeDelete ─> canRemoveLoopNodesAndEdges
+|                    + onGraphEvent(ui:delete:attempted)
+|  keydown Ctrl+Z / Shift+Z / Y ─> UNDO / REDO|
+|                                             |
+|  activeDrawer ─> NodeTypeEditDrawer / Loop  |
+|                  EditDrawer / SwitchEditDrawer
+|                  onSave ─> UPDATE_NODE_TYPE /|
+|                  UPDATE_LOOP / UPDATE_SWITCH |
+|                  + updateNodeInternals()     |
+|                                             |
+|  [if functionImplementations]               |
+|  +----------------------------------------+ |
+|  | RunnerOverlay                          | |
+|  |  useNodeRunner({state, funcImpl,       | |
+|  |    executionRecord, onExecutionRecord- | |
+|  |    Change})                            | |
+|  |       |                                | |
+|  |       v                                | |
+|  |  nodeRunnerStates (Map) + selectedStep | |
+|  |       |                                | |
+|  |       v                                | |
+|  |  RunnerContext.Provider                | |
+|  |       |                                | |
+|  |       v                                | |
+|  |  NodeRunnerPanel (run/pause/step/stop/ | |
+|  |    reset/mode/scrub/maxLoopIterations) | |
+|  +----------------------------------------+ |
++---------------------------------------------+
 ```
 
 ---
@@ -168,25 +219,35 @@ FullGraph (outer)
 |  +-- UI Layer -------------------------------------------------------+ |
 |  |                                                                    | |
 |  |  +-- FullGraph (top-level editor) ------------------------------+ | |
+|  |  |  ErrorBoundary > InputComponentRegistryContext               | | |
 |  |  |                                                               | | |
 |  |  |  +-- ReactFlow ---------+  +-- ContextMenu ---------------+ | | |
-|  |  |  | ConfigurableNode     |  | createNodeContextMenu         | | | |
-|  |  |  | ConfigurableEdge     |  | createImportExportMenuItems   | | | |
-|  |  |  | ConfigurableConnect. |  +-------------------------------+ | | |
+|  |  |  | ConfigurableNode     |  | createLoopMenuItem            | | | |
+|  |  |  | ConfigurableEdge     |  | createSwitchMenuItem          | | | |
+|  |  |  | ConfigurableConnect. |  | createNodeContextMenu         | | | |
+|  |  |  | ZoneFrameOverlay     |  | createImportExportMenuItems   | | | |
+|  |  |  | Controls/Background/ |  +-------------------------------+ | | |
+|  |  |  | MiniMap              |                                     | | |
 |  |  |  +----------------------+                                     | | |
 |  |  |                                                               | | |
-|  |  |  +-- NodeGroupSelector -+  +-- RunnerOverlay -------------+ | | |
-|  |  |  | Dropdown + Breadcrumb|  | useNodeRunner                 | | | |
-|  |  |  | Back button          |  | NodeRunnerPanel               | | | |
-|  |  |  +----------------------+  | Toggle button                 | | | |
+|  |  |  +-- NodeGroupSelector -+  +-- Edit Drawers --------------+ | | |
+|  |  |  | back / dropdown /    |  | NodeTypeEditDrawer            | | | |
+|  |  |  | breadcrumb / edit    |  | LoopEditDrawer                | | | |
+|  |  |  +----------------------+  | SwitchEditDrawer              | | | |
 |  |  |                            +-------------------------------+ | | |
+|  |  |  +-- RunnerOverlay (conditional) -----------------------+   | | |
+|  |  |  | RecordingViewStateProvider + ErrorBoundary           |   | | |
+|  |  |  | useNodeRunner / RunnerContext / NodeRunnerPanel       |   | | |
+|  |  |  +------------------------------------------------------+   | | |
 |  |  +--------------------------------------------------------------+ | |
 |  +--------------------------------------------------------------------+ |
 |                                                                        |
 |  +-- State Layer ----------------------------------------------------+ |
-|  |  mainReducer (Immer-based)                                        | |
-|  |  useFullGraph hook (useReducer wrapper)                           | |
-|  |  FullGraphContext (state + dispatch + nodeRunnerStates)            | |
+|  |  createGraphStore (external store) + useFullGraph                 | |
+|  |    (useSyncExternalStore)                                         | |
+|  |  validateAction -> applyValidatedAction (Immer + undo/redo)        | |
+|  |  FullGraphContext { allProps }   RecordContext { executionRecord } | |
+|  |  RunnerContext { nodeRunnerStates, selectedStepRecord, … }         | |
 |  +--------------------------------------------------------------------+ |
 |                                                                        |
 |  +-- Runner Layer ---------------------------------------------------+ |
@@ -208,102 +269,183 @@ FullGraph (outer)
 
 ### FullGraph (outer wrapper)
 
-Defined at `src/components/organisms/FullGraph/FullGraph.tsx:530-579`.
+Defined at `src/components/organisms/FullGraph/FullGraph.tsx` › `FullGraph`.
 
-The outermost component. Its sole job is to wrap children in:
+The outermost component. Its job is to set up the three top-level providers and
+the controlled-record memo, then render `FullGraphWithReactFlowProvider`:
 
-1. `ReactFlowProvider` -- required by `@xyflow/react` so that `useReactFlow()`
-   hooks work in descendants
-2. `FullGraphContext.Provider` -- provides `{allProps, nodeRunnerStates?}` via
-   `createContextValue()`
-
-It then renders `FullGraphWithReactFlowProvider` as its child.
+1. `ReactFlowProvider` — required by `@xyflow/react` so `useReactFlow()` /
+   `useUpdateNodeInternals()` work in descendants
+2. `FullGraphContext.Provider` — provides `{ allProps }` via
+   `createContextValue({ state, dispatch })`
+3. `RecordContext.Provider` — provides
+   `{ executionRecord, setExecutionRecord }`, wiring the controlled
+   `executionRecord` / `onExecutionRecordChange` props down to `RunnerOverlay`.
+   When the consumer omits `onExecutionRecordChange`, a stable `noop` is used so
+   the runner stays internally controlled.
 
 ### FullGraphWithReactFlowProvider (implementation)
 
-Defined at `src/components/organisms/FullGraph/FullGraph.tsx:307-678`.
+Defined at `src/components/organisms/FullGraph/FullGraph.tsx` ›
+`FullGraphWithReactFlowProvider`. Receives all props except `executionRecord` /
+`onExecutionRecordChange` (those flow via `RecordContext`). It:
 
-The main implementation component. It:
-
-- Calls `useReactFlow()` to get `screenToFlowPosition` and `fitView`
-- Manages context menu open/close state
-- Builds context menu items from `createNodeContextMenu()` +
-  `createImportExportMenuItems()`
-- Computes `currentNodesAndEdges` from state (filtered by
-  `openedNodeGroupStack`)
-- Renders `ReactFlow` with custom `nodeTypes` and `edgeTypes`
-- Renders `FullGraphContextMenu`, `FullGraphNodeGroupSelector`
-- Conditionally wraps graph content in `RunnerOverlay` when
-  `functionImplementations` is provided
-- Renders two hidden `<input type="file">` elements for state/recording import
-- Handles export via `downloadJson()` helper and import via `FileReader`
-- Forces ReactFlow remount via `reactFlowKey` after state import
+- Calls `useReactFlow()` (`screenToFlowPosition`, `fitView`, `getNodes`) and
+  `useUpdateNodeInternals()`
+- Calls `useGraphImportExport()` to obtain export/import handlers, the two
+  hidden file-input refs, `executionRecordRef`, `loadRecordRef`, and a
+  `FileInputElements` component
+- Manages context-menu open/close state (`{ isOpen, position }`)
+- Derives the active drawer target from `state.activeDrawer` (`editNodeType` →
+  node type id, `editLoop` / `editSwitch` → node id) and computes the loop
+  triplet / switch pair data via `getLoopStructureFromNode` /
+  `getSwitchStructureFromNode`
+- Builds context menu items from four sources: `createLoopMenuItem`,
+  `createSwitchMenuItem`, `createNodeContextMenu`, `createImportExportMenuItems`
+- Computes `currentNodesAndEdges` (nodes, edges, **zones**) from state via
+  `getCurrentNodesAndEdgesFromState()` (filtered by `openedNodeGroupStack`)
+- Renders `ReactFlow` (keyed by `reactFlowKey`) with custom `nodeTypes` /
+  `edgeTypes`, `Controls`, `Background`, `MiniMap pannable`, and
+  `ZoneFrameOverlay`
+- Renders `FullGraphContextMenu` and `FullGraphNodeGroupSelector`
+- Installs a `keydown` listener for undo/redo (gated by
+  `enableUndoRedoShortcuts`)
+- Batches drag moves into a single undo entry via `BEGIN_BATCH` / `END_BATCH`
+- Conditionally wraps graph content in `RecordingViewStateProvider` →
+  `ErrorBoundary` → `RunnerOverlay` when `functionImplementations` is provided
+- Renders `<FileInputElements />` plus the three edit drawers
+- Wraps the whole tree in a top-level `ErrorBoundary` and an
+  `InputComponentRegistryContext.Provider`
 
 ### RunnerOverlay (conditional runner wrapper)
 
-Defined at `src/components/organisms/FullGraph/FullGraph.tsx:133-295`.
+Defined at `src/components/organisms/FullGraph/RunnerOverlay.tsx` ›
+`RunnerOverlay`. Rendered only when `functionImplementations` is provided. It:
 
-Rendered only when `functionImplementations` is provided. It:
-
-- Calls `useNodeRunner({state, functionImplementations})` to get the full runner
-  API
-- Builds a combined `nodeRunnerStates` Map merging visual states, warnings, and
-  errors
-- Provides a **nested** `FullGraphContext.Provider` that includes
-  `nodeRunnerStates` (overriding the outer provider)
-- Renders `NodeRunnerPanel` with all runner controls (run, pause, step, stop,
-  reset, mode, scrub)
-- Renders a toggle button to reopen the panel when closed
-- Exposes `executionRecord` and `loadRecord` to the parent via refs
+- Reads the controlled record from `useRecordContext()` and calls
+  `useNodeRunner({ state, functionImplementations, executionRecord, onExecutionRecordChange })`
+- Reads UI preferences from `useRecordingViewState()` (selected step, panel
+  open, edge-value animation, etc.)
+- Builds a combined `nodeRunnerStates` Map by merging the runner's
+  `nodeVisualStates`, `nodeWarnings`, and `nodeErrors`
+- Provides `RunnerContext` with
+  `{ nodeRunnerStates, selectedStepRecord, edgeValuesAnimated }`
+- Renders `NodeRunnerPanel` with all runner controls, plus a "navigate to node"
+  callback (`setCenter`) and a floating "Runner" reopen button when the panel is
+  closed
+- Exposes the execution-record getter and `loadRecord` to the parent via the
+  `onExecutionRecordRef` / `loadRecordRef` refs (used by import/export); the
+  record getter merges the current `viewState` (run mode, max loop iterations,
+  panel/timeline prefs) into the returned record
 
 ---
 
 ## Props (FullGraphProps)
 
-| Prop                      | Type                                   | Required | Description                                                                                    |
-| ------------------------- | -------------------------------------- | -------- | ---------------------------------------------------------------------------------------------- |
-| `state`                   | `State<D, N, U, C>`                    | Yes      | The complete graph state: nodes, edges, dataTypes, typeOfNodes, openedNodeGroupStack, viewport |
-| `dispatch`                | `ActionDispatch<[Action<D, N, U, C>]>` | Yes      | Dispatch function from `useReducer` / `useFullGraph`                                           |
-| `functionImplementations` | `FunctionImplementations<N>`           | No       | Map of nodeTypeId to execution functions. When provided, enables the runner overlay            |
-| `onStateImported`         | `(importedState: State) => void`       | No       | Called after successful state import with the parsed state                                     |
-| `onRecordingImported`     | `(record: ExecutionRecord) => void`    | No       | Called after successful recording import with the parsed record                                |
-| `onImportError`           | `(errors: string[]) => void`           | No       | Called when import validation fails, receives error messages                                   |
+Defined at `src/components/organisms/FullGraph/FullGraph.tsx` ›
+`FullGraphProps`.
 
-All four generic type parameters (`DataTypeUniqueId`, `NodeTypeUniqueId`,
-`UnderlyingType`, `ComplexSchemaType`) default to their widest types, so
-consumers only need to provide them for stricter type safety.
+| Prop                      | Type                                           | Required | Description                                                                                                |
+| ------------------------- | ---------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `state`                   | `State<D, N, U, C>`                            | Yes      | Complete graph state: nodes, edges, dataTypes, typeOfNodes, openedNodeGroupStack, viewport, zones, history |
+| `dispatch`                | `ActionDispatch<[action: Action<D, N, U, C>]>` | Yes      | Dispatch from `useFullGraph` (or raw `useReducer`)                                                         |
+| `functionImplementations` | `FunctionImplementations<N>`                   | No       | Map of nodeTypeId → execution function. When provided, mounts the runner overlay                           |
+| `onStateImported`         | `(importedState: State<D,N,U,C>) => void`      | No       | Called after a successful state import with the merged state                                               |
+| `onRecordingImported`     | `(record: ExecutionRecord) => void`            | No       | Called after a successful recording import                                                                 |
+| `onImportError`           | `(errors: string[]) => void`                   | No       | Called when import validation (state or recording) fails                                                   |
+| `executionRecord`         | `ExecutionRecord \| null`                      | No       | Controlled execution record. When provided, the runner uses it instead of internal state                   |
+| `onExecutionRecordChange` | `(record: ExecutionRecord \| null) => void`    | No       | Called whenever the record changes (run completes, reset, load, etc.)                                      |
+| `onGraphEvent`            | `(event: GraphEvent<D,N,U,C>) => void`         | No       | Unified observability stream for UI-layer lifecycle events (see below)                                     |
+| `inputComponents`         | `InputComponentRegistry<D>`                    | No       | Registry of custom input components keyed by `DataTypeUniqueId` (for `unsupportedDirectly` types)          |
+| `enableUndoRedoShortcuts` | `boolean`                                      | No       | Listen for Ctrl/⌘+Z, Ctrl/⌘+Shift+Z, Ctrl/⌘+Y. **Defaults to `true`**                                      |
+
+The four generic type parameters default to: `DataTypeUniqueId = string`,
+`NodeTypeUniqueId = string`, `UnderlyingType = SupportedUnderlyingTypes`, and
+`ComplexSchemaType = never` (it is only a `z.ZodType` when `UnderlyingType`
+extends `'complex'`). Consumers only supply them for stricter type safety;
+`useFullGraph<MyDataTypeId, MyNodeTypeId>(…)` is the common form.
+
+### `onGraphEvent` and `useFullGraph`'s `onGraphEvent` are two halves of one stream
+
+The event taxonomy lives in `src/utils/nodeStateManagement/graphEvent.ts` ›
+`GraphEvent`. Events come from two source layers and should usually share
+**one** handler:
+
+- **Reducer-layer events** — emitted by the store inside `useFullGraph`:
+  `action:applied` (carries an optional per-action `detail`, e.g.
+  `{ kind: 'ADD_NODE', nodeId, nodeType, position }`), `action:rejected`
+  (carries the full `ValidationError` — switch on `.code`), and
+  `state:committed` (post-commit render barrier with `nodeCount` / `edgeCount`).
+  Wire via `useFullGraph(initialState, { onGraphEvent })`.
+- **UI-layer events** — emitted by `<FullGraph>` for ReactFlow lifecycle moments
+  that bypass the reducer: `ui:drag:ended` (from `onConnectEnd`, carries
+  `isValid`), `ui:delete:attempted` (from the `onBeforeDelete` guard, carries
+  `success` / `reason` / `nodeIds` / `edgeIds`), `ui:state:imported` (success +
+  merged `state`, or failure + `errors`), and `ui:recording:imported`. Wire via
+  `<FullGraph onGraphEvent={…} />`.
+
+Pass the **same** handler to both for a single subscription point.
 
 ---
 
-## FullGraphContext
+## Contexts
 
-Defined in `src/components/organisms/FullGraph/FullGraphState.ts:21-26`.
+FullGraph defines and consumes four contexts. They are intentionally split so
+that runner state and controlled-record state do not force every node to
+re-render when only one of them changes.
+
+### FullGraphContext
+
+Defined at `src/components/organisms/FullGraph/FullGraphState.ts` ›
+`FullGraphContext`.
 
 ```typescript
-type FullGraphContextValue = {
+const FullGraphContext = createContext<{
   allProps: FullGraphProps;
-  nodeRunnerStates?: ReadonlyMap<string, NodeRunnerState>;
-};
+}>(null!);
 ```
 
-**What it provides:**
+`allProps` carries the `state` and `dispatch` (plus the rest of FullGraph's
+props) so deeply nested components (`ConfigurableNode`, `ContextAwareInput`,
+`ContextAwareNodeHeaderActions`) can read them without prop drilling.
 
-- `allProps` -- the `state` and `dispatch` passed to FullGraph, so deeply nested
-  components (e.g., `ConfigurableNodeReactFlowWrapper`) can access them without
-  prop drilling
-- `nodeRunnerStates` -- optional map of
-  `nodeId -> { visualState, errors?, warnings? }`, provided by `RunnerOverlay`
+> **Changed from earlier versions:** `FullGraphContext` no longer carries
+> `nodeRunnerStates`. Per-node runner state now lives in a separate
+> `RunnerContext` (below), so non-runner editors don't re-render on every
+> execution tick.
 
-**createContextValue variance bridge:**
-
-React's `createContext` does not support generic type parameters. The
-`createContextValue()` function (`FullGraphState.ts:138-147`) bridges the
-variance gap by erasing the concrete generic parameters to match the context's
-default-param type. This is safe because context consumers dispatch actions
-using `actionTypesMap` constants, which produce valid payloads regardless of the
+**`createContextValue` variance bridge**
+(`src/components/organisms/FullGraph/FullGraphState.ts` › `createContextValue`):
+React's `createContext` does not support generic type parameters. This function
+erases the concrete generics to the context's default-param type. It returns
+`{ allProps }` only. Safe because context consumers dispatch via
+`actionTypesMap` constants, which produce valid payloads regardless of the
 concrete generic params.
 
-**NodeRunnerState type:**
+### RunnerContext
+
+Defined at `src/components/organisms/FullGraph/FullGraphState.ts` ›
+`RunnerContext`, **provided** by `RunnerOverlay`.
+
+```typescript
+type RunnerContextValue = {
+  nodeRunnerStates: ReadonlyMap<string, NodeRunnerState>;
+  selectedStepRecord: ExecutionStepRecord | null;
+  edgeValuesAnimated: boolean;
+};
+const RunnerContext = createContext<RunnerContextValue | undefined>(undefined);
+```
+
+`ConfigurableNodeReactFlowWrapper`
+(`src/components/organisms/ConfigurableNode/SupportingSubcomponents/ConfigurableNodeReactFlowWrapper.tsx`
+› `ConfigurableNodeReactFlowWrapper`) reads `RunnerContext` to apply per-node
+visual indicators (status border, error / warning surfacing) and step-scoped
+values. The context is `undefined` outside the runner overlay (i.e., when
+`functionImplementations` is not provided), so nodes fall back to the idle
+visual state.
+
+**NodeRunnerState type** (`src/components/organisms/FullGraph/FullGraphState.ts`
+› `NodeRunnerState`):
 
 ```typescript
 type NodeRunnerState = {
@@ -312,6 +454,98 @@ type NodeRunnerState = {
   warnings?: ReadonlyArray<string>;
 };
 ```
+
+### RecordContext
+
+Defined at `src/components/organisms/FullGraph/FullGraphState.ts` ›
+`RecordContext`, provided by the outer `FullGraph`.
+
+```typescript
+type RecordContextValue = {
+  executionRecord: ExecutionRecord | null;
+  setExecutionRecord: (record: ExecutionRecord | null) => void;
+};
+```
+
+Bridges the controlled `executionRecord` / `onExecutionRecordChange` props to
+`RunnerOverlay` (read via `useRecordContext()`), which forwards them into
+`useNodeRunner`. This makes the execution record a fully controllable prop.
+
+### InputComponentRegistryContext
+
+Defined in `src/components/organisms/FullGraph/InputComponentRegistryContext.ts`
+› `InputComponentRegistryContext`, provided by `FullGraphWithReactFlowProvider`.
+
+```typescript
+type InputComponentRegistry<DataTypeUniqueId extends string = string> = Partial<
+  Record<DataTypeUniqueId, ComponentType<InputComponentProps>>
+>;
+```
+
+Lets consumers register custom inline editors for data types whose
+`underlyingType` resolves to `'unsupportedDirectly'`. Built-in types (string,
+number, boolean) always use their native components. Follows the same
+"prop-passed map, kept out of serialized state" pattern as
+`functionImplementations`. Read via `useInputComponentRegistry()`.
+
+### RecordingViewStateContext
+
+Defined in `src/components/organisms/FullGraph/RecordingViewStateContext.tsx` ›
+`RecordingViewStateContext`, provided by `RecordingViewStateProvider` (only
+inside the runner branch). Holds all runner/timeline UI preferences (selected
+step index, panel open, edge-value animation, auto-scroll, time mode, timeline
+collapsed, selected loop iterations, autoplay interval) and `getViewState` /
+`restoreViewState` serializers used to persist these preferences into an
+`ExecutionRecord`'s `viewState` on export.
+
+---
+
+## State Management Integration
+
+FullGraph is fully controlled. The recommended store is `useFullGraph`
+(`src/components/organisms/FullGraph/FullGraphState.ts` › `useFullGraph`),
+which:
+
+- Creates an external Redux-style store **once** via `createGraphStore`
+  (`src/components/organisms/FullGraph/graphStore.ts` › `createGraphStore`)
+  using a lazy `useRef`
+- Subscribes React with `useSyncExternalStore` (concurrent-safe, tear-resistant)
+- Keeps the consumer's `onGraphEvent` in a ref so inline handlers don't recreate
+  the store
+- Emits `state:committed` from a render-commit `useEffect` keyed on node/edge
+  counts
+
+`createGraphStore.dispatch` runs synchronously and exactly once per call:
+`validateAction(state, action)` → if valid,
+`applyValidatedAction(prev, action, plan)` → identity short-circuit (no
+notify/emit if `next === prev`) → `deriveAppliedEvent` / `deriveRejectedEvent` →
+notify subscribers. Because dispatch is outside React's reducer pipeline, event
+ids are diff-derived from the actually-committed state (the fix for the historic
+"wrapper-emits-with-stale-id" bug). See
+[State Management](../core/stateManagementDoc.md).
+
+Direct `useReducer(mainReducer, …)` consumers still work: `mainReducer`
+(`src/utils/nodeStateManagement/mainReducer.ts` › `mainReducer`) delegates to
+the same `validateAction` + `applyValidatedAction`.
+
+### Action types (23)
+
+`actionTypes` (`src/utils/nodeStateManagement/mainReducer.ts` › `actionTypes`):
+`ADD_NODE`, `ADD_NODE_AND_SELECT`, `UPDATE_NODE_BY_REACT_FLOW`,
+`UPDATE_EDGES_BY_REACT_FLOW`, `ADD_EDGE_BY_REACT_FLOW`, `UPDATE_INPUT_VALUE`,
+`OPEN_NODE_GROUP`, `CLOSE_NODE_GROUP`, `ADD_NODE_GROUP`, `SET_VIEWPORT`,
+`REPLACE_STATE`, `UPDATE_NODE_TYPE`, `ADD_LOOP`, `UPDATE_LOOP`, `OPEN_DRAWER`,
+`CLOSE_DRAWER`, `ADD_SWITCH`, `UPDATE_SWITCH`, `UNDO`, `REDO`, `BEGIN_BATCH`,
+`END_BATCH`, `CLEAR_HISTORY`. FullGraph dispatches most of these directly; the
+exceptions are `ADD_NODE` and `UPDATE_INPUT_VALUE` (from the context-menu helper
+and node inputs respectively), `ADD_LOOP` / `ADD_SWITCH` (dispatched only
+transitively by the context-menu builders in
+`src/components/molecules/ContextMenu/createLoopMenuItem.ts` ›
+`createLoopMenuItem` and
+`src/components/molecules/ContextMenu/createSwitchMenuItem.ts` ›
+`createSwitchMenuItem`), and `CLEAR_HISTORY` (a supported action the component
+never dispatches itself). See the full dispatched-action list in the **State
+Management** relationship section below.
 
 ---
 
@@ -326,62 +560,115 @@ const nodeTypes = { configurableNode: ConfigurableNodeReactFlowWrapper };
 const edgeTypes = { configurableEdge: ConfigurableEdge };
 ```
 
-All nodes in the graph use the `configurableNode` type, and all edges use the
-`configurableEdge` type. ReactFlow dispatches rendering to these components
-based on the `type` field of each node/edge in state.
+All nodes use the `configurableNode` type; all edges use the `configurableEdge`
+type. ReactFlow dispatches rendering by the `type` field of each node/edge.
 
 ### Event handlers
 
-| Handler            | Action Dispatched            | Description                                                                                                      |
-| ------------------ | ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `onNodesChange`    | `UPDATE_NODE_BY_REACT_FLOW`  | Applies position, selection, dimension changes from ReactFlow                                                    |
-| `onEdgesChange`    | `UPDATE_EDGES_BY_REACT_FLOW` | Applies edge selection, removal changes from ReactFlow                                                           |
-| `onConnect`        | `ADD_EDGE_BY_REACT_FLOW`     | Adds a new edge when user drags between handles                                                                  |
-| `onViewportChange` | `SET_VIEWPORT`               | Persists pan/zoom state                                                                                          |
-| `onBeforeDelete`   | (guard only)                 | Validates loop node/edge deletion via `canRemoveLoopNodesAndEdges()`. Returns `false` to block invalid deletions |
+| Handler            | Behavior                                                                                                                                                                   |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `onNodesChange`    | Detects drag start/end in the change set; brackets the changes with `BEGIN_BATCH` / `END_BATCH`; dispatches `UPDATE_NODE_BY_REACT_FLOW` with the raw changes               |
+| `onEdgesChange`    | Dispatches `UPDATE_EDGES_BY_REACT_FLOW` (edge selection / removal)                                                                                                         |
+| `onConnect`        | Dispatches `ADD_EDGE_BY_REACT_FLOW` with the ReactFlow `Connection`                                                                                                        |
+| `onConnectEnd`     | Fires `onGraphEvent({ kind: 'ui:drag:ended', isValid })` — pure observability, no dispatch                                                                                 |
+| `onViewportChange` | Dispatches `SET_VIEWPORT` (controlled pan/zoom)                                                                                                                            |
+| `onBeforeDelete`   | Validates loop/switch atomic deletion via `canRemoveLoopNodesAndEdges()` (scoped to the current group view); fires `ui:delete:attempted`; returns `success` to allow/block |
+
+### Drag batching
+
+`onNodesChange` inspects each `NodeChange` for `type === 'position'` with a
+`dragging` flag. On the first `dragging: true` it dispatches `BEGIN_BATCH`
+(once, guarded by `isDraggingRef`); on `dragging: false` it dispatches
+`END_BATCH`. This collapses an entire drag into a single undo entry rather than
+one entry per intermediate position. (See
+[Undo/Redo History](../core/historyDoc.md).)
 
 ### Viewport management
 
 - **Controlled viewport**: `state.viewport` is passed to ReactFlow and updated
   via `SET_VIEWPORT` on every change
-- **fitView on group navigation**: When `state.viewport` becomes `undefined`
-  (after opening/closing a node group), `fitView()` is called with
-  `maxZoom: 0.5, minZoom: 0.1`
-- **ReactFlow config**: `maxZoom: 1`, `minZoom: 0.1`, dark color mode, partial
-  selection mode, delete keys: Backspace/Delete/x
+- **Auto-frame on group navigation**: when `state.viewport` is `undefined`
+  (e.g., after opening/closing a node group), an effect either calls
+  `fitView({ maxZoom: 0.5, minZoom: 0.1 })` if there are nodes, or dispatches
+  `SET_VIEWPORT` with `{ x: 0, y: 0, zoom: 0.45 }` for an empty scope
+  (`src/components/organisms/FullGraph/FullGraph.tsx` ›
+  `FullGraphWithReactFlowProvider`)
+- **ReactFlow config**: `maxZoom: 1`, `minZoom: 0.1`, `colorMode='dark'`,
+  `selectNodesOnDrag`, `elevateNodesOnSelect`, `elevateEdgesOnSelect`,
+  `selectionMode={SelectionMode.Partial}`,
+  `deleteKeyCode={['Backspace','Delete','x']}`,
+  `proOptions={{ hideAttribution: true }}`, and
+  `connectionLineComponent={ConfigurableConnection}`
+
+### Decorations
+
+`Controls`, `Background`, and `MiniMap pannable` are rendered inside
+`<ReactFlow>`, alongside `ZoneFrameOverlay` (below).
+
+---
+
+## Zone Frame Overlay
+
+`ZoneFrameOverlay`
+(`src/components/molecules/ZoneFrameOverlay/ZoneFrameOverlay.tsx` ›
+`ZoneFrameOverlay`) is rendered inside `<ReactFlow>` and draws the dashed
+colored frames behind zone member nodes (loop pre-stop/post-stop bodies, switch
+true/false branches).
+
+- Receives `zones={currentNodesAndEdges.zones}` and
+  `nodes={currentNodesAndEdges.nodes}` (zones come from the active scope:
+  root-level `state.zones`, or the opened group's `subtree.zones`, via
+  `getCurrentNodesAndEdgesFromState`)
+- Reads the live transform from `useStore` (ReactFlow), so the overlay tracks
+  pan/zoom in sync with the canvas
+- For each zone with at least one member node, computes a padded convex hull
+  (`computePaddedHull(rects, 24)` from
+  `src/components/molecules/ZoneFrameOverlay/convexHull.ts` ›
+  `computePaddedHull`) and renders a dashed `<polygon>` plus a `<text>` label at
+  the top-left, both colored by `zone.color`
+
+Zone data is UI-only state (stripped on export, rehydrated on import). See
+[Zones](../features/zonesDoc.md).
 
 ---
 
 ## Context Menu Integration
 
-### Node creation items
+`FullGraphWithReactFlowProvider` builds `contextMenuItems` by spreading four
+generators (`src/components/organisms/FullGraph/FullGraph.tsx` ›
+`contextMenuItems`), in order:
 
-Generated by `createNodeContextMenu()` from
-`src/components/molecules/ContextMenu/createNodeContextMenu.ts`.
+1. **`createLoopMenuItem`** — a single "Add Loop" item that dispatches
+   `ADD_LOOP` at the flow-space click position
+2. **`createSwitchMenuItem`** — a single "Add Switch" item that dispatches
+   `ADD_SWITCH` at the flow-space click position
+3. **`createNodeContextMenu`** — the "Add Node" submenu built from
+   `state.typeOfNodes`. Honors `locationInContextMenu` nesting,
+   `priorityInContextMenu` ordering, recursion filtering
+   (`isRecursionAllowed: !state.enableRecursionChecking` with the current
+   group's `nodeType`), and `hiddenNodeTypesInContextMenu`. Dispatches
+   `ADD_NODE_AND_SELECT` on click
+4. **`createImportExportMenuItems`** — the "Import/Export" submenu (four items,
+   below)
 
-- Iterates over `state.typeOfNodes` to build an "Add Node" submenu
-- Supports nested folder structure via `locationInContextMenu` on each node type
-- Sorts by `priorityInContextMenu` (descending), then insertion order
-- Respects recursion checking: when `state.enableRecursionChecking` is true,
-  filters out node types that would create circular group dependencies
-- Dispatches `ADD_NODE_AND_SELECT` on click, placing the node at the flow-space
-  position of the right-click
+`onContextMenu` captures the screen click position and opens the menu; `onClick`
+on the canvas closes it. `FullGraphContextMenu`
+(`src/components/organisms/FullGraph/FullGraphContextMenu.tsx` ›
+`FullGraphContextMenu`) positions the menu at the click point with
+`@floating-ui/react` (`bottom-start`, `offset(5)`,
+`flip({ fallbackPlacements: ['top-start'] })`, `shift({ padding: 8 })`) and
+fades in/out. See [Context Menu](contextMenuDoc.md).
 
 ### Import/Export items
 
-Generated by `createImportExportMenuItems()` from
-`src/components/organisms/FullGraph/createImportExportMenuItems.ts`.
-
-Creates an "Import/Export" submenu with four items:
-
-- **Export State** -- serializes current state via `exportGraphState()` and
-  downloads as `graph-state.json`
-- **Import State** -- triggers hidden file input, reads JSON, calls
-  `importGraphState()` with repair strategies
-- **Export Recording** -- serializes current execution record via
-  `exportExecutionRecord()` and downloads as `execution-recording.json`
-- **Import Recording** -- triggers hidden file input, reads JSON, calls
-  `importExecutionRecord()` with repair strategies
+`createImportExportMenuItems()`
+(`src/components/organisms/FullGraph/createImportExportMenuItems.ts` ›
+`createImportExportMenuItems`) builds one "Import/Export" parent
+(`ArrowDownUpIcon`, `separator: true`) with four children: **Export State**,
+**Import State**, **Export Recording**, **Import Recording**. Each child calls
+its handler then `closeMenu()`. The export items call the handlers from
+`useGraphImportExport`; the import items click the corresponding hidden file
+input.
 
 ---
 
@@ -389,26 +676,90 @@ Creates an "Import/Export" submenu with four items:
 
 ### FullGraphNodeGroupSelector
 
-Defined in `src/components/organisms/FullGraph/FullGraphNodeGroupSelector.tsx`.
+Defined in `src/components/organisms/FullGraph/FullGraphNodeGroupSelector.tsx` ›
+`FullGraphNodeGroupSelector`.
 
-Props: | Prop | Type | Description | |------|------|-------------| |
-`nodeGroups` | `{id, name}[]` | All node types with `subtree` defined | |
-`value` | `string` | Currently selected node group type | | `setValue` |
-`(value: string) => void` | Dispatches `OPEN_NODE_GROUP` | | `handleAddNewGroup`
-| `() => void` | Dispatches `ADD_NODE_GROUP` | | `enableBackButton` | `boolean`
-| True when `openedNodeGroupStack.length > 0` | | `handleBack` | `() => void` |
-Dispatches `CLOSE_NODE_GROUP` | | `openedNodeGroupStack` | `{id, name}[]` |
-Breadcrumb path |
+| Prop                   | Type                                               | Description                                                                            |
+| ---------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `nodeGroups`           | `{ id: string; name: string }[]`                   | All node types with a `subtree` defined (computed from `state.typeOfNodes`)            |
+| `value`                | `string`                                           | Currently opened group's `nodeType` (empty string at root)                             |
+| `setValue`             | `(value: string) => void`                          | Dispatches `OPEN_NODE_GROUP` with `{ nodeType }`                                       |
+| `handleAddNewGroup`    | `() => void`                                       | Dispatches `ADD_NODE_GROUP`                                                            |
+| `enableBackButton`     | `boolean`                                          | True when `openedNodeGroupStack.length > 0`                                            |
+| `handleBack`           | `() => void`                                       | Dispatches `CLOSE_NODE_GROUP`                                                          |
+| `openedNodeGroupStack` | `{ id: string; name: string; nodeType: string }[]` | Breadcrumb path (each entry's `id` combines `nodeType` + optional `nodeId`)            |
+| `onEditNodeType`       | `(nodeTypeId: string) => void`                     | Dispatches `OPEN_DRAWER` with `{ activeDrawer: { type: 'editNodeType', nodeTypeId } }` |
 
-### Breadcrumb rendering
+### Breadcrumb, dropdown, back, and edit
 
-The `openedNodeGroupStack` is rendered as a horizontal scrollable list of group
-names separated by `ChevronRight` icons, using `ScrollableButtonContainer`.
+- A **back button** (`ArrowLeftIcon`) dispatches `CLOSE_NODE_GROUP`, disabled at
+  root level
+- A **dropdown** (`Select`) lists every group node type plus an "Add New Node
+  Group" item (a sentinel value that triggers `handleAddNewGroup`)
+- The **breadcrumb** renders the opened stack inside a
+  `ScrollableButtonContainer`, separated by `ChevronRight` icons
+- The **deepest** breadcrumb entry shows a `Pencil` button that opens the
+  node-type edit drawer for the current group via `onEditNodeType`
 
-### Back button
+---
 
-An arrow-left button that dispatches `CLOSE_NODE_GROUP`, popping the last group
-from the stack. Disabled when the stack is empty (at root level).
+## Editor Drawers
+
+FullGraph renders three slide-in drawers (right edge, `translateX` animation via
+`useSlideAnimation`). Each is opened by dispatching `OPEN_DRAWER` with an
+`ActiveDrawer` discriminant (`src/utils/nodeStateManagement/types.ts` ›
+`ActiveDrawer`) and closed via `CLOSE_DRAWER`. `state.activeDrawer` is UI-only
+state (stripped on export). After a save, FullGraph calls
+`updateNodeInternals(...)` on a `requestAnimationFrame` so ReactFlow re-measures
+the changed handles.
+
+| Drawer               | Opened by `activeDrawer`               | Save dispatches    | Source                                         |
+| -------------------- | -------------------------------------- | ------------------ | ---------------------------------------------- |
+| `NodeTypeEditDrawer` | `{ type: 'editNodeType', nodeTypeId }` | `UPDATE_NODE_TYPE` | `src/components/molecules/NodeTypeEditDrawer/` |
+| `LoopEditDrawer`     | `{ type: 'editLoop', nodeId }`         | `UPDATE_LOOP`      | `src/components/molecules/LoopEditDrawer/`     |
+| `SwitchEditDrawer`   | `{ type: 'editSwitch', nodeId }`       | `UPDATE_SWITCH`    | `src/components/molecules/SwitchEditDrawer/`   |
+
+- **NodeTypeEditDrawer** edits a node type's `name`, `headerColor`, and the
+  order / names of its `inputs` (including input panels) and `outputs`. On save
+  with changed inputs/outputs, FullGraph re-measures all instances of that type
+  plus every `groupInput` / `groupOutput` node
+  (`src/components/organisms/FullGraph/FullGraph.tsx` › `handleSaveNodeType`).
+- **LoopEditDrawer** edits the synchronized data channels ("levels") across the
+  loop triplet (loopStart / loopStop / loopEnd). FullGraph resolves the triplet
+  via `getLoopStructureFromNode`
+  (`src/components/organisms/FullGraph/FullGraph.tsx` › `editLoopTriplet`) and
+  dispatches `UPDATE_LOOP` with per-level handle maps.
+- **SwitchEditDrawer** edits the data channels across the switch pair
+  (switchStart / switchEnd). FullGraph resolves the pair via
+  `getSwitchStructureFromNode`
+  (`src/components/organisms/FullGraph/FullGraph.tsx` › `editSwitchPair`) and
+  dispatches `UPDATE_SWITCH`.
+
+For the channel reorder/rename model and structure details, see
+[Editor Drawers](editorsDoc.md), [Loops](../features/loopsDoc.md), and
+[Switches](../features/switchesDoc.md).
+
+---
+
+## Keyboard Undo/Redo
+
+`FullGraphWithReactFlowProvider` installs a `document` `keydown` listener
+(`src/components/organisms/FullGraph/FullGraph.tsx` ›
+`FullGraphWithReactFlowProvider`), active when
+`enableUndoRedoShortcuts !== false` (default `true`):
+
+- **Ctrl/⌘ + Z** (without Shift) → dispatches `UNDO`
+- **Ctrl/⌘ + Shift + Z** or **Ctrl/⌘ + Y** → dispatches `REDO`
+
+History itself (Immer-patch undo/redo stacks, batching, max size) lives in
+`state.history` and is managed by `applyValidatedAction`
+(`src/utils/nodeStateManagement/applyWithHistory.ts` › `applyValidatedAction`)
+plus the helpers in `src/components/organisms/FullGraph/historyTypes.ts`
+(`isUndoable`, `recordInHistory`, `filterHistoryPatches`, `applyPatchesToDraft`,
+`createEmptyHistory`). `SET_VIEWPORT`, `REPLACE_STATE`, `OPEN_DRAWER`,
+`CLOSE_DRAWER`, `UNDO`, `REDO`, `BEGIN_BATCH`, `END_BATCH`, and `CLEAR_HISTORY`
+are non-undoable; pure-selection node changes and edge-passthrough changes are
+also skipped. See [Undo/Redo History](../core/historyDoc.md).
 
 ---
 
@@ -416,17 +767,28 @@ from the stack. Disabled when the stack is empty (at root level).
 
 ### RunnerOverlay
 
-When `functionImplementations` is provided, `FullGraphWithReactFlowProvider`
-wraps the graph content in `RunnerOverlay`. Otherwise, the graph content renders
-directly without any runner functionality.
+When `functionImplementations` is provided, graph content is wrapped in
+`RecordingViewStateProvider` → `ErrorBoundary` → `RunnerOverlay`. Otherwise the
+graph content renders directly with no runner functionality (and `RunnerContext`
+stays `undefined`).
 
 The overlay:
 
-1. Calls `useNodeRunner({state, functionImplementations})` to get the runner API
-2. Builds `nodeRunnerStates` by merging three maps from the runner:
-   `nodeVisualStates`, `nodeWarnings`, `nodeErrors`
-3. Provides a nested `FullGraphContext.Provider` so all descendant components
-   (nodes, edges) can read per-node visual states
+1. Calls
+   `useNodeRunner({ state, functionImplementations, executionRecord, onExecutionRecordChange })`
+2. Merges `runner.nodeVisualStates`, `runner.nodeWarnings`, and
+   `runner.nodeErrors` into a single `Map<nodeId, NodeRunnerState>`
+   (`src/components/organisms/FullGraph/RunnerOverlay.tsx` › `RunnerOverlay`)
+3. Computes `selectedStepRecord` from `selectedStepIndex` + the execution record
+4. Provides `RunnerContext` with
+   `{ nodeRunnerStates, selectedStepRecord, edgeValuesAnimated }`
+5. Renders `NodeRunnerPanel`, wiring `runnerState`, `record`,
+   `currentStepIndex`, and the transport callbacks (`onRun`, `onPause`,
+   `onStep`, `onStop`, `onReset`, `onModeChange`, `onMaxLoopIterationsChange`,
+   `onScrubTo`, `onNavigateToNode`)
+6. In `stepByStep` mode, `onRun` resumes when paused instead of starting a fresh
+   run (`src/components/organisms/FullGraph/RunnerOverlay.tsx` ›
+   `RunnerOverlay`)
 
 ### nodeRunnerStates propagation
 
@@ -434,101 +796,124 @@ The overlay:
 RunnerOverlay
   |
   +-- useNodeRunner() returns:
-  |     nodeVisualStates: Map<nodeId, 'idle'|'running'|'completed'|...>
+  |     nodeVisualStates: Map<nodeId, 'idle'|'running'|'completed'|'errored'|'skipped'|'warning'>
   |     nodeWarnings:     Map<nodeId, string[]>
   |     nodeErrors:       Map<nodeId, GraphError[]>
   |
-  +-- Merges into single Map<nodeId, NodeRunnerState>
+  +-- merges into a single Map<nodeId, NodeRunnerState>
   |
-  +-- FullGraphContext.Provider value includes nodeRunnerStates
+  +-- RunnerContext.Provider value.nodeRunnerStates
   |
-  +-- ConfigurableNodeReactFlowWrapper reads from context
-        to apply visual indicators (border colors, status icons)
+  +-- ConfigurableNodeReactFlowWrapper reads RunnerContext
+        to apply visual indicators (border color, status icon, value badges)
 ```
 
 ### Panel toggle button
 
-When the `NodeRunnerPanel` is closed (`isRunnerPanelOpen === false`), a floating
-button labeled "Runner" with a Play icon appears at the bottom center of the
-graph. Clicking it reopens the panel.
+When the panel is closed (`isRunnerPanelOpen === false` in
+`RecordingViewStateContext`), a floating "Runner" button with a `Play` icon
+appears at the bottom-center of the graph; clicking it reopens the panel
+(`src/components/organisms/FullGraph/RunnerOverlay.tsx` › `RunnerOverlay`).
+
+### Navigate-to-node
+
+`onNavigateToNode` centers the canvas on a node via `setCenter`, offsetting the
+Y to account for the runner panel covering the bottom of the canvas
+(`src/components/organisms/FullGraph/RunnerOverlay.tsx` › `RunnerOverlay`).
 
 ---
 
 ## Import/Export Integration
 
+All import/export logic is encapsulated in the `useGraphImportExport` hook
+(`src/components/organisms/FullGraph/useGraphImportExport.tsx` ›
+`useGraphImportExport`). FullGraph consumes its handlers and the
+`FileInputElements` component.
+
 ### State export/import
 
-**Export flow:**
+**Export** — `handleExportState()` calls
+`exportGraphState(state, { pretty: true })` and triggers a browser download of
+`graph-state.json` via the internal `downloadJson()` helper.
 
-1. `handleExportState()` calls `exportGraphState(state, { pretty: true })`
-2. `downloadJson()` creates a Blob, generates an object URL, and triggers a
-   download of `graph-state.json`
+**Import** — the "Import State" menu item clicks the hidden
+`importStateInputRef` file input; its `onChange` reads the file with
+`FileReader.readAsText` and calls `handleImportState(json)`, which:
 
-**Import flow:**
-
-1. Hidden `<input type="file" accept=".json">` is triggered by context menu item
-2. `FileReader.readAsText()` reads the selected file
-3. `handleImportState(json)` calls `importGraphState(json, options)` with repair
-   strategies:
-   - `removeOrphanEdges`, `removeDuplicateNodeIds`, `removeDuplicateEdgeIds`,
-     `fillMissingDefaults`, `rehydrateDataTypeObjects`
-4. On success: replaces `dataTypes` and `typeOfNodes` with live originals
-   (export strips non-serializable fields like `onChange`, `complexSchema`)
-5. Dispatches `REPLACE_STATE` with the imported state
-6. Increments `reactFlowKey` to force ReactFlow remount (ensures Handle
-   registration happens before edge rendering)
-7. Calls `onStateImported?.(importedState)`
-8. On failure: calls `onImportError?.(errors)`
+1. Calls `importGraphState(json, { dataTypes, typeOfNodes, repair: { … } })`
+   with repair strategies `removeOrphanEdges`, `removeDuplicateNodeIds`,
+   `removeDuplicateEdgeIds`, `fillMissingDefaults`, `rehydrateDataTypeObjects`
+2. On success: replaces the imported `dataTypes` / `typeOfNodes` with the
+   **live** originals (export strips non-serializable fields like `onChange`,
+   `complexSchema`), then dispatches `REPLACE_STATE` with the merged state
+3. Increments `reactFlowKey` (`setReactFlowKey((k) => k + 1)`) to **remount**
+   ReactFlow, so Handle registration happens before edges try to resolve handles
+4. Fires `onGraphEvent({ kind: 'ui:state:imported', success: true, state })` and
+   calls `onStateImported?.(merged)`
+5. On failure: maps errors to `"${path}: ${message}"`, fires the failure variant
+   of `ui:state:imported`, and calls `onImportError?.(errors)`
 
 ### Recording export/import
 
-**Export flow:**
+**Export** — `handleExportRecording()` reads the current record from
+`executionRecordRef.current?.()` (populated by `RunnerOverlay`, which merges the
+current `viewState`), then `exportExecutionRecord(record, { pretty: true })` and
+downloads `execution-recording.json`.
 
-1. `handleExportRecording()` reads the current execution record from
-   `executionRecordRef`
-2. Calls `exportExecutionRecord(record, { pretty: true })`
-3. Downloads as `execution-recording.json`
-
-**Import flow:**
-
-1. Hidden `<input type="file">` triggered by context menu
-2. `handleImportRecording(json)` calls `importExecutionRecord(json, options)`
-   with repair strategies:
-   - `sanitizeNonSerializableValues`, `removeOrphanSteps`
-3. On success: loads into runner via `loadRecordRef.current(result.data)`, which
-   validates against current graph
-4. Calls `onRecordingImported?.(result.data)`
-5. On failure: calls `onImportError?.(errors)`
+**Import** — `handleImportRecording(json)` calls
+`importExecutionRecord(json, { repair: { sanitizeNonSerializableValues: true, removeOrphanSteps: true } })`,
+then loads the deserialized record into the runner via
+`loadRecordRef.current?.(result.data)`. `loadRecord` validates the record
+against the current graph and restores the recording's `viewState` (including
+run mode and max loop iterations). On invalid → `onImportError`; on success →
+`onGraphEvent({ kind: 'ui:recording:imported' })` and
+`onRecordingImported?.(record)`.
 
 ### Hidden file inputs
 
-Two hidden `<input type="file">` elements are rendered at the bottom of
-`FullGraphWithReactFlowProvider`:
-
-- `importStateInputRef` -- for state JSON import
-- `importRecordingInputRef` -- for recording JSON import
-
-Both reset their value after reading (`e.target.value = ''`) to allow
-re-importing the same file.
+`useGraphImportExport` returns a `FileInputElements` component rendering two
+hidden `<input type="file" accept=".json">` elements (one for state, one for
+recording). Both reset `e.target.value = ''` after reading to allow re-importing
+the same file. `onGraphEvent` is captured in a ref inside the hook so identity
+changes don't recreate `FileInputElements` and detach the input between the menu
+click and the file selection. See
+[Import/Export](../importExport/importExportDoc.md).
 
 ---
 
-## Limitations and Deprecated Patterns
+## Error Boundaries
 
-- **No undo/redo**: The reducer does not maintain a history stack. State import
-  via `REPLACE_STATE` is the only way to restore a previous state.
-- **Single connection line component**: All connection previews use
-  `ConfigurableConnection`; there is no per-edge-type customization of the drag
-  preview.
-- **Viewport stored in state**: The viewport is stored in the reducer state and
-  dispatched on every change. This creates frequent state updates during
-  pan/zoom.
-- **ReactFlow remount on import**: After importing state, the entire ReactFlow
-  instance is remounted via key change. This is necessary due to Handle
-  registration timing but causes a visual flash.
-- **Generic variance bridge**: The `createContextValue()` type erasure is safe
-  but relies on the convention that context consumers only dispatch via
-  `actionTypesMap` constants.
+FullGraph wraps its tree in `ErrorBoundary`
+(`src/components/atoms/ErrorBoundary`) at two levels:
+
+- An **outer** boundary around the entire editor — renders a "Graph rendering
+  error" fallback with a Retry button
+  (`src/components/organisms/FullGraph/FullGraph.tsx` ›
+  `FullGraphWithReactFlowProvider`)
+- An **inner** boundary around `RunnerOverlay` — renders a "Runner panel error"
+  fallback so a runner crash doesn't take down the canvas
+  (`src/components/organisms/FullGraph/FullGraph.tsx` ›
+  `FullGraphWithReactFlowProvider`)
+
+Both log to `console.error` via `onError`.
+
+---
+
+## Limitations and Notes
+
+- **Viewport stored in state**: the viewport is held in reducer state and
+  dispatched on every change, producing frequent (non-undoable) state updates
+  during pan/zoom.
+- **ReactFlow remount on import**: after importing state, the entire ReactFlow
+  instance is remounted via `reactFlowKey`. Necessary for correct Handle
+  registration timing, but causes a brief visual flash.
+- **Generic variance bridge**: `createContextValue()` type-erases the generics;
+  safe because consumers only dispatch via `actionTypesMap` constants.
+- **Single context menu**: only one context menu is open at a time (a single
+  `useState` in FullGraph). There is no node-specific (per-node) context menu.
+- **UI-only state**: `activeDrawer`, `zones` / `zoneIndex`, and `history` are
+  not serialized by default — they are stripped on export and rehydrated on
+  import.
 
 ---
 
@@ -565,14 +950,15 @@ function MyEditor() {
 }
 ```
 
-### With runner enabled
+### With runner enabled (controlled record)
 
 ```tsx
+import { useState } from 'react';
 import {
   FullGraph,
   useFullGraph,
-  makeStateWithAutoInfer,
   makeFunctionImplementationsWithAutoInfer,
+  type ExecutionRecord,
 } from 'react-blender-nodes';
 
 const functionImplementations = makeFunctionImplementationsWithAutoInfer({
@@ -581,6 +967,7 @@ const functionImplementations = makeFunctionImplementationsWithAutoInfer({
 
 function MyEditor() {
   const { state, dispatch } = useFullGraph(initialState);
+  const [record, setRecord] = useState<ExecutionRecord | null>(null);
 
   return (
     <div style={{ height: '600px', width: '100%' }}>
@@ -588,18 +975,60 @@ function MyEditor() {
         state={state}
         dispatch={dispatch}
         functionImplementations={functionImplementations}
+        executionRecord={record}
+        onExecutionRecordChange={setRecord}
       />
     </div>
   );
 }
 ```
 
-### With import/export callbacks
+### Unified observability (one handler, both layers)
+
+```tsx
+import { FullGraph, useFullGraph } from 'react-blender-nodes';
+import type { GraphEvent } from 'react-blender-nodes';
+
+function MyEditor() {
+  const onGraphEvent = (event: GraphEvent) => {
+    switch (event.kind) {
+      case 'action:applied':
+        if (event.detail?.kind === 'ADD_NODE')
+          console.log('added node', event.detail.nodeId);
+        break;
+      case 'action:rejected':
+        console.warn('rejected:', event.error.code);
+        break;
+      case 'ui:delete:attempted':
+        if (!event.success) console.warn('delete blocked:', event.reason);
+        break;
+    }
+  };
+
+  // Reducer-layer events come from useFullGraph's wrapped dispatch …
+  const { state, dispatch } = useFullGraph(initialState, { onGraphEvent });
+
+  return (
+    <div style={{ height: '600px', width: '100%' }}>
+      {/* … UI-layer events come from FullGraph. Same handler. */}
+      <FullGraph
+        state={state}
+        dispatch={dispatch}
+        onGraphEvent={onGraphEvent}
+      />
+    </div>
+  );
+}
+```
+
+### Import callbacks, custom inputs, and disabling shortcuts
 
 ```tsx
 <FullGraph
   state={state}
   dispatch={dispatch}
+  inputComponents={{ myComplexType: MyCustomEditor }}
+  enableUndoRedoShortcuts={false}
   onStateImported={(imported) => console.log('State imported', imported)}
   onRecordingImported={(record) => console.log('Recording imported', record)}
   onImportError={(errors) => alert(errors.join('\n'))}
@@ -610,64 +1039,76 @@ function MyEditor() {
 
 ## Relationships with Other Features
 
-### -> [State Management](../core/stateManagementDoc.md)
+### → [State Management](../core/stateManagementDoc.md)
 
-FullGraph receives `state` and `dispatch` from the consumer (typically via
-`useFullGraph`). It dispatches actions (`ADD_NODE_AND_SELECT`,
-`UPDATE_NODE_BY_REACT_FLOW`, `UPDATE_EDGES_BY_REACT_FLOW`,
-`ADD_EDGE_BY_REACT_FLOW`, `SET_VIEWPORT`, `OPEN_NODE_GROUP`, `CLOSE_NODE_GROUP`,
-`ADD_NODE_GROUP`, `REPLACE_STATE`) through the `mainReducer`.
+FullGraph is controlled by `state` + `dispatch` (typically from `useFullGraph`,
+backed by `createGraphStore` + `useSyncExternalStore`). It dispatches
+`ADD_NODE_AND_SELECT`, `UPDATE_NODE_BY_REACT_FLOW`,
+`UPDATE_EDGES_BY_REACT_FLOW`, `ADD_EDGE_BY_REACT_FLOW`, `SET_VIEWPORT`,
+`OPEN_NODE_GROUP`, `CLOSE_NODE_GROUP`, `ADD_NODE_GROUP`, `REPLACE_STATE`,
+`ADD_LOOP`, `UPDATE_LOOP`, `ADD_SWITCH`, `UPDATE_SWITCH`, `UPDATE_NODE_TYPE`,
+`OPEN_DRAWER`, `CLOSE_DRAWER`, `UNDO`, `REDO`, `BEGIN_BATCH`, and `END_BATCH`.
 
-### -> [ConfigurableNode](configurableNodeDoc.md)
+### → [Undo/Redo History](../core/historyDoc.md)
 
-All nodes render as `ConfigurableNodeReactFlowWrapper` (registered as
-`nodeTypes.configurableNode`). The wrapper reads `FullGraphContext` to access
-state, dispatch, and `nodeRunnerStates` for visual indicators.
+FullGraph drives history with keyboard shortcuts (`UNDO` / `REDO`) and brackets
+node drags with `BEGIN_BATCH` / `END_BATCH`. History lives in `state.history`.
 
-### -> [ConfigurableEdge](configurableEdgeDoc.md)
+### → [Editor Drawers](editorsDoc.md)
 
-All edges render as `ConfigurableEdge` (registered as
-`edgeTypes.configurableEdge`). Edge connections are validated via type checking
-in the reducer.
+FullGraph hosts `NodeTypeEditDrawer`, `LoopEditDrawer`, and `SwitchEditDrawer`,
+driven by `state.activeDrawer`, saving via `UPDATE_NODE_TYPE` / `UPDATE_LOOP` /
+`UPDATE_SWITCH`.
 
-### -> [Context Menu](contextMenuDoc.md)
+### → [Zones](../features/zonesDoc.md)
 
-`FullGraphContextMenu` wraps the `ContextMenu` molecule with floating-ui
-positioning. Menu items are built from two sources: `createNodeContextMenu()`
-(node creation) and `createImportExportMenuItems()` (import/export). The menu
-uses `@floating-ui/react` for positioning, flip, shift, and dismiss behavior.
+FullGraph renders `ZoneFrameOverlay` inside ReactFlow, framing zone member nodes
+for the active scope.
 
-### -> [NodeRunnerPanel](nodeRunnerPanelDoc.md)
+### → [ConfigurableNode](configurableNodeDoc.md)
 
-Rendered by `RunnerOverlay` when `functionImplementations` is provided. Receives
-all runner controls (run, pause, step, stop, reset, mode, scrub,
-maxLoopIterations) as props. Can be toggled open/closed.
+All nodes render as `ConfigurableNodeReactFlowWrapper`
+(`nodeTypes.configurableNode`). It reads `FullGraphContext` for state/dispatch
+and `RunnerContext` for per-node runner visual states.
 
-### -> [Runner Hook (useNodeRunner)](../runner/runnerHookDoc.md)
+### → [ConfigurableEdge](configurableEdgeDoc.md)
 
-Called inside `RunnerOverlay` with `state` and `functionImplementations`.
-Provides the full execution lifecycle: compile -> execute (instant or
-step-by-step) -> replay. Supports two modes: `'instant'` (full execution, then
-timeline replay) and `'stepByStep'` (pause after each step). Also provides
-`loadRecord()` for importing pre-recorded executions.
+All edges render as `ConfigurableEdge` (`edgeTypes.configurableEdge`).
+Connections are validated in the validate → plan → apply pipeline.
 
-### -> [Import/Export](../importExport/importExportDoc.md)
+### → [Context Menu](contextMenuDoc.md)
 
-FullGraph integrates import/export at two levels:
+`FullGraphContextMenu` positions the `ContextMenu` molecule with
+`@floating-ui/react`. Items are assembled from `createLoopMenuItem`,
+`createSwitchMenuItem`, `createNodeContextMenu`, and
+`createImportExportMenuItems`.
 
-1. **Context menu items**: via `createImportExportMenuItems()` which triggers
-   hidden file inputs
-2. **Handler functions**: `handleExportState`, `handleImportState`,
-   `handleExportRecording`, `handleImportRecording` which use functions from
-   `src/utils/importExport/`
+### → [Input Components](inputComponentsDoc.md)
 
-State import replaces live `dataTypes` and `typeOfNodes` (since exported JSON
-strips non-serializable fields), dispatches `REPLACE_STATE`, and remounts
-ReactFlow.
+`inputComponents` registers custom editors via `InputComponentRegistryContext`,
+read by node inputs through `useInputComponentRegistry()`.
 
-### -> [ReactFlow (external)](../external/reactFlowDoc.md)
+### → [NodeRunnerPanel](nodeRunnerPanelDoc.md)
 
-FullGraph uses `@xyflow/react` as its rendering engine. It provides
-`ReactFlowProvider` at the top level, uses `useReactFlow()` for coordinate
-conversion and fitView, and passes controlled viewport, custom node/edge types,
-and all event handlers to the `<ReactFlow>` component.
+Rendered by `RunnerOverlay` when `functionImplementations` is provided; receives
+all transport controls and the execution record.
+
+### → [Runner Hook (useNodeRunner)](../runner/runnerHookDoc.md)
+
+Called inside `RunnerOverlay` with `state`, `functionImplementations`, and the
+controlled `executionRecord` / `onExecutionRecordChange`. Provides compile →
+execute (instant or step-by-step) → replay, plus `loadRecord()`.
+
+### → [Import/Export](../importExport/importExportDoc.md)
+
+Integrated through `useGraphImportExport`: context-menu items trigger hidden
+file inputs; handlers call `exportGraphState` / `importGraphState` /
+`exportExecutionRecord` / `importExecutionRecord`. State import re-merges live
+`dataTypes` / `typeOfNodes`, dispatches `REPLACE_STATE`, and remounts ReactFlow.
+
+### → [ReactFlow (external)](../external/reactFlowDoc.md)
+
+FullGraph uses `@xyflow/react` as its renderer: `ReactFlowProvider` at the top,
+`useReactFlow()` / `useUpdateNodeInternals()` for coordinate conversion and
+re-measuring, and a controlled viewport with custom node/edge types and event
+handlers.

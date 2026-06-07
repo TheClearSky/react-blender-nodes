@@ -9,3 +9,4 @@ export * from './NodeTypeEditDrawer';
 export * from './ColorPicker';
 export * from './DragList';
 export * from './PresetModal';
+export * from './ConnectionMiniMap';

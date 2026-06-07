@@ -16,6 +16,7 @@ import type {
   GamutInfo,
   OklchColor,
 } from './types';
+import { clamp, round } from './math';
 
 const toOklch = converter('oklch');
 const toRgb = converter('rgb');
@@ -26,15 +27,6 @@ const toP3 = converter('p3');
 const toRec2020 = converter('rec2020');
 
 const GAMUT_EPSILON = 1e-4;
-
-function clamp(x: number, lo: number, hi: number) {
-  return Math.min(Math.max(x, lo), hi);
-}
-
-function round(x: number, dp: number) {
-  const f = 10 ** dp;
-  return Math.round(x * f) / f;
-}
 
 function channelsInRange(c: { r?: number; g?: number; b?: number }): boolean {
   const r = c.r ?? 0;

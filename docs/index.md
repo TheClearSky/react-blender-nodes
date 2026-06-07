@@ -30,8 +30,12 @@
 |                                             v                  v          |
 |                                      +-----------------------------+      |
 |                                      |    State Management         |      |
-|                                      | mainReducer (11 actions)    |      |
-|                                      | Immer produce() immutable   |      |
+|                                      | createGraphStore + useFull- |      |
+|                                      |  Graph (external store)     |      |
+|                                      | validate -> plan -> apply   |      |
+|                                      | (23 actions, 22 plan kinds) |      |
+|                                      | Immer produce + undo/redo   |      |
+|                                      |  history (patches)          |      |
 |                                      +-----------------------------+      |
 |                                                                           |
 +---------------------------------------------------------------------------+
@@ -46,6 +50,14 @@
 |  | groupInput/Output |  | iteration data    |  | type conversion     |    |
 |  | boundary nodes    |  | flow, bindLoop    |  | complex type check  |    |
 |  | stack navigation  |  | structural edges  |  | loop/group rules    |    |
+|  +-------------------+  +-------------------+  +---------------------+    |
+|                                                                           |
+|  +-------------------+  +-------------------+  +---------------------+    |
+|  |     Switches      |  |      Zones        |  |  Editor Drawers     |    |
+|  | switchStart/End   |  | first-class       |  | loop / switch /     |    |
+|  | pair, condition   |  | regions, frames   |  | node-type editors   |    |
+|  | true/false zones  |  | loop pre/post-stop|  | reorder/rename      |    |
+|  | bindSwitchNodes   |  | switch true/false |  | handles (channels)  |    |
 |  +-------------------+  +-------------------+  +---------------------+    |
 |                                                                           |
 +---------------------------------------------------------------------------+
@@ -64,8 +76,9 @@
 |                           +------------------+                            |
 |                           | useNodeRunner    |                            |
 |                           | state machine    |                            |
-|                           | run/pause/step   |                            |
-|                           | replay/replayTo  |                            |
+|                           | run/pause/resume |                            |
+|                           | step/stop/reset  |                            |
+|                           | replayTo/loadRec |                            |
 |                           +------------------+                            |
 |                                                                           |
 +---------------------------------------------------------------------------+
@@ -106,8 +119,8 @@
 |                                                                           |
 |  NodeStatusIndicator                 State export/import                  |
 |  Input, Button, Checkbox             Recording export/import              |
-|  Badge (planned), Separator (planned) Validation & repair                 |
-|  Collapsible (planned)                                                    |
+|  Accordion, Tooltip, Modal            Validation & repair                 |
+|  ErrorBoundary                                                            |
 |  ScrollableButtonContainer           JSON serialization                   |
 |  useDrag, useClickedOutside                                               |
 |  useSlideAnimation, useResizeHandle                                       |
@@ -119,8 +132,8 @@
 |  ~~~~~~~~~~~~~~~~~~~~~~~~~~                                               |
 |                                                                           |
 |  ReactFlow    Immer     Zod       Tailwind    Radix UI    Storybook       |
-|  (@xyflow/    produce() schema    CSS dark    checkbox    component       |
-|   react)      immut.    valid.    theme       primitive   dev/test        |
+|  (@xyflow/    produce + schema    CSS dark    checkbox    component       |
+|   react)      patches   valid.    theme       primitive   dev/test        |
 |                                                                           |
 +---------------------------------------------------------------------------+
 ```
@@ -134,9 +147,9 @@ TypeOfNodes          edges                        v
      |                  |              +--------------------+
      v                  v              | Runner Compiler    |
 +---------+     +------------+         | (5 phases)         |
-| State   |---->| Connection |         +--------+-----------+
-| Mgmt    |     | Validation |                  |
-| Reducer |     | Pipeline   |         ExecutionPlan
+| State   |---->| validate-> |         +--------+-----------+
+| Mgmt    |     |  plan->    |                  |
+| (store) |     |  apply     |         ExecutionPlan
 +---------+     +------------+                  |
      |                                          v
      v                              +--------------------+
@@ -163,7 +176,9 @@ how they relate, see [productKnowledge.md](./productKnowledge.md). Covers:
 - What the library is and who uses it
 - Core concepts: data types, handles, nodes, edges, and state
 - The type system: inference, conversion, complex checking, cycle checking
-- Advanced features: node groups and loops (triplet system)
+- Advanced features: node groups, loops (triplet), switches (pair), zones, and
+  undo/redo history
+- Editing: loop / switch / node-type drawers
 - Execution: function implementations, compilation, modes, recording, visual
   feedback
 - Import/export capabilities
@@ -181,7 +196,8 @@ used across the entire codebase, see
   `UnderlyingType`, `ComplexSchemaType`) and how it threads through every layer
 - Identity-function auto-infer pattern (`makeStateWithAutoInfer`, etc.)
 - `as const` arrays to derive union types and runtime lookup maps
-- Discriminated union actions, `produce()` reducer, variance bridge for context
+- Discriminated union actions, validate -> plan -> apply pipeline, variance
+  bridge for context
 - Component declaration style (function declarations, named exports, no
   `React.FC`)
 - Hook structure (options object in, typed object out), ref-as-callback-channel
@@ -237,9 +253,29 @@ used across the entire codebase, see
 | Doc                                                                 | Why                                       |
 | ------------------------------------------------------------------- | ----------------------------------------- |
 | [loopsDoc.md](./features/loopsDoc.md)                               | Loop triplet system, bindLoopNodes edges  |
+| [zonesDoc.md](./features/zonesDoc.md)                               | Pre-Stop / Post-Stop body zones           |
 | [nodesDoc.md](./core/nodesDoc.md)                                   | loopStart/loopStop/loopEnd standard nodes |
 | [connectionValidationDoc.md](./features/connectionValidationDoc.md) | Loop-specific validation rules            |
 | [runnerCompilerDoc.md](./runner/runnerCompilerDoc.md)               | LoopExecutionBlock compilation            |
+
+### Building a Switch
+
+| Doc                                                                 | Why                                        |
+| ------------------------------------------------------------------- | ------------------------------------------ |
+| [switchesDoc.md](./features/switchesDoc.md)                         | Switch pair, condition, bindSwitchNodes    |
+| [zonesDoc.md](./features/zonesDoc.md)                               | True / False branch zones, handle ordering |
+| [nodesDoc.md](./core/nodesDoc.md)                                   | switchStart/switchEnd standard nodes       |
+| [connectionValidationDoc.md](./features/connectionValidationDoc.md) | Switch branch validation rules             |
+| [runnerCompilerDoc.md](./runner/runnerCompilerDoc.md)               | SwitchExecutionBlock compilation           |
+
+### Editing Loops, Switches, or Node Types (Drawers)
+
+| Doc                                                   | Why                                                  |
+| ----------------------------------------------------- | ---------------------------------------------------- |
+| [editorsDoc.md](./ui/editorsDoc.md)                   | Loop/switch/node-type drawers, channel reorder model |
+| [stateManagementDoc.md](./core/stateManagementDoc.md) | UPDATE_LOOP/UPDATE_SWITCH/UPDATE_NODE_TYPE, drawers  |
+| [loopsDoc.md](./features/loopsDoc.md)                 | Loop structure the loop editor edits                 |
+| [switchesDoc.md](./features/switchesDoc.md)           | Switch structure the switch editor edits             |
 
 ### Modifying the Graph Editor UI
 
@@ -263,12 +299,13 @@ used across the entire codebase, see
 
 ### Adding a New Input Component
 
-| Doc                                                   | Why                                   |
-| ----------------------------------------------------- | ------------------------------------- |
-| [inputComponentsDoc.md](./ui/inputComponentsDoc.md)   | Existing input atoms, patterns        |
-| [configurableNodeDoc.md](./ui/configurableNodeDoc.md) | How inputs are rendered inside nodes  |
-| [dataTypesDoc.md](./core/dataTypesDoc.md)             | hasInputField, underlyingType mapping |
-| [tailwindDoc.md](./external/tailwindDoc.md)           | Styling conventions, custom theme     |
+| Doc                                                   | Why                                                           |
+| ----------------------------------------------------- | ------------------------------------------------------------- |
+| [inputComponentsDoc.md](./ui/inputComponentsDoc.md)   | Existing input atoms, patterns                                |
+| [configurableNodeDoc.md](./ui/configurableNodeDoc.md) | How inputs are rendered inside nodes                          |
+| [dataTypesDoc.md](./core/dataTypesDoc.md)             | hasInputField, underlyingType mapping                         |
+| [colorPickerDoc.md](./ui/colorPickerDoc.md)           | OKLCH color picker molecule (compound parts + popover + hook) |
+| [tailwindDoc.md](./external/tailwindDoc.md)           | Styling conventions, custom theme                             |
 
 ### Implementing Import/Export
 
@@ -281,22 +318,23 @@ used across the entire codebase, see
 
 ### Adding a New UI Atom
 
-| Doc                                           | Why                                                               |
-| --------------------------------------------- | ----------------------------------------------------------------- |
-| [uiPrimitivesDoc.md](./ui/uiPrimitivesDoc.md) | Existing atoms + planned: Badge, Separator, Collapsible (planned) |
-| [hooksDoc.md](./hooks/hooksDoc.md)            | Custom hooks available for reuse                                  |
-| [tailwindDoc.md](./external/tailwindDoc.md)   | Styling patterns, cn() helper, color tokens                       |
-| [storybookDoc.md](./external/storybookDoc.md) | Story writing conventions                                         |
-| [radixUIDoc.md](./external/radixUIDoc.md)     | Radix UI integration pattern                                      |
+| Doc                                           | Why                                                                                         |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [uiPrimitivesDoc.md](./ui/uiPrimitivesDoc.md) | Accordion, Modal, Tooltip, ErrorBoundary, ConfigurableConnection, ScrollableButtonContainer |
+| [hooksDoc.md](./hooks/hooksDoc.md)            | Custom hooks available for reuse                                                            |
+| [tailwindDoc.md](./external/tailwindDoc.md)   | Styling patterns, cn() helper, color tokens                                                 |
+| [storybookDoc.md](./external/storybookDoc.md) | Story writing conventions                                                                   |
+| [radixUIDoc.md](./external/radixUIDoc.md)     | Radix UI integration pattern                                                                |
 
 ### Working with State/Reducer
 
-| Doc                                                   | Why                                             |
-| ----------------------------------------------------- | ----------------------------------------------- |
-| [stateManagementDoc.md](./core/stateManagementDoc.md) | State type, 11 actions, Immer produce()         |
-| [immerDoc.md](./external/immerDoc.md)                 | Immer integration pattern                       |
-| [edgesDoc.md](./core/edgesDoc.md)                     | Edge add/remove with type checking side effects |
-| [typeInferenceDoc.md](./core/typeInferenceDoc.md)     | Inference cascades triggered by state changes   |
+| Doc                                                   | Why                                               |
+| ----------------------------------------------------- | ------------------------------------------------- |
+| [stateManagementDoc.md](./core/stateManagementDoc.md) | State type, 23 actions, validate -> plan -> apply |
+| [historyDoc.md](./core/historyDoc.md)                 | Undo/redo, batching, Immer-patch history entries  |
+| [immerDoc.md](./external/immerDoc.md)                 | Immer produce + produceWithPatches integration    |
+| [edgesDoc.md](./core/edgesDoc.md)                     | Edge add/remove with type checking side effects   |
+| [typeInferenceDoc.md](./core/typeInferenceDoc.md)     | Inference cascades triggered by state changes     |
 
 ### Writing Tests / Stories
 
@@ -312,70 +350,75 @@ used across the entire codebase, see
 
 ### Core Systems
 
-| #   | Feature          | Doc                                                   | Description                                                                                 |
-| --- | ---------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| 1   | Data Types       | [dataTypesDoc.md](./core/dataTypesDoc.md)             | Type system foundation: string, number, boolean, complex, inferFromConnection, noEquivalent |
-| 2   | Handles          | [handlesDoc.md](./core/handlesDoc.md)                 | Input/output ports, HandleIndices addressing, panels, dynamic handle addition               |
-| 3   | Nodes            | [nodesDoc.md](./core/nodesDoc.md)                     | TypeOfNode definitions, Node instances, 5 standard node types                               |
-| 4   | Edges            | [edgesDoc.md](./core/edgesDoc.md)                     | Connection management, type-checked add/remove, DFS cycle detection                         |
-| 5   | State Management | [stateManagementDoc.md](./core/stateManagementDoc.md) | mainReducer, 11 action types, Immer-based immutable updates                                 |
-| 6   | Type Inference   | [typeInferenceDoc.md](./core/typeInferenceDoc.md)     | inferFromConnection resolution, cascading inference on edge changes                         |
+| #   | Feature           | Doc                                                   | Description                                                                                 |
+| --- | ----------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 1   | Data Types        | [dataTypesDoc.md](./core/dataTypesDoc.md)             | Type system foundation: string, number, boolean, complex, inferFromConnection, noEquivalent |
+| 2   | Handles           | [handlesDoc.md](./core/handlesDoc.md)                 | Input/output ports, HandleIndices addressing, panels, dynamic handle addition               |
+| 3   | Nodes             | [nodesDoc.md](./core/nodesDoc.md)                     | TypeOfNode definitions, Node instances, 7 standard node types                               |
+| 4   | Edges             | [edgesDoc.md](./core/edgesDoc.md)                     | Connection management, type-checked add/remove, DFS cycle detection                         |
+| 5   | State Management  | [stateManagementDoc.md](./core/stateManagementDoc.md) | createGraphStore + useFullGraph, validate -> plan -> apply, 23 action types                 |
+| 6   | Type Inference    | [typeInferenceDoc.md](./core/typeInferenceDoc.md)     | inferFromConnection resolution, cascading inference on edge changes                         |
+| 7   | Undo/Redo History | [historyDoc.md](./core/historyDoc.md)                 | state.history, Immer patches, batching, UNDO/REDO/BEGIN_BATCH/END_BATCH/CLEAR_HISTORY       |
 
 ### Feature Systems
 
-| #   | Feature               | Doc                                                                 | Description                                                             |
-| --- | --------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| 7   | Node Groups           | [nodeGroupsDoc.md](./features/nodeGroupsDoc.md)                     | Subtree-based composable groups, boundary nodes, handle synchronization |
-| 8   | Loops                 | [loopsDoc.md](./features/loopsDoc.md)                               | Loop triplet (loopStart/Stop/End), bindLoopNodes, iteration data flow   |
-| 9   | Connection Validation | [connectionValidationDoc.md](./features/connectionValidationDoc.md) | Cycle check, type conversion, complex type check, loop/group rules      |
+| #   | Feature               | Doc                                                                 | Description                                                                 |
+| --- | --------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 8   | Node Groups           | [nodeGroupsDoc.md](./features/nodeGroupsDoc.md)                     | Subtree-based composable groups, boundary nodes, handle synchronization     |
+| 9   | Loops                 | [loopsDoc.md](./features/loopsDoc.md)                               | Loop triplet (loopStart/Stop/End), bindLoopNodes, iteration data flow       |
+| 10  | Switches              | [switchesDoc.md](./features/switchesDoc.md)                         | Switch pair (switchStart/End), condition, bindSwitchNodes, true/false zones |
+| 11  | Zones                 | [zonesDoc.md](./features/zonesDoc.md)                               | First-class regions: loop pre/post-stop & switch true/false, frame overlay  |
+| 12  | Connection Validation | [connectionValidationDoc.md](./features/connectionValidationDoc.md) | Cycle check, type conversion, complex type check, loop/switch/group rules   |
 
 ### Runner Systems
 
 | #   | Feature             | Doc                                                           | Description                                                    |
 | --- | ------------------- | ------------------------------------------------------------- | -------------------------------------------------------------- |
-| 10  | Runner Compiler     | [runnerCompilerDoc.md](./runner/runnerCompilerDoc.md)         | 5-phase pipeline: State -> ExecutionPlan                       |
-| 11  | Runner Executor     | [runnerExecutorDoc.md](./runner/runnerExecutorDoc.md)         | Async execution engine, ValueStore, concurrent level execution |
-| 12  | Runner Hook         | [runnerHookDoc.md](./runner/runnerHookDoc.md)                 | useNodeRunner state machine, run/pause/step/stop/reset/replay  |
-| 13  | Execution Recording | [executionRecordingDoc.md](./runner/executionRecordingDoc.md) | ExecutionRecord, step records, value snapshots, replay support |
+| 13  | Runner Compiler     | [runnerCompilerDoc.md](./runner/runnerCompilerDoc.md)         | 5-phase pipeline: State -> ExecutionPlan (loop/switch/group)   |
+| 14  | Runner Executor     | [runnerExecutorDoc.md](./runner/runnerExecutorDoc.md)         | Async execution engine, ValueStore, concurrent level execution |
+| 15  | Runner Hook         | [runnerHookDoc.md](./runner/runnerHookDoc.md)                 | useNodeRunner hook: run/pause/resume/step/stop/reset/replayTo  |
+| 16  | Execution Recording | [executionRecordingDoc.md](./runner/executionRecordingDoc.md) | ExecutionRecord, step records, value snapshots, replay support |
 
 ### UI Components
 
-| #   | Feature                | Doc                                                               | Description                                                           |
-| --- | ---------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------- |
-| 14  | FullGraph              | [fullGraphDoc.md](./ui/fullGraphDoc.md)                           | Top-level graph editor, ReactFlow integration, 3-layer architecture   |
-| 15  | ConfigurableNode       | [configurableNodeDoc.md](./ui/configurableNodeDoc.md)             | Node rendering: header, handles, inputs, panels, resizing             |
-| 16  | ConfigurableEdge       | [configurableEdgeDoc.md](./ui/configurableEdgeDoc.md)             | Edge rendering: gradient colors, bezier curves, viewport optimization |
-| 17  | Context Menu           | [contextMenuDoc.md](./ui/contextMenuDoc.md)                       | Right-click menu: nested submenus, node creation, import/export       |
-| 18  | NodeRunnerPanel        | [nodeRunnerPanelDoc.md](./ui/nodeRunnerPanelDoc.md)               | Runner UI drawer: composed of RunControls + Timeline + Inspector      |
-| 19  | RunControls            | [runControlsDoc.md](./ui/runControlsDoc.md)                       | Transport bar: play/pause/step/stop/reset, mode toggle                |
-| 20  | ExecutionTimeline      | [executionTimelineDoc.md](./ui/executionTimelineDoc.md)           | Multi-track timeline: zoom/pan, step blocks, scrubber                 |
-| 21  | ExecutionStepInspector | [executionStepInspectorDoc.md](./ui/executionStepInspectorDoc.md) | Step detail panel: input/output values, error display                 |
+| #   | Feature                | Doc                                                               | Description                                                                   |
+| --- | ---------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| 17  | FullGraph              | [fullGraphDoc.md](./ui/fullGraphDoc.md)                           | Top-level graph editor, external store, ReactFlow integration                 |
+| 18  | ConfigurableNode       | [configurableNodeDoc.md](./ui/configurableNodeDoc.md)             | Node rendering: header, handles, inputs, panels, header actions               |
+| 19  | ConfigurableEdge       | [configurableEdgeDoc.md](./ui/configurableEdgeDoc.md)             | Edge rendering: gradient colors, bezier curves, viewport optimization         |
+| 20  | Context Menu           | [contextMenuDoc.md](./ui/contextMenuDoc.md)                       | Right-click menu: add node/loop/switch, node groups, import/export            |
+| 21  | Editor Drawers         | [editorsDoc.md](./ui/editorsDoc.md)                               | Loop / switch / node-type edit drawers, data-channel reorder & rename         |
+| 22  | NodeRunnerPanel        | [nodeRunnerPanelDoc.md](./ui/nodeRunnerPanelDoc.md)               | Runner UI drawer: composed of RunControls + Timeline + Inspector              |
+| 23  | RunControls            | [runControlsDoc.md](./ui/runControlsDoc.md)                       | Transport bar: play/pause/step/stop/reset, mode toggle                        |
+| 24  | ExecutionTimeline      | [executionTimelineDoc.md](./ui/executionTimelineDoc.md)           | Multi-track timeline: loops, switches, zoom/pan, scrubber                     |
+| 25  | ExecutionStepInspector | [executionStepInspectorDoc.md](./ui/executionStepInspectorDoc.md) | Step detail panel: input/output values, error display                         |
+| 26  | ColorPicker            | [colorPickerDoc.md](./ui/colorPickerDoc.md)                       | OKLCH-native color picker: PopoverColorPicker, compound parts, useColorPicker |
 
 ### UI Atoms, Hooks & Utilities
 
-| #   | Feature             | Doc                                                         | Description                                                                            |
-| --- | ------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 22  | NodeStatusIndicator | [nodeStatusIndicatorDoc.md](./ui/nodeStatusIndicatorDoc.md) | Visual state overlay: running/completed/errored/warning borders                        |
-| 23  | Input Components    | [inputComponentsDoc.md](./ui/inputComponentsDoc.md)         | Text input, number slider, checkbox, button atoms                                      |
-| 24  | UI Primitives       | [uiPrimitivesDoc.md](./ui/uiPrimitivesDoc.md)               | Badge (planned), Separator (planned), Collapsible (planned), ScrollableButtonContainer |
-| 25  | Custom Hooks        | [hooksDoc.md](./hooks/hooksDoc.md)                          | useDrag, useClickedOutside, useSlideAnimation, useResizeHandle, etc.                   |
+| #   | Feature             | Doc                                                         | Description                                                                                      |
+| --- | ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 27  | NodeStatusIndicator | [nodeStatusIndicatorDoc.md](./ui/nodeStatusIndicatorDoc.md) | Visual state overlay: running/completed/errored/warning borders                                  |
+| 28  | Input Components    | [inputComponentsDoc.md](./ui/inputComponentsDoc.md)         | Text input, number slider, checkbox, button atoms                                                |
+| 29  | UI Primitives       | [uiPrimitivesDoc.md](./ui/uiPrimitivesDoc.md)               | Accordion, Modal, Tooltip, ErrorBoundary, NodeResizerWithMoreControls, ScrollableButtonContainer |
+| 30  | Custom Hooks        | [hooksDoc.md](./hooks/hooksDoc.md)                          | useDrag, useClickedOutside, useSlideAnimation, useResizeHandle, etc.                             |
 
 ### Import/Export
 
 | #   | Feature       | Doc                                                     | Description                                                    |
 | --- | ------------- | ------------------------------------------------------- | -------------------------------------------------------------- |
-| 26  | Import/Export | [importExportDoc.md](./importExport/importExportDoc.md) | State & recording serialization, validation, repair strategies |
+| 31  | Import/Export | [importExportDoc.md](./importExport/importExportDoc.md) | State & recording serialization, validation, repair strategies |
 
 ### External Systems
 
-| #   | Feature      | Doc                                           | Description                                                  |
-| --- | ------------ | --------------------------------------------- | ------------------------------------------------------------ |
-| 27  | ReactFlow    | [reactFlowDoc.md](./external/reactFlowDoc.md) | Core graph rendering engine: nodes, edges, viewport, minimap |
-| 28  | Immer        | [immerDoc.md](./external/immerDoc.md)         | Immutable state management via produce() in mainReducer      |
-| 29  | Zod          | [zodDoc.md](./external/zodDoc.md)             | Schema validation for complex data types                     |
-| 30  | Tailwind CSS | [tailwindDoc.md](./external/tailwindDoc.md)   | Utility CSS, custom dark theme, cn() helper, color tokens    |
-| 31  | Radix UI     | [radixUIDoc.md](./external/radixUIDoc.md)     | UI primitives: checkbox component                            |
-| 32  | Storybook    | [storybookDoc.md](./external/storybookDoc.md) | Component development, stories, visual testing               |
+| #   | Feature      | Doc                                           | Description                                                    |
+| --- | ------------ | --------------------------------------------- | -------------------------------------------------------------- |
+| 32  | ReactFlow    | [reactFlowDoc.md](./external/reactFlowDoc.md) | Core graph rendering engine: nodes, edges, viewport, minimap   |
+| 33  | Immer        | [immerDoc.md](./external/immerDoc.md)         | Immutable updates via produce + produceWithPatches (undo/redo) |
+| 34  | Zod          | [zodDoc.md](./external/zodDoc.md)             | Schema validation for complex data types                       |
+| 35  | Tailwind CSS | [tailwindDoc.md](./external/tailwindDoc.md)   | Utility CSS, custom dark theme, cn() helper, color tokens      |
+| 36  | Radix UI     | [radixUIDoc.md](./external/radixUIDoc.md)     | UI primitives: checkbox component                              |
+| 37  | Storybook    | [storybookDoc.md](./external/storybookDoc.md) | Component development, stories, visual testing                 |
 
 ---
 
@@ -385,13 +428,22 @@ used across the entire codebase, see
 src/
 +-- utils/
 |   +-- nodeStateManagement/
-|   |   +-- types.ts                  State, DataType, TypeOfNode, Node, Edge
-|   |   +-- mainReducer.ts           11-action reducer, Immer produce()
-|   |   +-- standardNodes.ts         Standard data types & node types
-|   |   +-- constructAndModifyHandles.ts  Edge add/remove with validation
+|   |   +-- types.ts                  State (incl. history, zones), DataType, TypeOfNode, ActiveDrawer
+|   |   +-- mainReducer.ts            23 action types; delegates to validate + applyValidatedAction
+|   |   +-- applyWithHistory.ts       applyValidatedAction: 3-path undo/redo history routing
+|   |   +-- graphEvent.ts             GraphEvent observability stream (applied/rejected/committed/ui)
+|   |   +-- standardNodes.ts          Standard data types & 7 standard node types
+|   |   +-- constructAndModifyHandles.ts  Legacy edge add/remove (test-only)
+|   |   +-- planApply/
+|   |   |   +-- validators.ts         validateAction (pure) -> Result<Plan, ValidationError>
+|   |   |   +-- validateAddEdge.ts    13-step edge validation gauntlet
+|   |   |   +-- applyPlan.ts          The only mutator: switch over 22 plan kinds, mints ids
+|   |   |   +-- types.ts              Plan union, Result, ValidationError taxonomy
+|   |   +-- zones/                    First-class regions (types, lifecycle, BFS discovery)
 |   |   +-- nodes/
 |   |       +-- nodeGroups.ts         Group subtree operations
 |   |       +-- loops/                Loop triplet operations (folder)
+|   |       +-- switches/             Switch pair operations + true/false zones (folder)
 |   +-- nodeRunner/
 |   |   +-- compiler.ts              5-phase compilation pipeline
 |   |   +-- executor/                Async execution engine (folder)
@@ -400,28 +452,42 @@ src/
 |   |   +-- valueStore.ts            Runtime value propagation
 |   |   +-- topologicalSort.ts       Kahn's algorithm
 |   |   +-- loopCompiler.ts          Loop block compilation
+|   |   +-- switchCompiler.ts        Switch block compilation
 |   |   +-- groupCompiler.ts         Group scope compilation
 |   |   +-- types.ts                 All runner type definitions
 |   +-- importExport/
-|       +-- stateExport.ts           State serialization
+|       +-- stateSerializer.ts       State strip (UI-only fields incl. history/zones)
+|       +-- stateExport.ts           exportGraphState: serialize state -> JSON string
 |       +-- stateImport.ts           State deserialization + validation
 |       +-- recordExport.ts          Recording serialization
 |       +-- recordImport.ts          Recording deserialization
+|       +-- serialization.ts         Map<->Record, safe values, GraphError ser/de
 |       +-- validation.ts            Structural validation + repair
 +-- components/
 |   +-- organisms/
 |   |   +-- FullGraph/                Main graph editor
+|   |   |   +-- graphStore.ts         createGraphStore (external Redux-style store)
+|   |   |   +-- FullGraphState.ts     useFullGraph (useSyncExternalStore)
+|   |   |   +-- historyTypes.ts       HistoryEntry/Config, isUndoable, recordInHistory
 |   |   +-- ConfigurableNode/         Node rendering
 |   |   +-- NodeRunnerPanel/          Runner UI panel
 |   +-- molecules/
 |   |   +-- ContextMenu/              Right-click menu
+|   |   +-- LoopEditDrawer/           Loop data-channel editor
+|   |   +-- SwitchEditDrawer/         Switch data-channel editor
+|   |   +-- NodeTypeEditDrawer/       Group/node-type editor
+|   |   +-- ColorPicker/              OKLCH color picker (PopoverColorPicker + compound parts + useColorPicker)
+|   |   +-- ZoneFrameOverlay/         Convex-hull zone frame rendering
 |   |   +-- RunControls/              Transport bar
 |   |   +-- ExecutionTimeline/         Timeline scrubber
 |   |   +-- ExecutionStepInspector/    Step detail viewer
 |   +-- atoms/
-|       +-- Badge/                    Status badges (planned)
-|       +-- Separator/                Divider line (planned)
-|       +-- Collapsible/             Expand/collapse section (planned)
+|       +-- Accordion/                Collapsible disclosure section
+|       +-- Modal/                    Dialog / preset modal
+|       +-- Tooltip/                  Floating tooltip
+|       +-- ErrorBoundary/            Render-error fallback
+|       +-- ConfigurableConnection/   In-progress connection line
+|       +-- NodeResizerWithMoreControls/ Node resize handles
 |       +-- NodeStatusIndicator/      Runner visual overlay
 |       +-- ScrollableButtonContainer/ Horizontal scroll
 +-- hooks/
@@ -443,24 +509,26 @@ DataTypes ----> Handles ----> Type Inference
     v               v
   Nodes -------> Edges -------> Connection Validation
     |               |
-    |    +----------+----------+
-    v    v                     v
-Node Groups              Loops
-    |                      |
-    +----------+-----------+
-               |
+    |    +----------+----+----------+----------+
+    v    v               v          v          v
+Node Groups          Loops      Switches     Zones
+    |                  |          |            ^
+    |                  +----+-----+            | (regions for)
+    +----------+------------+                  |
+               |        (loops + switches create)
                v
-        State Management
+        State Management ---- Undo/Redo History
+        (validate->plan->apply, createGraphStore)
                |
        +-------+-------+
        |               |
        v               v
-Runner Compiler    FullGraph
+Runner Compiler    FullGraph (+ useFullGraph store)
        |               |
        v               +----> ConfigurableNode
 Runner Executor   |           ConfigurableEdge
        |               |      Context Menu
-       v               |
+       v               |      Editor Drawers / ZoneFrameOverlay
 Execution Recording    +----> NodeRunnerPanel
        |                        |
        v                  +-----+-----+

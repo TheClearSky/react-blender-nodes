@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import type { ExecutionStepRecord } from '@/utils/nodeRunner/types';
-
-const MIN_BLOCK_WIDTH = 6;
+import { MIN_BLOCK_WIDTH } from './SupportingSubcomponents/types';
 
 /** Visual center of a timeline block in pixels. */
 function blockVisualCenterPx(

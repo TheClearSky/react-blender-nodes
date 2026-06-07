@@ -16,6 +16,13 @@ import {
   countNodesOfTypeInGroup,
   getCurrentScope,
 } from '../nodeCountHelpers';
+import { computeDeletionCascade } from '../handles/handleDeletionAnalysis';
+import {
+  computeChannelDeletionCascade,
+  loopChannelToRequest,
+  switchChannelToRequest,
+} from '../handles/channelDeletionAnalysis';
+import { handleKey } from '../handles/handleKey';
 
 // ---------------------------------------------------------------------------
 // Helpers for UPDATE_NODE_TYPE input/output validation
@@ -465,11 +472,24 @@ function validateAction<
       return ok({ kind: 'UPDATE_EDGES_RF' as const, steps });
     }
 
-    case actionTypesMap.UPDATE_INPUT_VALUE:
-      return err({
-        code: 'NOOP' as const,
-        reason: 'UPDATE_INPUT_VALUE not yet implemented',
+    case actionTypesMap.UPDATE_INPUT_VALUE: {
+      const { nodeId, inputId } = action.payload;
+      const view = getCurrentNodesAndEdgesFromState(_state);
+      const node = view.nodes.find((n) => n.id === nodeId);
+      if (!node) {
+        return err({
+          code: 'MISSING_ENDPOINT' as const,
+          which: 'source' as const,
+          detail: 'Node not found for input value update',
+        });
+      }
+      return ok({
+        kind: 'UPDATE_INPUT_VALUE' as const,
+        nodeId,
+        inputId,
+        value: action.payload.value,
       });
+    }
 
     case actionTypesMap.UPDATE_NODE_TYPE: {
       const { nodeTypeId, updates } = action.payload;
@@ -513,10 +533,10 @@ function validateAction<
             headerColor: updates.headerColor,
           }),
           ...(updates.inputs !== undefined && {
-            inputs: updates.inputs as unknown[],
+            inputs: updates.inputs,
           }),
           ...(updates.outputs !== undefined && {
-            outputs: updates.outputs as unknown[],
+            outputs: updates.outputs,
           }),
         },
       });
@@ -648,6 +668,173 @@ function validateAction<
         switchStartNodeId,
         switchEndNodeId,
         levels,
+      });
+    }
+
+    case actionTypesMap.UNDO: {
+      const history = _state.history;
+      if (!history || history.undoStack.length === 0) {
+        return err({ code: 'NOOP', reason: 'Nothing to undo' });
+      }
+      return ok({
+        kind: 'UNDO' as const,
+        entry: history.undoStack[history.undoStack.length - 1],
+      });
+    }
+
+    case actionTypesMap.REDO: {
+      const history = _state.history;
+      if (!history || history.redoStack.length === 0) {
+        return err({ code: 'NOOP', reason: 'Nothing to redo' });
+      }
+      return ok({
+        kind: 'REDO' as const,
+        entry: history.redoStack[history.redoStack.length - 1],
+      });
+    }
+
+    case actionTypesMap.BEGIN_BATCH:
+      return ok({ kind: 'BEGIN_BATCH' as const });
+
+    case actionTypesMap.END_BATCH:
+      return ok({ kind: 'END_BATCH' as const });
+
+    case actionTypesMap.CLEAR_HISTORY:
+      return ok({ kind: 'CLEAR_HISTORY' as const });
+
+    case actionTypesMap.DELETE_NODE_TYPE_HANDLES: {
+      const { nodeTypeId, deletions } = action.payload;
+      if (!(nodeTypeId in _state.typeOfNodes)) {
+        return err({
+          code: 'NODE_TYPE_NOT_FOUND' as const,
+          nodeType: String(nodeTypeId),
+        });
+      }
+      if (deletions.length === 0) {
+        return err({
+          code: 'NOOP' as const,
+          reason: 'No handles selected for deletion',
+        });
+      }
+      const nodeTypeDef = _state.typeOfNodes[nodeTypeId];
+      const inputKeys = new Set(
+        flattenTypeOfInputs(nodeTypeDef.inputs).map((i) =>
+          handleKey(i.name, i.dataType),
+        ),
+      );
+      const outputKeys = new Set(
+        nodeTypeDef.outputs.map((o) => handleKey(o.name, o.dataType)),
+      );
+      for (const deletion of deletions) {
+        const key = handleKey(deletion.handleName, deletion.handleDataTypeId);
+        const exists =
+          deletion.direction === 'input'
+            ? inputKeys.has(key)
+            : outputKeys.has(key);
+        if (!exists) {
+          return err({
+            code: 'INVALID_NODE_GROUP' as const,
+            reason: `Cannot delete ${deletion.direction} handle '${deletion.handleName}': not found on node type`,
+          });
+        }
+      }
+      const cascade = computeDeletionCascade(_state, nodeTypeId, deletions);
+      return ok({
+        kind: 'DELETE_NODE_TYPE_HANDLES' as const,
+        nodeTypeId: nodeTypeId as string,
+        cascade,
+      });
+    }
+
+    case actionTypesMap.DELETE_LOOP_CHANNELS: {
+      const { loopStartNodeId, loopStopNodeId, loopEndNodeId, channels } =
+        action.payload;
+      if (channels.length === 0) {
+        return err({
+          code: 'NOOP' as const,
+          reason: 'No channels selected for deletion',
+        });
+      }
+      const currentView = getCurrentNodesAndEdgesFromState(_state);
+      const present = (id: string) =>
+        currentView.nodes.some((n) => n.id === id);
+      if (
+        !present(loopStartNodeId) ||
+        !present(loopStopNodeId) ||
+        !present(loopEndNodeId)
+      ) {
+        return err({
+          code: 'INVALID_NODE_GROUP' as const,
+          reason: 'One or more loop nodes not found',
+        });
+      }
+      const scopeTypeId = getCurrentScope(_state);
+      const scopeId = scopeTypeId ?? 'root';
+      const scopeLabel = scopeTypeId
+        ? `Inside group "${_state.typeOfNodes[scopeTypeId].name}"`
+        : 'Root graph';
+      const cascades = channels.map((channel) =>
+        computeChannelDeletionCascade(
+          _state,
+          loopChannelToRequest(
+            scopeId,
+            scopeLabel,
+            {
+              loopStartId: loopStartNodeId,
+              loopStopId: loopStopNodeId,
+              loopEndId: loopEndNodeId,
+            },
+            channel,
+          ),
+        ),
+      );
+      return ok({
+        kind: 'DELETE_LOOP_CHANNELS' as const,
+        loopStartNodeId,
+        loopStopNodeId,
+        loopEndNodeId,
+        cascades,
+      });
+    }
+
+    case actionTypesMap.DELETE_SWITCH_CHANNELS: {
+      const { switchStartNodeId, switchEndNodeId, channels } = action.payload;
+      if (channels.length === 0) {
+        return err({
+          code: 'NOOP' as const,
+          reason: 'No channels selected for deletion',
+        });
+      }
+      const currentView = getCurrentNodesAndEdgesFromState(_state);
+      const present = (id: string) =>
+        currentView.nodes.some((n) => n.id === id);
+      if (!present(switchStartNodeId) || !present(switchEndNodeId)) {
+        return err({
+          code: 'INVALID_NODE_GROUP' as const,
+          reason: 'One or more switch nodes not found',
+        });
+      }
+      const scopeTypeId = getCurrentScope(_state);
+      const scopeId = scopeTypeId ?? 'root';
+      const scopeLabel = scopeTypeId
+        ? `Inside group "${_state.typeOfNodes[scopeTypeId].name}"`
+        : 'Root graph';
+      const cascades = channels.map((channel) =>
+        computeChannelDeletionCascade(
+          _state,
+          switchChannelToRequest(
+            scopeId,
+            scopeLabel,
+            { switchStartId: switchStartNodeId, switchEndId: switchEndNodeId },
+            channel,
+          ),
+        ),
+      );
+      return ok({
+        kind: 'DELETE_SWITCH_CHANNELS' as const,
+        switchStartNodeId,
+        switchEndNodeId,
+        cascades,
       });
     }
 

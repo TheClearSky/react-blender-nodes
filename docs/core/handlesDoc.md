@@ -100,13 +100,14 @@ and manipulated.
                           +----------------+  +------------------+
               |                  |
               v                  v
-     +----------------+  +------------------+
-     | Node Groups     |  | Loop Nodes       |
-     | (dynamic handle |  | (dynamic handle  |
-     |  addition on    |  |  addition, both  |
-     |  GroupInput/     |  |  input & output  |
-     |  GroupOutput)    |  |  duplicated)     |
-     +----------------+  +------------------+
+     +----------------+  +------------------+  +------------------+
+     | Node Groups     |  | Loop Nodes       |  | Switch Nodes     |
+     | (dynamic handle |  | (dynamic handle  |  | (dynamic handle  |
+     |  addition on    |  |  addition, both  |  |  addition across |
+     |  GroupInput/     |  |  input & output  |  |  true/false      |
+     |  GroupOutput,    |  |  duplicated;     |  |  zones; sibling  |
+     |  propagated)     |  |  triplet synced) |  |  synced)         |
+     +----------------+  +------------------+  +------------------+
 ```
 
 ---
@@ -131,16 +132,17 @@ and manipulated.
                           |                               |
                           v                               v
                   ContextAwareHandle            ContextAwareInput
-                  (renders handle shape         (renders Input or
-                   with color; wraps             SliderNumberInput or
-                   ReactFlow <Handle>            Checkbox when
-                   when inside ReactFlow)        allowInput && !connected)
+                  (renders handle shape         (renders Input / select /
+                   with color; wraps             SliderNumberInput /
+                   ReactFlow <Handle>            Checkbox / registered
+                   when inside ReactFlow)        custom component when
+                          |                       allowInput && !connected)
                           |                               |
                           v                               v
                   Edge Connection                 User enters value
-                  (edge.sourceHandle =            (updates node data via
-                   output.id,                     updateHandleInNode
-                   edge.targetHandle =             DataMatchingHandleId)
+                  (edge.sourceHandle =            (ReactFlowAwareInput
+                   output.id,                      dispatches
+                   edge.targetHandle =             UPDATE_INPUT_VALUE action)
                    input.id)
                           |
                           v
@@ -178,29 +180,34 @@ react-blender-nodes
 |       +-- targetHandle: string  (references input handle id)
 |
 +-- Handle Utilities (src/utils/nodeStateManagement/handles/)
-|   +-- types.ts           HandleIndices, AllTypesOfHandles, etc.
-|   +-- handleGetters.ts   getHandleFromNodeDataMatchingHandleId, etc.
-|   +-- handleSetters.ts   insertOrDeleteHandleInNodeDataUsingHandleIndices, etc.
-|   +-- handleIterators.ts handleIteratorIncludingIndices, handleIterator
+|   +-- types.ts                HandleIndices, AllTypesOfHandles, etc.
+|   +-- handleGetters.ts        getHandleFromNodeDataMatchingHandleId, etc.
+|   +-- handleSetters.ts        insertOrDeleteHandleInNodeDataUsingHandleIndices,
+|   |                           collectExistingHandleNames, etc.
+|   +-- handleIterators.ts      handleIteratorIncludingIndices, handleIterator
+|   +-- ensureUniqueHandleName.ts  ensureUniqueHandleName, ensureAllHandleNamesUnique
 |
 +-- Handle Construction (src/utils/nodeStateManagement/nodes/)
-|   +-- constructAndModifyNodes.ts  constructInputOrOutputOfType,
-|   |                               constructTypeOfHandleFromIndices
-|   +-- constructAndModifyHandles.ts  addAnInputOrOutput...AcrossStateIncludingSubtrees,
-|                                     getResultantDataTypeOfHandleConsideringInferredType
+|   +-- constructAndModifyNodes.ts    constructInputOrOutputOfType,
+|   |                                 constructInputPanelOfType,
+|   |                                 constructTypeOfHandleFromIndices
+|   +-- ../constructAndModifyHandles.ts  addAnInputOrOutput...AcrossStateIncludingSubtrees,
+|                                        getResultantDataTypeOfHandleConsideringInferredType,
+|                                        removeEdgeWithTypeChecking (PURE; edge removal)
 |
 +-- UI Rendering (src/components/organisms/ConfigurableNode/)
-|   +-- ConfigurableNode.tsx         RenderInput, RenderOutput, RenderInputPanel
-|   +-- ContextAwareHandle.tsx       Handle shape rendering (13 shapes)
-|   +-- ContextAwareInput.tsx        Interactive input when allowInput && !connected
-|   +-- ContextAwareHandleShapes.ts  HandleShape type and handleShapesMap
+|   +-- ConfigurableNode.tsx                       RenderInput, RenderOutput, RenderInputPanel
+|   +-- SupportingSubcomponents/ContextAwareHandle.tsx       Handle shape rendering (13 shapes)
+|   +-- SupportingSubcomponents/ContextAwareInput.tsx        Interactive input + custom registry
+|   +-- SupportingSubcomponents/ContextAwareHandleShapes.ts  HandleShape type and handleShapesMap
 |
-+-- Dynamic Handle Addition
-|   +-- nodeGroups.ts  addDuplicateHandleToNodeGroupAfterInference
-|   +-- loops/         addDuplicateHandlesToLoopNodesAfterInference
++-- Dynamic Handle Addition (driven by planApply/applyPlan.ts ADD_EDGE)
+|   +-- nodes/nodeGroups.ts             addDuplicateHandleToNodeGroupAfterInference
+|   +-- nodes/loops/loopHandleSync.ts   addDuplicateHandlesToLoopNodesAfterInference
+|   +-- nodes/switches/switchHandleSync.ts  addDuplicateHandlesToSwitchNodesAfterInference
 |
 +-- Runner Integration
-    +-- types.ts  InputHandleValue, OutputHandleInfo, InputConnectionValue
+    +-- nodeRunner/types.ts  InputHandleValue, OutputHandleInfo, InputConnectionValue
 ```
 
 ---
@@ -265,7 +272,14 @@ type ConfigurableNodeInput<
     dataTypeUniqueId: DataTypeUniqueId;
   } | null;
 } & (
-  | { type: 'string'; value?: string; onChange?: (v: string) => void }
+  | {
+      type: 'string';
+      value?: string;
+      onChange?: (v: string) => void;
+      // When set, renders a select dropdown instead of a free-text input.
+      // Copied from DataType.allowedStrings during construction.
+      allowedStrings?: readonly string[];
+    }
   | { type: 'number'; value?: number; onChange?: (v: number) => void }
   | { type: 'boolean'; value?: boolean; onChange?: (v: boolean) => void }
   | {
@@ -276,10 +290,12 @@ type ConfigurableNodeInput<
 );
 ```
 
-The `type` discriminant is determined by `DataType.underlyingType`:
+The `type` discriminant is determined by `DataType.underlyingType` in
+`constructInputOrOutputOfType`:
 
-- `'string'` -> `type: 'string'`
 - `'number'` -> `type: 'number'`
+- `'string'` -> `type: 'string'` (also copies `DataType.allowedStrings` onto the
+  handle, which switches the UI to a select dropdown)
 - `'boolean'` -> `type: 'boolean'`
 - Everything else (`'complex'`, `'noEquivalent'`, `'inferFromConnection'`) ->
   `type: 'unsupportedDirectly'`
@@ -288,7 +304,10 @@ The `type` discriminant is determined by `DataType.underlyingType`:
 
 Similar to `ConfigurableNodeInput` but without value/onChange (outputs don't
 accept direct user input). Has the same `id`, `name`, `handleColor`,
-`handleShape`, `maxConnections`, `dataType`, and `inferredDataType` fields.
+`handleShape`, `maxConnections`, `dataType`, and `inferredDataType` fields, plus
+the same 4-arm `type` discriminant
+(`'string' | 'number' | 'boolean' | 'unsupportedDirectly'`), each arm carrying
+only the `type` tag (no `value`/`onChange`).
 
 ### ConfigurableNodeInputPanel
 
@@ -434,15 +453,22 @@ The component supports 13 shapes via `renderHandleShape()`, using CSS,
 ### 4. User Input via ContextAwareInput
 
 When `allowInput` is true and the handle is not connected, `ContextAwareInput`
-renders an interactive input component:
+renders an interactive input component based on the handle's `type`:
 
-- `type: 'string'` -> `<Input>` text field
+- `type: 'string'` -> `<Input>` text field, OR a `<Select>` dropdown when
+  `input.allowedStrings` is set and non-empty (rendered by
+  `StringSelectForNode`)
 - `type: 'number'` -> `<SliderNumberInput>` slider
-- `type: 'boolean'` -> `<Checkbox>`
+- `type: 'boolean'` -> `<Checkbox>` (with the handle name as label)
+- `type: 'unsupportedDirectly'` -> a custom component looked up from the input
+  component registry
+  (`useInputComponentRegistry()[input.dataType.dataTypeUniqueId]`), if one is
+  registered for that data type; otherwise `null`
 
-Inside ReactFlow, `ReactFlowAwareInput` wraps these and automatically updates
-the node data via `updateHandleInNodeDataMatchingHandleId` when the value
-changes.
+Inside ReactFlow, `ReactFlowAwareInput` wraps these. On change it dispatches an
+`UPDATE_INPUT_VALUE` action (`actionTypesMap.UPDATE_INPUT_VALUE`) with
+`{ nodeId, inputId, value }` through the reducer (it no longer mutates node data
+directly). Outside ReactFlow, the plain `input.onChange` callback is invoked.
 
 ### 5. Edge Connection
 
@@ -451,25 +477,46 @@ Edges reference handles by their unique IDs:
 - `edge.sourceHandle` = output handle's `id`
 - `edge.targetHandle` = input handle's `id`
 
-When an edge is connected, `addEdgeWithTypeChecking` validates the connection
-(type compatibility, cycle detection, loop validation) before adding it.
+When an edge is connected, validation runs through the pure plan/apply pipeline:
+`validateAddEdge` (in
+`src/utils/nodeStateManagement/planApply/validateAddEdge.ts` ›
+`validateAddEdge`) checks type compatibility, cycle detection, and loop/switch
+validation and builds an `InferencePlan`; `applyPlan` then commits the edge and
+any inferred handle changes.
+
+> **Note:** The older `addEdgeWithTypeChecking` (in
+> `src/utils/nodeStateManagement/constructAndModifyHandles.ts` ›
+> `addEdgeWithTypeChecking`) is now effectively legacy — it is only referenced
+> by tests (`src/__tests__/utils/nodeStateManagement/edgeValidation.test.ts` ›
+> `addEdgeWithTypeChecking`) and is no longer on the production add-edge path.
 
 ### 6. Type Inference (for inferFromConnection)
 
 When `DataType.underlyingType === 'inferFromConnection'` and type inference is
 enabled:
 
-1. On edge addition: `inferTypesAfterEdgeAddition` resolves the handle's
-   `inferredDataType` from the connected handle's data type
-2. On edge removal: `inferTypesAfterEdgeRemoval` clears the `inferredDataType`
+1. On edge addition: `planInferenceForEdgeAddition` (in
+   `src/utils/nodeStateManagement/planApply/planInference.ts` ›
+   `planInferenceForEdgeAddition`) builds the projected `inferredDataType` for
+   affected handles by dry-running `inferTypeAcrossTheNodeForHandleOfDataType`;
+   `applyPlan` then writes those replacements into the committed state. (The
+   legacy mutating `inferTypesAfterEdgeAddition` in
+   `src/utils/nodeStateManagement/newOrRemovedEdgeValidation.ts` ›
+   `inferTypesAfterEdgeAddition` is no longer on the production path.)
+2. On edge removal: `removeEdgeWithTypeChecking` (a pure function that returns
+   `{ updatedNodes, updatedEdges, validation }`) calls
+   `inferTypesAfterEdgeRemoval`, which resets a handle's `inferredDataType` back
+   to its template when no other same-type handle on the node remains connected.
 3. `getResultantDataTypeOfHandleConsideringInferredType` resolves the effective
-   data type, preferring `inferredDataType` over the base `dataType` when
-   available
+   data type: it returns the base `dataType` for non-infer handles, otherwise
+   the `inferredDataType` (or, if
+   `fallbackToInferFromConnectionTypeWhenNotInferred` is true, the infer type
+   itself; else `undefined`).
 
-### 7. Dynamic Addition (for groups and loops)
+### 7. Dynamic Addition (for groups, loops, and switches)
 
-Group and loop nodes dynamically add new infer handles when existing ones get
-connected. See [Dynamic Handle Addition](#dynamic-handle-addition).
+Group, loop, and switch nodes dynamically add new infer handles when existing
+ones get connected. See [Dynamic Handle Addition](#dynamic-handle-addition).
 
 ### 8. Execution via Runner
 
@@ -578,8 +625,8 @@ function finds the corresponding handle and its indices.
 
 Direct index-based lookup. Given `HandleIndices`, returns the handle at that
 exact position. Returns `HandleAndRelatedInformation` if found, or
-`HandleAndRelatedInformationWhenNotFound` (with `value: undefined`) if the
-indices point to a valid but empty position.
+`HandleAndRelatedInformationWhenNotFound` (with `value: undefined`) on any index
+miss -- including out-of-range indices, not just a valid-but-empty position.
 
 **`getAllHandlesFromNodeData(nodeData, runForInputs?, runForOutputs?)`**
 
@@ -604,12 +651,29 @@ both mutable and immutable (immer `produce`) modes.
 
 Same as above but locates the handle via indices instead of ID.
 
-**`insertOrDeleteHandleInNodeDataUsingHandleIndices(nodeData, handleIndices, deleteCount, handleToInsert, mutate?, beforeOrAfterIndex?)`**
+**`insertOrDeleteHandleInNodeDataUsingHandleIndices(nodeData, handleIndices, deleteCount, handleToInsert, mutate?, beforeOrAfterIndex?, ensureUniqueName?)`**
 
 The most powerful setter. Uses `Array.splice` to insert and/or delete handles at
-a specific position. The `beforeOrAfterIndex` parameter controls whether
-insertion happens before or after the referenced index. This is the function
-used by dynamic handle addition in groups and loops.
+a specific position. The `beforeOrAfterIndex` parameter (default `'before'`)
+controls whether insertion happens before or after the referenced index. This is
+the function used by dynamic handle addition in groups, loops, and switches.
+
+By default `ensureUniqueName` is `true`: before inserting, the new handle's name
+is deduplicated against its siblings (inputs vs. outputs are kept separate) via
+`collectExistingHandleNames` + `ensureUniqueHandleName`. Switch handle sync
+passes `ensureUniqueName: false` because it manages names itself.
+
+#### Name deduplication helpers (`src/utils/nodeStateManagement/handles/ensureUniqueHandleName.ts` › `ensureUniqueHandleName`)
+
+- **`ensureUniqueHandleName(proposedName, existingNames)`** — returns
+  `proposedName` if free, else appends a numeric suffix (`"Name 2"`, `"Name 3"`,
+  …). Numbering starts at **2** (the unsuffixed original is implicitly #1).
+- **`parseNameSuffix(name)`** — strips a trailing `" N"` suffix, but only treats
+  `N >= 2` as a suffix (so `"Item 1"` is left intact).
+- **`ensureAllHandleNamesUnique(nodeData)`** — walks all inputs and all outputs
+  (flattening panels) and renames duplicates within each group, skipping empty
+  `''` and zero-width-space `'​'` names. The first occurrence keeps its name;
+  later duplicates get suffixed.
 
 ### Iterators
 
@@ -675,32 +739,71 @@ GroupInput-to-GroupOutput connection.
 
 ### For Loop Nodes
 
-Loop nodes (`loopStart`, `loopEnd`, `loopStop`) have infer handles at specific
-fixed indices defined in `standardNodes.ts`:
+Loop nodes (`loopStart`, `loopEnd`, `loopStop`) have `loopInfer` handles at
+fixed indices defined in `src/utils/nodeStateManagement/standardNodes.ts` ›
+`loopStartInputInferHandleIndex` and resolved by
+`getLoopNodeInferHandleIndex(nodeType, 'input' | 'output')`:
 
 | Node Type | Input Infer Index | Output Infer Index |
 | --------- | ----------------- | ------------------ |
-| loopStart | 0                 | varies             |
-| loopStop  | 2                 | varies             |
-| loopEnd   | 1                 | varies             |
+| loopStart | 0                 | 1                  |
+| loopStop  | 2                 | 1                  |
+| loopEnd   | 1                 | 0                  |
 
-**Flow:**
+(See the exported `loopStartInputInferHandleIndex`,
+`loopStartOutputInferHandleIndex`, etc. constants.)
 
-1. User connects an edge to a loop node's infer handle
-2. Type inference resolves the handle's `inferredDataType`
-3. `addDuplicateHandlesToLoopNodesAfterInference` is triggered
-4. Unlike groups, **both** input and output handles are duplicated on the same
-   loop node: a. A new input infer handle is constructed from the template and
-   inserted at `index1: -1` (after last input) b. A new output infer handle is
-   constructed from the template and inserted at `index1: -1` (after last
-   output)
-5. This happens independently for source and target nodes if either is a loop
-   node
+**Flow** (`addDuplicateHandlesToLoopNodesAfterInference` in
+`src/utils/nodeStateManagement/nodes/loops/loopHandleSync.ts` ›
+`addDuplicateHandlesToLoopNodesAfterInference`, called from `applyPlan` step
+4a):
 
-**Key difference from groups:** Loop node handle addition is local to the node
-instance only. There is no propagation across the state tree (no
+1. User connects an edge to a loop node's `loopInfer` handle.
+2. Inference resolves that handle's `inferredDataType`.
+3. For each side of the connection that is a loop node with an inferred handle,
+   `addLoopInferDuplicateToNode` duplicates **both** a new input infer handle
+   (inserted at `index1: -1`, after last input) **and** a new output infer
+   handle (inserted at `index1: -1`, after last output) on that node.
+4. **Triplet propagation:** the function then re-reads the just-inferred handle
+   on the processed node at the input index `-2` (skip the trailing template
+   that was just appended), locates the full loop triplet via
+   `getLoopStructureFromNode` and, for each _sibling_ (the other two of
+   `loopStart`/`loopStop`/`loopEnd`) not already processed, runs
+   `inferTypeAcrossTheNodeForHandleOfDataType` to copy the inferred type onto
+   its matching `loopInfer` handle (`overrideDataType` + `overrideName`), then
+   calls `addLoopInferDuplicateToNode` on it too. This keeps all three nodes in
+   sync so the user only has to connect one of them.
+
+**Key difference from groups:** Loop handle addition stays at the node-instance
+level — it never propagates to the node _type_ or other instances (no
 `addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees` call).
-Group handle addition propagates to all instances and subtrees.
+Group handle addition, by contrast, propagates to the outer group node type and
+all of its instances/subtrees.
+
+### For Switch Nodes
+
+Switch nodes (`switchStart`, `switchEnd`) carry `switchInfer` handles split into
+true/false zones (first half of the data handles is the true zone, second half
+the false zone, divided at `Math.ceil(count / 2)`).
+`addDuplicateHandlesToSwitchNodesAfterInference` (in
+`src/utils/nodeStateManagement/nodes/switches/switchHandleSync.ts` ›
+`addDuplicateHandlesToSwitchNodesAfterInference`, called from `applyPlan` step
+4b) handles their growth via `addSwitchInferDuplicateToNode`:
+
+- **switchStart** gains 1 new input template (inserted _before_ the `condition`
+  handle) plus 2 new output templates — one appended at the end of the true zone
+  and one at the end of the outputs (false zone).
+- **switchEnd** gains 2 new input templates (true-zone end and false-zone end)
+  plus 1 new output template appended at the end.
+
+As with loops, the inferred type is then propagated to the _sibling_ node (the
+other of `switchStart`/`switchEnd`) via `getSwitchStructureFromNode` +
+`inferTypeAcrossTheNodeForHandleOfDataType`, and the sibling gets its own
+duplicate handles. To re-read the just-inferred handle, the code uses index `-3`
+for `switchStart` (skip the trailing template + `condition`) and `-2` for
+`switchEnd` (skip the trailing template only). These insertions pass
+`ensureUniqueName: false`. Like loops, switch handle addition is node-instance
+local (no node-type propagation).
 
 ---
 
@@ -714,8 +817,10 @@ Group handle addition propagates to all instances and subtrees.
   does not exist as a standalone function. The actual iteration is done via
   `handleIteratorIncludingIndices` and its wrappers.
 - **`type: 'unsupportedDirectly'`**: Handles with `complex`, `noEquivalent`, or
-  `inferFromConnection` underlying types cannot render user input components
-  (ContextAwareInput returns `null` for this type).
+  `inferFromConnection` underlying types have no built-in input component.
+  `ContextAwareInput` renders `null` for this type **unless** a custom component
+  is registered for the handle's data type via the input component registry, in
+  which case that component is rendered instead.
 
 ---
 
@@ -875,9 +980,19 @@ handles are added to both the inner node and the outer group node type
 
 ### -> [Loops](../features/loopsDoc.md)
 
-Loop nodes (loopStart, loopEnd, loopStop) have infer handles at specific
-indices. When connected, both input and output handles are duplicated on the
-loop node instance (local only, no propagation).
+Loop nodes (loopStart, loopEnd, loopStop) have `loopInfer` handles at fixed
+indices. When one is connected, both input and output handles are duplicated on
+the loop node, and the inferred type plus a fresh placeholder are propagated to
+the other two nodes of the triplet (node-instance local — no node-type
+propagation).
+
+### -> [Switches](../features/switchesDoc.md)
+
+Switch nodes (switchStart, switchEnd) have `switchInfer` handles partitioned
+into true/false zones. When one is connected, new handles are added across both
+zones and the inferred type is synced to the paired sibling node
+(`addDuplicateHandlesToSwitchNodesAfterInference`). See
+[Zones](../features/zonesDoc.md) for the zone model.
 
 ### -> [Runner](../runner/runnerHookDoc.md)
 

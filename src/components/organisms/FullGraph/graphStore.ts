@@ -1,7 +1,6 @@
-import { produce, type Draft } from 'immer';
 import type { z } from 'zod';
 import { validateAction } from '@/utils/nodeStateManagement/planApply/validators';
-import { applyPlan } from '@/utils/nodeStateManagement/planApply/applyPlan';
+import { applyValidatedAction } from '@/utils/nodeStateManagement/applyWithHistory';
 import {
   deriveAppliedEvent,
   deriveRejectedEvent,
@@ -26,6 +25,10 @@ import type { Action } from '@/utils/nodeStateManagement/mainReducer';
  * call `validateAction` exactly once and emit an event whose detail
  * was computed from the actually-committed state — guaranteed to match
  * what the DOM renders.
+ *
+ * Undo/redo history lives inside `state.history` — not in the closure.
+ * All history logic (patch capture, recording, undo/redo application)
+ * is handled by `applyValidatedAction` from `applyWithHistory.ts`.
  *
  * `mainReducer` is unaffected by this module — direct consumers using
  * `useReducer(mainReducer, ...)` continue to work as before. This store
@@ -138,35 +141,13 @@ function createGraphStore<
         return;
       }
 
-      // Apply the plan to a new state. `applyPlan` mints any random ids
-      // here, inside Immer's `produce`. Because this is NOT a React
-      // reducer, there is no replay — `produce` runs exactly once.
-      //
-      // Some plans (e.g. REPLACE_STATE) RETURN a value from `applyPlan`
-      // instead of mutating the draft — Immer uses the returned value as
-      // the new state when one is returned. Forward the return so those
-      // plans actually replace state. (mainReducer does the same forward.)
-      type StateT = State<
-        DataTypeUniqueId,
-        NodeTypeUniqueId,
-        UnderlyingType,
-        ComplexSchemaType
-      >;
-
+      const plan = planResult.value;
       const prev = state;
 
-      // Cast justification: `Draft<StateT>` (aka `WritableDraft<StateT>`)
-      // is structurally identical to `StateT` here because State has no
-      // `readonly` properties, no ReadonlyMap/ReadonlySet fields, and all
-      // leaf types are primitives or plain objects.  TypeScript cannot
-      // prove this in a generic context because `Draft<T>` uses deferred
-      // conditional types — `Draft<NodeTypeUniqueId>` is NOT eagerly
-      // simplified to `NodeTypeUniqueId` while the type parameter is
-      // unresolved.  The cast is a compile-time no-op.
-      const next = produce(prev, (draft: Draft<StateT>) => {
-        const returnValue = applyPlan(draft as StateT, planResult.value);
-        if (returnValue !== undefined) return returnValue as Draft<StateT>;
-      });
+      // Apply the plan with automatic history management.
+      // `applyValidatedAction` handles the 3-path routing (undoable
+      // with patch capture, non-undoable, UNDO/REDO) internally.
+      const next = applyValidatedAction(prev, action, plan);
 
       // Identity-preserving short-circuit: if nothing changed, don't
       // notify or emit (keeps unnecessary re-renders + event noise out).
@@ -178,9 +159,7 @@ function createGraphStore<
 
       // Emit the applied event with truthful ids — `deriveAppliedEvent`
       // diffs prev vs next to find the new node/edge/group ids.
-      getOnGraphEvent()?.(
-        deriveAppliedEvent(action, planResult.value, prev, next),
-      );
+      getOnGraphEvent()?.(deriveAppliedEvent(action, plan, prev, next));
 
       // Notify subscribers (React via `useSyncExternalStore`).
       listeners.forEach((l) => l());

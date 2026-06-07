@@ -55,9 +55,9 @@ signature):**
 | Components        | `FullGraph<D,N,U,C>`, `RunnerOverlay<D,N,U,C>`, `FullGraphWithReactFlowProvider<D,N,U,C>` |
 | Compiler/Executor | `compile<D,N,U,C>`, `execute<D,N,U,C>`, `buildNodeInfoMap<D,N,U,C>`                       |
 
-**Source:** `src/utils/nodeStateManagement/types.ts:348-355` (State),
-`src/utils/nodeStateManagement/mainReducer.ts:252-258` (mainReducer),
-`src/components/organisms/FullGraph/FullGraph.tsx:530-537` (FullGraph)
+**Source:** `src/utils/nodeStateManagement/types.ts` › `State`,
+`src/utils/nodeStateManagement/mainReducer.ts` › `mainReducer`,
+`src/components/organisms/FullGraph/FullGraph.tsx` › `FullGraph`
 
 **Key rules:**
 
@@ -83,7 +83,7 @@ type DataType<UnderlyingType, ComplexSchemaType> =
 This ensures `complexSchema` is required for `'complex'` types and forbidden for
 others at compile time.
 
-**Source:** `src/utils/nodeStateManagement/types.ts:60-97`
+**Source:** `src/utils/nodeStateManagement/types.ts` › `DataType`
 
 ### Identity-Function Auto-Infer Pattern
 
@@ -104,12 +104,15 @@ function makeDataTypeWithAutoInfer<
 
 This pattern appears for every major definition:
 
-- `makeDataTypeWithAutoInfer` — `src/utils/nodeStateManagement/types.ts:128-135`
-- `makeTypeOfNodeWithAutoInfer` —
-  `src/utils/nodeStateManagement/types.ts:277-293`
-- `makeStateWithAutoInfer` — `src/utils/nodeStateManagement/types.ts:513-529`
+- `makeDataTypeWithAutoInfer` — `src/utils/nodeStateManagement/types.ts` ›
+  `makeDataTypeWithAutoInfer`
+- `makeTypeOfNodeWithAutoInfer` — `src/utils/nodeStateManagement/types.ts` ›
+  `makeTypeOfNodeWithAutoInfer`
+- `makeStateWithAutoInfer` — `src/utils/nodeStateManagement/types.ts` ›
+  `makeStateWithAutoInfer`
 - `makeAllowedConversionsBetweenDataTypesWithAutoInfer` —
-  `src/utils/nodeStateManagement/types.ts:334-338`
+  `src/utils/nodeStateManagement/types.ts` ›
+  `makeAllowedConversionsBetweenDataTypesWithAutoInfer`
 
 ### Generic Components (function declarations, not arrow)
 
@@ -156,9 +159,11 @@ type SupportedUnderlyingTypes = (typeof supportedUnderlyingTypes)[number];
 // = 'string' | 'number' | 'boolean' | 'complex' | 'noEquivalent' | 'inferFromConnection'
 ```
 
-**Used for:** `supportedUnderlyingTypes` (`types.ts:9-16`), `actionTypes`
-(`mainReducer.ts:32-44`), `runnerStates` (`nodeRunner/types.ts:12-19`),
-`nodeVisualStates` (`nodeRunner/types.ts:27-34`)
+**Used for:** `supportedUnderlyingTypes`
+(`src/utils/nodeStateManagement/types.ts` › `supportedUnderlyingTypes`),
+`actionTypes` (`src/utils/nodeStateManagement/mainReducer.ts` › `actionTypes`),
+`runnerStates` (`src/utils/nodeRunner/types.ts` › `runnerStates`),
+`nodeVisualStates` (`src/utils/nodeRunner/types.ts` › `nodeVisualStates`)
 
 ### `as const` Maps (runtime lookup + type safety)
 
@@ -176,8 +181,8 @@ const actionTypesMap = {
 Switch cases then use `actionTypesMap.ADD_NODE` instead of raw strings. This
 ensures actions are always valid and enables IDE autocomplete.
 
-**Source:** `src/utils/nodeStateManagement/mainReducer.ts:47-59`,
-`src/utils/nodeStateManagement/standardNodes.ts` (standardNodeTypeNamesMap)
+**Source:** `src/utils/nodeStateManagement/mainReducer.ts` › `actionTypesMap`,
+`src/utils/nodeStateManagement/standardNodes.ts` › `standardNodeTypeNamesMap`
 
 ### Discriminated Unions
 
@@ -209,17 +214,18 @@ Execution steps use `kind` as discriminant:
 
 ```typescript
 type ExecutionStep =
-  | { kind: 'standard'; nodeId: string; ... }
-  | { kind: 'loop'; loopStartNodeId: string; bodySteps: ReadonlyArray<ExecutionStep>; ... }
-  | { kind: 'group'; groupNodeId: string; innerPlan: ExecutionPlan; ... };
+  | StandardExecutionStep // { kind: 'standard'; nodeId: string; ... }
+  | LoopExecutionBlock // { kind: 'loop'; loopStartNodeId: string; preStopSteps: ReadonlyArray<ExecutionStep>; postStopSteps: ...; ... }
+  | SwitchExecutionBlock // { kind: 'switch'; switchStartNodeId: string; trueBranchSteps: ...; falseBranchSteps: ...; ... }
+  | GroupExecutionScope; // { kind: 'group'; groupNodeId: string; innerPlan: ExecutionPlan; ... }
 ```
 
 Context menu items also use `kind`:
 
 ```typescript
-type MenuItem =
-  | { kind: 'leaf'; label: string; action: () => void }
-  | { kind: 'folder'; label: string; children: MenuItem[] };
+type MenuTreeNode = MenuTreeLeaf | MenuTreeFolder;
+// MenuTreeLeaf:   { kind: 'leaf'; item: ContextMenuItem; priority: number; insertionIndex: number }
+// MenuTreeFolder: { kind: 'folder'; label: string; children: MenuTreeNode[] }
 ```
 
 HandleIndices uses `type`:
@@ -230,24 +236,53 @@ type HandleIndices =
   | { type: 'output'; index1: number; index2: undefined };
 ```
 
-**Source:** `mainReducer.ts:69-181` (Action), `ConfigurableNode.tsx:27-90`
-(inputs), `nodeRunner/types.ts:255-307` (ExecutionStep),
-`ContextMenu/createNodeContextMenu.ts:55-65` (MenuItem), `handles/types.ts:9-11`
-(HandleIndices)
+`Plan` (the validate→apply intent) uses `kind`, and `ValidationError` uses
+`code` (machine-readable rejection reasons, not message strings):
+
+```typescript
+type Plan =
+  | { kind: 'ADD_NODE'; nodeType: string; position: XYPosition; selectExclusively: boolean }
+  | { kind: 'ADD_EDGE'; connection: {...}; inference: InferencePlan; handleInsertions: HandleInsertion[] }
+  | { kind: 'UNDO'; entry: HistoryEntry }
+  | ...;
+
+type ValidationError =
+  | { code: 'CYCLE_DETECTED'; sourceNodeId: string; targetNodeId: string }
+  | { code: 'NODE_TYPE_NOT_FOUND'; nodeType: string }
+  | { code: 'SWITCH_PATH_INVALID'; reason: string }
+  | { code: 'NODE_COUNT_CONSTRAINT_VIOLATED'; nodeType: string; constraintKind: ...; limit: number; currentCount: number }
+  | { code: 'NOOP'; reason: string }
+  | ...;
+```
+
+`GraphEvent` (observability) is a union on `kind` too — `'action:applied'` /
+`'action:rejected'` / `'state:committed'` / `'ui:*'` / `'history:*'`. (The
+`'history:*'` members are declared in the union but never emitted by any code
+path — only the others appear on the live stream.)
+
+**Source:** `src/utils/nodeStateManagement/mainReducer.ts` › `Action`,
+`src/components/organisms/ConfigurableNode/ConfigurableNode.tsx` ›
+`ConfigurableNodeInput`, `src/utils/nodeRunner/types.ts` › `ExecutionStep`,
+`src/components/molecules/ContextMenu/createNodeContextMenu.ts` ›
+`MenuTreeNode`, `src/utils/nodeStateManagement/handles/types.ts` ›
+`HandleIndices`, `src/utils/nodeStateManagement/planApply/types.ts` ›
+`ValidationError`, `src/utils/nodeStateManagement/planApply/types.ts` › `Plan`,
+`src/utils/nodeStateManagement/graphEvent.ts` › `GraphEvent`
 
 ### Intersection Types for Props Composition
 
-Badge uses intersection of native HTML props + variant props + custom props:
+`Button` uses an intersection of native HTML props + variant props + custom
+props:
 
 ```typescript
-function Badge({
-  className, variant = 'default', asChild = false, ...props
-}: React.ComponentProps<'span'> &
-  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+type ButtonProps = ComponentProps<'button'> &
+  VariantProps<typeof buttonVariants> & {
+    /** Whether to render as a child component using Radix Slot */
+    asChild?: boolean;
+  };
 ```
 
-**Source:** `src/components/atoms/Button/Button.tsx:66-70` (same intersection
-pattern; Badge is planned)
+**Source:** `src/components/atoms/Button/Button.tsx` › `ButtonProps`
 
 ### Type Guards (`is` return type)
 
@@ -257,18 +292,29 @@ Custom type guards for narrowing at runtime:
 function isSupportedUnderlyingType(
   type: string,
 ): type is SupportedUnderlyingTypes {
-  return Boolean(supportedUnderlyingTypesMap[type as SupportedUnderlyingTypes]);
+  return type in supportedUnderlyingTypesMap;
 }
 
-function isValidDataTypeId<DataTypeUniqueId extends string>(
+function isValidDataTypeId<
+  DataTypeUniqueId extends string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
   id: string,
-  dataTypes: Record<DataTypeUniqueId, DataType>,
+  dataTypes: Record<
+    DataTypeUniqueId,
+    DataType<UnderlyingType, ComplexSchemaType>
+  >,
 ): id is DataTypeUniqueId {
   return id in dataTypes;
 }
 ```
 
-**Source:** `types.ts:48-52`, `types.ts:140-154`
+**Source:** `src/utils/nodeStateManagement/types.ts` ›
+`isSupportedUnderlyingType`, `src/utils/nodeStateManagement/types.ts` ›
+`isValidDataTypeId`
 
 Also `in` operator narrowing for discriminated payloads:
 
@@ -278,7 +324,8 @@ if ('nodeId' in action.payload) {
 }
 ```
 
-**Source:** `mainReducer.ts:433`
+**Source:** `src/utils/nodeStateManagement/planApply/validators.ts` ›
+`validateAction`
 
 ### Utility Types Used
 
@@ -290,8 +337,8 @@ if ('nodeId' in action.payload) {
 | `ReadonlyArray<T>`              | `ExecutionStep[]`, error paths                     | Immutable arrays in public APIs                                |
 | `NonNullable<T>`                | `RunnerOverlay` prop for `functionImplementations` | Strip undefined from optional prop                             |
 | `ReturnType<T>`                 | `loadRecordRef` typing                             | Extract return type of `loadRecord`                            |
-| `React.ComponentProps<'span'>`  | Badge                                              | Native HTML element props                                      |
-| `VariantProps<typeof cva>`      | Badge, Button                                      | CVA variant prop inference                                     |
+| `ComponentProps<'button'>`      | Button                                             | Native HTML element props                                      |
+| `VariantProps<typeof cva>`      | Button                                             | CVA variant prop inference                                     |
 | `React.RefObject<T>`            | Multiple                                           | Typed refs                                                     |
 | `Exclude<T, U>`                 | `FunctionImplementations`                          | Remove standard node types from implementation map keys        |
 | `Omit<T, K> & { ... }`          | Serialization types                                | Replace non-serializable fields with serializable alternatives |
@@ -306,7 +353,7 @@ required:
 type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
 ```
 
-**Source:** `src/components/organisms/FullGraph/types.ts:8`
+**Source:** `src/components/organisms/FullGraph/types.ts` › `Optional`
 
 Used to make certain node props optional for the `Nodes` array type.
 
@@ -327,7 +374,7 @@ type FunctionImplementations<NodeTypeUniqueId extends string = string> = {
 This means consumers only need to provide implementations for their own nodes,
 not for built-in ones like `groupInput`/`loopStart`.
 
-**Source:** `src/utils/nodeRunner/types.ts:193-196`
+**Source:** `src/utils/nodeRunner/types.ts` › `FunctionImplementations`
 
 ### Omit + Extend for Serialization
 
@@ -341,7 +388,7 @@ type SerializedGraphError = Omit<GraphError, 'originalError' | 'path'> & {
 };
 ```
 
-**Source:** `src/utils/importExport/serialization.ts:105-108`
+**Source:** `src/utils/importExport/serialization.ts` › `SerializedGraphError`
 
 ### Generic Import Result
 
@@ -353,7 +400,7 @@ type ImportResult<T> =
   | { success: false; errors: ValidationIssue[]; warnings: ValidationIssue[] };
 ```
 
-**Source:** `src/utils/importExport/types.ts:28-30`
+**Source:** `src/utils/importExport/types.ts` › `ImportResult`
 
 ### Type Guard with Intersection Narrowing
 
@@ -374,7 +421,9 @@ function hasKey<K extends string>(
 ): key is K { ... }
 ```
 
-**Source:** `src/utils/nodeRunner/groupCompiler.ts:247-285`
+**Source:** `src/utils/nodeRunner/groupCompiler.ts` › `isStandardNodeType`,
+`src/utils/nodeRunner/groupCompiler.ts` › `isGroupBoundaryNode`,
+`src/utils/nodeRunner/groupCompiler.ts` › `hasKey`
 
 ### `as const` on Individual Values
 
@@ -387,8 +436,10 @@ type: 'string' as const,
 type: 'configurableEdge' as const,
 ```
 
-**Source:** `constructAndModifyNodes.ts:104-146`,
-`constructAndModifyHandles.ts:98`
+**Source:** `src/utils/nodeStateManagement/nodes/constructAndModifyNodes.ts` ›
+`constructInputOrOutputOfType`,
+`src/utils/nodeStateManagement/constructAndModifyHandles.ts` ›
+`addEdgeWithTypeChecking`
 
 ### instanceof for Runtime Type Checks
 
@@ -406,19 +457,21 @@ if (value instanceof Error) {
 }
 ```
 
-**Source:** `src/utils/importExport/serialization.ts:63-75`
+**Source:** `src/utils/importExport/serialization.ts` › `safeSerializeValue`
 
 ### `typeof` for Type Extraction
 
 Extracting types from runtime values:
 
 ```typescript
-const node: (typeof newState.nodes)[number] = constructNodeOfType(...);
+const newNode = constructNodeOfType(...) as (typeof currentView.nodes)[number];
 ```
 
 This gets the element type of the `nodes` array without importing it separately.
 
-**Source:** `mainReducer.ts:289`, `mainReducer.ts:522`, `mainReducer.ts:532`
+**Source:** `src/utils/nodeStateManagement/planApply/applyPlan.ts` › `ADD_NODE`,
+`src/utils/nodeStateManagement/planApply/applyPlan.ts` › `ADD_EDGE`,
+`src/utils/nodeStateManagement/planApply/applyPlan.ts` › `ADD_LOOP`
 
 ---
 
@@ -433,7 +486,6 @@ the module level:
 // YES — used everywhere
 function mainReducer<D, N, U, C>(oldState: State, action: Action) { ... }
 function useFullGraph<D, N, U, C>(initialState: State) { ... }
-function Badge({ className, variant }: Props) { ... }
 function cn(...inputs: ClassValue[]) { ... }
 
 // NO — never used for top-level declarations
@@ -457,8 +509,10 @@ function compile(state, functionImplementations) {
 }
 ```
 
-**Source:** `compiler.ts`, `topologicalSort.ts`, `errors.ts`, `valueStore.ts`
-(all pure utilities)
+**Source:** `src/utils/nodeRunner/compiler.ts` › `compile`,
+`src/utils/nodeRunner/topologicalSort.ts` › `topologicalSortWithLevels`,
+`src/utils/nodeRunner/errors.ts` › `createGraphError`,
+`src/utils/nodeRunner/valueStore.ts` › `ValueStore` (all pure utilities)
 
 ### Parameter Objects Pattern
 
@@ -499,17 +553,23 @@ function createGraphError(params: { error: unknown; nodeId: string; ... }): Grap
 
 ### Component Declaration
 
-All components are `function` declarations with named exports at the bottom:
+Components are `function` declarations (or `forwardRef` wrappers) with named
+exports at the bottom:
 
 ```typescript
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <span className={cn(badgeVariants({ variant }), className)} {...props} />;
+function Accordion({
+  ...props
+}: React.ComponentProps<typeof AccordionPrimitive.Root>) {
+  return <AccordionPrimitive.Root data-slot='accordion' {...props} />;
 }
 
-export { Badge, badgeVariants };
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };
 ```
 
-No default exports. No `React.FC`. No arrow function components.
+No default exports. No `React.FC`. No arrow function components (callbacks
+passed to `forwardRef` are the only exception).
+
+**Source:** `src/components/atoms/Accordion/Accordion.tsx` › `Accordion`
 
 ### forwardRef
 
@@ -524,7 +584,8 @@ const ConfigurableNode = forwardRef<
 });
 ```
 
-**Source:** `ConfigurableNode.tsx` (the main node component uses forwardRef)
+**Source:** `src/components/organisms/ConfigurableNode/ConfigurableNode.tsx` ›
+`ConfigurableNode` (the main node component uses forwardRef)
 
 ### Props: Inline Types on Functions vs Separate Type Aliases
 
@@ -607,43 +668,62 @@ return (
 );
 ```
 
-**Source:** `FullGraph.tsx:422-434`
+**Source:** `src/components/organisms/FullGraph/FullGraph.tsx` › `graphContent`
 
 ### Component Composition (Slot / asChild Pattern)
 
 The shadcn/Radix `asChild` pattern for polymorphic rendering:
 
 ```typescript
-function Badge({ asChild = false, ...props }) {
-  const Comp = asChild ? Slot.Root : 'span';
-  return <Comp data-slot="badge" {...props} />;
-}
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, color, size, asChild = false, applyHoverStyles, ...props }, ref) => {
+    const Comp = asChild ? Slot : 'button';
+    return <Comp ref={ref} data-slot='button' {...props} />;
+  },
+);
 ```
 
-**Source:** `Button.tsx:111-124` (same asChild/Slot pattern; Badge is planned)
+**Source:** `src/components/atoms/Button/Button.tsx` › `Button`
 
-### Compound Components (Radix UI Wrappers)
+### Compound Components (shared-context pattern)
 
-Radix UI primitives are re-exported as styled compound components:
+Compound components (e.g. `Select`) are built with a shared React Context plus a
+Floating UI core, NOT Radix primitives. The root provides a `SelectContext`; the
+sub-components (`SelectTrigger`, `SelectValue`, etc.) read it via a
+`useSelectContext()` hook that throws if used outside the root:
 
 ```typescript
-const Select = SelectPrimitive.Root;
-const SelectGroup = SelectPrimitive.Group;
+const SelectContext = createContext<SelectContextValue | null>(null);
 
-const SelectTrigger = forwardRef<
-  HTMLButtonElement,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Trigger ref={ref} className={cn('...', className)} {...props}>
-    {children}
-  </SelectPrimitive.Trigger>
-));
-SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
+function useSelectContext() {
+  const context = useContext(SelectContext);
+  if (!context)
+    throw new Error('Select compound components must be used within <Select>');
+  return context;
+}
+
+type SelectTriggerProps = ComponentPropsWithoutRef<'button'>;
+
+const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
+  ({ className, children, ...props }, _ref) => {
+    const { refs, getReferenceProps } = useInternals();
+    const { size } = useSelectContext();
+    return (
+      <button ref={refs.setReference} type='button' className={cn('...', className)} {...getReferenceProps(props)}>
+        {children}
+      </button>
+    );
+  },
+);
+SelectTrigger.displayName = 'SelectTrigger';
 ```
 
-Each wrapped component sets `displayName` for React DevTools debugging.
+Each `forwardRef` sub-component sets a string-literal `displayName` for React
+DevTools debugging.
 
-**Source:** `Select.tsx`
+**Source:** `src/components/molecules/Select/Select.tsx` › `SelectContext`,
+`src/components/molecules/Select/Select.tsx` › `useSelectContext`,
+`src/components/molecules/Select/Select.tsx` › `SelectTrigger`
 
 ### forwardRef + useImperativeHandle
 
@@ -652,13 +732,15 @@ internal DOM element:
 
 ```typescript
 const ScrollableButtonContainer = forwardRef<HTMLDivElement, Props>((props, ref) => {
-  const listRef = useRef<HTMLDivElement>(null);
-  useImperativeHandle(ref, () => listRef.current as HTMLDivElement);
+  const { listRef } = useAutoScroll({ ... });
+  useImperativeHandle(ref, () => listRef.current!);
   return <div ref={listRef}>...</div>;
 });
 ```
 
-**Source:** `ScrollableButtonContainer.tsx:58`
+**Source:**
+`src/components/atoms/ScrollableButtonContainer/ScrollableButtonContainer.tsx` ›
+`ScrollableButtonContainer`
 
 ### Ref Callback for Multiple Refs
 
@@ -676,7 +758,7 @@ ref={(refInner) => {
 }}
 ```
 
-**Source:** `Input.tsx:153-160`
+**Source:** `src/components/atoms/Input/Input.tsx` › `Input`
 
 ---
 
@@ -793,7 +875,8 @@ useLayoutEffect(() => {
 });
 ```
 
-**Source:** `useTimelineZoomPan.ts:55-60`
+**Source:** `src/components/molecules/ExecutionTimeline/useTimelineZoomPan.ts` ›
+`useTimelineZoomPan`
 
 ### Browser Observer Patterns
 
@@ -812,7 +895,8 @@ useEffect(() => {
 }, []);
 ```
 
-**Source:** `ConfigurableEdge.tsx:84-116`
+**Source:** `src/components/atoms/ConfigurableEdge/ConfigurableEdge.tsx` ›
+`ConfigurableEdge`
 
 **ResizeObserver** (scroll state updates on container resize):
 
@@ -822,7 +906,7 @@ resizeObserver.observe(el);
 return () => resizeObserver.disconnect();
 ```
 
-**Source:** `useAutoScroll.ts:138-142`
+**Source:** `src/hooks/useAutoScroll.ts` › `useAutoScroll`
 
 **MutationObserver** (scroll state updates on child changes):
 
@@ -832,7 +916,7 @@ mo.observe(el, { childList: true, subtree: true });
 return () => mo.disconnect();
 ```
 
-**Source:** `useAutoScroll.ts:171-172`
+**Source:** `src/hooks/useAutoScroll.ts` › `useAutoScroll`
 
 ### requestAnimationFrame for Smooth Scrolling
 
@@ -853,7 +937,7 @@ if (scrollRafRef.current !== null) {
 }
 ```
 
-**Source:** `useAutoScroll.ts:107-125`
+**Source:** `src/hooks/useAutoScroll.ts` › `useAutoScroll`
 
 ### Stable Empty References
 
@@ -865,7 +949,9 @@ const EMPTY_WARNINGS: ReadonlyMap<string, ReadonlyArray<string>> = new Map();
 const EMPTY_ERRORS: ReadonlyMap<string, ReadonlyArray<GraphError>> = new Map();
 ```
 
-**Source:** `useNodeRunner.ts:93-95`
+**Source:** `src/utils/nodeRunner/useNodeRunner.ts` › `EMPTY_VISUAL_STATES`,
+`src/utils/nodeRunner/useNodeRunner.ts` › `EMPTY_WARNINGS`,
+`src/utils/nodeRunner/useNodeRunner.ts` › `EMPTY_ERRORS`
 
 ### AbortController for Cancellation
 
@@ -887,7 +973,7 @@ function stop() {
 }
 ```
 
-**Source:** `useNodeRunner.ts`
+**Source:** `src/utils/nodeRunner/useNodeRunner.ts` › `useNodeRunner`
 
 ### AsyncGenerator for Step-by-Step Execution
 
@@ -917,7 +1003,7 @@ for await (const step of executeStepByStep(graph, store, signal)) {
 }
 ```
 
-**Source:** `executor/stepByStep.ts`
+**Source:** `src/utils/nodeRunner/executor/stepByStep.ts` › `executeStepByStep`
 
 ### Mutable Ref + Snapshot Pattern
 
@@ -936,7 +1022,7 @@ setVisualStates(new Map(liveVisualStatesRef.current));
 This avoids re-rendering on every execution step while still allowing the UI to
 update at key moments.
 
-**Source:** `useNodeRunner.ts`
+**Source:** `src/utils/nodeRunner/useNodeRunner.ts` › `useNodeRunner`
 
 ### performance.now() for Execution Timing
 
@@ -950,39 +1036,270 @@ const duration = performance.now() - startTime;
 
 Duration is stored on each `ExecutionStep` and on `GraphError` objects.
 
-**Source:** `executor/executeStandardNode.ts`, `errors.ts`
+**Source:** `src/utils/nodeRunner/executor/executeStandardNode.ts` ›
+`executeStandardNode`, `src/utils/nodeRunner/errors.ts` › `createGraphError`
 
 ---
 
 ## State Management Patterns
 
-### Immer `produce()` in the Reducer
+### Validate → Plan → Apply Pipeline
 
-The main reducer wraps all mutations in `produce()`:
+State transitions are NOT a single Immer switch. They are split into three pure
+stages so id-minting, validation, and mutation never tangle:
+
+```
+action ─▶ validateAction(state, action) ─▶ Result<Plan, ValidationError> | null
+                                                   │
+                              ok ◀────────────────┘
+                                                   │
+         applyValidatedAction(state, action, plan.value) ─▶ new State
+                              │
+              (chooses produce vs produceWithPatches by undoability)
+                              │
+                    applyPlan(draft, plan) ─▶ mutates the Immer draft
+```
+
+1. **`validateAction`** (`src/utils/nodeStateManagement/planApply/validators.ts`
+   › `validateAction`) — pure, deterministic. Reads `Readonly<State>`, returns a
+   discriminated-union `Plan` (on `kind`) describing the intended change, or
+   `err({ code })`, or `null` for an unrecognized action. It mints **no** random
+   ids and runs **no** `Math.random()` — calling it twice for the same
+   `(state, action)` yields the same `Plan`.
+2. **`applyPlan`** (`src/utils/nodeStateManagement/planApply/applyPlan.ts` ›
+   `applyPlan`) — mutates an Immer draft from a `Plan`. This is where ids are
+   minted (`generateRandomString(lengthOfIds)`), nodes/edges are constructed,
+   and `REPLACE_STATE` returns a fresh state. All randomness lives here so it
+   runs exactly once per dispatch, inside `produce`.
+3. **`applyValidatedAction`**
+   (`src/utils/nodeStateManagement/applyWithHistory.ts` ›
+   `applyValidatedAction`) — the single orchestrator both `mainReducer` and the
+   store call. It wraps `applyPlan` in `produce` or `produceWithPatches`
+   depending on `isUndoable(action, plan)`.
 
 ```typescript
-function mainReducer(oldState, action) {
-  const newState = produce(oldState, (newState) => {
-    switch (action.type) {
-      case actionTypesMap.ADD_NODE:
-        // Mutate newState directly — Immer handles immutability
-        newState.nodes.push(newNode);
-        break;
-      case actionTypesMap.REPLACE_STATE:
-        return action.payload.state; // Return replaces the draft entirely
-    }
-  });
-  return newState;
+// validators.ts — pure intent, no id minting
+case actionTypesMap.ADD_NODE:
+  if (!(nodeType in _state.typeOfNodes)) {
+    return err({ code: 'NODE_TYPE_NOT_FOUND', nodeType: String(nodeType) });
+  }
+  return ok({ kind: 'ADD_NODE', nodeType, position, selectExclusively });
+
+// applyPlan.ts — minting + construction happen here, once, inside produce
+case 'ADD_NODE': {
+  const newNodeId = generateRandomString(lengthOfIds);
+  const newNode = constructNodeOfType(/* ... */ newNodeId, plan.position);
+  // ...push into the current scope's nodes
+  return;
 }
 ```
 
 **Key rules:**
 
-- Mutate the draft directly for incremental changes
-- `return` a new value to replace the entire state (used by `REPLACE_STATE`)
-- The produce callback receives a mutable draft typed as `State<D,N,U,C>`
+- `Plan` is a non-generic discriminated union on `kind`
+  (`src/utils/nodeStateManagement/planApply/types.ts` › `Plan`). Generic-typed
+  payloads (node data, handles, imported state) are carried as `unknown` at the
+  Plan boundary and re-asserted inside `applyPlan`'s generic.
+- `ValidationError` is a discriminated union on `code` (machine-readable, not
+  message strings) — e.g. `'CYCLE_DETECTED'`, `'NODE_TYPE_NOT_FOUND'`,
+  `'SWITCH_PATH_INVALID'`, `'NODE_COUNT_CONSTRAINT_VIOLATED'`, `'NOOP'`.
+- Use the `Result<T, E>` sum type plus the `ok()` / `err()` constructors. A
+  `null` return is reserved for actions `validateAction` does not recognize.
+- `applyPlan` returns `void` for in-place mutations, or returns a value to
+  replace the whole draft (only `REPLACE_STATE`).
 
-**Source:** `mainReducer.ts:273-578`
+**Source:** `src/utils/nodeStateManagement/planApply/validators.ts` ›
+`validateAction`, `src/utils/nodeStateManagement/planApply/applyPlan.ts` ›
+`applyPlan`, `src/utils/nodeStateManagement/planApply/types.ts` › `Plan`,
+`src/utils/nodeStateManagement/planApply/types.ts` › `Result`,
+`src/utils/nodeStateManagement/planApply/types.ts` › `ValidationError`,
+`src/utils/nodeStateManagement/planApply/types.ts` › `ok`,
+`src/utils/nodeStateManagement/planApply/types.ts` › `err`,
+`src/utils/nodeStateManagement/applyWithHistory.ts` › `applyValidatedAction`
+
+### Immer `produce()` / `produceWithPatches()` in `applyValidatedAction`
+
+Immer is no longer invoked inside `mainReducer` directly. `mainReducer` is a
+thin delegator, and `applyValidatedAction` owns the single
+`produce`/`produceWithPatches` call:
+
+```typescript
+function mainReducer(oldState, action) {
+  const planResult = validateAction(oldState, action);
+  if (planResult === null || !planResult.ok) return oldState;
+  return applyValidatedAction(oldState, action, planResult.value);
+}
+
+function applyValidatedAction(state, action, plan) {
+  if (!isUndoable(action, plan)) {
+    // Non-undoable: plain produce, no patch capture
+    return produce(state, (draft) => {
+      const returnValue = applyPlan(draft, plan);
+      if (returnValue !== undefined) return returnValue; // REPLACE_STATE etc.
+    });
+  }
+  // Undoable: capture forward/inverse patches for the history stacks
+  const [next, patches, inversePatches] = produceWithPatches(state, (draft) => {
+    const returnValue = applyPlan(draft, plan);
+    if (returnValue !== undefined) return returnValue;
+  });
+  // ...filter out history-path patches, then record them in a second produce
+}
+```
+
+**Key rules:**
+
+- Mutate the draft directly for incremental changes; `return` only to replace
+  the entire state (`REPLACE_STATE`). The draft is typed `Draft<State<D,N,U,C>>`
+  and re-asserted as `StateT` (a compile-time no-op cast — `State` has no
+  `readonly` fields).
+- `enablePatches()` is called once at module load in
+  `src/utils/nodeStateManagement/applyWithHistory.ts` › `applyValidatedAction`.
+- Never call `produce` inside `mainReducer` anymore — go through
+  `applyValidatedAction`.
+
+**Source:** `src/utils/nodeStateManagement/mainReducer.ts` › `mainReducer`,
+`src/utils/nodeStateManagement/applyWithHistory.ts` › `applyValidatedAction`
+
+### Undo/Redo via `produceWithPatches`
+
+History is part of `State` (`state.history`), not a separate store. Each
+undoable dispatch captures Immer patches:
+
+- `produceWithPatches` returns `[next, patches, inversePatches]`.
+- `filterHistoryPatches` drops any patch whose `path[0] === 'history'` (so
+  history recording never records itself into an infinite loop).
+- `recordInHistory` pushes a `HistoryEntry` ({ patches, inversePatches,
+  actionType, timestamp }) onto `history.undoStack` and clears `redoStack` (a
+  new edit invalidates the redo branch). `config.maxSize` caps the stack via
+  `slice(-maxSize)`.
+- `UNDO`/`REDO` are themselves non-undoable plans. `applyPlan` pops the entry
+  and replays patches with `applyPatchesToDraft` — a hand-rolled patch applier
+  that mutates the draft in place (Immer's built-in `applyPatches` returns a new
+  object and can't operate on a draft proxy).
+- `BEGIN_BATCH`/`END_BATCH` coalesce many dispatches into one `HistoryEntry` via
+  `history.activeBatch`; inverse patches are `unshift`-ed so the batch undoes in
+  reverse order.
+
+`isUndoable(action, plan)` decides the path. A `NON_UNDOABLE_PLAN_KINDS` set
+excludes `SET_VIEWPORT`, `REPLACE_STATE`, `OPEN_DRAWER`/`CLOSE_DRAWER`, the
+history ops themselves, etc. Two plans are conditionally undoable:
+`UPDATE_NODES_RF` only when the changes include a `position` or `remove` (not
+`select`/`dimensions`), and `UPDATE_EDGES_RF` only when a `removal` step is
+present.
+
+**Source:** `src/components/organisms/FullGraph/historyTypes.ts` ›
+`HistoryEntry`, `src/components/organisms/FullGraph/historyTypes.ts` ›
+`isUndoable`, `src/components/organisms/FullGraph/historyTypes.ts` ›
+`filterHistoryPatches`, `src/components/organisms/FullGraph/historyTypes.ts` ›
+`recordInHistory`, `src/components/organisms/FullGraph/historyTypes.ts` ›
+`applyPatchesToDraft`, `src/utils/nodeStateManagement/planApply/applyPlan.ts` ›
+`UNDO`, `src/utils/nodeStateManagement/planApply/applyPlan.ts` › `REDO`,
+`src/utils/nodeStateManagement/planApply/applyPlan.ts` › `BEGIN_BATCH`,
+`src/utils/nodeStateManagement/planApply/applyPlan.ts` › `END_BATCH`,
+`src/utils/nodeStateManagement/planApply/applyPlan.ts` › `CLEAR_HISTORY`,
+`src/utils/nodeStateManagement/types.ts` › `State`
+
+### External Store: `createGraphStore` + `useSyncExternalStore`
+
+The recommended path (`useFullGraph`) is a Redux-style external store, NOT
+`useReducer`. `createGraphStore` owns state in a closure and notifies
+subscribers:
+
+```typescript
+function createGraphStore(initialState, getOnGraphEvent) {
+  let state = initialState;
+  const listeners = new Set<() => void>();
+  return {
+    getState: () => state,
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    dispatch(action) {
+      const planResult = validateAction(state, action);
+      if (planResult === null) return; // unrecognized
+      if (!planResult.ok) {
+        // rejected — emit, no state change
+        getOnGraphEvent()?.(deriveRejectedEvent(action, planResult.error));
+        return;
+      }
+      const prev = state;
+      const next = applyValidatedAction(prev, action, planResult.value);
+      if (next === prev) return; // identity short-circuit
+      state = next; // update BEFORE emitting
+      getOnGraphEvent()?.(
+        deriveAppliedEvent(action, planResult.value, prev, next),
+      );
+      listeners.forEach((l) => l());
+    },
+  };
+}
+```
+
+`useFullGraph` creates the store exactly once (lazy `useRef`) and subscribes via
+React 18's `useSyncExternalStore`:
+
+```typescript
+function useFullGraph(initialState, options) {
+  const onGraphEventRef = useRef(options?.onGraphEvent);
+  onGraphEventRef.current = options?.onGraphEvent; // latest-value ref
+
+  const storeRef = useRef(null);
+  if (storeRef.current === null) {
+    storeRef.current = createGraphStore(
+      initialState,
+      () => onGraphEventRef.current,
+    );
+  }
+  const store = storeRef.current;
+
+  const state = useSyncExternalStore(
+    store.subscribe,
+    store.getState,
+    store.getState,
+  );
+  return { state, dispatch: store.dispatch };
+}
+```
+
+**Why this shape (load-bearing):**
+
+- `dispatch` is a plain closure function, run once per call and never replayed
+  by React — so the `onGraphEvent` side effect fires exactly once with ids
+  derived from the **committed** state (`deriveAppliedEvent` diffs
+  `prev`/`next`). This fixed the "wrapper-emits-with-stale-id" bug.
+- The store closes over a **getter** for `onGraphEvent` (not the value) so an
+  inline callback whose identity changes per render never forces store
+  recreation.
+- `mainReducer` still exists and works with `useReducer(mainReducer, ...)` for
+  direct consumers, but `useFullGraph` is the recommended path.
+
+**Source:** `src/components/organisms/FullGraph/graphStore.ts` ›
+`createGraphStore`, `src/components/organisms/FullGraph/FullGraphState.ts` ›
+`useFullGraph`
+
+### Graph Event Stream (observability)
+
+`onGraphEvent` receives a single `GraphEvent` union
+(`src/utils/nodeStateManagement/graphEvent.ts` › `GraphEvent`) discriminated on
+`kind`. The events actually emitted are: reducer events (`action:applied` /
+`action:rejected`, emitted by `graphStore.ts`), the render-commit barrier
+(`state:committed`, fired from a `useEffect` keyed on node/edge counts in
+`FullGraphState.ts`), and UI-only events (`ui:drag:ended`,
+`ui:delete:attempted`, `ui:state:imported`, `ui:recording:imported`). The
+history kinds (`history:undo` / `history:redo` / `history:cleared`) are declared
+as `GraphEvent` union members but **no code path emits them** — they are not
+part of the live observable stream (the source comment on them in
+`graphEvent.ts` is stale). `action:applied` carries a per-action `detail` (also
+a discriminated union on `kind`); `action:rejected` carries the
+`ValidationError` so consumers switch on `.code`. Newly-minted ids in `detail`
+come from `deriveAppliedEvent` diffing `prev`/`next` — never from the `Plan`.
+
+**Source:** `src/utils/nodeStateManagement/graphEvent.ts` › `GraphEvent`,
+`src/utils/nodeStateManagement/graphEvent.ts` › `deriveAppliedEvent`,
+`src/utils/nodeStateManagement/graphEvent.ts` › `deriveRejectedEvent`,
+`src/utils/nodeStateManagement/graphEvent.ts` › `ActionDetail`
 
 ### Action Typing with `typeof actionTypesMap.X`
 
@@ -1004,23 +1321,25 @@ the `openedNodeGroupStack` to return the currently visible nodes and edges:
 
 ```typescript
 const currentNodesAndEdges = getCurrentNodesAndEdgesFromState(state);
-// Returns { nodes, edges, inputNodeId?, outputNodeId? }
+// Returns { nodes, edges, inputNodeId?, outputNodeId?, zones?, zoneIndex? }
 ```
 
-This is called in the reducer, in components, and in the runner.
+Because zones are scope-local (root zones on `state.zones`, group zones on
+`subtree.zones`), this getter returns the current scope's `zones`/`zoneIndex`
+alongside its nodes/edges. The companion
+`setCurrentNodesAndEdgesToStateWithMutatingState` and `setCurrentZonesToState`
+write back to the matching scope. All three are called inside `applyPlan`, in
+components, and in the runner.
 
-### useReducer (Not useState) for Complex State
+### `mainReducer` Is a Thin Delegator (Not the Owner of Logic)
 
-The graph state uses `useReducer` with the typed reducer:
+`mainReducer` no longer contains the action switch. It validates then applies,
+returning `oldState` unchanged on rejection. The real logic lives in
+`validateAction` + `applyPlan` (see the Validate → Plan → Apply pipeline above).
+`useReducer(mainReducer, ...)` still works for direct consumers, but
+`useFullGraph` (external store) is the recommended path.
 
-```typescript
-function useFullGraph<D, N, U, C>(initialState: State<D, N, U, C>) {
-  const [state, dispatch] = useReducer(mainReducer<D, N, U, C>, initialState);
-  return { state, dispatch };
-}
-```
-
-Note: `mainReducer` is passed with explicit generic parameters.
+**Source:** `src/utils/nodeStateManagement/mainReducer.ts` › `mainReducer`
 
 ---
 
@@ -1070,8 +1389,11 @@ const record = executionRecordRef.current?.();
 The ref type is `React.RefObject<(() => T) | null>` — a ref to a nullable
 function.
 
-**Source:** `useGraphImportExport.tsx:75-78` (type),
-`useGraphImportExport.tsx:107-115` (ref), `useGraphImportExport.tsx:173` (read)
+**Source:** `src/components/organisms/FullGraph/useGraphImportExport.tsx` ›
+`UseGraphImportExportReturn` (type),
+`src/components/organisms/FullGraph/RunnerOverlay.tsx` › `RunnerOverlay` (ref),
+`src/components/organisms/FullGraph/useGraphImportExport.tsx` ›
+`useGraphImportExport` (read)
 
 ### SVG Arrow Ref (Floating UI)
 
@@ -1080,7 +1402,7 @@ const arrowRef = useRef<SVGSVGElement>(null);
 // passed to floating-ui: arrow({ element: arrowRef })
 ```
 
-**Source:** `useFloatingTooltip.ts:48`
+**Source:** `src/hooks/useFloatingTooltip.ts` › `useFloatingTooltip`
 
 ---
 
@@ -1094,45 +1416,68 @@ consumers:
 ```typescript
 const FullGraphContext = createContext<{
   allProps: FullGraphProps;
-  nodeRunnerStates?: ReadonlyMap<string, NodeRunnerState>;
 }>(null!);
 ```
 
 The comment explicitly explains this choice:
 `//the not-null assertion (null!) is because we are creating a context that is always provided`
 
-**Source:** `FullGraphState.ts:21-26`
+**Source:** `src/components/organisms/FullGraph/FullGraphState.ts` ›
+`FullGraphContext`
+
+### Split Contexts (graph props vs runner state vs record)
+
+Runner visual state is NOT carried on `FullGraphContext`. It is split into three
+separate contexts so the graph tree doesn't re-render on every runner tick:
+
+- `FullGraphContext` — `{ allProps }` only (graph state + dispatch + props).
+- `RunnerContext` —
+  `{ nodeRunnerStates, selectedStepRecord, edgeValuesAnimated }`, provided by
+  `RunnerOverlay`. Typed `| undefined` (no provider when no runner).
+- `RecordContext` — controlled execution record
+  (`{ executionRecord, setExecutionRecord }`), with a real default object (not
+  `null!`).
+
+**Source:** `src/components/organisms/FullGraph/FullGraphState.ts` ›
+`FullGraphContext`, `src/components/organisms/FullGraph/FullGraphState.ts` ›
+`RunnerContext`, `src/components/organisms/FullGraph/FullGraphState.ts` ›
+`RecordContext`
 
 ### Generic Variance Bridge
 
 React's `createContext` doesn't support generics. To provide a concrete
 `FullGraphProps<'andGate', ...>` to a context typed as
-`FullGraphProps<string, ...>`, a variance bridge function is used:
+`FullGraphProps<string, ...>`, a variance bridge function is used. It now takes
+only `{ state, dispatch }` (runner state moved to `RunnerContext`):
 
 ```typescript
-function createContextValue(
-  props: { state: unknown; dispatch: unknown },
-  nodeRunnerStates?: ReadonlyMap<string, NodeRunnerState>,
-): React.ContextType<typeof FullGraphContext> {
+function createContextValue(props: {
+  state: unknown;
+  dispatch: unknown;
+}): React.ContextType<typeof FullGraphContext> {
   const allProps = props as unknown as FullGraphProps;
-  return { allProps, nodeRunnerStates };
+  return { allProps };
 }
 ```
 
 The `unknown` → `as unknown as` double cast is documented with a safety
 justification comment explaining why the contravariance on dispatch is safe.
 
-**Source:** `FullGraphState.ts:138-147`
+**Source:** `src/components/organisms/FullGraph/FullGraphState.ts` ›
+`createContextValue`
 
 ### Context Consumption via useContext
 
-Components read from context directly:
+Components read from the relevant context directly:
 
 ```typescript
-const { allProps, nodeRunnerStates } = useContext(FullGraphContext);
+const { allProps } = useContext(FullGraphContext);
+const runner = useContext(RunnerContext); // undefined when no runner is mounted
 ```
 
-**Source:** `ConfigurableNodeReactFlowWrapper.tsx`
+**Source:**
+`src/components/organisms/ConfigurableNode/SupportingSubcomponents/ConfigurableNodeReactFlowWrapper.tsx`
+› `ConfigurableNodeReactFlowWrapper`
 
 ---
 
@@ -1152,40 +1497,59 @@ import { cn } from '@/utils/cnHelper';
 )} />
 ```
 
-**Source:** `src/utils/cnHelper.ts`
+**Source:** `src/utils/cnHelper.ts` › `cn`
 
 ### cva() for Multi-Variant Components
 
-`class-variance-authority` defines variant matrices:
+`class-variance-authority` defines variant matrices. `Button` uses `variants` +
+`defaultVariants` + `compoundVariants`:
 
 ```typescript
-const badgeVariants = cva(
-  'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', // base
+const buttonVariants = cva(
+  'inline-flex items-center justify-center gap-2 cursor-pointer rounded-md ...', // base
   {
     variants: {
-      variant: {
-        default: 'bg-primary text-primary-foreground',
-        secondary: 'bg-secondary text-secondary-foreground',
-        destructive: 'bg-destructive text-white',
-        outline: 'border-border text-foreground',
+      color: {
+        dark: 'bg-secondary-black border-secondary-dark-gray',
+        lightNonPriority: 'bg-primary-gray border-transparent',
+        lightPriority: 'bg-primary-gray border-transparent',
+        lightParentGroupBasedHover: 'bg-primary-gray border-transparent',
+      },
+      applyHoverStyles: { true: '', false: '' }, // handled in compoundVariants
+      size: {
+        normal: 'py-2 px-4 text-[27px] leading-[27px]',
+        small: 'py-2 px-3 text-[16px] leading-[13px] rounded-sm',
       },
     },
-    defaultVariants: { variant: 'default' },
+    defaultVariants: { color: 'dark', applyHoverStyles: true, size: 'normal' },
+    compoundVariants: [
+      {
+        color: 'dark',
+        applyHoverStyles: true,
+        className: 'hover:bg-primary-dark-gray',
+      },
+      // ...
+    ],
   },
 );
 ```
 
-Component uses: `cn(badgeVariants({ variant }), className)`
+Component uses:
+`cn(buttonVariants({ color, size, className, applyHoverStyles }))`
 
-**Source:** `Button.tsx:7-58` (cva variants; Badge is planned)
+**Source:** `src/components/atoms/Button/Button.tsx` › `buttonVariants`
 
-### data-slot / data-variant Attributes
+### data-slot Attributes
 
-Components add `data-slot` and `data-variant` for CSS targeting and testing:
+Components add a `data-slot` attribute for CSS targeting and testing:
 
 ```typescript
-<Comp data-slot="badge" data-variant={variant} ... />
+<Comp data-slot='button' ... />
 ```
+
+**Source:** `src/components/atoms/Button/Button.tsx` › `Button`,
+`src/components/atoms/Modal/Modal.tsx` › `Modal` (every sub-component sets
+`data-slot`)
 
 ### Inline Styles for Dynamic Values Only
 
@@ -1218,8 +1582,8 @@ border-secondary-dark-gray
 No default exports anywhere. Everything uses named exports:
 
 ```typescript
-export { Badge, badgeVariants };
-export type { ConfigurableNodeInput, ConfigurableNodeOutput };
+export { Button };
+export type { ButtonProps };
 ```
 
 ### Separate Value and Type Exports
@@ -1237,9 +1601,12 @@ Each directory has a barrel file re-exporting its contents:
 
 ```typescript
 // src/components/atoms/index.ts
-export * from './Badge';
+export * from './Accordion';
 export * from './Button';
-export * from './Collapsible';
+export * from './ConfigurableEdge';
+export * from './ErrorBoundary';
+export * from './Input';
+export * from './Modal';
 ...
 
 // src/utils/index.ts
@@ -1304,8 +1671,9 @@ type GraphError = {
 };
 ```
 
-**Source:** `src/utils/nodeRunner/types.ts` (GraphError type),
-`src/utils/nodeRunner/errors.ts` (factory + formatter)
+**Source:** `src/utils/nodeRunner/types.ts` › `GraphError`,
+`src/utils/nodeRunner/errors.ts` › `createGraphError`,
+`src/utils/nodeRunner/errors.ts` › `formatGraphError`
 
 ### extractErrorMessage for Unknown Catches
 
@@ -1332,16 +1700,18 @@ const result = addEdgeWithTypeChecking(...);
 if (!result.validation.isValid) break;  // silently reject invalid edge
 ```
 
-### @ts-ignore for Known Safe Casts
+### @ts-expect-error for Known Safe Casts
 
-Used sparingly, with comments explaining why:
+Used sparingly, with comments explaining why (the codebase uses
+`@ts-expect-error` exclusively — never `@ts-ignore`):
 
 ```typescript
-//@ts-ignore we assume standard node types are always added in state
+// @ts-expect-error standard node types are always present in state.typeOfNodes
 standardNodeTypeNamesMap.groupInput,
 ```
 
-**Source:** `mainReducer.ts:502-503`
+**Source:** `src/utils/nodeStateManagement/planApply/applyPlan.ts` ›
+`ADD_NODE_GROUP`
 
 ---
 
@@ -1372,15 +1742,17 @@ typeOfNodes: Record<NodeTypeUniqueId, TypeOfNode<D, N, U, C>>;
 
 ```typescript
 const statusBlockClass: Record<ExecutionStepRecordStatus, string> = {
-  completed: 'bg-status-completed',
-  errored: 'bg-status-errored',
+  completed: 'bg-runner-bar-completed',
+  errored: 'bg-runner-bar-errored',
   skipped: 'bg-status-skipped',
 };
 ```
 
 TypeScript ensures every status variant has an entry.
 
-**Source:** `ExecutionTimeline.tsx:55-71`
+**Source:**
+`src/components/molecules/ExecutionTimeline/SupportingSubcomponents/types.ts` ›
+`statusBlockClass`
 
 ### Qualified ID Strings
 
@@ -1392,7 +1764,7 @@ function qualifiedId(nodeId: string, handleId: string): string {
 }
 ```
 
-**Source:** `valueStore.ts:45-47`
+**Source:** `src/utils/nodeRunner/valueStore.ts` › `qualifiedId`
 
 ### Flatten Utility for Nested Arrays
 
@@ -1416,7 +1788,7 @@ function flattenInputs(
 }
 ```
 
-**Source:** `valueStore.ts:53-64`
+**Source:** `src/utils/nodeRunner/valueStore.ts` › `flattenInputs`
 
 ### ValueStore Class (Only Class in Codebase)
 
@@ -1426,29 +1798,41 @@ keys:
 
 ```typescript
 class ValueStore {
-  private store = new Map<string, unknown>();
+  private readonly store: Map<string, unknown>;
+  private readonly prefix: string; // scope prefix ("groupNodeId>") for group execution
+  private readonly parent: ValueStore | null;
 
   set(nodeId: string, handleId: string, value: unknown): void {
-    this.store.set(qualifiedId(nodeId, handleId), value);
+    this.store.set(this.prefix + qualifiedId(nodeId, handleId), value);
   }
 
-  get(nodeId: string, handleId: string): unknown {
-    return this.store.get(qualifiedId(nodeId, handleId));
+  get(nodeId: string, handleId: string): unknown | undefined {
+    // looks up the scoped key, falling back to the parent scope if absent
+    return this.store.get(this.prefix + qualifiedId(nodeId, handleId));
   }
 
-  getInputValues(
+  resolveInputs(
     nodeId: string,
-    inputs: MinimalInput[],
-  ): Record<string, unknown> {
-    // Collects all input values for a node into a single object
+    nodeData: MinimalNodeData,
+    inputResolutionMap: ReadonlyMap<string, ReadonlyArray<InputResolutionEntry>>,
+    nodesById: ReadonlyMap<string, { data: MinimalNodeData; ... }>,
+  ): Map<string, InputHandleValue> {
+    // Resolves all input values for a node, keyed by handle name
+  }
+
+  buildOutputInfo(/* ... */): Map<string, OutputHandleInfo> {
+    // Builds the output-handle info map for a node
   }
 }
 ```
 
+The full surface is
+`set`/`get`/`has`/`resolveInputs`/`buildOutputInfo`/`snapshot`/`createScope`/`clearScope`.
 A class is used here (instead of a plain object/closure) because it encapsulates
-a mutable `Map` with methods that enforce the qualified-key convention.
+a mutable `Map` with methods that enforce the qualified-key convention (and the
+optional scope `prefix` for group execution).
 
-**Source:** `valueStore.ts`
+**Source:** `src/utils/nodeRunner/valueStore.ts` › `ValueStore`
 
 ### Recursive Execution for Loop Bodies
 
@@ -1469,7 +1853,9 @@ async function* processSteps(steps, valueStore, signal) {
 }
 ```
 
-**Source:** `executor/executeLoopBlock.ts`, `executor/executeOneStep.ts`
+**Source:** `src/utils/nodeRunner/executor/executeLoopBlock.ts` ›
+`executeLoopBlock`, `src/utils/nodeRunner/executor/executeOneStep.ts` ›
+`executeOneStep`
 
 ### Minimal Types to Avoid Variance Issues
 
@@ -1484,7 +1870,51 @@ type MinimalNodeData = { inputs?: ReadonlyArray<MinimalInput | MinimalInputPanel
 This avoids importing the generic `ConfigurableNodeInput<U,C,D>` type and its
 variance requirements.
 
-**Source:** `valueStore.ts:13-39`
+**Source:** `src/utils/nodeRunner/valueStore.ts` › `MinimalInput`,
+`src/utils/nodeRunner/valueStore.ts` › `MinimalNodeData`
+
+### Zones (Scope-Local Regions + Reverse Index)
+
+Zones are first-class graph regions (rendered as frame polygons, optionally
+enforcing connection boundaries). They follow several conventions:
+
+- **Scope-local storage.** Root zones live on `state.zones`; node-group zones
+  live on `subtree.zones`. Always go through `getCurrentNodesAndEdgesFromState`
+  (read) and `setCurrentZonesToState` (write) so the correct scope is targeted —
+  never assign `draft.zones` directly when a group is open.
+- **`Record<string, Zone>` keyed by opaque UUID.** Zone ids are
+  `generateRandomString(ZONE_ID_LENGTH)`, NOT derived from node ids. A `Zone`
+  links back to its structure via
+  `structureLink: { structureType, structureId, zoneRole }` (e.g. `'switch'` +
+  switchStartId + `'trueBranch'`).
+- **Reverse index for O(1) validation.** `ZoneIndex.handleToZone` maps each
+  boundary handle id → owning zone id. Rebuild it with `buildZoneIndex(zones)`
+  whenever zones change; connection validation (`validateAddEdge`) reads it to
+  reject boundary-crossing edges in `enforced` zones (`SWITCH_PATH_INVALID`).
+- **System vs user zones.** System zones (switch/loop) carry `boundaryHandles`,
+  `structureLink`, and `enforced: true`, and are created/recomputed
+  automatically: `createSwitchZones` / `createLoopZones` on ADD,
+  `recomputeAllZoneMemberships` on every edge change, `rehydrateAllZones` on
+  `REPLACE_STATE` import. User zones (future) omit
+  `boundaryHandles`/`structureLink` and are visual-only.
+- **Membership is derived, never authored.** `nodeIds` (the nodes inside a zone)
+  are recomputed via BFS from boundary handles (`discoverZoneNodesFromHandles`)
+  — treat them as cache, not source of truth.
+- **Lookup helpers, not id math.** Use
+  `findZoneByStructure(zones, structureId, zoneRole)` and
+  `getBoundaryNodeIds(zone)` rather than reconstructing keys.
+
+**Source:** `src/utils/nodeStateManagement/zones/types.ts` › `Zone`,
+`src/utils/nodeStateManagement/zones/types.ts` › `ZoneIndex`,
+`src/utils/nodeStateManagement/zones/types.ts` › `buildZoneIndex`,
+`src/utils/nodeStateManagement/zones/types.ts` › `findZoneByStructure`,
+`src/utils/nodeStateManagement/zones/types.ts` › `getBoundaryNodeIds`,
+`src/utils/nodeStateManagement/zones/zoneLifecycle.ts` › `createSwitchZones`,
+`src/utils/nodeStateManagement/zones/zoneLifecycle.ts` › `createLoopZones`,
+`src/utils/nodeStateManagement/zones/zoneLifecycle.ts` ›
+`recomputeAllZoneMemberships`,
+`src/utils/nodeStateManagement/zones/zoneLifecycle.ts` › `rehydrateAllZones`,
+`src/utils/nodeStateManagement/types.ts` › `State`
 
 ---
 
@@ -1494,8 +1924,8 @@ variance requirements.
 
 | Type       | Convention                  | Example                              |
 | ---------- | --------------------------- | ------------------------------------ |
-| Component  | PascalCase directory + file | `Badge/Badge.tsx`                    |
-| Story      | PascalCase + `.stories.tsx` | `Badge/Badge.stories.tsx`            |
+| Component  | PascalCase directory + file | `Button/Button.tsx`                  |
+| Story      | PascalCase + `.stories.tsx` | `Button/Button.stories.tsx`          |
 | Barrel     | `index.ts`                  | `atoms/index.ts`                     |
 | Hook       | camelCase `use` prefix      | `useSlideAnimation.ts`               |
 | Utility    | camelCase                   | `cnHelper.ts`, `randomGeneration.ts` |
@@ -1553,11 +1983,14 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>((...) => { ... });
 Button.displayName = 'Button';
 ```
 
-For Radix UI wrappers, inherit the primitive's display name:
+Compound sub-components set a string-literal `displayName`:
 
 ```typescript
-SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
+SelectTrigger.displayName = 'SelectTrigger';
 ```
+
+**Source:** `src/components/atoms/Button/Button.tsx` › `Button`,
+`src/components/molecules/Select/Select.tsx` › `SelectTrigger`
 
 ### Section Comments
 

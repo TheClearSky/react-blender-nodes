@@ -4,11 +4,14 @@ import {
   type ActiveDrawer,
 } from './types';
 import { z } from 'zod';
-import { produce } from 'immer';
 import { type Connection, type XYPosition, type Viewport } from '@xyflow/react';
 import type { EdgeChanges, NodeChanges } from '@/components';
 import { validateAction } from './planApply/validators';
-import { applyPlan } from './planApply/applyPlan';
+import { applyValidatedAction } from './applyWithHistory';
+import type {
+  LoopChannelHandles,
+  SwitchChannelHandles,
+} from './handles/channelDeletionAnalysis';
 
 /** Available action types for the graph state reducer */
 const actionTypes = [
@@ -30,6 +33,14 @@ const actionTypes = [
   'CLOSE_DRAWER',
   'ADD_SWITCH',
   'UPDATE_SWITCH',
+  'UNDO',
+  'REDO',
+  'BEGIN_BATCH',
+  'END_BATCH',
+  'CLEAR_HISTORY',
+  'DELETE_NODE_TYPE_HANDLES',
+  'DELETE_LOOP_CHANNELS',
+  'DELETE_SWITCH_CHANNELS',
 ] as const;
 
 /** Map of action types for type-safe action dispatching */
@@ -52,6 +63,14 @@ const actionTypesMap = {
   [actionTypes[15]]: actionTypes[15],
   [actionTypes[16]]: actionTypes[16],
   [actionTypes[17]]: actionTypes[17],
+  [actionTypes[18]]: actionTypes[18],
+  [actionTypes[19]]: actionTypes[19],
+  [actionTypes[20]]: actionTypes[20],
+  [actionTypes[21]]: actionTypes[21],
+  [actionTypes[22]]: actionTypes[22],
+  [actionTypes[23]]: actionTypes[23],
+  [actionTypes[24]]: actionTypes[24],
+  [actionTypes[25]]: actionTypes[25],
 } as const;
 
 /**
@@ -256,6 +275,72 @@ type Action<
           };
         }>;
       };
+    }
+  | {
+      /** Undo the most recent undoable action */
+      type: typeof actionTypesMap.UNDO;
+    }
+  | {
+      /** Redo the most recently undone action */
+      type: typeof actionTypesMap.REDO;
+    }
+  | {
+      /** Begin accumulating undoable dispatches into a single undo entry */
+      type: typeof actionTypesMap.BEGIN_BATCH;
+    }
+  | {
+      /** Finalize the current batch into a single undo entry */
+      type: typeof actionTypesMap.END_BATCH;
+    }
+  | {
+      /** Clear the entire undo/redo history */
+      type: typeof actionTypesMap.CLEAR_HISTORY;
+    }
+  | {
+      /** Delete one or more input/output handles from a node type, cascading
+       *  to every edge connected to those handles across all instances and
+       *  group subtrees. Applied as a single undoable step. */
+      type: typeof actionTypesMap.DELETE_NODE_TYPE_HANDLES;
+      payload: {
+        /** ID of the node type to delete handles from */
+        nodeTypeId: NodeTypeUniqueId;
+        /** Handles to delete, addressed by direction + name + data type
+         *  (drag-list item ids are regenerated and can't be used). */
+        deletions: {
+          direction: 'input' | 'output';
+          handleName: string;
+          handleDataTypeId: DataTypeUniqueId;
+        }[];
+      };
+    }
+  | {
+      /** Delete one or more whole data channels from a loop triplet, cascading
+       *  every edge connected to the channel's handles in the current scope and
+       *  reverting inferred types. Applied as a single undoable step. */
+      type: typeof actionTypesMap.DELETE_LOOP_CHANNELS;
+      payload: {
+        loopStartNodeId: string;
+        loopStopNodeId: string;
+        loopEndNodeId: string;
+        channels: Array<{
+          dataTypeUniqueId: string;
+          handles: LoopChannelHandles;
+        }>;
+      };
+    }
+  | {
+      /** Delete one or more whole data channels from a switch pair (both the
+       *  true and false branch handles), cascading every connected edge in the
+       *  current scope and reverting inferred types. One undoable step. */
+      type: typeof actionTypesMap.DELETE_SWITCH_CHANNELS;
+      payload: {
+        switchStartNodeId: string;
+        switchEndNodeId: string;
+        channels: Array<{
+          dataTypeUniqueId: string;
+          handles: SwitchChannelHandles;
+        }>;
+      };
     };
 
 /**
@@ -348,28 +433,9 @@ function mainReducer<
     ComplexSchemaType
   >,
 ) {
-  const newState = produce(
-    oldState,
-    (
-      draft: State<
-        DataTypeUniqueId,
-        NodeTypeUniqueId,
-        UnderlyingType,
-        ComplexSchemaType
-      >,
-    ) => {
-      const planResult = validateAction(oldState, action);
-      if (planResult !== null) {
-        if (planResult.ok) {
-          const returnValue = applyPlan(draft, planResult.value);
-          if (returnValue !== undefined) return returnValue;
-        }
-        return;
-      }
-      // No legacy fallback needed — all actions migrated
-    },
-  );
-  return newState;
+  const planResult = validateAction(oldState, action);
+  if (planResult === null || !planResult.ok) return oldState;
+  return applyValidatedAction(oldState, action, planResult.value);
 }
 
 export { mainReducer, actionTypesMap };

@@ -955,13 +955,15 @@ function isLoopConnectionValid<
 }
 
 /**
- * Checks if loop nodes and edges can be removed from the graph
+ * Checks if structured nodes (loop triplets and switch pairs) and edges can be
+ * removed from the graph. Structured groups must be removed atomically:
+ * partially removing a loop triplet, or only one of a switch pair, is rejected.
  * @param state - The current state of the graph
- * @param nodeToRemove - The nodes to remove
+ * @param nodesToRemove - The nodes to remove
  * @param edgesToRemove - The edges to remove
- * @returns A validation result indicating if the node can be removed
+ * @returns A validation result indicating if the nodes can be removed
  */
-function canRemoveLoopNodesAndEdges<
+function canRemoveStructuredNodesAndEdges<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
@@ -1199,4 +1201,14 @@ function canRemoveLoopNodesAndEdges<
   };
 }
 
-export { isLoopConnectionValid, canRemoveLoopNodesAndEdges };
+/**
+ * @deprecated Misnomer kept for backward compatibility — this guards BOTH loop
+ * triplets and switch pairs, not just loops. Prefer `canRemoveStructuredNodesAndEdges`.
+ */
+const canRemoveLoopNodesAndEdges = canRemoveStructuredNodesAndEdges;
+
+export {
+  isLoopConnectionValid,
+  canRemoveStructuredNodesAndEdges,
+  canRemoveLoopNodesAndEdges,
+};

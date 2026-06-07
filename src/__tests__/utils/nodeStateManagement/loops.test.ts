@@ -3,7 +3,7 @@ import {
   isLoopNode,
   getLoopStructureFromNode,
   isLoopConnectionValid,
-  canRemoveLoopNodesAndEdges,
+  canRemoveStructuredNodesAndEdges,
 } from '@/utils/nodeStateManagement/nodes/loops';
 
 describe('nodeStateManagement/loops', () => {
@@ -11,6 +11,6 @@ describe('nodeStateManagement/loops', () => {
     expect(typeof isLoopNode).toBe('function');
     expect(typeof getLoopStructureFromNode).toBe('function');
     expect(typeof isLoopConnectionValid).toBe('function');
-    expect(typeof canRemoveLoopNodesAndEdges).toBe('function');
+    expect(typeof canRemoveStructuredNodesAndEdges).toBe('function');
   });
 });

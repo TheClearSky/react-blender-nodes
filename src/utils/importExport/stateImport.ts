@@ -272,6 +272,25 @@ function importGraphState<
     );
   }
 
+  // Rehydrate group SUBTREE node handles too. User-created groups live only in
+  // the file (the merge in handleImportState keeps them), and their subtree
+  // nodes' dataTypeObjects were stripped on export — without this they can't
+  // render when the group is reopened.
+  const typeOfNodes = state.typeOfNodes;
+  if (isObject(typeOfNodes)) {
+    for (const ntId of Object.keys(typeOfNodes)) {
+      const nodeType = typeOfNodes[ntId];
+      if (!isObject(nodeType) || !isObject(nodeType.subtree)) continue;
+      const subtree = nodeType.subtree;
+      if (Array.isArray(subtree.nodes)) {
+        const subtreeNodes: unknown[] = subtree.nodes;
+        subtree.nodes = subtreeNodes.map((node: unknown) =>
+          isObject(node) ? rehydrateNodeHandles(node, dataTypesLookup) : node,
+        );
+      }
+    }
+  }
+
   // Re-check for remaining structural errors after repair
   const remainingErrors = errors.filter((e) => {
     // Check if the error was about something we repaired

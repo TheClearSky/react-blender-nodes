@@ -10,9 +10,10 @@ provide a `complexSchema: z.ZodType` that describes the shape of the data
 flowing through connections of that type.
 
 Zod is the **only** external runtime validation dependency in the type system.
-It is imported across ~30 files in the codebase, but its role is narrowly
-scoped: define schemas on complex DataTypes and optionally check compatibility
-when edges are added.
+It is imported across ~60 files in the codebase (overwhelmingly as
+`import type { z } from 'zod'` — a compile-time-only type import that erases at
+build time), but its runtime role is narrowly scoped: define schemas on complex
+DataTypes and optionally check compatibility when edges are added.
 
 ## How This Project Uses Zod
 
@@ -84,16 +85,21 @@ Type matching uses two strategies:
      |
      +-- Same DataTypeUniqueId? --> ALLOW
      |
-     +-- JSON.stringify(source.complexSchema)
-         === JSON.stringify(target.complexSchema)? --> ALLOW
+     +-- source.complexSchema === target.complexSchema
+         (reference equality of the Zod schema object)? --> ALLOW
      |
      +-- Otherwise --> REJECT: "Can't connect
          complex types with different types"
 ```
 
-Schema comparison uses `JSON.stringify` for structural equality. This means two
-independently created Zod schemas with identical structure will be considered
-compatible.
+Schema comparison uses **reference equality** (`===`) on the `complexSchema`
+object, not structural comparison. Data types are immutable singletons defined
+once in `State.dataTypes`, so two handles that share a data type point to the
+same schema object and compare equal. This means two **independently created**
+Zod schemas with identical structure are **not** considered compatible — they
+are distinct object references. Compatibility is established either by sharing
+the same `DataTypeUniqueId` or by literally reusing the same `complexSchema`
+instance.
 
 ### Generic Type Parameter (ComplexSchemaType extends z.ZodType)
 
@@ -194,22 +200,30 @@ disabled, **all** complex-to-complex connections are allowed regardless of
 schema compatibility. This is a deliberate design choice to avoid breaking
 existing graphs that don't need schema validation.
 
-### Schema Comparison Uses JSON.stringify
+### Schema Comparison Uses Reference Equality
 
 The `checkComplexTypeCompatibilityAfterEdgeAddition` function compares schemas
-via:
+via reference equality, after first checking the data type IDs:
 
 ```ts
-JSON.stringify(source.complexSchema) === JSON.stringify(target.complexSchema);
+const areTheComplexTypesSame =
+  resultantSourceHandleDataType.dataTypeUniqueId ===
+    resultantTargetHandleDataType.dataTypeUniqueId ||
+  resultantSourceHandleDataType.dataTypeObject.complexSchema ===
+    resultantTargetHandleDataType.dataTypeObject.complexSchema;
 ```
 
 This has implications:
 
-- Property order matters (though Zod schemas typically produce consistent
-  output)
-- Semantically equivalent schemas defined differently may not match
-- Referential identity is checked first (same `DataTypeUniqueId`), so this
-  comparison only runs for different data type IDs with complex underlying types
+- It does **not** inspect schema structure — there is no `JSON.stringify` or
+  deep-equality step. Two semantically identical but independently constructed
+  Zod schemas will be treated as **different** types.
+- Compatibility holds only when the two handles share the same
+  `DataTypeUniqueId` (the common case) or literally point to the same
+  `complexSchema` object instance.
+- The `dataTypeUniqueId` check short-circuits first, so the `complexSchema`
+  reference comparison only matters for two different data type IDs that happen
+  to reuse the same schema object.
 
 ### structuredClone Limitation
 
@@ -244,24 +258,55 @@ to a specific structure.
 
 ### -> [Connection Validation (complex type checking)](../features/connectionValidationDoc.md)
 
-When `enableComplexTypeChecking` is `true`, the edge validation pipeline
-includes a Zod-schema-aware step:
+When `enableComplexTypeChecking` is `true`, the edge **validation** stage
+(`validateAddEdge` in
+`src/utils/nodeStateManagement/planApply/validateAddEdge.ts`, called from
+`validateAction`'s `ADD_EDGE_BY_REACT_FLOW` case) includes a Zod-schema-aware
+step:
 
 ```
-  Edge Addition Pipeline
+  validateAddEdge()  (pure — produces an AddEdgePlan or a ValidationError)
     |
-    1. Basic handle existence checks
+    1. Null checks (source/target/sourceHandle/targetHandle) (MISSING_ENDPOINT)
     |
-    2. inferTypesAfterEdgeAddition()        (type inference, may involve inferred types)
+    2. Cycle checking (if enableCycleChecking)               (CYCLE_DETECTED)
     |
-    3. checkComplexTypeCompatibilityAfterEdgeAddition()   <--- Zod schemas compared here
+    3. Duplicate-edge check (addEdge returns same array)     (DUPLICATE_EDGE)
     |
-    4. checkTypeConversionCompatibilityAfterEdgeAddition()  (conversion allowlist)
+    4. Resolve node + handle indices                         (MISSING_ENDPOINT)
     |
-    5. Cycle checking (if enabled)
+    5. Loop connection validation                            (LOOP_PATH_INVALID)
     |
-    6. Edge committed to state
+    6. Switch connection validation                          (SWITCH_PATH_INVALID)
+    |
+    -- Early return ok(...) if none of enableTypeInference /
+       enableComplexTypeChecking / allowedConversionsBetweenDataTypes set --
+    |
+    7. planInferenceForEdgeAddition() (if enableTypeInference; builds a
+    |    projected state — does not mutate)
+    |
+    8. checkComplexTypeCompatibilityAfterEdgeAddition()   <--- Zod schemas compared here
+    |    (if enableComplexTypeChecking)                      (COMPLEX_TYPE_MISMATCH)
+    |
+    9. checkTypeConversionCompatibilityAfterEdgeAddition()  (conversion allowlist;
+    |    if allowedConversionsBetweenDataTypes set)          (CONVERSION_NOT_ALLOWED)
+    |
+    ▼
+  ok({ kind: 'ADD_EDGE', connection, inference, handleInsertions })
+    |
+    ▼
+  applyPlan() commits the edge to state (mints the edge id)
 ```
+
+The Zod helper functions (`checkComplexTypeCompatibilityAfterEdgeAddition`,
+`checkTypeConversionCompatibilityAfterEdgeAddition`) live in
+`newOrRemovedEdgeValidation.ts` and remain pure. They are invoked from
+`validateAddEdge` (the plan/apply validation path). The same helpers are also
+still referenced from the `addEdgeWithTypeChecking` flow in
+`constructAndModifyHandles.ts`, which gates them behind the same
+`enableComplexTypeChecking` / `allowedConversionsBetweenDataTypes` flags. On
+failure inside `validateAddEdge` they map to the `ValidationError` codes shown
+above, surfaced on the `action:rejected` graph event.
 
 ### -> [Import/Export (schemas stripped/restored)](../importExport/importExportDoc.md)
 

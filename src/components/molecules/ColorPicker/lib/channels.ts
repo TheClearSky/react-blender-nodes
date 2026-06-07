@@ -1,6 +1,7 @@
 import { converter, type Color } from 'culori';
 import type { ColorFormat, OklchColor } from './types';
 import { mapToGamut } from './color';
+import { clamp, round, wrap } from './math';
 
 const toOklch = converter('oklch');
 const toRgb = converter('rgb');
@@ -23,17 +24,6 @@ type ChannelDescriptor = {
 
 function oklchObj(c: OklchColor) {
   return { l: c.l, c: c.c, h: c.h, alpha: c.alpha };
-}
-
-function clamp(v: number, min: number, max: number) {
-  return v < min ? min : v > max ? max : v;
-}
-function wrap(v: number, mod: number) {
-  return ((v % mod) + mod) % mod;
-}
-function round(v: number, precision: number) {
-  const m = 10 ** precision;
-  return Math.round(v * m) / m;
 }
 
 function intChannel(

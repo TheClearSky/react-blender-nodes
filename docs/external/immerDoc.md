@@ -14,62 +14,80 @@ produce(currentState, (draft) => {
 // returns a new state object; currentState is unchanged
 ```
 
-This project uses Immer to keep the graph state reducer simple and readable.
+This project uses Immer to keep the graph state mutations simple and readable.
 Without Immer, every nested update (e.g., modifying a handle inside a node
 inside a subtree) would require manual spread operators at every level. Immer
 eliminates that boilerplate while guaranteeing immutability for React's change
-detection.
+detection. Immer's **patches** feature (`produceWithPatches` + `enablePatches`)
+additionally powers the undo/redo history.
 
 ## How This Project Uses Immer
 
-### mainReducer produce() pattern
+### `applyValidatedAction` produce() pattern (NOT inside `mainReducer`)
 
-The `mainReducer` in `src/utils/nodeStateManagement/mainReducer.ts` wraps the
-entire action switch in a single `produce()` call:
-
-```
-function mainReducer(oldState, action) {
-  const newState = produce(oldState, (newState) => {
-    switch (action.type) {
-      case 'ADD_NODE':
-        // direct mutation of newState is safe here
-        ...
-      case 'REPLACE_STATE':
-        return action.payload.state;  // returning replaces entirely
-    }
-  });
-  return newState;
-}
-```
-
-Data flow through the reducer:
+The single `produce()`/`produceWithPatches()` call no longer lives in
+`mainReducer`. State transitions are split into a Validate → Plan → Apply
+pipeline:
 
 ```
   dispatch(action)
-       |
-       v
-  +------------------+
-  |  mainReducer()   |
-  +------------------+
-       |
-       v
-  +------------------+     +-------------------+
-  |  produce(old,    | --> | Immer proxy draft  |
-  |    (draft) => {  |     | (looks mutable)    |
-  |      switch(...) |     +-------------------+
-  |    }             |              |
-  |  )               |              v
-  +------------------+     +-------------------+
-       |                   | Immer computes    |
-       v                   | structural diff   |
-  new immutable state      +-------------------+
-  (shared structure
-   where unchanged)
+       │
+       ▼
+  validateAction(state, action)  ──▶  Result<Plan, ValidationError> | null   (pure, no Immer)
+       │  ok
+       ▼
+  applyValidatedAction(state, action, plan)        ← the ONLY produce() caller
+       │
+       ├─ isUndoable? ── no ──▶ produce(state, draft => applyPlan(draft, plan))
+       │
+       └─ isUndoable? ── yes ─▶ produceWithPatches(state, draft => applyPlan(draft, plan))
+                                       │
+                                       ▼  [next, patches, inversePatches]
+                                 record patches in state.history (2nd produce)
 ```
 
-All 11 action types (`ADD_NODE`, `UPDATE_NODE_BY_REACT_FLOW`, `SET_VIEWPORT`,
-etc.) execute inside this single producer. The draft parameter is typed as
-`State<...>` so all mutations remain type-safe.
+`mainReducer` is now a thin delegator:
+
+```typescript
+function mainReducer(oldState, action) {
+  const planResult = validateAction(oldState, action);
+  if (planResult === null || !planResult.ok) return oldState;
+  return applyValidatedAction(oldState, action, planResult.value);
+}
+```
+
+`applyValidatedAction` (in `src/utils/nodeStateManagement/applyWithHistory.ts`)
+owns the producer:
+
+```typescript
+enablePatches(); // called once at module load
+
+function applyValidatedAction(state, action, plan) {
+  if (!isUndoable(action, plan)) {
+    // Non-undoable (SET_VIEWPORT, REPLACE_STATE, UNDO/REDO, batch ops):
+    // plain produce, no patch capture.
+    return produce(state, (draft) => {
+      const returnValue = applyPlan(draft, plan);
+      if (returnValue !== undefined) return returnValue; // replace-mode
+    });
+  }
+  // Undoable (ADD_NODE, ADD_EDGE, position drags, ...): capture patches.
+  const [next, patches, inversePatches] = produceWithPatches(state, (draft) => {
+    const returnValue = applyPlan(draft, plan);
+    if (returnValue !== undefined) return returnValue;
+  });
+  // ...filter out history-path patches, then record them in a 2nd produce
+}
+```
+
+The mutation logic itself lives in `applyPlan`
+(`src/utils/nodeStateManagement/planApply/applyPlan.ts`), a `switch (plan.kind)`
+that mutates the draft. All id minting (`generateRandomString`) happens here,
+inside the producer, so it runs exactly once per dispatch.
+
+The draft parameter is typed `Draft<State<...>>` and re-asserted as `State<...>`
+(a compile-time no-op cast — `State` has no `readonly` fields) so mutations stay
+type-safe.
 
 ### Why direct mutation is safe inside produce()
 
@@ -109,8 +127,9 @@ The function `setCurrentNodesAndEdgesToStateWithMutatingState` in
 the graph has a two-level structure: root nodes/edges and subtree nodes/edges
 inside node groups.
 
-When the user is viewing a node group (i.e., `openedNodeGroupStack` is
-non-empty), mutations need to target the subtree rather than the root:
+When the user is viewing the _original_ (unreferenced) node group (i.e.,
+`openedNodeGroupStack` is non-empty **and** that group's subtree has
+`numberOfReferences === 0`), mutations target the subtree rather than the root:
 
 ```
   State
@@ -119,14 +138,19 @@ non-empty), mutations need to target the subtree rather than the root:
   +-- typeOfNodes
        +-- someGroup
             +-- subtree
+                 +-- numberOfReferences
                  +-- nodes   <-- group level
                  +-- edges   <-- group level
 
-  openedNodeGroupStack = []        --> mutate root nodes/edges
-  openedNodeGroupStack = [group1]  --> mutate group1's subtree nodes/edges
+  openedNodeGroupStack = []                              --> mutate root nodes/edges
+  openedNodeGroupStack = [group1], references === 0      --> mutate group1's subtree
+  openedNodeGroupStack = [group1], references !== 0      --> mutate root nodes/edges
 ```
 
-The function routes the mutation to the correct location:
+The function routes the mutation to the correct location. Note that each of
+`nodes`/`edges` is optional and only written when provided (so callers can
+update just one side), and the subtree branch is gated on
+`numberOfReferences === 0`:
 
 ```typescript
 function setCurrentNodesAndEdgesToStateWithMutatingState(
@@ -135,16 +159,20 @@ function setCurrentNodesAndEdgesToStateWithMutatingState(
   edges?,
 ) {
   const topGroup = state.openedNodeGroupStack?.[last];
-  if (!topGroup) {
-    // No group open: mutate root
-    state.nodes = [...nodes];
-    state.edges = [...edges];
-  } else {
-    const subtree = state.typeOfNodes[topGroup.nodeType].subtree;
-    // Group open: mutate subtree
-    subtree.nodes = [...nodes];
-    subtree.edges = [...edges];
+  const subtree = topGroup
+    ? state.typeOfNodes[topGroup.nodeType].subtree
+    : undefined;
+  const references = subtree?.numberOfReferences;
+  // Mutate root when no group is open, OR the group has no subtree, OR the
+  // opened group is an *instance* (references !== 0) rather than the original.
+  if (!topGroup || !subtree || references !== 0) {
+    if (nodes) state.nodes = [...nodes];
+    if (edges) state.edges = [...edges];
+    return state;
   }
+  // Original group open (references === 0): mutate the subtree.
+  if (nodes) subtree.nodes = [...nodes];
+  if (edges) subtree.edges = [...edges];
   return state;
 }
 ```
@@ -152,8 +180,57 @@ function setCurrentNodesAndEdgesToStateWithMutatingState(
 This function is designed to be called **inside** an Immer producer. It directly
 assigns to `state.nodes` or `subtree.nodes`, which is safe because the `state`
 it receives is the Immer draft. The companion getter
-`getCurrentNodesAndEdgesFromState` reads from the same location using identical
-routing logic.
+`getCurrentNodesAndEdgesFromState` reads from root vs. subtree using the same
+`openedNodeGroupStack`/`subtree` routing, **except** it does not gate on
+`numberOfReferences` — the getter returns the subtree view whenever a group with
+a subtree is open, whereas the setter falls back to root when the opened group
+is an instance (`numberOfReferences !== 0`).
+
+### Patches for Undo/Redo (`produceWithPatches` + `enablePatches`)
+
+The undo/redo system is built entirely on Immer patches. `enablePatches()` is
+called once at module load in `applyWithHistory.ts` (Immer's patch recording is
+opt-in). For undoable actions, `produceWithPatches` returns the forward
+`patches` and the `inversePatches` alongside the next state:
+
+```typescript
+const [next, patches, inversePatches] = produceWithPatches(state, (draft) => {
+  applyPlan(draft, plan);
+});
+```
+
+These are stored as a `HistoryEntry` on `state.history` (undoStack / redoStack):
+
+```
+  produceWithPatches(state, draft => applyPlan(draft, plan))
+        │
+        ▼  [next, patches, inversePatches]
+  filterHistoryPatches(...)          ← drop patches whose path[0] === 'history'
+        │                              (history must not record itself)
+        ▼
+  recordInHistory(draft.history, ...) ← push { patches, inversePatches, actionType, timestamp }
+                                         onto undoStack, clear redoStack
+```
+
+Two Immer-specific rules apply here:
+
+1. **History patches are filtered out** (`filterHistoryPatches`) so recording a
+   change never records its own history mutation — otherwise the patch arrays
+   would grow recursively. This is also why patches are recorded in a _separate_
+   second `produce()` after `produceWithPatches` returns: the patches aren't
+   available until the first producer finishes.
+
+2. **Immer's `applyPatches` cannot operate on a draft.** It returns a new
+   immutable object, but UNDO/REDO need to mutate the current draft in place
+   (inside `applyPlan`'s producer). The project therefore uses a hand-rolled
+   `applyPatchesToDraft(draft, patches)` (in `historyTypes.ts`) that walks each
+   patch path and mutates the draft directly (`replace`/`add`/`remove`).
+   `BEGIN_BATCH`/`END_BATCH` coalesce multiple dispatches' patches into a single
+   `HistoryEntry`, `unshift`-ing inverse patches so a batch undoes in reverse.
+
+**Source:** `src/utils/nodeStateManagement/applyWithHistory.ts`,
+`src/components/organisms/FullGraph/historyTypes.ts`,
+`src/utils/nodeStateManagement/planApply/applyPlan.ts` (UNDO/REDO/batch cases)
 
 ## Anti-Patterns and Limitations
 
@@ -174,20 +251,22 @@ produce(state, (draft) => {
 });
 ```
 
-Note: The `REPLACE_STATE` action correctly uses the return-only pattern
-(`return action.payload.state`) without mutating the draft. The
-`typeInference.ts` file does `return draft` after mutations - this works because
-returning the draft itself is treated as a no-op by Immer, but it is still
-better avoided for clarity.
+Note: The `REPLACE_STATE` plan correctly uses the return-only pattern (its
+`applyPlan` case returns the rehydrated imported state) without mutating the
+draft. The `typeInference.ts` file does `return draft` after mutations - this
+works because returning the draft itself is treated as a no-op by Immer, but it
+is still better avoided for clarity.
 
-### Do not use produce outside the reducer for state updates
+### Do not use produce outside `applyValidatedAction` for state updates
 
-All state transitions should go through `mainReducer` via `dispatch()`. Using
-`produce()` on state outside the reducer would create state objects that bypass
-React's `useReducer` and break the single-source-of-truth pattern. The
-exceptions are the handle setter functions and type inference utilities, which
-use `produce()` to create immutable copies of sub-objects (node data, handles)
-rather than the full state.
+All full-state transitions go through `dispatch()` → `validateAction` →
+`applyValidatedAction`, which is the single `produce()`/`produceWithPatches()`
+caller for the graph state. Calling `produce()` on the whole state elsewhere
+would bypass the external store (`createGraphStore` / `useSyncExternalStore`)
+and the undo/redo patch capture, breaking the single-source-of-truth pattern.
+The exceptions are the handle setter functions and type inference utilities,
+which use `produce()` to create immutable copies of sub-objects (node data,
+handles) rather than the full state.
 
 ### Draft objects cannot escape the producer
 
@@ -204,10 +283,12 @@ savedDraft.nodes; // Error: cannot use a revoked proxy
 
 ### Do not nest produce() calls on the same state
 
-The mainReducer already wraps everything in `produce()`. Calling `produce()`
-again on the draft inside the reducer callback would create a nested producer,
-which is unnecessary overhead and can cause confusing behavior. The current
-codebase avoids this correctly.
+`applyValidatedAction` already wraps `applyPlan` in `produce()` /
+`produceWithPatches()`. Calling `produce()` again on the draft inside
+`applyPlan` would create a nested producer, which is unnecessary overhead and
+can cause confusing behavior. (The history recording is a deliberate _separate_
+second `produce()` on the already-committed `next` state — not a nested one —
+because patches are only available after `produceWithPatches` returns.)
 
 ## Key Patterns
 
@@ -234,8 +315,8 @@ Functions using this pattern:
 - `updateHandleInNodeDataUsingHandleIndices` (`handleSetters.ts`)
 - `insertOrDeleteHandleInNodeDataUsingHandleIndices` (`handleSetters.ts`)
 
-When called inside the mainReducer's producer (where the data is already an
-Immer draft), `mutate=true` avoids the overhead of a nested `produce()`. When
+When called inside the apply producer in `applyPlan` (where the data is already
+an Immer draft), `mutate=true` avoids the overhead of a nested `produce()`. When
 called outside a producer, `mutate=false` uses `produce()` to return a new
 immutable object.
 
@@ -249,28 +330,33 @@ components that check array identity.
 
 ## Relationships with Project Features
 
-### -> [State Management (mainReducer)](../core/stateManagementDoc.md)
+### -> [State Management (applyValidatedAction)](../core/stateManagementDoc.md)
 
-Immer is the backbone of `mainReducer`. Every action dispatched through React's
-`useReducer` flows through the single `produce()` call. The entire state tree
-(nodes, edges, typeOfNodes, openedNodeGroupStack, viewport) is managed immutably
-through Immer drafts.
+Immer is the backbone of `applyValidatedAction`. Every action dispatched flows
+through the single `produce()` / `produceWithPatches()` call there. The entire
+state tree (nodes, edges, typeOfNodes, openedNodeGroupStack, viewport, zones,
+history) is managed immutably through Immer drafts. The recommended path uses an
+external store (`createGraphStore` + `useSyncExternalStore`);
+`useReducer(mainReducer, ...)` remains supported for direct consumers.
 
 ```
   React Component
        |
        | dispatch({ type: 'ADD_NODE', payload: {...} })
        v
-  useReducer(mainReducer, initialState)
+  createGraphStore.dispatch   (or useReducer(mainReducer, ...))
        |
        v
-  mainReducer(oldState, action)
+  validateAction(state, action) --> Plan | reject | null   (pure, no Immer)
        |
        v
-  produce(oldState, (draft) => { ... })
+  applyValidatedAction(state, action, plan)
        |
        v
-  new immutable state --> triggers re-render
+  produce / produceWithPatches (oldState, (draft) => applyPlan(draft, plan))
+       |
+       v
+  new immutable state --> notifies subscribers --> re-render
 ```
 
 ### -> [Type Inference (immutable inference operations)](../core/typeInferenceDoc.md)
@@ -288,6 +374,6 @@ the state tree.
 The handle setter utilities in
 `src/utils/nodeStateManagement/handles/handleSetters.ts` use Immer for their
 `mutate=false` code paths. These functions update, insert, or delete handles
-within node data. When operating inside the reducer (on an Immer draft), they
-mutate directly. When operating standalone, they use `produce()` to return clean
-immutable copies.
+within node data. When operating inside the producer (on the Immer draft passed
+to `applyPlan`), they mutate directly. When operating standalone, they use
+`produce()` to return clean immutable copies.

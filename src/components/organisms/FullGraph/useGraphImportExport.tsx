@@ -162,10 +162,14 @@ function useGraphImportExport<
         // Export strips non-serializable fields (onChange, complexSchema, etc.)
         // from typeOfNodes and dataTypes. These are type DEFINITIONS that don't
         // change between sessions — always use the live versions.
+        // Merge (not override) type/dataType catalogs: live definitions win for
+        // types present in both (restoring stripped onChange/complexSchema on
+        // configured types), but types that exist ONLY in the file — e.g.
+        // user-created node groups — are kept instead of being discarded.
         const importedState = {
           ...result.data,
-          dataTypes: state.dataTypes,
-          typeOfNodes: state.typeOfNodes,
+          dataTypes: { ...result.data.dataTypes, ...state.dataTypes },
+          typeOfNodes: { ...result.data.typeOfNodes, ...state.typeOfNodes },
         };
 
         dispatch({

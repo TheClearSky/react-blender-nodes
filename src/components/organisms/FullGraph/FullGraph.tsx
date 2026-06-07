@@ -3,6 +3,7 @@ import {
   useCallback,
   useMemo,
   useEffect,
+  useRef,
   type ActionDispatch,
 } from 'react';
 import { z } from 'zod';
@@ -47,7 +48,7 @@ import type {
   ExecutionRecord,
 } from '@/utils/nodeRunner/types';
 import { RunnerOverlay } from './RunnerOverlay';
-import { canRemoveLoopNodesAndEdges } from '@/utils/nodeStateManagement/nodes/loops';
+import { canRemoveStructuredNodesAndEdges } from '@/utils/nodeStateManagement/nodes/loops';
 import { standardNodeTypeNamesMap } from '@/utils/nodeStateManagement/standardNodes';
 import { hasKey } from '@/utils/nodeRunner/groupCompiler';
 import { useGraphImportExport } from './useGraphImportExport';
@@ -58,7 +59,22 @@ import {
   InputComponentRegistryContext,
   type InputComponentRegistry,
 } from './InputComponentRegistryContext';
-import { NodeTypeEditDrawer } from '@/components/molecules/NodeTypeEditDrawer/NodeTypeEditDrawer';
+import {
+  NodeTypeEditDrawer,
+  type SaveUpdates,
+} from '@/components/molecules/NodeTypeEditDrawer/NodeTypeEditDrawer';
+import {
+  computeHandleBlastRadius,
+  getConnectionNeighborhood,
+  getConnectionScopeGraph,
+  type HandleDeletionTarget,
+} from '@/utils/nodeStateManagement/handles/handleDeletionAnalysis';
+import {
+  computeChannelBlastRadius,
+  loopChannelToRequest,
+  switchChannelToRequest,
+} from '@/utils/nodeStateManagement/handles/channelDeletionAnalysis';
+import { getCurrentScope } from '@/utils/nodeStateManagement/nodeCountHelpers';
 import { LoopEditDrawer } from '@/components/molecules/LoopEditDrawer';
 import type { LoopHandleLevel } from '@/components/molecules/LoopEditDrawer';
 import { getLoopStructureFromNode } from '@/utils/nodeStateManagement/nodes/loops/loopStructure';
@@ -148,6 +164,11 @@ type FullGraphProps<
    * as a prop, kept out of serialized state.
    */
   inputComponents?: InputComponentRegistry<DataTypeUniqueId>;
+  /**
+   * Whether the component should listen for Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y
+   * keyboard shortcuts for undo/redo. Defaults to `true`.
+   */
+  enableUndoRedoShortcuts?: boolean;
 };
 
 // ─────────────────────────────────────────────────────
@@ -176,6 +197,7 @@ function FullGraphWithReactFlowProvider<
   onImportError,
   onGraphEvent,
   inputComponents,
+  enableUndoRedoShortcuts = true,
 }: Omit<
   FullGraphProps<
     DataTypeUniqueId,
@@ -219,7 +241,8 @@ function FullGraphWithReactFlowProvider<
       : null;
 
   const editDrawerNodeType = editDrawerNodeTypeId
-    ? state.typeOfNodes[editDrawerNodeTypeId as NodeTypeUniqueId]
+    ? // ActiveDrawer is non-generic, so its nodeTypeId is `string`; re-assert the brand to index typeOfNodes.
+      state.typeOfNodes[editDrawerNodeTypeId as NodeTypeUniqueId]
     : null;
 
   const editLoopNodeId =
@@ -253,18 +276,53 @@ function FullGraphWithReactFlowProvider<
   const { screenToFlowPosition, fitView, getNodes } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
 
+  // The scope (root, or the open group's subtree) that the loop/switch being
+  // edited lives in — used to resolve breaking connections and the mini-map.
+  const currentScope = useMemo(() => {
+    const typeId = getCurrentScope(state);
+    return {
+      scopeId: typeId ?? 'root',
+      scopeLabel: typeId
+        ? `Inside group "${state.typeOfNodes[typeId].name}"`
+        : 'Root graph',
+    };
+  }, [state]);
+
   const handleSaveLoop = useCallback(
-    (levels: LoopHandleLevel[]) => {
+    (keptLevels: LoopHandleLevel[], deletedLevels: LoopHandleLevel[]) => {
       if (!editLoopTriplet) return;
-      dispatch({
-        type: actionTypesMap.UPDATE_LOOP,
-        payload: {
-          loopStartNodeId: editLoopTriplet.loopStartId,
-          loopStopNodeId: editLoopTriplet.loopStopId,
-          loopEndNodeId: editLoopTriplet.loopEndId,
-          levels: levels.map((l) => ({ handles: l.handles })),
-        },
-      });
+      const nodeIds = {
+        loopStartNodeId: editLoopTriplet.loopStartId,
+        loopStopNodeId: editLoopTriplet.loopStopId,
+        loopEndNodeId: editLoopTriplet.loopEndId,
+      };
+      const updateLoop = () =>
+        dispatch({
+          type: actionTypesMap.UPDATE_LOOP,
+          payload: {
+            ...nodeIds,
+            levels: keptLevels.map((l) => ({ handles: l.handles })),
+          },
+        });
+      if (deletedLevels.length > 0) {
+        // Deletion (cascading edges) + the residual reorder/rename as a single
+        // undoable step. DELETE runs first so UPDATE reorders only survivors.
+        dispatch({ type: actionTypesMap.BEGIN_BATCH });
+        dispatch({
+          type: actionTypesMap.DELETE_LOOP_CHANNELS,
+          payload: {
+            ...nodeIds,
+            channels: deletedLevels.map((l) => ({
+              dataTypeUniqueId: l.dataTypeUniqueId,
+              handles: l.handles,
+            })),
+          },
+        });
+        updateLoop();
+        dispatch({ type: actionTypesMap.END_BATCH });
+      } else {
+        updateLoop();
+      }
       requestAnimationFrame(() => {
         updateNodeInternals([
           editLoopTriplet.loopStartId,
@@ -274,6 +332,31 @@ function FullGraphWithReactFlowProvider<
       });
     },
     [editLoopTriplet, dispatch, updateNodeInternals],
+  );
+
+  const getLoopChannelBlastRadius = useCallback(
+    (level: LoopHandleLevel) => {
+      const ids = editLoopTriplet
+        ? {
+            loopStartId: editLoopTriplet.loopStartId,
+            loopStopId: editLoopTriplet.loopStopId,
+            loopEndId: editLoopTriplet.loopEndId,
+          }
+        : { loopStartId: '', loopStopId: '', loopEndId: '' };
+      return computeChannelBlastRadius(
+        state,
+        loopChannelToRequest(
+          currentScope.scopeId,
+          currentScope.scopeLabel,
+          ids,
+          {
+            handles: level.handles,
+            dataTypeUniqueId: level.dataTypeUniqueId,
+          },
+        ),
+      );
+    },
+    [state, editLoopTriplet, currentScope],
   );
 
   const editSwitchPair = useMemo(() => {
@@ -295,16 +378,39 @@ function FullGraphWithReactFlowProvider<
   }, [editSwitchNodeId, state]);
 
   const handleSaveSwitch = useCallback(
-    (levels: SwitchHandleLevel[]) => {
+    (keptLevels: SwitchHandleLevel[], deletedLevels: SwitchHandleLevel[]) => {
       if (!editSwitchPair) return;
-      dispatch({
-        type: actionTypesMap.UPDATE_SWITCH,
-        payload: {
-          switchStartNodeId: editSwitchPair.switchStartId,
-          switchEndNodeId: editSwitchPair.switchEndId,
-          levels: levels.map((l) => ({ handles: l.handles })),
-        },
-      });
+      const nodeIds = {
+        switchStartNodeId: editSwitchPair.switchStartId,
+        switchEndNodeId: editSwitchPair.switchEndId,
+      };
+      const updateSwitch = () =>
+        dispatch({
+          type: actionTypesMap.UPDATE_SWITCH,
+          payload: {
+            ...nodeIds,
+            levels: keptLevels.map((l) => ({ handles: l.handles })),
+          },
+        });
+      if (deletedLevels.length > 0) {
+        // Deletion (cascading edges in both branches) + the residual reorder/
+        // rename as a single undoable step. DELETE first, UPDATE over survivors.
+        dispatch({ type: actionTypesMap.BEGIN_BATCH });
+        dispatch({
+          type: actionTypesMap.DELETE_SWITCH_CHANNELS,
+          payload: {
+            ...nodeIds,
+            channels: deletedLevels.map((l) => ({
+              dataTypeUniqueId: l.dataTypeUniqueId,
+              handles: l.handles,
+            })),
+          },
+        });
+        updateSwitch();
+        dispatch({ type: actionTypesMap.END_BATCH });
+      } else {
+        updateSwitch();
+      }
       requestAnimationFrame(() => {
         updateNodeInternals([
           editSwitchPair.switchStartId,
@@ -313,6 +419,27 @@ function FullGraphWithReactFlowProvider<
       });
     },
     [editSwitchPair, dispatch, updateNodeInternals],
+  );
+
+  const getSwitchChannelBlastRadius = useCallback(
+    (level: SwitchHandleLevel) => {
+      const ids = editSwitchPair
+        ? {
+            switchStartId: editSwitchPair.switchStartId,
+            switchEndId: editSwitchPair.switchEndId,
+          }
+        : { switchStartId: '', switchEndId: '' };
+      return computeChannelBlastRadius(
+        state,
+        switchChannelToRequest(
+          currentScope.scopeId,
+          currentScope.scopeLabel,
+          ids,
+          { handles: level.handles, dataTypeUniqueId: level.dataTypeUniqueId },
+        ),
+      );
+    },
+    [state, editSwitchPair, currentScope],
   );
 
   const nodeGroups = useMemo(() => {
@@ -332,32 +459,59 @@ function FullGraphWithReactFlowProvider<
   }, [state.openedNodeGroupStack]);
 
   const handleSaveNodeType = useCallback(
-    (
-      nodeTypeId: string,
-      updates: {
-        name?: string;
-        headerColor?: string;
-        inputs?: (TypeOfInput | TypeOfInputPanel)[];
-        outputs?: TypeOfInput[];
-      },
-    ) => {
-      dispatch({
-        type: actionTypesMap.UPDATE_NODE_TYPE,
-        payload: {
-          nodeTypeId: nodeTypeId as NodeTypeUniqueId,
-          updates: updates as {
-            name?: string;
-            headerColor?: string;
-            inputs?: (
-              | TypeOfInput<DataTypeUniqueId>
-              | TypeOfInputPanel<DataTypeUniqueId>
-            )[];
-            outputs?: TypeOfInput<DataTypeUniqueId>[];
-          },
-        },
-      });
+    (nodeTypeId: string, updates: SaveUpdates) => {
+      // The drawer is generic-agnostic: it hands back plain `string` ids and
+      // default-`D` TypeOfInput/HandleDeletionTarget. Re-assert FullGraph's
+      // brands (NodeTypeUniqueId / DataTypeUniqueId) at this dispatch boundary.
+      const typeId = nodeTypeId as NodeTypeUniqueId;
+      const { deletions, ...typeUpdates } = updates;
+      const hasTypeUpdates = Object.keys(typeUpdates).length > 0;
+      const hasDeletions = !!deletions && deletions.length > 0;
 
-      if (updates.inputs !== undefined || updates.outputs !== undefined) {
+      const dispatchTypeUpdate = () =>
+        dispatch({
+          type: actionTypesMap.UPDATE_NODE_TYPE,
+          payload: {
+            nodeTypeId: typeId,
+            updates: typeUpdates as {
+              name?: string;
+              headerColor?: string;
+              inputs?: (
+                | TypeOfInput<DataTypeUniqueId>
+                | TypeOfInputPanel<DataTypeUniqueId>
+              )[];
+              outputs?: TypeOfInput<DataTypeUniqueId>[];
+            },
+          },
+        });
+
+      if (hasDeletions) {
+        // Apply the handle deletion (cascading edges) and the residual reorder
+        // as a single undoable step. DELETE runs first so the subsequent
+        // UPDATE_NODE_TYPE validates against the already-shrunk type.
+        dispatch({ type: actionTypesMap.BEGIN_BATCH });
+        dispatch({
+          type: actionTypesMap.DELETE_NODE_TYPE_HANDLES,
+          payload: {
+            nodeTypeId: typeId,
+            deletions: deletions as {
+              direction: 'input' | 'output';
+              handleName: string;
+              handleDataTypeId: DataTypeUniqueId;
+            }[],
+          },
+        });
+        if (hasTypeUpdates) dispatchTypeUpdate();
+        dispatch({ type: actionTypesMap.END_BATCH });
+      } else if (hasTypeUpdates) {
+        dispatchTypeUpdate();
+      }
+
+      if (
+        hasDeletions ||
+        updates.inputs !== undefined ||
+        updates.outputs !== undefined
+      ) {
         requestAnimationFrame(() => {
           const affectedNodeIds = getNodes()
             .filter((node) => {
@@ -376,6 +530,25 @@ function FullGraphWithReactFlowProvider<
       }
     },
     [dispatch, getNodes, updateNodeInternals],
+  );
+
+  const getHandleBlastRadiusForType = useCallback(
+    // nodeTypeId arrives as a plain `string` from the drawer; re-assert the brand.
+    (nodeTypeId: string, target: HandleDeletionTarget) =>
+      computeHandleBlastRadius(state, nodeTypeId as NodeTypeUniqueId, target),
+    [state],
+  );
+
+  const getConnectionNeighborhoodForScope = useCallback(
+    (
+      scopeId: string,
+      edgeId: string,
+      mode: 'neighbourhood' | 'tree' = 'neighbourhood',
+    ) =>
+      mode === 'tree'
+        ? getConnectionScopeGraph(state, scopeId, edgeId)
+        : getConnectionNeighborhood(state, scopeId, edgeId),
+    [state],
   );
 
   // ── Build context menu items from multiple sources ──
@@ -453,6 +626,31 @@ function FullGraphWithReactFlowProvider<
     }
   }, [state.viewport, currentNodesAndEdges.nodes.length]);
 
+  // ── Drag batching ──
+  const isDraggingRef = useRef(false);
+
+  // ── Undo/redo keyboard shortcuts ──
+  useEffect(() => {
+    if (enableUndoRedoShortcuts === false) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      const modifier = event.metaKey || event.ctrlKey;
+      if (!modifier) return;
+
+      const key = event.key.toLowerCase();
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        dispatch({ type: actionTypesMap.UNDO });
+      } else if ((key === 'z' && event.shiftKey) || key === 'y') {
+        event.preventDefault();
+        dispatch({ type: actionTypesMap.REDO });
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [enableUndoRedoShortcuts, dispatch]);
+
   // ── Graph content (shared between runner and non-runner modes) ──
   const graphContent = (
     <>
@@ -460,12 +658,31 @@ function FullGraphWithReactFlowProvider<
         key={reactFlowKey}
         nodes={currentNodesAndEdges.nodes}
         edges={currentNodesAndEdges.edges}
-        onNodesChange={(changes) =>
+        onNodesChange={(changes) => {
+          const hasDragStart = changes.some(
+            (c) =>
+              c.type === 'position' && 'dragging' in c && c.dragging === true,
+          );
+          const hasDragEnd = changes.some(
+            (c) =>
+              c.type === 'position' && 'dragging' in c && c.dragging === false,
+          );
+
+          if (hasDragStart && !isDraggingRef.current) {
+            isDraggingRef.current = true;
+            dispatch({ type: actionTypesMap.BEGIN_BATCH });
+          }
+
           dispatch({
             type: actionTypesMap.UPDATE_NODE_BY_REACT_FLOW,
             payload: { changes },
-          })
-        }
+          });
+
+          if (hasDragEnd && isDraggingRef.current) {
+            isDraggingRef.current = false;
+            dispatch({ type: actionTypesMap.END_BATCH });
+          }
+        }}
         onEdgesChange={(changes) =>
           dispatch({
             type: actionTypesMap.UPDATE_EDGES_BY_REACT_FLOW,
@@ -510,7 +727,7 @@ function FullGraphWithReactFlowProvider<
         onBeforeDelete={async ({ nodes, edges }) => {
           const nodesAndEdgesInCurrentNodeGroup =
             getCurrentNodesAndEdgesFromState(state);
-          const validation = canRemoveLoopNodesAndEdges(
+          const validation = canRemoveStructuredNodesAndEdges(
             { ...state, ...nodesAndEdgesInCurrentNodeGroup },
             nodes,
             edges,
@@ -680,35 +897,29 @@ function FullGraphWithReactFlowProvider<
             nodeTypeInputs={editDrawerNodeType?.inputs ?? null}
             nodeTypeOutputs={editDrawerNodeType?.outputs ?? null}
             onSave={handleSaveNodeType}
+            getHandleBlastRadius={getHandleBlastRadiusForType}
+            getNeighborhood={getConnectionNeighborhoodForScope}
           />
 
           <LoopEditDrawer
             isOpen={editLoopNodeId !== null}
             onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
-            loopStartNodeData={
-              (editLoopTriplet?.loopStartData as Record<string, unknown>) ??
-              null
-            }
-            loopStopNodeData={
-              (editLoopTriplet?.loopStopData as Record<string, unknown>) ?? null
-            }
-            loopEndNodeData={
-              (editLoopTriplet?.loopEndData as Record<string, unknown>) ?? null
-            }
+            loopStartNodeData={editLoopTriplet?.loopStartData ?? null}
+            loopStopNodeData={editLoopTriplet?.loopStopData ?? null}
+            loopEndNodeData={editLoopTriplet?.loopEndData ?? null}
             onSave={handleSaveLoop}
+            getChannelBlastRadius={getLoopChannelBlastRadius}
+            getNeighborhood={getConnectionNeighborhoodForScope}
           />
 
           <SwitchEditDrawer
             isOpen={editSwitchNodeId !== null}
             onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
-            switchStartNodeData={
-              (editSwitchPair?.switchStartData as Record<string, unknown>) ??
-              null
-            }
-            switchEndNodeData={
-              (editSwitchPair?.switchEndData as Record<string, unknown>) ?? null
-            }
+            switchStartNodeData={editSwitchPair?.switchStartData ?? null}
+            switchEndNodeData={editSwitchPair?.switchEndData ?? null}
             onSave={handleSaveSwitch}
+            getChannelBlastRadius={getSwitchChannelBlastRadius}
+            getNeighborhood={getConnectionNeighborhoodForScope}
           />
         </div>
       </InputComponentRegistryContext.Provider>
@@ -820,6 +1031,7 @@ function FullGraph<
   onExecutionRecordChange,
   onGraphEvent,
   inputComponents,
+  enableUndoRedoShortcuts,
 }: FullGraphProps<
   DataTypeUniqueId,
   NodeTypeUniqueId,
@@ -850,6 +1062,7 @@ function FullGraph<
             onImportError={onImportError}
             onGraphEvent={onGraphEvent}
             inputComponents={inputComponents}
+            enableUndoRedoShortcuts={enableUndoRedoShortcuts}
           />
         </RecordContext.Provider>
       </FullGraphContext.Provider>

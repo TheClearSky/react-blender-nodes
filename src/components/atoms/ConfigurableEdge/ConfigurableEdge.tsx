@@ -112,7 +112,11 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
     useEffect(() => {
       const domNode = store.getState().domNode;
       if (!domNode) return;
-      const currentElement = document.getElementById(id);
+      // Scope to THIS flow's container: the same edge id can exist in another
+      // ReactFlow instance (e.g. the preview mini-map rendered beside the
+      // canvas), and a document-wide lookup would observe the wrong element —
+      // one that never intersects our own `root`, dimming every edge.
+      const currentElement = domNode.querySelector('#' + CSS.escape(id));
       if (!currentElement) return;
 
       // Create intersection observer
@@ -120,11 +124,15 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
         (entries) => {
           const entry = entries.find((entry) => entry.target.id === id);
           if (!entry) return;
-          setIsInViewport((_) => entry.isIntersecting);
+          // "Fully visible" via the ratio with a small tolerance — NOT an exact
+          // threshold of 1: subpixel rounding makes a 100%-visible edge report a
+          // ratio of ~0.9999 (never exactly 1), so threshold:1 marks it
+          // off-screen (dim) and dithers (flicker) as that ratio jitters.
+          setIsInViewport(entry.intersectionRatio >= 0.99);
         },
         {
           root: domNode,
-          threshold: 1, // Trigger when 100% visible
+          threshold: [0, 0.99],
           rootMargin: '20px',
         },
       );
@@ -142,6 +150,35 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
         }
       };
     }, [store.getState().domNode]);
+
+    // Emphasis for animated (highlighted preview) edges — e.g. connections about
+    // to be deleted: (1) marching-ants dashes 10x longer than @xyflow's default of
+    // 5, and (2) an opacity pulse. Both run via the Web Animations API on the path
+    // element (the same scoped, no-CSS mechanism as useSlideAnimation), so nothing
+    // is added to the global stylesheet and neither fights @xyflow's `.animated`
+    // CSS in the cascade (script-driven WAA overrides CSS per-property). The dash
+    // length is set inline below (overriding @xyflow's dasharray:5). Dash: 100 =
+    // one 50+50 pattern, 5s keeps @xyflow's marching speed (~20px/s). Pulse: matches
+    // the existing `edge-brightness-pulse` (1 ↔ 0.35, 1.5s ease-in-out).
+    useEffect(() => {
+      if (!props.animated) return;
+      const domNode = store.getState().domNode;
+      if (!domNode) return;
+      const pathElement = domNode.querySelector('#' + CSS.escape(id));
+      if (!pathElement) return;
+      const dashAnimation = pathElement.animate(
+        [{ strokeDashoffset: 100 }, { strokeDashoffset: 0 }],
+        { duration: 500, iterations: Infinity },
+      );
+      const pulseAnimation = pathElement.animate(
+        [{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }],
+        { duration: 1500, iterations: Infinity, easing: 'ease-in-out' },
+      );
+      return () => {
+        dashAnimation.cancel();
+        pulseAnimation.cancel();
+      };
+    }, [props.animated, id, store]);
 
     const sourceNodeData = useNodesData(props.source || '');
 
@@ -260,6 +297,7 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
           )}
           style={{
             stroke: `url(#${`linear-gradient-edge-${id}`})`,
+            ...(props.animated && { strokeDasharray: '50 50' }),
           }}
           focusable={true}
         />

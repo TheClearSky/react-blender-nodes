@@ -25,6 +25,10 @@ This is not about code patterns (see
 4. [Advanced Features](#advanced-features)
    - [Node Groups](#node-groups)
    - [Loops](#loops)
+   - [Switches](#switches)
+   - [Zones](#zones)
+   - [Undo / Redo History](#undo--redo-history)
+   - [Editing (Drawers)](#editing-drawers)
 5. [Execution (Runner)](#execution-runner)
    - [Function Implementations](#function-implementations)
    - [Compilation](#compilation)
@@ -148,7 +152,7 @@ instance is created from that TypeOfNode.
 
 #### Standard Node Types (Built-in)
 
-The library provides 5 built-in node types that cannot be removed:
+The library provides 7 built-in node types that cannot be removed:
 
 | Node Type     | Purpose                                                                         |
 | ------------- | ------------------------------------------------------------------------------- |
@@ -157,8 +161,12 @@ The library provides 5 built-in node types that cannot be removed:
 | `loopStart`   | Marks the beginning of a loop body                                              |
 | `loopStop`    | Evaluates the loop condition, decides whether to continue iterating             |
 | `loopEnd`     | Marks the end of a loop, outputs the final iteration's values                   |
+| `switchStart` | Entry of a switch -- fans inputs into a true branch and a false branch          |
+| `switchEnd`   | Exit of a switch -- merges the chosen branch back into a single output          |
 
-These appear under "Standard Nodes" in the context menu.
+These node types are hidden from the context menu directly; instead, loops are
+created via "Add Loop" and switches via "Add Switch", which each place the whole
+structure (with bind edges and zones) in one action.
 
 #### Node Properties
 
@@ -177,24 +185,35 @@ Each TypeOfNode can configure:
 An **edge** is a directed connection from an output handle on one node to an
 input handle on another. Edges represent data flow.
 
-When an edge is created, it passes through a **7-layer validation pipeline**
-(each layer can be independently enabled/disabled):
+When an edge is created, it passes through a **validation gauntlet** during the
+validate phase (most layers can be independently enabled/disabled):
 
-1. **Duplicate check**: Prevents the same edge from being created twice
-2. **Cycle detection**: Rejects edges that would create a directed cycle
+1. **Cycle detection**: Rejects edges that would create a directed cycle
    (`enableCycleChecking`)
+2. **Duplicate check**: Prevents the same edge from being created twice
 3. **Loop boundary validation**: Ensures edges respect loop region boundaries
-4. **Type inference resolution**: Resolves `inferFromConnection` types from the
+   (start->stop body, stop->end body, outside)
+4. **Switch boundary validation**: Ensures edges respect switch branch zones (no
+   cross-branch connections; body nodes stay inside their true/false zone)
+5. **Type inference resolution**: Resolves `inferFromConnection` types from the
    connected handle (`enableTypeInference`)
-5. **Complex type checking**: Validates Zod schema compatibility for complex
+6. **Complex type checking**: Validates Zod schema compatibility for complex
    types (`enableComplexTypeChecking`)
-6. **Type conversion checking**: Verifies types are compatible or explicitly
+7. **Type conversion checking**: Verifies types are compatible or explicitly
    allowed (`allowedConversionsBetweenDataTypes`)
-7. **Max connections check**: Enforces per-handle connection limits
-   (`maxConnections`)
 
-If all layers pass, the edge is rendered as a bezier curve with a gradient
-between the source and target handle colors.
+Note: per-handle connection limits (`maxConnections`) are **not** enforced in
+this validate pipeline. They are enforced earlier, at the rendering /
+connectability layer: `ContextAwareHandle` sets ReactFlow's `isConnectable`
+based on `connections.length < maxConnections`, so a handle at its limit simply
+can't start or accept a new connection.
+
+Validation is **pure** -- it produces a typed `Plan` (or a typed
+`ValidationError`) without mutating anything. If the plan is valid, the apply
+phase performs the mutation and the edge is rendered as a bezier curve with a
+gradient between the source and target handle colors. A rejected edge surfaces a
+machine-readable error code (e.g. `CYCLE_DETECTED`, `LOOP_PATH_INVALID`,
+`SWITCH_PATH_INVALID`, `CONVERSION_NOT_ALLOWED`) on the graph event stream.
 
 When an edge is removed:
 
@@ -206,39 +225,69 @@ When an edge is removed:
 
 The complete graph state is a single object containing:
 
-| Field                                | What It Holds                                            |
-| ------------------------------------ | -------------------------------------------------------- |
-| `dataTypes`                          | Registry of all data type definitions                    |
-| `typeOfNodes`                        | Registry of all node type definitions (including groups) |
-| `nodes`                              | Array of node instances on the current canvas            |
-| `edges`                              | Array of edges on the current canvas                     |
-| `viewport`                           | Current pan/zoom position                                |
-| `openedNodeGroupStack`               | Navigation stack when editing inside node groups         |
-| `allowedConversionsBetweenDataTypes` | Type conversion rules (optional)                         |
-| `enableTypeInference`                | Whether polymorphic type resolution is active            |
-| `enableComplexTypeChecking`          | Whether Zod schema compatibility is checked              |
-| `enableCycleChecking`                | Whether cycles are prevented                             |
-| `enableRecursionChecking`            | Whether recursive group nesting is prevented             |
-| `enableDebugMode`                    | Whether debug overlays are shown                         |
+| Field                                | What It Holds                                                         |
+| ------------------------------------ | --------------------------------------------------------------------- |
+| `dataTypes`                          | Registry of all data type definitions                                 |
+| `typeOfNodes`                        | Registry of all node type definitions (including groups)              |
+| `nodes`                              | Array of node instances on the current canvas                         |
+| `edges`                              | Array of edges on the current canvas                                  |
+| `viewport`                           | Current pan/zoom position                                             |
+| `openedNodeGroupStack`               | Navigation stack when editing inside node groups                      |
+| `zones`                              | First-class regions (loop/switch bodies). UI-only; stripped on export |
+| `zoneIndex`                          | Handle->zone lookup index. UI-only; stripped on export                |
+| `activeDrawer`                       | Which edit drawer is open (loop/switch/node-type). UI-only            |
+| `history`                            | Undo/redo stacks of Immer patches. UI-only; stripped on export        |
+| `allowedConversionsBetweenDataTypes` | Type conversion rules (optional)                                      |
+| `enableTypeInference`                | Whether polymorphic type resolution is active                         |
+| `enableComplexTypeChecking`          | Whether Zod schema compatibility is checked                           |
+| `enableCycleChecking`                | Whether cycles are prevented                                          |
+| `enableRecursionChecking`            | Whether recursive group nesting is prevented                          |
+| `nodeCountConstraints`               | Per-scope min/max limits on node types (optional)                     |
+| `enableDebugMode`                    | Whether debug overlays are shown                                      |
 
-State is managed via a reducer with 11 action types:
+State is managed by an external Redux-style store (`createGraphStore`, consumed
+through `useFullGraph`). Every dispatch runs a **validate -> plan -> apply**
+pipeline:
 
-| Action                       | What It Does                                                |
-| ---------------------------- | ----------------------------------------------------------- |
-| `ADD_NODE`                   | Creates a new node instance from a TypeOfNode               |
-| `ADD_NODE_AND_SELECT`        | Creates and selects a new node                              |
-| `REMOVE_NODE`                | Deletes a node and its connected edges                      |
-| `UPDATE_NODE`                | Updates a node's input values                               |
-| `UPDATE_NODE_BY_REACT_FLOW`  | Applies position/dimension/selection changes from ReactFlow |
-| `ADD_EDGE_BY_REACT_FLOW`     | Creates a new edge (with validation)                        |
-| `UPDATE_EDGES_BY_REACT_FLOW` | Applies edge selection/removal changes from ReactFlow       |
-| `SET_VIEWPORT`               | Updates pan/zoom                                            |
-| `OPEN_NODE_GROUP`            | Navigates into a node group's subtree                       |
-| `CLOSE_NODE_GROUP`           | Navigates back out of a node group                          |
-| `REPLACE_STATE`              | Replaces the entire state (used by import)                  |
+1. **validate** (`validateAction`) is pure and id-free. It returns either a
+   typed `Plan` (an intent description), a typed `ValidationError`, or `null`
+   (unrecognized action). It mints no ids, so it is replay-safe and
+   deterministic.
+2. **apply** (`applyPlan`) is the only mutator. It runs inside Immer, mints all
+   ids, and performs the actual node/edge/zone changes.
 
-All mutations go through the reducer. The reducer uses Immer for immutable
-updates.
+There are 23 action types:
+
+| Action                       | What It Does                                                 |
+| ---------------------------- | ------------------------------------------------------------ |
+| `ADD_NODE`                   | Creates a new node instance from a TypeOfNode                |
+| `ADD_NODE_AND_SELECT`        | Creates and selects a new node                               |
+| `UPDATE_NODE_BY_REACT_FLOW`  | Applies position/dimension/selection changes from ReactFlow  |
+| `UPDATE_EDGES_BY_REACT_FLOW` | Applies edge selection/removal changes from ReactFlow        |
+| `ADD_EDGE_BY_REACT_FLOW`     | Creates a new edge (with validation)                         |
+| `UPDATE_INPUT_VALUE`         | Updates a node input's inline value (undoable)               |
+| `OPEN_NODE_GROUP`            | Navigates into a node group's subtree                        |
+| `CLOSE_NODE_GROUP`           | Navigates back out of a node group                           |
+| `ADD_NODE_GROUP`             | Creates a new empty node group and opens it                  |
+| `SET_VIEWPORT`               | Updates pan/zoom                                             |
+| `REPLACE_STATE`              | Replaces the entire state (used by import; rehydrates zones) |
+| `UPDATE_NODE_TYPE`           | Reorders/re-panels a node type's handles across instances    |
+| `ADD_LOOP`                   | Adds a loop triplet + bind edges + pre/post-stop zones       |
+| `UPDATE_LOOP`                | Reorders/renames data channels across a loop triplet         |
+| `OPEN_DRAWER`                | Opens an edit drawer (loop / switch / node-type)             |
+| `CLOSE_DRAWER`               | Closes the open drawer                                       |
+| `ADD_SWITCH`                 | Adds a switch pair + bind edge + true/false zones            |
+| `UPDATE_SWITCH`              | Reorders/renames data channels across a switch pair          |
+| `UNDO`                       | Reverts the most recent undoable action                      |
+| `REDO`                       | Re-applies the most recently undone action                   |
+| `BEGIN_BATCH`                | Starts grouping dispatches into one undo entry (e.g. drag)   |
+| `END_BATCH`                  | Collapses the active batch into a single undo entry          |
+| `CLEAR_HISTORY`              | Empties the undo/redo stacks                                 |
+
+All mutations go through `dispatch`. The store uses Immer for immutable updates
+and `produceWithPatches` to capture the patches that power undo/redo. Note:
+`mainReducer` still exists for direct `useReducer` consumers and delegates to
+the same validate/apply pipeline.
 
 ---
 
@@ -297,7 +346,8 @@ the graph is rejected. The check uses DFS traversal from the target node to see
 if it can reach the source node through existing edges.
 
 Loops are an exception -- they create intentional cycles through the loop
-triplet system.
+triplet system. Switch branches and the structural bind links are likewise
+handled by their own validators rather than the cycle check.
 
 ---
 
@@ -389,6 +439,122 @@ Data flows through `inferFromConnection` handles on the loop nodes:
 The loop body can contain any nodes, including other loops (nested loops) and
 group instances.
 
+### Switches
+
+**Switches** add conditional branching to the graph using a **pair** of nodes:
+
+#### The Switch Pair
+
+```
+                 +-- True Branch --+
+                 |   (nodes)       |
+  data in        v                 |        data out
+---->[switchStart]              [switchEnd]---->
+       ^         ^                 ^
+       |         |   False Branch  |
+   condition     +-- (nodes) ------+
+```
+
+1. **switchStart**: Entry point. Takes a boolean `condition` input plus the data
+   inputs. It exposes the same data on two sets of outputs -- a **true branch**
+   and a **false branch**. Outputs a "Bind Switch Nodes" handle that must
+   connect to switchEnd.
+
+2. **switchEnd**: Exit point. Has matching true-branch and false-branch inputs.
+   At runtime, whichever branch the condition selected is the one merged into
+   switchEnd's outputs.
+
+#### Bind Switch Nodes
+
+The `bindSwitchNodes` data type (underlying type: `noEquivalent`,
+`maxConnections: 1`) is a structural-only link that binds switchStart and
+switchEnd into one switch -- analogous to `bindLoopNodes`. The `condition` data
+type (underlying type: `boolean`) drives which branch is taken.
+
+#### True / False Branches
+
+A switch's data handles are split into a true set and a false set **purely by
+order**: the first half of the data handles are the true branch and the
+remainder are the false branch. Branch membership of body nodes is tracked by
+[zones](#zones), and only the selected branch executes at runtime. Connections
+that cross between the two branches are rejected by validation.
+
+### Zones
+
+A **zone** is a first-class, visually-rendered region of the graph. Loops and
+switches automatically create zones:
+
+| Structure | Zones created                        |
+| --------- | ------------------------------------ |
+| Loop      | "Pre-Stop Body" and "Post-Stop Body" |
+| Switch    | "True Branch" and "False Branch"     |
+
+Each zone has a name, a color, a set of member node IDs, and boundary handles
+that anchor it to its structure. Zone membership is **recomputed automatically**
+on every edge or node change via a bidirectional graph traversal from the
+boundary handles.
+
+Zones serve three purposes:
+
+- **Rendering**: A dashed convex-hull frame is drawn around each zone's member
+  nodes in the editor (the `ZoneFrameOverlay`).
+- **Validation**: Connection validation prefers zone membership (falling back to
+  a live region traversal) when classifying which region a node belongs to.
+- **Execution**: The runner reads zone membership to decide which nodes belong
+  to a loop body or a switch branch.
+
+Zones are **scope-local** (the root canvas and each node-group subtree carry
+their own zones) and are **UI-only**: they are stripped on export and recomputed
+from graph topology on import.
+
+### Undo / Redo History
+
+The graph keeps an undo/redo history built on **Immer patches**. Every undoable
+action captures the forward patches and inverse patches needed to move state in
+either direction, and stores them as an entry in `state.history`.
+
+- **Undoable** actions include adding/removing nodes and edges, input-value
+  edits, node drags, and the loop/switch/node-type edits.
+- **Non-undoable** actions include viewport changes, opening/closing drawers and
+  groups, and import (`REPLACE_STATE`).
+- **Batching**: A node drag is wrapped in `BEGIN_BATCH` ... `END_BATCH` so the
+  entire drag collapses into a single undo entry. Dispatches between the two are
+  accumulated.
+- **Keyboard**: When `enableUndoRedoShortcuts` is on (default), Ctrl/Cmd+Z
+  undoes and Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y redoes.
+- A new undoable action clears the redo stack; the undo stack is trimmed to an
+  optional `maxSize`.
+
+History is **UI-only** -- it is stripped on export and is never restored on
+import.
+
+### Editing (Drawers)
+
+Loops, switches, and node groups can be edited in place through slide-out
+**drawers** (tracked by `state.activeDrawer`). The pencil icon in a node's
+header opens the relevant drawer:
+
+| Drawer           | Opened on         | What it edits                                        |
+| ---------------- | ----------------- | ---------------------------------------------------- |
+| Loop editor      | A loop node       | The loop's **data channels** across the triplet      |
+| Switch editor    | A switch node     | The switch's **data channels** across the pair       |
+| Node-type editor | A node-group node | The group type's name, header color, inputs, outputs |
+
+A **data channel** is a row that groups the matching handles on each member node
+(for a loop: the in/out handles on loopStart, loopStop, and loopEnd). Editing is
+**reorder + rename only** -- channels and handles can be reordered, renamed, or
+(for node types) re-paneled, but the editor never adds or removes the underlying
+handles. Saving dispatches `UPDATE_LOOP`, `UPDATE_SWITCH`, or
+`UPDATE_NODE_TYPE`, which reorders handles by ID while preserving the fixed
+structural handles.
+
+The node-type editor drawer (`NodeTypeEditDrawer`) edits the group type's header
+color through the **ColorPicker** subsystem: it embeds a `PopoverColorPicker`
+(an OKLCH-native color picker,
+`src/components/molecules/ColorPicker/PopoverColorPicker.tsx` ›
+`PopoverColorPicker`) under a "Header Color" label, surfaced only when the node
+type carries a header color. See [colorPickerDoc](./ui/colorPickerDoc.md).
+
 ---
 
 ## Execution (Runner)
@@ -422,8 +588,8 @@ const andGate: FunctionImplementation = (inputs, outputs, ctx) => {
 ```
 
 Standard node types (`groupInput`, `groupOutput`, `loopStart`, `loopStop`,
-`loopEnd`) have built-in execution logic and don't need function
-implementations.
+`loopEnd`, `switchStart`, `switchEnd`) have built-in execution logic and don't
+need function implementations.
 
 ### Compilation
 
@@ -431,11 +597,14 @@ Before execution, the graph is **compiled** into an execution plan. The
 compiler:
 
 1. Analyzes the graph structure
-2. Classifies nodes (standard, loop, group)
-3. Compiles loop structures into `LoopExecutionBlock` objects
-4. Compiles group instances into `GroupExecutionScope` objects (recursively
+2. Classifies nodes (standard, loop, switch, group)
+3. Compiles loop structures into `LoopExecutionBlock` objects (pre-stop and
+   post-stop bodies)
+4. Compiles switch structures into `SwitchExecutionBlock` objects (true/false
+   branches)
+5. Compiles group instances into `GroupExecutionScope` objects (recursively
    compiling subtrees)
-5. Topologically sorts remaining nodes into **concurrency levels**
+6. Topologically sorts remaining nodes into **concurrency levels**
 
 Nodes in the same concurrency level have no data dependencies on each other and
 can run in parallel.
@@ -523,9 +692,13 @@ The library supports importing and exporting:
 ### State Export/Import
 
 - **Export**: Serializes the complete graph state (data types, node types,
-  nodes, edges, settings) to a JSON file
+  nodes, edges, settings) to a JSON file. UI-only fields -- `activeDrawer`,
+  `zones`/`zoneIndex`, and `history` -- are stripped, along with
+  non-serializable handle data (Zod schemas, `onChange` callbacks).
 - **Import**: Validates and deserializes a JSON file back into state, with
-  repair strategies for minor schema mismatches
+  repair strategies for minor schema mismatches. Live data type / node type
+  definitions are merged back over the imported JSON, and zones are **recomputed
+  from graph topology** (they are never persisted).
 
 ### Recording Export/Import
 
@@ -551,13 +724,17 @@ The main editing surface. Built on ReactFlow. Provides:
 - Edge drawing by dragging between handles
 - Multi-select with selection box
 - Delete with Backspace/Delete/X keys
+- Undo/redo via Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl/Cmd+Y)
 - Node group navigation (double-click to enter, breadcrumb to exit)
+- Zone frames drawn around loop bodies and switch branches
+- In-place editing of loops, switches, and node types via slide-out drawers
 
 ### Context Menu
 
 Right-click opens a nested menu with:
 
 - "Add Node" submenu organized by `locationInContextMenu` paths
+- "Add Loop" and "Add Switch" to place a full structure in one action
 - "Add Node Group" for existing group types
 - Import/Export options (state and recording)
 
@@ -621,6 +798,16 @@ const functionImplementations = makeFunctionImplementationsWithAutoInfer({
 When `functionImplementations` is provided, the Node Runner Panel appears
 automatically.
 
+### Other Useful Props / Options
+
+- `useFullGraph(initialState, { onGraphEvent })` and `<FullGraph onGraphEvent>`
+  subscribe to the unified graph event stream (applied/rejected actions, render
+  commits, and UI events). Pass the same handler to both to receive every event.
+- `<FullGraph enableUndoRedoShortcuts={false}>` opts out of the built-in
+  Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y keyboard shortcuts.
+- `<FullGraph inputComponents={...}>` registers custom inline input widgets for
+  data types whose underlying type isn't directly supported.
+
 ### Auto-Infer Helpers
 
 All definition objects should be created through helper functions for type
@@ -650,12 +837,16 @@ These properties are always maintained by the library:
   the validation pipeline
 - **Input connection limits**: Each input handle can accept multiple incoming
   edges by default. The `maxConnections` property on a data type or handle
-  controls how many edges can connect; only `bindLoopNodes` explicitly sets
-  `maxConnections: 1`
+  controls how many edges can connect; the structural `bindLoopNodes` and
+  `bindSwitchNodes` types explicitly set `maxConnections: 1`
 - **Multiple output targets**: Output handles can feed any number of target
   handles
 - **Loop triplet integrity**: loopStart/loopStop/loopEnd must always form a
-  valid, fully-connected triplet
+  valid, fully-connected triplet (deleted together)
+- **Switch pair integrity**: switchStart/switchEnd must always form a valid,
+  fully-connected pair (deleted together); branches never cross
+- **Zone consistency**: Zone membership is always kept in sync with topology --
+  recomputed on every edge/node change
 - **Group boundary respect**: Data can only cross group boundaries through
   groupInput/groupOutput
 - **No group recursion**: A group cannot contain an instance of itself (directly
@@ -678,8 +869,13 @@ These properties are always maintained by the library:
 ### State Management
 
 - **Immutability**: All state updates produce new state objects (Immer)
-- **Reducer authority**: All mutations go through `dispatch` -- direct state
+- **Dispatch authority**: All mutations go through `dispatch` -- direct state
   mutation is never allowed
+- **Pure validation**: The validate phase never mutates and never mints ids; all
+  id minting and mutation happen in the apply phase, keeping validation
+  deterministic and replay-safe
+- **Reversibility**: Every undoable action records the patches needed to undo
+  and redo it, so the history can move state in either direction precisely
 - **Feature flag independence**: Each validation feature (type inference, cycle
   checking, etc.) can be independently enabled/disabled
 
@@ -696,8 +892,13 @@ For detailed implementation documentation, see the
 | Nodes & edges        | [nodesDoc](./core/nodesDoc.md), [edgesDoc](./core/edgesDoc.md)                                                                                     |
 | Type system          | [typeInferenceDoc](./core/typeInferenceDoc.md), [connectionValidationDoc](./features/connectionValidationDoc.md)                                   |
 | State management     | [stateManagementDoc](./core/stateManagementDoc.md)                                                                                                 |
+| Undo/redo history    | [historyDoc](./core/historyDoc.md)                                                                                                                 |
 | Node groups          | [nodeGroupsDoc](./features/nodeGroupsDoc.md)                                                                                                       |
 | Loops                | [loopsDoc](./features/loopsDoc.md)                                                                                                                 |
+| Switches             | [switchesDoc](./features/switchesDoc.md)                                                                                                           |
+| Zones                | [zonesDoc](./features/zonesDoc.md)                                                                                                                 |
+| Editors (drawers)    | [editorsDoc](./ui/editorsDoc.md)                                                                                                                   |
+| Color picker         | [colorPickerDoc](./ui/colorPickerDoc.md)                                                                                                           |
 | Runner               | [runnerCompilerDoc](./runner/runnerCompilerDoc.md), [runnerExecutorDoc](./runner/runnerExecutorDoc.md), [runnerHookDoc](./runner/runnerHookDoc.md) |
 | Recording            | [executionRecordingDoc](./runner/executionRecordingDoc.md)                                                                                         |
 | Import/Export        | [importExportDoc](./importExport/importExportDoc.md)                                                                                               |

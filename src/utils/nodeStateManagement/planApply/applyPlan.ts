@@ -2,6 +2,7 @@ import type { SupportedUnderlyingTypes } from '../types';
 import type { State } from '../types';
 import type { Plan } from './types';
 import type { z } from 'zod';
+import { applyPatchesToDraft } from '@/components/organisms/FullGraph/historyTypes';
 import type { NodeChanges } from '@/components';
 import {
   constructNodeOfType,
@@ -11,12 +12,9 @@ import {
   setCurrentZonesToState,
   getDirectDependentsOfNodeType,
 } from '../nodes/constructAndModifyNodes';
+import { removeEdgeWithTypeChecking } from '../constructAndModifyHandles';
 import type { TypeOfInput, TypeOfInputPanel } from '../types';
-import {
-  applyNodeChanges,
-  applyEdgeChanges,
-  type EdgeChange,
-} from '@xyflow/react';
+import { applyNodeChanges, applyEdgeChanges } from '@xyflow/react';
 import { addDuplicateHandlesToLoopNodesAfterInference } from '../nodes/loops';
 import {
   addDuplicateHandlesToSwitchNodesAfterInference,
@@ -29,6 +27,8 @@ import {
   recomputeAllZoneMemberships,
   rehydrateAllZones,
 } from '../zones';
+
+const ZERO_WIDTH_SPACE = '​';
 
 function applySwitchZonePrefixesOnDraft<
   DataTypeUniqueId extends string = string,
@@ -61,13 +61,10 @@ function applySwitchZonePrefixesOnDraft<
 
   for (let i = 1; i < handles.length - 1; i++) {
     const h = handles[i] as Record<string, unknown>;
-    const name = h.name as string;
-    if (!name || name === '' || name === '​') continue;
-    if (
-      typeof name === 'string' &&
-      !name.startsWith('True: ') &&
-      !name.startsWith('False: ')
-    ) {
+    if (typeof h.name !== 'string') continue;
+    const name = h.name;
+    if (!name || name === '' || name === ZERO_WIDTH_SPACE) continue;
+    if (!name.startsWith('True: ') && !name.startsWith('False: ')) {
       const dataIdx = i - 1;
       h.name = (dataIdx < trueZoneCount ? 'True: ' : 'False: ') + name;
     }
@@ -99,13 +96,10 @@ function applySwitchZonePrefixesOnDraft<
 
     for (let i = 1; i < sibHandles.length - 1; i++) {
       const h = sibHandles[i] as Record<string, unknown>;
-      const name = h.name as string;
-      if (!name || name === '' || name === '​') continue;
-      if (
-        typeof name === 'string' &&
-        !name.startsWith('True: ') &&
-        !name.startsWith('False: ')
-      ) {
+      if (typeof h.name !== 'string') continue;
+      const name = h.name;
+      if (!name || name === '' || name === ZERO_WIDTH_SPACE) continue;
+      if (!name.startsWith('True: ') && !name.startsWith('False: ')) {
         const dataIdx = i - 1;
         h.name = (dataIdx < sibTrueCount ? 'True: ' : 'False: ') + name;
       }
@@ -114,6 +108,7 @@ function applySwitchZonePrefixesOnDraft<
 }
 import { addDuplicateHandleToNodeGroupAfterInference } from '../nodes/nodeGroups';
 import { generateRandomString } from '@/utils/randomGeneration';
+import { lengthOfIds } from '../constants';
 import { typedKeys } from '@/utils/typedKeys';
 import {
   standardNodeTypeNamesMap,
@@ -122,16 +117,17 @@ import {
 import { getHandleFromNodeDataMatchingHandleId } from '../handles/handleGetters';
 import { ensureAllHandleNamesUnique } from '../handles/ensureUniqueHandleName';
 
-/**
- * Length of generated random ids for nodes and edges. Lives here (not in
- * `validators.ts`) because id minting is now part of apply, not validate
- * — keeps `validateAction` purely deterministic.
- */
-const lengthOfIds = 20;
-
 // ---------------------------------------------------------------------------
 // Helpers for input/output reorder reconstruction
 // ---------------------------------------------------------------------------
+//
+// reconstructAllInstances rebuilds each instance's handle arrays by matching
+// reused instance handles (opaque, keyed by name::dataType) against freshly
+// constructed ones, then writes them back onto the Immer draft's `node.data`.
+// Because the arrays are assembled from heterogeneous sources, they flow through
+// these minimal structural read-shapes and `unknown[]` accumulators; the final
+// `(node.data as Record<string, unknown>).* = ...` write-casts are the
+// deliberate, contained boundary of that reconstruction (not gratuitous erasure).
 
 type HandleLike = { name: string; dataType?: { dataTypeUniqueId?: string } };
 type PanelLike = { id: string; name: string; inputs: unknown[] };
@@ -434,6 +430,11 @@ function applyPlan<
   UnderlyingType,
   ComplexSchemaType
 > | void {
+  // Standard node types (groupInput/Output, loop*, switch*) are always merged
+  // into typeOfNodes, but their string-literal ids aren't provably in the
+  // caller's NodeTypeUniqueId union — assert the brand in one place.
+  const asStandardType = (name: string): NodeTypeUniqueId =>
+    name as NodeTypeUniqueId;
   switch (plan.kind) {
     case 'SET_VIEWPORT':
       draft.viewport = plan.viewport;
@@ -448,6 +449,7 @@ function applyPlan<
       const rehydrated = rehydrateAllZones(imported);
       imported.zones = rehydrated.zones;
       imported.zoneIndex = rehydrated.zoneIndex;
+      delete imported.history;
       return imported;
     }
 
@@ -470,7 +472,7 @@ function applyPlan<
 
     case 'CLOSE_NODE_GROUP': {
       if (draft.openedNodeGroupStack && draft.openedNodeGroupStack.length > 0) {
-        draft.viewport = plan.restoreViewport as typeof draft.viewport;
+        draft.viewport = plan.restoreViewport;
         draft.openedNodeGroupStack = draft.openedNodeGroupStack.slice(0, -1);
       }
       return;
@@ -559,16 +561,14 @@ function applyPlan<
 
       const groupInputNode = constructNodeOfType(
         draft.dataTypes,
-        // @ts-expect-error standard node types are always present in state.typeOfNodes
-        standardNodeTypeNamesMap.groupInput,
+        asStandardType(standardNodeTypeNamesMap.groupInput),
         draft.typeOfNodes,
         groupInputNodeId,
         { x: -500, y: 0 },
       );
       const groupOutputNode = constructNodeOfType(
         draft.dataTypes,
-        // @ts-expect-error standard node types are always present in state.typeOfNodes
-        standardNodeTypeNamesMap.groupOutput,
+        asStandardType(standardNodeTypeNamesMap.groupOutput),
         draft.typeOfNodes,
         groupOutputNodeId,
         { x: 500, y: 0 },
@@ -911,15 +911,11 @@ function applyPlan<
     }
 
     case 'UPDATE_EDGES_RF': {
-      type Edges = typeof draft.edges;
       type Nodes = typeof draft.nodes;
       for (const step of plan.steps) {
         const view = getCurrentNodesAndEdgesFromState(draft);
         if (step.kind === 'passthrough') {
-          const updatedEdges = applyEdgeChanges(
-            [step.change as EdgeChange],
-            view.edges,
-          ) as unknown as Edges;
+          const updatedEdges = applyEdgeChanges([step.change], view.edges);
           setCurrentNodesAndEdgesToStateWithMutatingState(
             draft,
             undefined,
@@ -930,7 +926,7 @@ function applyPlan<
             setCurrentNodesAndEdgesToStateWithMutatingState(
               draft,
               step.updatedNodes as Nodes,
-              step.updatedEdges as Edges,
+              step.updatedEdges,
             );
           }
         }
@@ -1022,24 +1018,21 @@ function applyPlan<
 
       const loopStartNode = constructNodeOfType(
         draft.dataTypes,
-        // @ts-expect-error standard node types are always present in state.typeOfNodes
-        standardNodeTypeNamesMap.loopStart,
+        asStandardType(standardNodeTypeNamesMap.loopStart),
         draft.typeOfNodes,
         loopStartId,
         plan.position,
       );
       const loopStopNode = constructNodeOfType(
         draft.dataTypes,
-        // @ts-expect-error standard node types are always present in state.typeOfNodes
-        standardNodeTypeNamesMap.loopStop,
+        asStandardType(standardNodeTypeNamesMap.loopStop),
         draft.typeOfNodes,
         loopStopId,
         { x: plan.position.x + spreadX, y: plan.position.y },
       );
       const loopEndNode = constructNodeOfType(
         draft.dataTypes,
-        // @ts-expect-error standard node types are always present in state.typeOfNodes
-        standardNodeTypeNamesMap.loopEnd,
+        asStandardType(standardNodeTypeNamesMap.loopEnd),
         draft.typeOfNodes,
         loopEndId,
         { x: plan.position.x + spreadX * 2, y: plan.position.y },
@@ -1091,9 +1084,9 @@ function applyPlan<
         loopStartId,
         loopStopId,
         loopEndId,
-        loopStartNode.data as Record<string, unknown>,
-        loopStopNode.data as Record<string, unknown>,
-        loopEndNode.data as Record<string, unknown>,
+        loopStartNode.data,
+        loopStopNode.data,
+        loopEndNode.data,
       );
       {
         const currentViewForZones = getCurrentNodesAndEdgesFromState(draft);
@@ -1212,16 +1205,14 @@ function applyPlan<
 
       const switchStartNode = constructNodeOfType(
         draft.dataTypes,
-        // @ts-expect-error standard node types are always present in state.typeOfNodes
-        standardNodeTypeNamesMap.switchStart,
+        asStandardType(standardNodeTypeNamesMap.switchStart),
         draft.typeOfNodes,
         switchStartId,
         plan.position,
       );
       const switchEndNode = constructNodeOfType(
         draft.dataTypes,
-        // @ts-expect-error standard node types are always present in state.typeOfNodes
-        standardNodeTypeNamesMap.switchEnd,
+        asStandardType(standardNodeTypeNamesMap.switchEnd),
         draft.typeOfNodes,
         switchEndId,
         { x: plan.position.x + spreadX, y: plan.position.y },
@@ -1386,13 +1377,317 @@ function applyPlan<
       return;
     }
 
+    case 'UPDATE_INPUT_VALUE': {
+      const inputView = getCurrentNodesAndEdgesFromState(draft);
+      const targetNode = inputView.nodes.find((n) => n.id === plan.nodeId);
+      if (!targetNode) return;
+      const handleResult = getHandleFromNodeDataMatchingHandleId(
+        plan.inputId,
+        targetNode.data,
+      );
+      if (handleResult?.value) {
+        (handleResult.value as Record<string, unknown>).value = plan.value;
+      }
+      return;
+    }
+
     case 'OPEN_DRAWER':
-      draft.activeDrawer = plan.activeDrawer as typeof draft.activeDrawer;
+      draft.activeDrawer = plan.activeDrawer;
       return;
 
     case 'CLOSE_DRAWER':
       draft.activeDrawer = undefined;
       return;
+
+    case 'UNDO': {
+      if (!draft.history) return;
+      const undoEntry = draft.history.undoStack.pop();
+      if (!undoEntry) return;
+      applyPatchesToDraft(draft, undoEntry.inversePatches);
+      draft.history.redoStack.push(undoEntry);
+      return;
+    }
+
+    case 'REDO': {
+      if (!draft.history) return;
+      const redoEntry = draft.history.redoStack.pop();
+      if (!redoEntry) return;
+      applyPatchesToDraft(draft, redoEntry.patches);
+      draft.history.undoStack.push(redoEntry);
+      return;
+    }
+
+    case 'BEGIN_BATCH': {
+      if (!draft.history) {
+        draft.history = {
+          undoStack: [],
+          redoStack: [],
+          config: {},
+          activeBatch: null,
+        };
+      }
+      if (draft.history.activeBatch) return;
+      draft.history.activeBatch = {
+        patches: [],
+        inversePatches: [],
+        actionTypes: [],
+        startTimestamp: Date.now(),
+      };
+      return;
+    }
+
+    case 'END_BATCH': {
+      if (!draft.history?.activeBatch) return;
+      const batch = draft.history.activeBatch;
+      draft.history.activeBatch = null;
+      if (batch.patches.length === 0) return;
+      draft.history.undoStack.push({
+        patches: batch.patches,
+        inversePatches: batch.inversePatches,
+        actionType: batch.actionTypes.join('+'),
+        timestamp: batch.startTimestamp,
+      });
+      draft.history.redoStack = [];
+      const maxSize = draft.history.config.maxSize;
+      if (maxSize !== undefined && draft.history.undoStack.length > maxSize) {
+        draft.history.undoStack = draft.history.undoStack.slice(-maxSize);
+      }
+      return;
+    }
+
+    case 'CLEAR_HISTORY': {
+      if (!draft.history) return;
+      draft.history.undoStack = [];
+      draft.history.redoStack = [];
+      draft.history.activeBatch = null;
+      return;
+    }
+
+    case 'DELETE_NODE_TYPE_HANDLES': {
+      // Plan ids/cascade are non-generic (string / default-`D` TypeOfInput) by
+      // design; re-assert FullGraph's brands at this boundary (see types.ts).
+      const nodeTypeId = plan.nodeTypeId as NodeTypeUniqueId;
+      const nodeTypeDef = draft.typeOfNodes[nodeTypeId];
+      if (!nodeTypeDef) return;
+      const { cascade } = plan;
+
+      const newInputs = cascade.newInputs as typeof nodeTypeDef.inputs;
+      const newOutputs = cascade.newOutputs as typeof nodeTypeDef.outputs;
+
+      // 1. Remove the connected edges in each affected scope through the SAME
+      //    routine the disconnect action uses (removeEdgeWithTypeChecking), in a
+      //    loop, so the opposite endpoint's inferred type reverts immediately.
+      //    Done BEFORE the handles are dropped, while both endpoints are intact.
+      const removeEdgesWithInference = (
+        scopeNodes: typeof draft.nodes,
+        scopeEdges: typeof draft.edges,
+        edgeIds: string[],
+      ): { nodes: typeof draft.nodes; edges: typeof draft.edges } => {
+        let nodes = scopeNodes;
+        let edges = scopeEdges;
+        for (const edgeId of edgeIds) {
+          const edge = edges.find((e) => e.id === edgeId);
+          if (!edge) continue;
+          const result = removeEdgeWithTypeChecking(
+            edge,
+            { ...draft, nodes, edges },
+            { type: 'remove' as const, id: edgeId },
+          );
+          nodes = result.updatedNodes as typeof draft.nodes;
+          edges = result.updatedEdges;
+        }
+        return { nodes, edges };
+      };
+
+      if (cascade.rootEdgeIds.length > 0) {
+        const r = removeEdgesWithInference(
+          draft.nodes,
+          draft.edges,
+          cascade.rootEdgeIds,
+        );
+        draft.nodes = r.nodes;
+        draft.edges = r.edges;
+      }
+      for (const [scopeTypeId, edgeIds] of Object.entries(
+        cascade.subtreeEdgeIds,
+      )) {
+        if (edgeIds.length === 0) continue;
+        const subtree =
+          draft.typeOfNodes[scopeTypeId as NodeTypeUniqueId]?.subtree;
+        if (!subtree) continue;
+        const r = removeEdgesWithInference(
+          subtree.nodes,
+          subtree.edges,
+          edgeIds,
+        );
+        subtree.nodes = r.nodes;
+        subtree.edges = r.edges;
+      }
+      if (cascade.ownSubtreeEdgeIds.length > 0 && nodeTypeDef.subtree) {
+        const r = removeEdgesWithInference(
+          nodeTypeDef.subtree.nodes,
+          nodeTypeDef.subtree.edges,
+          cascade.ownSubtreeEdgeIds,
+        );
+        nodeTypeDef.subtree.nodes = r.nodes;
+        nodeTypeDef.subtree.edges = r.edges;
+      }
+
+      // 2. Shrink the type definition (handles removed).
+      nodeTypeDef.inputs = newInputs;
+      nodeTypeDef.outputs = newOutputs;
+
+      // 3. Rebuild every instance (root + dependent subtrees) and the
+      //    groupInput/groupOutput boundary handles to match the shrunk
+      //    definition. Handles absent from it are dropped; inferFromConnection
+      //    templates are preserved. (reconstructAllInstances does NOT touch
+      //    edges — those were already removed above.)
+      reconstructAllInstances(draft, nodeTypeId, newInputs, newOutputs);
+
+      // 4. Recompute zone memberships in affected scopes that have zones
+      //    (removed edges can change loop/switch membership).
+      const recomputeZones = (
+        nodes: typeof draft.nodes,
+        edges: typeof draft.edges,
+        zones: typeof draft.zones,
+      ) =>
+        zones && Object.keys(zones).length > 0
+          ? recomputeAllZoneMemberships({ ...draft, nodes, edges, zones })
+          : undefined;
+
+      if (cascade.rootEdgeIds.length > 0) {
+        const zr = recomputeZones(draft.nodes, draft.edges, draft.zones);
+        if (zr) {
+          draft.zones = zr.zones;
+          draft.zoneIndex = zr.zoneIndex;
+        }
+      }
+      for (const scopeTypeId of Object.keys(cascade.subtreeEdgeIds)) {
+        const subtree =
+          draft.typeOfNodes[scopeTypeId as NodeTypeUniqueId]?.subtree;
+        if (!subtree) continue;
+        const zr = recomputeZones(subtree.nodes, subtree.edges, subtree.zones);
+        if (zr) {
+          subtree.zones = zr.zones;
+          subtree.zoneIndex = zr.zoneIndex;
+        }
+      }
+      if (cascade.ownSubtreeEdgeIds.length > 0 && nodeTypeDef.subtree) {
+        const ownSubtree = nodeTypeDef.subtree;
+        const zr = recomputeZones(
+          ownSubtree.nodes,
+          ownSubtree.edges,
+          ownSubtree.zones,
+        );
+        if (zr) {
+          ownSubtree.zones = zr.zones;
+          ownSubtree.zoneIndex = zr.zoneIndex;
+        }
+      }
+
+      return;
+    }
+
+    case 'DELETE_LOOP_CHANNELS':
+    case 'DELETE_SWITCH_CHANNELS': {
+      // Loop and switch channel deletion are identical at apply time: remove the
+      // cascaded edges (reverting inference on the opposite endpoint), drop the
+      // channel's handles by id from their nodes, then recompute zones. Every
+      // cascade shares one scope (the loop/switch's current view).
+      const { cascades } = plan;
+      if (cascades.length === 0) return;
+      const scopeId = cascades[0].scopeId;
+      const isRoot = scopeId === 'root';
+      const subtree = isRoot
+        ? undefined
+        : draft.typeOfNodes[scopeId as NodeTypeUniqueId]?.subtree;
+      if (!isRoot && !subtree) return;
+
+      let nodes = (isRoot ? draft.nodes : subtree!.nodes) as typeof draft.nodes;
+      let edges = (isRoot ? draft.edges : subtree!.edges) as typeof draft.edges;
+
+      // 1. Remove every cascaded edge FIRST, through the same routine the
+      //    disconnect action uses, so the opposite endpoint's inferred type
+      //    reverts while both endpoints are still intact.
+      const edgeIds = new Set<string>();
+      for (const cascade of cascades) {
+        for (const id of cascade.edgeIds) edgeIds.add(id);
+      }
+      for (const edgeId of edgeIds) {
+        const edge = edges.find((e) => e.id === edgeId);
+        if (!edge) continue;
+        const result = removeEdgeWithTypeChecking(
+          edge,
+          { ...draft, nodes, edges },
+          { type: 'remove' as const, id: edgeId },
+        );
+        nodes = result.updatedNodes as typeof nodes;
+        edges = result.updatedEdges;
+      }
+
+      // 2. Drop the channel handle ids from each owning node (order-preserving
+      //    filter — never reorder, so the switch true/false split stays valid).
+      const removalsByNode = new Map<string, Set<string>>();
+      for (const cascade of cascades) {
+        for (const removal of cascade.removals) {
+          let set = removalsByNode.get(removal.nodeId);
+          if (!set) {
+            set = new Set<string>();
+            removalsByNode.set(removal.nodeId, set);
+          }
+          for (const id of removal.handleIds) set.add(id);
+        }
+      }
+      nodes = nodes.map((node) => {
+        const toRemove = removalsByNode.get(node.id);
+        if (!toRemove || toRemove.size === 0) return node;
+        const data = node.data as {
+          inputs?: unknown[];
+          outputs?: unknown[];
+        } & Record<string, unknown>;
+        const drop = (arr: unknown[] | undefined) =>
+          Array.isArray(arr)
+            ? arr.filter((h) => !toRemove.has((h as { id: string }).id))
+            : arr;
+        return {
+          ...node,
+          data: {
+            ...data,
+            inputs: drop(data.inputs),
+            outputs: drop(data.outputs),
+          },
+        };
+      }) as typeof nodes;
+
+      // 3. Write the shrunk nodes/edges back to the scope.
+      if (isRoot) {
+        draft.nodes = nodes;
+        draft.edges = edges;
+      } else {
+        subtree!.nodes = nodes;
+        subtree!.edges = edges;
+      }
+
+      // 4. Recompute zone memberships in this scope (removed edges/handles can
+      //    shrink loop pre/post-stop or switch true/false membership).
+      const zones = isRoot ? draft.zones : subtree!.zones;
+      if (zones && Object.keys(zones).length > 0) {
+        const zr = recomputeAllZoneMemberships({
+          ...draft,
+          nodes,
+          edges,
+          zones,
+        });
+        if (isRoot) {
+          draft.zones = zr.zones;
+          draft.zoneIndex = zr.zoneIndex;
+        } else {
+          subtree!.zones = zr.zones;
+          subtree!.zoneIndex = zr.zoneIndex;
+        }
+      }
+      return;
+    }
 
     default:
       throw new Error(`Unknown plan kind: ${(plan as Plan).kind}`);

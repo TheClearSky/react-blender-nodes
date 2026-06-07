@@ -4,6 +4,25 @@ import { getOutgoers, getIncomers } from '@xyflow/react';
 import type { Zone } from './types';
 import { getBoundaryNodeIds } from './types';
 
+/**
+ * Single-pass BFS that discovers all body nodes inside a zone.
+ *
+ * Starts by scanning edges connected to the zone's boundary handles
+ * (defined in `zone.boundaryHandles`), then expands bidirectionally
+ * via `getOutgoers`/`getIncomers`, stopping at boundary nodes.
+ *
+ * @param state - The current graph state (must be scope-correct — pass
+ *   subtree nodes/edges when inside a node group).
+ * @param zone - The zone whose body nodes to discover. Must have
+ *   `boundaryHandles` defined (returns empty set for user zones).
+ * @returns Set of node IDs inside the zone (excludes boundary nodes).
+ *
+ * @example
+ * ```ts
+ * const bodyNodeIds = discoverZoneNodesFromHandles(viewScopedState, trueZone);
+ * // bodyNodeIds = Set { 'notGateId', 'andGateId' }
+ * ```
+ */
 function discoverZoneNodesFromHandles<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
@@ -73,6 +92,27 @@ function discoverZoneNodesFromHandles<
   return visited;
 }
 
+/**
+ * Checks whether a node can reach any of the given boundary nodes via
+ * edges in either direction (bidirectional BFS).
+ *
+ * Used to distinguish isolated nodes (no path to the structure — allowed
+ * to join a zone) from truly external nodes (connected to outside-structure
+ * nodes — blocked from zone handles).
+ *
+ * @param state - The current graph state (scope-correct).
+ * @param startNodeId - The node to check reachability from.
+ * @param boundaryNodeIds - Set of boundary node IDs to search for.
+ * @returns `true` if the node can reach any boundary node, `false` if isolated.
+ *
+ * @example
+ * ```ts
+ * const canReach = isNodeReachableToBoundary(state, freshNodeId, new Set([switchStartId, switchEndId]));
+ * if (!canReach) {
+ *   // Node is isolated — allow it to join the zone
+ * }
+ * ```
+ */
 function isNodeReachableToBoundary<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,

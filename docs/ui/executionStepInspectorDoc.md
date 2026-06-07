@@ -2,169 +2,280 @@
 
 ## Overview
 
-ExecutionStepInspector is a molecule component that displays detailed
+`ExecutionStepInspector` is a molecule component that displays detailed
 information about a single execution step from the node runner's execution
-recording. It renders a 300px-wide side panel showing the step's node identity,
-status, timing, resolved input values with per-connection source metadata,
-computed output values with fan-out counts, error details (if the step errored),
-and loop/group context metadata. The component returns `null` when no step
-record is provided, making it safe to always render in the tree.
+recording. It renders a fixed-width (`340px`) side panel showing the step's node
+identity, status, timing, a decorative timeline strip, loop/group context, an
+optional edge-animation toggle, resolved input values with per-connection source
+metadata, computed output values, and error details (if the step errored). The
+component returns `null` when `stepRecord` is `null`, making it safe to always
+render in the tree.
+
+The inspector is purely presentational: it derives everything it shows from the
+`stepRecord` prop (an `ExecutionStepRecord`) plus an optional `loopRecords` map
+used to enrich the loop-context block. Inputs and outputs live inside a
+multi-open Radix `Accordion` so each section can be collapsed independently.
+
+Source:
+`src/components/molecules/ExecutionStepInspector/ExecutionStepInspector.tsx` ›
+`ExecutionStepInspector`
 
 ## Data Flow Diagram
 
 ```
-ExecutionStepRecord
+ExecutionStepRecord                         loopRecords?: ReadonlyMap<string, LoopRecord>
+|                                           |
++-- nodeTypeName, nodeId, nodeTypeId        |
+|   |                                       |
+|   +---> [ HEADER ]                        |
+|         - Package icon + nodeTypeName     |
+|         - "Animate" checkbox (only when   |
+|           onEdgeValuesAnimatedChange set) |
+|         - Close button (X icon)           |
+|                                           |
++-- status, estimatedTiming, duration       |
+|   startTime, endTime                       |
+|   |                                       |
+|   +---> [ EXECUTION INFO ]                |
+|         - StatusBadge (completed |        |
+|           errored | skipped)              |
+|         - Duration: "< 0.1ms" when        |
+|           estimatedTiming, else N.NNms    |
+|         - startTime -> endTime line       |
+|         - decorative progress strip       |
+|           (hardcoded 20%/55%/77%)         |
+|                                           |
++-- loopIteration, loopStructureId, --------+--> [ LOOP/GROUP CONTEXT ] (conditional)
+|   groupNodeId, groupDepth                 |    - "Loop iteration {i+1} of {total}"
+|                                           |      (total/condition from loopRecords)
+|                                           |    - "Group: {groupNodeId} (depth N)"
+|                                           |
++-- (debugMode) nodeId, nodeTypeId --------------> shown in tiny gray text
 |
-+-- nodeTypeName, nodeId, nodeTypeId
++-- inputValues: ReadonlyMap<handleName, RecordedInputHandleValue>
 |   |
-|   +---> [ HEADER SECTION ]
-|         - Node type display name (title)
-|         - Node instance ID (subtitle)
-|         - Close button (X icon)
-|         - Debug: nodeTypeId shown alongside
-|
-+-- status, duration, startTime, endTime
-|   |
-|   +---> [ STATUS + TIMING SECTION ]
-|         - StatusBadge (completed | errored | skipped)
-|         - Duration (ms, 2 decimal places)
-|         - Start -> End time bar
-|
-+-- loopIteration, loopStructureId, groupNodeId, groupDepth
-|   |
-|   +---> [ METADATA SECTION ] (conditional)
-|         - Loop iteration number
-|         - Group node ID + depth
-|
-+-- inputValues: Map<handleName, RecordedInputHandleValue>
-|   |
-|   +---> [ INPUTS SECTION ]
-|         Per handle:
-|         +-- handleName, dataTypeId, isDefault
+|   +---> [ INPUTS accordion section ]
+|         Per handle (InputHandleDisplay):
+|         +-- handleName (dataTypeId)
 |         +-- connections[] ---> ConnectionLine per connection
-|         |   +-- sourceNodeName / sourceHandleName
-|         |   +-- sourceDataTypeId
-|         |   +-- value (formatted)
-|         |   +-- Debug: sourceNodeId, sourceHandleId
-|         +-- defaultValue (when isDefault && no connections)
+|         |   +-- "Coming From– {sourceNodeName} / {sourceHandleName}"
+|         |   +-- (debugMode) nodeId / handleId line
+|         |   +-- value box (formatValue)
+|         +-- else if isDefault: defaultValue box
+|         +-- else: "No value" (italic)
 |
-+-- outputValues: Map<handleName, RecordedOutputHandleValue>
++-- outputValues: ReadonlyMap<handleName, RecordedOutputHandleValue>
 |   |
-|   +---> [ OUTPUTS SECTION ]
-|         Per handle:
-|         +-- handleName, dataTypeId
-|         +-- targetCount badge (when > 1)
-|         +-- value (formatted)
+|   +---> [ OUTPUTS accordion section ]
+|         Per handle (OutputHandleDisplay):
+|         +-- handleName (dataTypeId)
+|         +-- value box (formatValue)
 |
 +-- error?: GraphError
     |
     +---> [ ERROR SECTION ] (conditional)
-          - "Error" label
-          - Formatted error message via formatGraphError()
+          - "ERROR" label
+          - formatGraphError(error) in monospace, whitespace-pre-wrap
 ```
 
 ## Props
 
-| Prop                | Type                          | Default      | Description                                                                                                                       |
-| ------------------- | ----------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `stepRecord`        | `ExecutionStepRecord \| null` | _(required)_ | The step record to inspect. Pass `null` to hide the inspector (renders nothing).                                                  |
-| `onClose`           | `() => void`                  | _(required)_ | Callback invoked when the user clicks the close button.                                                                           |
-| `hideComplexValues` | `boolean`                     | `false`      | When `true`, replaces complex values (objects, arrays, Maps, functions) with type summary strings like `Object(3)` or `Array(5)`. |
-| `debugMode`         | `boolean`                     | `false`      | When `true`, shows raw node IDs and handle IDs alongside display names in the header and connection lines.                        |
+`ExecutionStepInspectorProps`
+(`src/components/molecules/ExecutionStepInspector/ExecutionStepInspector.tsx` ›
+`ExecutionStepInspectorProps`):
+
+| Prop                         | Type                              | Default      | Description                                                                                                                                            |
+| ---------------------------- | --------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `stepRecord`                 | `ExecutionStepRecord \| null`     | _(required)_ | The step record to inspect. Pass `null` to hide the inspector (the component returns `null`).                                                          |
+| `onClose`                    | `() => void`                      | _(required)_ | Callback invoked when the user clicks the close (`X`) button.                                                                                          |
+| `loopRecords`                | `ReadonlyMap<string, LoopRecord>` | `undefined`  | Loop recordings keyed by loop structure ID. Used to enrich the loop-context block with total iteration count and the iteration's loop condition value. |
+| `hideComplexValues`          | `boolean`                         | `false`      | When `true`, replaces complex values (objects, arrays, Maps, functions) with type-summary strings like `Object(3)` or `Array(5)`.                      |
+| `debugMode`                  | `boolean`                         | `false`      | When `true`, shows raw node IDs and handle IDs alongside display names — in the execution-info block and in each connection line.                      |
+| `edgeValuesAnimated`         | `boolean`                         | `undefined`  | Controlled value of the "Animate" checkbox. When rendered, the checkbox shows `edgeValuesAnimated ?? true` (defaults to checked).                      |
+| `onEdgeValuesAnimatedChange` | `(animated: boolean) => void`     | `undefined`  | Change handler for the "Animate" checkbox. The checkbox is rendered **only when this prop is provided**; omit it to hide the toggle.                   |
+
+> Note: there is no `nodeTypeId`-as-subtitle behavior and no `300px` width. The
+> header shows a `Package` icon and `nodeTypeName` only; `nodeId`/`nodeTypeId`
+> appear only in `debugMode`, inside the execution-info block.
 
 ## Rendering Sections
 
-### Header (node name, status, timing)
+The root element is
+`div.flex.w-[340px].animate-slide-in-right.flex-col.bg-runner-panel-bg`. There
+is no internal `max-h` / scroll cap — the inspector renders at its natural
+height and is scrolled by its container (the `NodeRunnerPanel` wraps it in a
+`node-runner-scrollbar overflow-y-auto` element).
 
-The header is a gradient bar (`from-secondary-black to-primary-black`) with a
-bottom border. It displays:
+### Header (icon, name, animate toggle, close)
 
-- **Node type name** (`stepRecord.nodeTypeName`) as the title, truncated with
-  ellipsis if too long.
-- **Node instance ID** (`stepRecord.nodeId`) as a monospace subtitle.
-- **Close button** (Lucide `X` icon) positioned top-right.
-- **Debug mode**: replaces the subtitle with `nodeId` and `nodeTypeId` in a
-  smaller font.
+A flex row with a bottom border (`border-b border-secondary-dark-gray`,
+`px-4 py-3`):
 
-Below the header, inside the scrollable content area:
+- **Left**: a Lucide `Package` icon and `stepRecord.nodeTypeName` (`15px`,
+  letter-spaced, white).
+- **Right**:
+  - **Animate toggle** — a checkbox labeled "Animate", wrapped in a `Tooltip`
+    ("Animate edge value badges along the connection path instead of showing
+    them statically"). It is rendered **only when `onEdgeValuesAnimatedChange`
+    is provided**. Its `checked` state is `edgeValuesAnimated ?? true`.
+  - **Close button** — a Lucide `X` icon (`h-3.5 w-3.5`) with
+    `aria-label="Close"` that calls `onClose`.
 
-- **StatusBadge** — a colored pill showing `Completed`, `Error`, or `Skipped`
-  with status-specific background, text, and border colors.
-- **Duration** — `stepRecord.duration` formatted to 2 decimal places with `ms`
-  suffix.
-- **Time range** — `startTime -> endTime` displayed in a dark pill with
-  monospace tabular numerals and a blue arrow separator.
+### Execution info (status, timing, loop/group, debug)
 
-### Inputs (per-handle, per-connection values)
+A column (`border-b border-secondary-dark-gray`, `px-4 py-3.5`, `gap-3`)
+containing:
 
-Rendered under an `--- Inputs ---` section header (centered label with
-horizontal rules).
+- **Status row** — a bordered pill row with a `StatusBadge` on the left and the
+  duration on the right. Duration text is `'< 0.1ms'` when
+  `stepRecord.estimatedTiming` is truthy, otherwise
+  `` `${stepRecord.duration.toFixed(2)}ms` `` (2 decimal places).
+- **Timeline box** — a dark box (`bg-runner-timeline-box-bg`) showing
+  `` `${startTime.toFixed(2)}ms → ${endTime.toFixed(2)}ms` `` centered, above a
+  **decorative** progress strip. The strip's filled segment (`left: 20%`,
+  `width: 55%`) and marker (`left: 77%`) are **hardcoded constants** — they do
+  not encode this step's real position within the run.
+- **Loop/Group context** (conditional) — rendered when
+  `stepRecord.loopIteration !== undefined` **or** `stepRecord.groupNodeId` is
+  set. See [Loop & group context](#loop--group-context) below.
+- **Debug line** (conditional) — when `debugMode` is `true`, a tiny gray line:
+  `` `nodeId: ${stepRecord.nodeId} · typeId: ${stepRecord.nodeTypeId}` ``.
 
-For each entry in `stepRecord.inputValues` (a
-`Map<string, RecordedInputHandleValue>`):
+#### StatusBadge
 
-- **Handle name** in white, **data type ID** in gray beside it.
-- **Multiple connections badge**: when `connections.length > 1`, a blue pill
-  shows `N conn`.
-- **Default badge**: when `isDefault` is `true` and there are no connections, a
-  gray pill shows `default`.
+A pill (`rounded-full px-3 py-1`) configured by `statusBadgeConfig`, keyed on
+`ExecutionStepRecord['status']`
+(`src/components/molecules/ExecutionStepInspector/ExecutionStepInspector.tsx` ›
+`statusBadgeConfig`):
 
-For each connection in the handle's `connections` array, a `ConnectionLine`
-sub-component renders:
+| `status`    | Background class                      | Text color       | Label       |
+| ----------- | ------------------------------------- | ---------------- | ----------- |
+| `completed` | `bg-runner-bar-completed` (`#4f8a4f`) | `text-[#e0f0e0]` | `Completed` |
+| `errored`   | `bg-runner-bar-errored` (`#a64141`)   | `text-[#f0e0e0]` | `Error`     |
+| `skipped`   | `bg-[#888888]/30`                     | `text-[#888888]` | `Skipped`   |
 
-- **Source node name** (blue) `/` **source handle name** (gray).
-- **Source data type ID** (smaller gray text).
-- **Value** formatted by `formatValue()`.
-- **Debug mode**: raw `sourceNodeId` and `sourceHandleId` on a separate line.
+(`ExecutionStepRecordStatus` is the union `'completed' | 'errored' | 'skipped'`,
+`src/utils/nodeRunner/types.ts` › `ExecutionStepRecordStatus`, derived from the
+`executionStepRecordStatuses` const array, `src/utils/nodeRunner/types.ts` ›
+`executionStepRecordStatuses`.)
 
-When `isDefault` is `true` and there are no connections, the `defaultValue` is
-displayed directly. When neither connections nor default exist, "No value" is
-shown in italic.
+### Loop & group context
 
-If the input map is empty, "No inputs" is shown in italic.
+Rendered inside the execution-info block, between the timeline box and the debug
+line.
 
-### Outputs (per-handle values)
+- **Loop iteration** — shown when `stepRecord.loopIteration !== undefined`. The
+  component looks up the matching `LoopRecord` via
+  `loopRecords?.get(stepRecord.loopStructureId)` and the matching
+  `LoopIterationRecord` via `loopRecord.iterations[stepRecord.loopIteration]`.
+  It renders:
+  - `` `Loop iteration ${stepRecord.loopIteration + 1}` `` (1-based), plus
+    `` ` of ${loopRecord.totalIterations}` `` when a `LoopRecord` was found.
+  - When the iteration record is found, a sub-line:
+    `Condition: true (continues)` or `Condition: false (exits)` from
+    `iterationRecord.conditionValue`.
 
-Rendered under an `--- Outputs ---` section header.
+  If `loopRecords` is omitted (or the IDs don't match), only the bare
+  `Loop iteration N` line shows — total count and condition are skipped.
 
-For each entry in `stepRecord.outputValues` (a
-`Map<string, RecordedOutputHandleValue>`):
+- **Group** — shown when `stepRecord.groupNodeId` is set:
+  `` `Group: ${stepRecord.groupNodeId}` ``, with
+  `` ` (depth ${stepRecord.groupDepth})` `` appended only when `groupDepth` is
+  defined.
 
-- **Handle name** in white, **data type ID** in gray.
-- **Target count badge**: when `targetCount > 1`, a blue pill shows `N targets`.
-- **Value** formatted by `formatValue()`, indented below the handle name.
+### Inputs (accordion section)
 
-If the output map is empty, "No outputs" is shown in italic.
+The inputs and outputs live in a single
+`<Accordion type="multiple" defaultValue={['inputs','outputs']}>` — both are
+expanded by default and collapse independently. The inputs `AccordionTrigger`
+label is literally `Inputs`.
 
-### Error Display
+`inputEntries` is `Array.from(stepRecord.inputValues.entries())`. For each
+`[handleName, RecordedInputHandleValue]`, an `InputHandleDisplay` renders. A
+thin divider (`h-px bg-secondary-dark-gray`) is drawn **above** every entry
+after the first (`idx > 0`).
 
-Rendered only when `stepRecord.error` is defined. Appears below the outputs
-section, separated by a divider.
+`InputHandleDisplay` shows:
 
-Displays in a red-tinted bordered container (`border-status-errored/30`,
-`bg-status-errored/10`):
+- **Handle line**: `handleName` in white, followed by `(dataTypeId)` in gray.
+- **Body**, chosen in this order:
+  1. If `connections.length > 0` — one `ConnectionLine` per connection.
+  2. Else if `isDefault` — a value box rendering
+     `formatValue(handleValue.defaultValue, hideComplex)`.
+  3. Else — `No value` in gray italic.
 
-- **"Error"** label in uppercase red.
-- **Error message** via `formatGraphError(stepRecord.error)`, rendered in
-  monospace with `whitespace-pre-wrap` for multi-line messages.
+`ConnectionLine`
+(`src/components/molecules/ExecutionStepInspector/ExecutionStepInspector.tsx` ›
+`ConnectionLine`) renders per connection (`RecordedInputConnection`):
 
-The `GraphError` type includes `message`, `nodeId`, `nodeTypeId`,
-`nodeTypeName`, `path` (execution path trace), optional `loopContext` and
-`groupContext`, `timestamp`, `duration`, and `originalError`.
+- A label line: `Coming From–` (gray) then
+  `` `${conn.sourceNodeName} / ${conn.sourceHandleName}` `` in white.
+- **Debug line** (when `debugMode`): tiny gray
+  `` `nodeId: ${conn.sourceNodeId} · handleId: ${conn.sourceHandleId}` ``.
+- A value box (`border-runner-value-border bg-runner-value-bg`, monospace)
+  rendering `formatValue(conn.value, hideComplex)`.
 
-### Metadata (loop iteration, group depth)
+If `inputValues` is empty, the section body shows `No inputs` in gray italic.
 
-Rendered conditionally when `stepRecord.loopIteration !== undefined` or
-`stepRecord.groupNodeId` is defined. Appears between the timing section and the
-inputs section.
+> There are **no** "N conn" / "default" / fan-in count badges, and `dataTypeId`
+> is shown in parentheses after the handle name (not as a separate gray chip).
+> Connection lines do **not** render `sourceDataTypeId` — only the source node
+> and handle names (plus IDs in debug mode).
 
-- **Loop iteration**: "Loop iteration: N" where N is `stepRecord.loopIteration`.
-- **Group**: "Group: {groupNodeId} (depth {groupDepth})" where depth is shown
-  only if `groupDepth` is defined.
+### Outputs (accordion section)
+
+The outputs `AccordionTrigger` label is literally `Outputs`.
+
+`outputEntries` is `Array.from(stepRecord.outputValues.entries())`. For each
+`[handleName, RecordedOutputHandleValue]`, an `OutputHandleDisplay` renders,
+with the same `idx > 0` divider rule as inputs.
+
+`OutputHandleDisplay` shows:
+
+- **Handle line**: `handleName` in white, then `(dataTypeId)` in gray.
+- A value box rendering `formatValue(handleValue.value, hideComplex)`.
+
+If `outputValues` is empty, the section body shows `No outputs` in gray italic.
+
+> `RecordedOutputHandleValue.targetCount` exists on the type
+> (`src/utils/nodeRunner/types.ts` › `RecordedOutputHandleValue`) but the
+> inspector does **not** render a fan-out / "N targets" badge. The value box is
+> the only output detail shown.
+
+### Error display
+
+Rendered only when `stepRecord.error` is defined, after the accordion (so below
+outputs). It is a red-tinted bordered container (`border-status-errored/30`,
+`bg-status-errored/10`) containing:
+
+- An uppercase `Error` label in `text-status-errored`.
+- The full message from `formatGraphError(stepRecord.error)`, in monospace with
+  `whitespace-pre-wrap` so its multi-line output is preserved.
+
+`formatGraphError` (`src/utils/nodeRunner/errors.ts` › `formatGraphError`)
+builds these lines:
+
+```
+Error in "<nodeTypeName>" (<nodeId>)
+Message: <message>
+Path: <nodeTypeName> → <nodeTypeName> → ...      (only if path.length > 0)
+Loop: iteration <n> of <maxIterations>           (only if loopContext)
+Group: <groupNodeTypeId> (depth <depth>)         (only if groupContext)
+Duration: <duration.toFixed(2)>ms
+```
+
+The `GraphError` type (`src/utils/nodeRunner/types.ts` › `GraphError`) carries
+`message`, `nodeId`, `nodeTypeId`, `nodeTypeName`, optional `handleId`, `path`
+(`GraphErrorPathEntry[]`), optional `loopContext`
+(`{ loopStructureId, iteration, maxIterations }`) and `groupContext`
+(`{ groupNodeId, groupNodeTypeId, depth }`), `timestamp`, `duration`, and
+`originalError`.
 
 ## Value Display
 
-All values pass through the `formatValue(value, hideComplex)` function.
+All values pass through `formatValue(value, hideComplex)`
+(`src/components/molecules/ExecutionStepInspector/ExecutionStepInspector.tsx` ›
+`formatValue`).
 
 ### Primitive values
 
@@ -173,89 +284,141 @@ All values pass through the `formatValue(value, hideComplex)` function.
 | `undefined` | `undefined`                                |
 | `null`      | `null`                                     |
 | `boolean`   | `true` or `false`                          |
-| `number`    | String representation (e.g., `42`, `23.5`) |
+| `number`    | `String(value)` (e.g., `42`, `23.5`)       |
 | `string`    | Wrapped in double quotes (e.g., `"hello"`) |
 
 ### Complex values (hideComplexValues option)
 
-When `hideComplexValues` is `false` (default), complex values are fully
-expanded:
+When `hideComplex` is `false` (default), complex values are fully expanded:
 
-| Type       | Display                                                     |
-| ---------- | ----------------------------------------------------------- |
-| `Map`      | `Map { key1: value1, key2: value2 }` (recursive formatting) |
-| `Array`    | `[value1, value2, value3]` (recursive formatting)           |
-| `Object`   | `JSON.stringify(value, null, 2)` (pretty-printed JSON)      |
-| `function` | Falls through to `String(value)`                            |
+| Type       | Display                                                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `Map`      | `Map { key1: value1, key2: value2 }` (entries recursively formatted)                                                     |
+| `Array`    | `[value1, value2, value3]` (elements recursively formatted)                                                              |
+| object     | `JSON.stringify(value, null, 2)`; on throw, falls back to `String(value)`                                                |
+| `function` | Not a `Map`/`Array`/JSON-serializable object → falls through to `JSON.stringify`, which yields `undefined` for functions |
 
-When `hideComplexValues` is `true`, the `typeSummary()` function replaces
-complex values:
+When `hideComplex` is `true`, `isComplex(value)` gates a `typeSummary(value)`
+replacement. `isComplex` returns `true` when `value` is non-null/undefined and
+`typeof` is `'object'` or `'function'`. `typeSummary`
+(`src/components/molecules/ExecutionStepInspector/ExecutionStepInspector.tsx` ›
+`typeSummary`) returns:
 
-| Type       | Summary                               |
-| ---------- | ------------------------------------- |
-| `Map`      | `Map(N)` where N is `value.size`      |
-| `Array`    | `Array(N)` where N is `value.length`  |
-| `Object`   | `Object(N)` where N is number of keys |
-| `function` | `function`                            |
+| Value        | Summary                                            |
+| ------------ | -------------------------------------------------- |
+| `undefined`  | `undefined`                                        |
+| `null`       | `null`                                             |
+| `boolean`    | `boolean`                                          |
+| `number`     | `number`                                           |
+| `string`     | `string`                                           |
+| `Map`        | `Map(N)` where N is `value.size`                   |
+| `Array`      | `Array(N)` where N is `value.length`               |
+| `function`   | `function`                                         |
+| other object | `Object(N)` where N is `Object.keys(value).length` |
+| fallthrough  | `Object(?)`                                        |
 
-The `isComplex()` check returns `true` for any value where `typeof` is
-`'object'` (excluding `null`) or `'function'`.
+> `typeSummary` handles primitives too, but in practice only complex values
+> reach it (primitives short-circuit the `isComplex` guard in `formatValue`).
 
-## Limitations and Deprecated Patterns
+## Limitations and Notes
 
 - **No editing**: the inspector is read-only. Values cannot be modified.
-- **No search/filter**: with many inputs or outputs, there is no search
-  capability to find specific handles.
-- **Flat value display**: deeply nested objects are shown as indented JSON but
-  without collapsible tree views.
-- **No direct navigation**: clicking a source node name in a connection line
-  does not navigate to that node on the canvas.
-- **Fixed width**: the panel is hardcoded to 300px (`w-[300px]`), not resizable.
-- **Max scroll height**: content area is capped at 400px (`max-h-[400px]`) with
-  vertical scrolling.
+- **No search/filter**: with many inputs or outputs there is no way to search
+  for a specific handle.
+- **Flat value display**: objects render as pretty-printed JSON text, not as
+  collapsible tree views.
+- **No canvas navigation from connections**: clicking a `sourceNodeName` in a
+  connection line does nothing (node navigation lives in the timeline/run
+  controls, not the inspector).
+- **Fixed width**: the panel is hardcoded to `340px` (`w-[340px]`), not
+  resizable.
+- **No internal scroll cap**: the inspector renders full-height; scrolling is
+  owned by the parent container.
+- **Decorative timeline strip**: the progress bar inside the timeline box uses
+  fixed percentages and does not reflect this step's real start/end position.
+- **`targetCount` unused**: output fan-out count is present on the data but not
+  surfaced in the UI.
+- **`autoInspectErrors` is not implemented here**: it exists on
+  `NodeRunnerPanelSettings` but the current `NodeRunnerPanel` does not auto-open
+  the inspector on error; selection is driven by timeline clicks.
 
 ## Relationships with Other Features
 
 ### -> [Execution Recording (ExecutionStepRecord)](../runner/executionRecordingDoc.md)
 
 The inspector consumes `ExecutionStepRecord` objects produced by the execution
-recorder ([types.ts](src/utils/nodeRunner/types.ts)). Each record is a frozen
-snapshot containing:
+recorder (`src/utils/nodeRunner/types.ts` › `ExecutionStepRecord`). Relevant
+fields it reads:
 
-- `inputValues`: `Map<handleName, RecordedInputHandleValue>` — per-connection
-  detail with source node/handle metadata.
-- `outputValues`: `Map<handleName, RecordedOutputHandleValue>` — computed values
-  with fan-out target counts.
-- `error`: optional `GraphError` with full execution path trace, loop/group
-  context, and the original thrown error.
+- `inputValues`: `ReadonlyMap<string, RecordedInputHandleValue>` —
+  per-connection detail with source node/handle metadata
+  (`RecordedInputConnection`, `src/utils/nodeRunner/types.ts` ›
+  `RecordedInputConnection`).
+- `outputValues`: `ReadonlyMap<string, RecordedOutputHandleValue>` — computed
+  values (with an unused `targetCount`).
+- `status`, `duration`, `estimatedTiming`, `startTime`, `endTime` — for the
+  status badge and timing block.
+- `loopIteration`, `loopStructureId`, `groupNodeId`, `groupDepth` — for the
+  loop/group context block.
+- `error`: optional `GraphError` with full execution-path trace and loop/group
+  context.
 
-The `RecordedInputConnection` type is a stripped-down version of
-`InputConnectionValue` (used at runtime), removing `edgeId` and
-`sourceNodeTypeId` while keeping display-relevant fields.
+`RecordedInputConnection` is a display-only, stripped-down version of the
+runtime `InputConnectionValue` (`src/utils/nodeRunner/types.ts` ›
+`InputConnectionValue`): it keeps `value`, `sourceNodeId`, `sourceNodeName`,
+`sourceHandleId`, `sourceHandleName`, and `sourceDataTypeId`, but drops `edgeId`
+and `sourceNodeTypeId`.
+
+The optional `loopRecords` prop is a `ReadonlyMap<string, LoopRecord>` — the
+same shape as `ExecutionRecord.loopRecords` (`src/utils/nodeRunner/types.ts` ›
+`ExecutionRecord`). `LoopRecord.iterations` is an array of `LoopIterationRecord`
+(`src/utils/nodeRunner/types.ts` › `LoopIterationRecord`), whose
+`conditionValue` drives the "continues/exits" sub-line, and
+`LoopRecord.totalIterations` supplies the "of N" suffix.
 
 ### -> [NodeRunnerPanel](nodeRunnerPanelDoc.md)
 
-The `NodeRunnerPanel` organism hosts the inspector as a side panel. The panel
-controls:
+The `NodeRunnerPanel` organism
+(`src/components/organisms/NodeRunnerPanel/NodeRunnerPanel.tsx` ›
+`NodeRunnerPanel`) hosts the inspector as a right-side panel that slides in/out.
+The panel:
 
-- **Which step** is shown via `RunSessionInteractionState.selectedStepIndex`,
-  which indexes into `ExecutionRecord.steps`.
-- **Whether the inspector is open** via
-  `RunSessionInteractionState.inspectorOpen`.
-- **Value display settings** via `NodeRunnerPanelSettings.hideComplexValues`.
-- **Auto-inspect on error** via `NodeRunnerPanelSettings.autoInspectErrors` —
-  automatically opens the inspector when a step errors.
+- **Picks the step** by matching `selectedStepIndex` against `stepIndex`:
+  `record.steps.find((s) => s.stepIndex === selectedStepIndex)` — it does
+  **not** index `record.steps[selectedStepIndex]` directly.
+- **Controls open/close** locally: `inspectorOpen` is derived from
+  `selectedStepRecord !== null`, and `onClose` (→ `handleCloseInspector`) sets
+  `selectedStepIndex` back to `null`. While the close animation plays, the panel
+  renders the last step via a ref so content doesn't vanish mid-transition.
+- **Forwards `loopRecords={record?.loopRecords}`** so the loop-context block can
+  show totals/conditions.
+- **Forwards `hideComplexValues` and `debugMode`** from its own props.
+- **Wires the animate toggle**: `edgeValuesAnimated` and `setEdgeValuesAnimated`
+  come from the `useRecordingViewState()` context hook and are passed as
+  `edgeValuesAnimated` / `onEdgeValuesAnimatedChange`. (`edgeValuesAnimated` is
+  persisted on the saved recording's `RecordingViewState`.)
 
 ### -> [ExecutionTimeline (step selection)](executionTimelineDoc.md)
 
-The `ExecutionTimeline` molecule allows the user to select a step by clicking on
-its bar in the timeline visualization. When a step is selected:
+The `ExecutionTimeline` molecule selects which step the inspector shows. When a
+step block is left-clicked:
 
-1. The timeline sets `selectedStepIndex` on the session's interaction state.
-2. The panel reads the corresponding `ExecutionStepRecord` from
-   `record.steps[selectedStepIndex]`.
-3. The panel passes that record to `ExecutionStepInspector` as the `stepRecord`
-   prop.
+1. The timeline calls `onStepClick(stepRecord)`.
+2. The panel's `handleStepClick` toggles `selectedStepIndex` (clicking the
+   already-selected step closes the inspector).
+3. The panel resolves the matching `ExecutionStepRecord` and passes it to
+   `ExecutionStepInspector` as `stepRecord`.
 
-The inspector and timeline are decoupled — they communicate only through the
-shared `RunSessionInteractionState` on the `RunSession` object.
+The inspector and timeline are decoupled — they coordinate only through the
+panel's selection state (`selectedStepIndex`).
+
+### -> [Atoms: Accordion & Tooltip](uiPrimitivesDoc.md)
+
+- The inputs/outputs sections use the `Accordion` atom family
+  (`src/components/atoms/Accordion/Accordion.tsx` › `Accordion`), a thin wrapper
+  over Radix `Accordion`. The inspector uses `type="multiple"` with
+  `defaultValue={['inputs','outputs']}` so both start expanded and toggle
+  independently.
+- The "Animate" checkbox label is wrapped in the `Tooltip` atom
+  (`src/components/atoms/Tooltip/Tooltip.tsx` › `Tooltip`) to explain edge-value
+  animation.

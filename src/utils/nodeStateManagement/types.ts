@@ -3,6 +3,11 @@ import type { Nodes, Edges } from '@/components/organisms/FullGraph/types';
 import type { HandleShape } from '@/components/organisms/ConfigurableNode';
 import type { Viewport } from '@xyflow/react';
 import type { Zone, ZoneIndex } from './zones/types';
+import type { Patch } from 'immer';
+import type {
+  HistoryEntry,
+  HistoryConfig,
+} from '@/components/organisms/FullGraph/historyTypes';
 
 /**
  * Array of supported underlying data types
@@ -244,7 +249,9 @@ type TypeOfNode<
      * - Not allowed to be deleted or duplicated, must always be one
      */
     outputNodeId: string;
+    /** Scope-local zone definitions for structures inside this subtree. UI-only — stripped on export. */
     zones?: Record<string, Zone>;
+    /** Reverse index from boundary handle IDs to zone IDs for this subtree. UI-only — stripped on export. */
     zoneIndex?: ZoneIndex;
   };
 };
@@ -555,8 +562,39 @@ type State<
    */
   activeDrawer?: ActiveDrawer;
 
+  /**
+   * Root-level zone definitions for structures at the top scope.
+   * Each zone defines a region with boundary handles, visual frame, and
+   * optional connection enforcement. UI-only — stripped on export,
+   * rehydrated on import via REPLACE_STATE.
+   * @default undefined
+   */
   zones?: Record<string, Zone>;
+  /**
+   * Reverse index from boundary handle IDs to zone IDs for O(1)
+   * lookups during connection validation. Rebuilt whenever zones change.
+   * UI-only — stripped on export.
+   * @default undefined
+   */
   zoneIndex?: ZoneIndex;
+
+  /**
+   * Undo/redo history. Stores Immer patches for each undoable action.
+   * Managed by UNDO, REDO, BEGIN_BATCH, END_BATCH, CLEAR_HISTORY actions.
+   * Stripped on export by default; optionally preserved via "Export with History".
+   * @default undefined
+   */
+  history?: {
+    undoStack: HistoryEntry[];
+    redoStack: HistoryEntry[];
+    config: HistoryConfig;
+    activeBatch: {
+      patches: Patch[];
+      inversePatches: Patch[];
+      actionTypes: string[];
+      startTimestamp: number;
+    } | null;
+  };
 };
 
 /**

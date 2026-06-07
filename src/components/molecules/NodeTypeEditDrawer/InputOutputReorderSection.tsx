@@ -9,6 +9,26 @@ import type { InputAdditionalProps } from './inputOutputConversion';
 import { generateRandomString } from '@/utils/randomGeneration';
 import { cn } from '@/utils/cnHelper';
 
+/** Remove an item by id at the top level or nested inside any panel's subTrees. */
+function removeItemById(
+  items: DragListItem<InputAdditionalProps>[],
+  id: string,
+): DragListItem<InputAdditionalProps>[] {
+  const result: DragListItem<InputAdditionalProps>[] = [];
+  for (const item of items) {
+    if (item.id === id) continue;
+    if (isDragListNonLeaf(item)) {
+      result.push({
+        ...item,
+        subTrees: item.subTrees.filter((sub) => sub.id !== id),
+      });
+    } else {
+      result.push(item);
+    }
+  }
+  return result;
+}
+
 type InputOutputReorderSectionProps = {
   items: DragListItem<InputAdditionalProps>[];
   onChange: (items: DragListItem<InputAdditionalProps>[]) => void;
@@ -16,6 +36,10 @@ type InputOutputReorderSectionProps = {
   allowPanels: boolean;
   maxDepth: number;
   hasEmptyPanelError: boolean;
+  /** When provided, leaf handles get a delete button that calls this (the
+   *  drawer moves the handle into its "Deleted" section) instead of dropping
+   *  it outright. */
+  onDeleteHandle?: (item: DragListItem<InputAdditionalProps>) => void;
 };
 
 function InputOutputReorderSection({
@@ -25,6 +49,7 @@ function InputOutputReorderSection({
   allowPanels,
   maxDepth,
   hasEmptyPanelError,
+  onDeleteHandle,
 }: InputOutputReorderSectionProps) {
   const [panelModalOpen, setPanelModalOpen] = useState(false);
   const [panelModalName, setPanelModalName] = useState('');
@@ -82,6 +107,21 @@ function InputOutputReorderSection({
       }
     }
     onChange(updatedItems);
+    return false;
+  };
+
+  const handleDelete = async (
+    item: DragListItem<InputAdditionalProps>,
+  ): Promise<boolean> => {
+    // Panels keep their existing "ungroup" behavior; leaf handles are moved to
+    // the drawer's Deleted section via onDeleteHandle.
+    if (isDragListNonLeaf(item)) {
+      return handleDeletePanel(item);
+    }
+    if (onDeleteHandle) {
+      onChange(removeItemById(items, item.id));
+      onDeleteHandle(item);
+    }
     return false;
   };
 
@@ -143,9 +183,12 @@ function InputOutputReorderSection({
         <DragList
           items={items}
           onChange={onChange}
-          onDelete={allowPanels ? handleDeletePanel : undefined}
+          onDelete={allowPanels || onDeleteHandle ? handleDelete : undefined}
           isDeletable={
-            allowPanels ? (item) => isDragListNonLeaf(item) : undefined
+            allowPanels || onDeleteHandle
+              ? (item) =>
+                  isDragListNonLeaf(item) ? allowPanels : !!onDeleteHandle
+              : undefined
           }
           maxDepth={maxDepth}
           renderContent={renderContent}

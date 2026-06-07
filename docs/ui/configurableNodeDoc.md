@@ -5,61 +5,75 @@
 ConfigurableNode is the core visual rendering component for nodes in the
 react-blender-nodes library. Inspired by Blender's node editor, it renders a
 fully configurable node with a colored header, input/output connection handles,
-collapsible input panels, interactive input fields, node group navigation,
-resizing controls, and runner execution status overlays.
+collapsible input panels, interactive inline input fields, header action icons
+(loop/switch editors, node-type editor, group navigation), resizing controls,
+and runner execution status overlays.
 
 ConfigurableNode operates in two modes:
 
 - **Standalone mode** (`isCurrentlyInsideReactFlow=false`): Renders as a static
-  preview with positioned handle indicators but no ReactFlow integration. Useful
-  for Storybook, documentation, or thumbnails.
+  preview with absolutely-positioned handle indicators but no ReactFlow
+  integration. Useful for Storybook, documentation, or thumbnails. Header action
+  icons render without click handlers, and inline inputs call only their local
+  `onChange`.
 - **ReactFlow mode** (`isCurrentlyInsideReactFlow=true`): Renders with live
   ReactFlow `<Handle>` elements, node resizing controls, connection-aware input
   toggling, and context-based dispatch. Used inside `FullGraph` via
   `ConfigurableNodeReactFlowWrapper`.
 
 The component uses `forwardRef` to expose its root `<div>` for external
-measurement or focus management, and is wrapped with `NodeStatusIndicator` when
-runner visual state is present.
+measurement or focus management, and conditionally wraps its content with
+`NodeStatusIndicator` when runner visual state is present.
+
+**Source:** `src/components/organisms/ConfigurableNode/ConfigurableNode.tsx` ›
+`ConfigurableNode`
+
+**Public export:** All of the symbols below are re-exported from the package
+root (`react-blender-nodes`) via `src/components/index.ts` ->
+`src/components/organisms/index.ts` ->
+`src/components/organisms/ConfigurableNode/index.ts`.
 
 ## Entity-Relationship Diagram
 
 ```
-+------------------------------+         +---------------------------+
-|    ConfigurableNodeProps      |         |   ConfigurableNodeState   |
-|------------------------------|         |   (ReactFlow Node<Data>)  |
-| id?: string                  |         |---------------------------|
-| name?: string                |<--------| Node<ConfigurableNode-    |
-| headerColor?: string         |  wraps  |   Props, 'configurable-   |
-| inputs?: (Input | Panel)[]   |         |   Node'>                  |
-| outputs?: Output[]           |         +---------------------------+
-| isCurrentlyInsideReactFlow?  |
-| nodeResizerProps?            |
-| nodeTypeUniqueId?            |
-| showNodeOpenButton?          |
-| runnerVisualState?           |       +-----------------------------+
-| runnerErrors?                |       | ConfigurableNodeInputPanel  |
-| runnerWarnings?              |       |-----------------------------|
-+------------------------------+       | id: string                  |
-        |          |                   | name: string                |
-        |          |                   | inputs: Input[]             |
-        v          v                   +-----------------------------+
-+----------------+  +------------------+           |
-| Configurable-  |  | Configurable-    |           | contains
-| NodeInput      |  | NodeOutput       |           v
-|----------------|  |------------------|   +--------------------+
-| id: string     |  | id: string       |   | ConfigurableNode-  |
-| name: string   |  | name: string     |   | Input (same type)  |
-| handleColor?   |  | handleColor?     |   +--------------------+
-| handleShape?   |  | handleShape?     |
++----------------------------------+       +---------------------------+
+|       ConfigurableNodeProps      |       |   ConfigurableNodeState   |
+|----------------------------------|       |   (ReactFlow Node<Data>)  |
+| id?: string                      |<------| Node<                     |
+| name?: string                    | wraps |   Omit<ConfigurableNode-  |
+| headerColor?: string             |       |     Props,                |
+| inputs?: (Input | Panel)[]       |       |     'isCurrentlyInside-   |
+| outputs?: Output[]               |       |      ReactFlow'>,         |
+| isCurrentlyInsideReactFlow?      |       |   'configurableNode'      |
+| nodeResizerProps?                |       | >                         |
+| nodeTypeUniqueId?                |       +---------------------------+
+| runnerVisualState?               |
+| runnerErrors?                    |       +-----------------------------+
+| runnerWarnings?                  |       | ConfigurableNodeInputPanel  |
+| ...HTMLAttributes<HTMLDivElement>|       |-----------------------------|
++----------------------------------+       | id: string                  |
+        |          |                       | name: string                |
+        |          |                       | inputs: ConfigurableNode-   |
+        v          v                       |   Input[]                   |
++----------------+  +------------------+   +-----------------------------+
+| Configurable-  |  | Configurable-    |              |
+| NodeInput      |  | NodeOutput       |              | contains
+|----------------|  |------------------|              v
+| id: string     |  | id: string       |   +----------------------+
+| name: string   |  | name: string     |   | ConfigurableNodeInput|
+| handleColor?   |  | handleColor?     |   |   (same type)        |
+| handleShape?   |  | handleShape?     |   +----------------------+
 | allowInput?    |  | maxConnections?  |
 | maxConnections?|  | dataType?        |
 | dataType?      |  | inferredDataType?|
-| inferredDataType?| | type: string |  |
-| type: string | |  |   number | bool  |
-|   number |     |  |   unsupported    |
-|   boolean |    |  +------------------+
-|   unsupported  |
+| inferredDataType?| | type:           |
+| type: 'string' | |  |  'string'       |
+|   (+allowed-   |  |  | 'number'       |
+|    Strings?)   |  |  | 'boolean'      |
+|  | 'number'    |  |  | 'unsupported-  |
+|  | 'boolean'   |  |     Directly'     |
+|  | 'unsupported|  +------------------+
+|     Directly'  |
 | value?         |
 | onChange?      |
 +----------------+
@@ -71,7 +85,7 @@ runner visual state is present.
 ConfigurableNode depends on:
 +-----------------------------------------------------------------------+
 |                                                                       |
-|  ConfigurableNode (organisms/)                                        |
+|  ConfigurableNode (organisms/ConfigurableNode/)                       |
 |  |                                                                    |
 |  +-- ContextAwareHandle (SupportingSubcomponents/)                    |
 |  |   +-- Handle (@xyflow/react)          [ReactFlow mode]             |
@@ -80,37 +94,43 @@ ConfigurableNode depends on:
 |  |   +-- useNodeConnections()            (@xyflow/react)              |
 |  |                                                                    |
 |  +-- ContextAwareInput (SupportingSubcomponents/)                     |
-|  |   +-- ReactFlowAwareInput                                         |
-|  |   |   +-- useReactFlow()              (@xyflow/react)              |
+|  |   +-- ReactFlowAwareInput             [ReactFlow mode]             |
 |  |   |   +-- useNodeId()                 (@xyflow/react)              |
-|  |   |   +-- updateHandleInNodeDataMatchingHandleId()  (utils/)       |
-|  |   |   +-- Input (atoms/)              [string type]                |
-|  |   |   +-- SliderNumberInput (molecules/) [number type]             |
-|  |   |   +-- Checkbox (atoms/)           [boolean type]               |
-|  |   +-- Input (atoms/)                  [standalone string]          |
-|  |   +-- SliderNumberInput (molecules/)  [standalone number]          |
-|  |   +-- Checkbox (atoms/)               [standalone boolean]         |
+|  |   |   +-- FullGraphContext            (FullGraph/FullGraphState)   |
+|  |   |   +-- actionTypesMap.UPDATE_INPUT_VALUE  (mainReducer)         |
+|  |   |   +-- useInputComponentRegistry() (FullGraph/)                 |
+|  |   +-- Input (atoms/)                  [string type]                |
+|  |   +-- Select (molecules/)             [string + allowedStrings]    |
+|  |   +-- SliderNumberInput (molecules/)  [number type]                |
+|  |   +-- Checkbox (atoms/)               [boolean type]               |
+|  |   +-- custom component from registry  [unsupportedDirectly]        |
 |  |                                                                    |
-|  +-- ContextAwareOpenButton (SupportingSubcomponents/)                |
-|  |   +-- ReactFlowAwareOpenButton                                    |
-|  |   |   +-- useNodeId()                 (@xyflow/react)              |
-|  |   |   +-- FullGraphContext            (FullGraph/)                 |
-|  |   |   +-- actionTypesMap.OPEN_NODE_GROUP  (mainReducer)            |
-|  |   +-- SquareMousePointerIcon          (lucide-react)               |
+|  +-- ContextAwareNodeHeaderActions (SupportingSubcomponents/)         |
+|  |   +-- FullGraphContext               (FullGraph/FullGraphState)    |
+|  |   +-- LucideIcon (type only)         (renders action.icon)         |
+|  |   +-- dispatches Action via allProps.dispatch                      |
 |  |                                                                    |
 |  +-- NodeResizerWithMoreControls (atoms/)                             |
 |  |   +-- NodeResizeControl               (@xyflow/react)              |
 |  |                                                                    |
-|  +-- NodeStatusIndicator (atoms/)                                     |
+|  +-- NodeStatusIndicator (atoms/)        [when runnerVisualState set] |
 |  |   +-- useFloatingTooltip()            (hooks/)                     |
 |  |   +-- FloatingArrow                   (@floating-ui/react)         |
 |  |   +-- formatGraphError()              (nodeRunner/errors)          |
 |  |                                                                    |
-|  +-- FullGraphContext                    (FullGraph/FullGraphState)    |
-|  +-- Button (atoms/)                    [panel toggle]                |
-|  +-- ChevronDownIcon / ChevronUpIcon    (lucide-react)                |
-|  +-- useNodeConnections()               (@xyflow/react)               |
-|  +-- cn()                               (utils/)                      |
+|  +-- FullGraphContext                    (FullGraph/FullGraphState)   |
+|  +-- isLoopNode / isSwitchNode           (nodeStateManagement/nodes/) |
+|  +-- actionTypesMap                      (mainReducer)                |
+|  +-- Button (atoms/)                     [panel toggle]               |
+|  +-- ChevronDownIcon / ChevronUpIcon     (lucide-react)              |
+|  +-- Pencil / SquareMousePointerIcon     (lucide-react)              |
+|  |     instantiated into headerActions[].icon                        |
+|  +-- useNodeConnections()                (@xyflow/react)             |
+|  +-- cn()                                (utils/)                     |
+|                                                                       |
+|  ConfigurableNodeReactFlowWrapper additionally depends on:            |
+|  +-- RunnerContext                       (FullGraph/FullGraphState)   |
+|  +-- ErrorBoundary                       (atoms/ErrorBoundary)        |
 |                                                                       |
 +-----------------------------------------------------------------------+
 ```
@@ -126,12 +146,15 @@ ConfigurableNode depends on:
                     | ConfigurableNodeReactFlowWrapper  |
                     |-----------------------------------|
                     | Receives: NodeProps<State> + id   |
-                    | Reads: FullGraphContext            |
+                    | Reads: RunnerContext               |
                     |   -> nodeRunnerStates.get(id)     |
-                    | Passes: data.* as props            |
-                    |   + isCurrentlyInsideReactFlow=true|
-                    |   + runnerVisualState              |
-                    |   + runnerErrors / runnerWarnings  |
+                    | Wraps in <ErrorBoundary>           |
+                    | Passes to ConfigurableNode:        |
+                    |   isCurrentlyInsideReactFlow=true  |
+                    |   id={id}, className='w-full'      |
+                    |   {...data}                        |
+                    |   runnerVisualState                |
+                    |   runnerErrors / runnerWarnings    |
                     +----------------+------------------+
                                      |
                                      v
@@ -140,7 +163,9 @@ ConfigurableNode depends on:
                     |-----------------------------------|
                     | State: openPanels (Set<string>)    |
                     | Reads: FullGraphContext             |
-                    |   -> enableDebugMode (shows id)    |
+                    |   -> state.enableDebugMode (id)    |
+                    |   -> state.typeOfNodes[..].subtree |
+                    | Computes: headerActions[]           |
                     +---+--------+--------+--------+----+
                         |        |        |        |
           +-------------+   +----+   +----+   +----+----------+
@@ -148,18 +173,19 @@ ConfigurableNode depends on:
           v                 v        v        v                v
     +-----------+    +----------+ +------+ +--------+  +---------------+
     |  Header   |    | Render-  | |Render| |Render- |  | NodeStatus-   |
-    | (colored  |    | Output   | |Input | |Input-  |  | Indicator     |
-    |  bar +    |    | (per     | |(per  | |Panel   |  | (wraps all    |
-    |  name +   |    | output)  | |input)| |(per    |  |  when runner  |
-    |  open btn)|    +----+-----+ +--+---+ |panel)  |  |  state set)   |
-    +-----------+         |          |     +---+----+  +---------------+
-                          |          |         |
-                          v          v         v
-                   ContextAware  ContextAware  Collapsible group
-                   Handle        Handle +      with nested
-                   (source,      (target,      RenderInput items
-                    right)       left) +
-                                 ContextAwareInput
+    | (color +  |    | Output   | |Input | |Input-  |  | Indicator     |
+    |  name +   |    | (per     | |(per  | |Panel   |  | (wraps all    |
+    |  debug id+|    | output)  | |input)| |(per    |  |  when runner  |
+    |  header   |    +----+-----+ +--+---+ |panel)  |  |  visualState  |
+    |  actions) |         |          |     +---+----+  |  defined)     |
+    +-----------+         |          |         |       +---------------+
+          |               v          v         v
+   ContextAware-   ContextAware  ContextAware  Collapsible group
+   NodeHeader-     Handle        Handle +      (Button toggle) with
+   Actions         (source,      (target,      nested RenderInput
+   (dispatch on    right)        left) +       items (hidden when
+    click in RF)                 ContextAware-  panel closed)
+                                 Input
                                  (if allowInput
                                   && !connected)
 ```
@@ -170,96 +196,121 @@ ConfigurableNode depends on:
 +===========================================================================+
 |                          react-blender-nodes                              |
 |                                                                           |
-|  +-- State Layer (useFullGraph / mainReducer) -------------------------+  |
-|  |  State { dataTypes, typeOfNodes, nodes, edges, ... }                |  |
-|  |  dispatch(action) -> mainReducer -> new State                       |  |
-|  +---------------------------------------------------------------------+  |
+|  +-- State Layer (useFullGraph / createGraphStore) -------------------+   |
+|  |  State { dataTypes, typeOfNodes, nodes, edges, enableDebugMode, .. }|   |
+|  |  dispatch(action) -> validateAction -> applyValidatedAction        |   |
+|  +--------------------------------------------------------------------+   |
 |       |                                                                   |
-|       | provides via FullGraphContext                                      |
+|       | provides via FullGraphContext (allProps = { state, dispatch })     |
 |       v                                                                   |
-|  +-- FullGraph (organism) ---------------------------------------------+  |
-|  |                                                                     |  |
-|  |  ReactFlow canvas                                                   |  |
-|  |    |                                                                |  |
-|  |    +-- nodeTypes.configurableNode = ConfigurableNodeReactFlowWrapper|  |
-|  |    |     |                                                          |  |
-|  |    |     +-- ConfigurableNode  <<<<< THIS FEATURE >>>>>             |  |
-|  |    |           |                                                    |  |
-|  |    |           +-- ContextAwareHandle  (connection ports)           |  |
-|  |    |           +-- ContextAwareInput   (inline editors)             |  |
-|  |    |           +-- ContextAwareOpenButton (group navigation)        |  |
-|  |    |           +-- NodeResizerWithMoreControls (resize)             |  |
-|  |    |           +-- NodeStatusIndicator (runner overlay)             |  |
-|  |    |                                                                |  |
-|  |    +-- edgeTypes / connection lines                                 |  |
-|  |    +-- ContextMenu (right-click)                                    |  |
-|  |                                                                     |  |
-|  +---------------------------------------------------------------------+  |
+|  +-- FullGraph (organism) --------------------------------------------+   |
+|  |                                                                    |   |
+|  |  ReactFlow canvas                                                  |   |
+|  |    |                                                               |   |
+|  |    +-- nodeTypes.configurableNode = ConfigurableNodeReactFlowWrappr|   |
+|  |    |     |                                                         |   |
+|  |    |     +-- ConfigurableNode  <<<<< THIS FEATURE >>>>>            |   |
+|  |    |           |                                                   |   |
+|  |    |           +-- ContextAwareHandle  (connection ports)          |   |
+|  |    |           +-- ContextAwareInput   (inline editors)            |   |
+|  |    |           +-- ContextAwareNodeHeaderActions (icon buttons)     |   |
+|  |    |           +-- NodeResizerWithMoreControls (resize)            |   |
+|  |    |           +-- NodeStatusIndicator (runner overlay)            |   |
+|  |    |                                                               |   |
+|  |    +-- edgeTypes / connection lines                                |   |
+|  |    +-- ContextMenu (right-click)                                   |   |
+|  |    +-- RunnerOverlay -> provides RunnerContext                     |   |
+|  |    +-- InputComponentRegistryContext (custom inline inputs)        |   |
+|  |                                                                    |   |
+|  +--------------------------------------------------------------------+   |
 |       |                                                                   |
-|       | nodeRunnerStates via FullGraphContext                              |
+|       | nodeRunnerStates via RunnerContext                                 |
 |       |                                                                   |
-|  +-- Runner Layer (useNodeRunner) -------------------------------------+  |
-|  |  compiler -> ExecutionPlan -> executor -> ExecutionRecord           |  |
-|  |  Produces: Map<nodeId, { visualState, errors, warnings }>          |  |
-|  +---------------------------------------------------------------------+  |
+|  +-- Runner Layer (useNodeRunner) ------------------------------------+   |
+|  |  compiler -> ExecutionPlan -> executor -> ExecutionRecord          |   |
+|  |  Produces: Map<nodeId, { visualState, errors, warnings }>         |   |
+|  +--------------------------------------------------------------------+   |
 |                                                                           |
 +===========================================================================+
 ```
 
 ## ConfigurableNodeProps
 
-| Prop                                | Type                                | Default     | Description                                                                                                                      |
-| ----------------------------------- | ----------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                                | `string?`                           | `undefined` | Node instance ID. Shown in header when `enableDebugMode` is true in FullGraphContext.                                            |
-| `name`                              | `string?`                           | `'Node'`    | Display name rendered in the header bar.                                                                                         |
-| `headerColor`                       | `string?`                           | `'#79461D'` | CSS background color for the header bar.                                                                                         |
-| `inputs`                            | `(Input \| Panel)[]?`               | `[]`        | Array of input definitions and/or input panel definitions. Panels are distinguished by having an `inputs` property.              |
-| `outputs`                           | `Output[]?`                         | `[]`        | Array of output handle definitions.                                                                                              |
-| `isCurrentlyInsideReactFlow`        | `boolean?`                          | `false`     | Whether the node is rendered inside a ReactFlow context. Controls handle rendering mode and enables resizer/connection features. |
-| `nodeResizerProps`                  | `NodeResizerWithMoreControlsProps?` | `{}`        | Props forwarded to the `NodeResizerWithMoreControls` component. Only rendered when `isCurrentlyInsideReactFlow` is true.         |
-| `nodeTypeUniqueId`                  | `string?`                           | `undefined` | The node type's unique identifier from the type definitions.                                                                     |
-| `showNodeOpenButton`                | `boolean?`                          | `false`     | Whether to show the open button (SquareMousePointer icon) in the header. Used for node groups to navigate into the subtree.      |
-| `runnerVisualState`                 | `NodeVisualState?`                  | `undefined` | Runner execution visual state. When defined, wraps the node content with `NodeStatusIndicator`.                                  |
-| `runnerErrors`                      | `ReadonlyArray<GraphError>?`        | `undefined` | Errors from the runner for this node. Shown as tooltip on the error icon overlay.                                                |
-| `runnerWarnings`                    | `ReadonlyArray<string>?`            | `undefined` | Warning messages from the runner. Shown as tooltip on the warning icon overlay.                                                  |
-| `...HTMLAttributes<HTMLDivElement>` | —                                   | —           | All standard div attributes (className, style, onClick, etc.) are spread onto the root element.                                  |
+`ConfigurableNodeProps` is generic over four parameters (all defaulting so the
+component can be used untyped):
+
+```ts
+ConfigurableNodeProps<
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
+  ComplexSchemaType extends UnderlyingType extends 'complex' ? z.ZodType : never = never,
+  DataTypeUniqueId extends string = string,
+>
+```
+
+| Prop                                | Type                                                       | Default     | Description                                                                                                                                                          |
+| ----------------------------------- | ---------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                | `string?`                                                  | `undefined` | Node instance ID. Rendered in the header when `enableDebugMode` is true in `FullGraphContext`. Also used as the `nodeId` payload of header actions.                  |
+| `name`                              | `string?`                                                  | `'Node'`    | Display name rendered in the header bar (truncated).                                                                                                                 |
+| `headerColor`                       | `string?`                                                  | `'#79461D'` | CSS background color for the header bar.                                                                                                                             |
+| `inputs`                            | `(ConfigurableNodeInput \| ConfigurableNodeInputPanel)[]?` | `[]`        | Array of input definitions and/or input panel definitions. Panels are distinguished at runtime by the presence of an `inputs` property (`'inputs' in input`).        |
+| `outputs`                           | `ConfigurableNodeOutput[]?`                                | `[]`        | Array of output handle definitions.                                                                                                                                  |
+| `isCurrentlyInsideReactFlow`        | `boolean?`                                                 | `false`     | Whether the node is rendered inside a ReactFlow context. Controls handle rendering mode, enables the resizer, and switches inputs/header actions into dispatch mode. |
+| `nodeResizerProps`                  | `NodeResizerWithMoreControlsProps?`                        | `{}`        | Props forwarded to `NodeResizerWithMoreControls`. Only rendered when `isCurrentlyInsideReactFlow` is true.                                                           |
+| `nodeTypeUniqueId`                  | `NodeTypeUniqueId?`                                        | `undefined` | The node type's unique identifier. Used to detect loop/switch nodes and node-group subtrees, which drive the header action icons.                                    |
+| `runnerVisualState`                 | `NodeVisualState?`                                         | `undefined` | Runner execution visual state. When defined, the node content is wrapped with `NodeStatusIndicator`.                                                                 |
+| `runnerErrors`                      | `ReadonlyArray<GraphError>?`                               | `undefined` | Errors from the runner for this node. Shown as a tooltip on the error icon overlay.                                                                                  |
+| `runnerWarnings`                    | `ReadonlyArray<string>?`                                   | `undefined` | Warning messages from the runner. Shown as a tooltip on the warning icon overlay.                                                                                    |
+| `...HTMLAttributes<HTMLDivElement>` | —                                                          | —           | All standard div attributes (`className`, `style`, `onClick`, etc.) are spread onto the root element.                                                                |
+
+> **Removed prop:** Earlier versions had a `showNodeOpenButton?: boolean` prop
+> that toggled a single "open group" button. This prop no longer exists. Header
+> action icons are now derived automatically from `nodeTypeUniqueId` plus the
+> node-type definition in `FullGraphContext` (see
+> [Header Actions](#header-actions-contextawarenodeheaderactions)).
 
 ## Type Definitions
 
 ### ConfigurableNodeInput
 
-Defines an input socket on a node with optional interactive input component.
+Defines an input socket on a node with an optional interactive input component.
 Generic over `UnderlyingType`, `ComplexSchemaType`, and `DataTypeUniqueId`.
 
 ```
 ConfigurableNodeInput {
   id: string                    // Unique handle identifier
   name: string                  // Display label
-  handleColor?: string          // Handle visual color
-  handleShape?: HandleShape     // One of 13 shape variants
+  handleColor?: string          // Handle visual color (default '#A1A1A1')
+  handleShape?: HandleShape     // One of 13 shape variants (default 'circle')
   allowInput?: boolean          // Show inline editor when unconnected
   maxConnections?: number       // Connection limit (undefined = unlimited)
   dataType?: {                  // Data type for FullGraph type checking
-    dataTypeObject: DataType
-    dataTypeUniqueId: string
+    dataTypeObject: DataType<UnderlyingType, ComplexSchemaType>
+    dataTypeUniqueId: DataTypeUniqueId
   }
-  inferredDataType?: {          // Inferred type when using inferredFromConnection
-    dataTypeObject: DataType
-    dataTypeUniqueId: string
+  inferredDataType?: {          // Inferred type (inferredFromConnection)
+    dataTypeObject: DataType<UnderlyingType, ComplexSchemaType>
+    dataTypeUniqueId: DataTypeUniqueId
   } | null
 
-  // Discriminated union on type:
-  type: 'string'                value?: string    onChange?: (v: string) => void
-       | 'number'               value?: number    onChange?: (v: number) => void
-       | 'boolean'              value?: boolean   onChange?: (v: boolean) => void
-       | 'unsupportedDirectly'  value?: unknown   onChange?: (v: unknown) => void
+  // Discriminated union on `type`:
+  type: 'string'   value?: string   onChange?: (v: string) => void
+                   allowedStrings?: readonly string[]   // -> Select dropdown
+     | 'number'    value?: number   onChange?: (v: number) => void
+     | 'boolean'   value?: boolean  onChange?: (v: boolean) => void
+     | 'unsupportedDirectly'  value?: unknown  onChange?: (v: unknown) => void
 }
 ```
 
+The `'string'` branch carries an optional `allowedStrings: readonly string[]`.
+When present and non-empty, the inline editor renders a `<Select>` dropdown
+(with an "unsupported"/deselect option) instead of a free-text `<Input>`.
+
 ### ConfigurableNodeOutput
 
-Defines an output socket on a node. Same generic parameters as Input but without
-`allowInput`, `value`, or `onChange`.
+Defines an output socket on a node. Same generic parameters as
+`ConfigurableNodeInput`, but without `allowInput`, `value`, `onChange`, or
+`allowedStrings` (outputs are never edited inline).
 
 ```
 ConfigurableNodeOutput {
@@ -282,41 +333,63 @@ Groups multiple inputs into a collapsible panel section.
 
 ```
 ConfigurableNodeInputPanel {
-  id: string                    // Unique panel identifier
-  name: string                  // Panel header label
-  inputs: ConfigurableNodeInput[] // Inputs contained in this panel
+  id: string                       // Unique panel identifier
+  name: string                     // Panel header label
+  inputs: ConfigurableNodeInput[]  // Inputs contained in this panel
 }
 ```
 
 ### ConfigurableNodeState (ReactFlow state)
 
 The ReactFlow node type used when ConfigurableNode is registered as a node type.
-Defined in `ConfigurableNodeReactFlowWrapper.tsx`.
+Defined in
+`src/components/organisms/ConfigurableNode/SupportingSubcomponents/ConfigurableNodeReactFlowWrapper.tsx`
+› `ConfigurableNodeState`.
 
-```
-ConfigurableNodeState = Node<
-  Omit<ConfigurableNodeProps, 'isCurrentlyInsideReactFlow'>,
+```ts
+type ConfigurableNodeState<
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  NodeTypeUniqueId extends string = string,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+  DataTypeUniqueId extends string = string,
+> = Node<
+  Omit<
+    ConfigurableNodeProps<
+      UnderlyingType,
+      NodeTypeUniqueId,
+      ComplexSchemaType,
+      DataTypeUniqueId
+    >,
+    'isCurrentlyInsideReactFlow'
+  >,
   'configurableNode'
->
+>;
 ```
 
 This is a standard ReactFlow `Node` where:
 
-- `data` contains all ConfigurableNodeProps except `isCurrentlyInsideReactFlow`
-  (which is always `true` inside ReactFlow)
-- `type` is the literal `'configurableNode'`
+- `data` contains all `ConfigurableNodeProps` except
+  `isCurrentlyInsideReactFlow` (the wrapper always sets it to `true` inside
+  ReactFlow).
+- `type` is the literal `'configurableNode'`.
 
 ## Rendering Structure
 
-The ConfigurableNode renders the following DOM structure:
+The ConfigurableNode renders the following DOM structure (see
+`src/components/organisms/ConfigurableNode/ConfigurableNode.tsx` ›
+`ConfigurableNode`, the `nodeContent` element):
 
 ```
-<div>  (root, rounded-md, border highlight on focus/selection)
+<div tabIndex=0>  (root: flex-col, rounded-md, w-max, border highlight on
+  |                focus and on .selected ancestor)
   |
-  +-- <div> HEADER (headerColor background, rounded-t-md)
+  +-- <div> HEADER (headerColor background, rounded-t-md, flex justify-between)
   |   +-- <p> name (truncated)
-  |   +-- <p> id (only if enableDebugMode)
-  |   +-- <ContextAwareOpenButton> (only if showNodeOpenButton)
+  |   +-- <p> id           (only if state.enableDebugMode)
+  |   +-- <div> ml-auto
+  |       +-- <ContextAwareNodeHeaderActions actions={headerActions} />
   |
   +-- <div> BODY (bg-primary-dark-gray, min-h-[50px], rounded-b-md)
       |
@@ -324,203 +397,331 @@ The ConfigurableNode renders the following DOM structure:
       |
       +-- <div> OUTPUTS section (flex-col, py-4)
       |   +-- <RenderOutput> for each output
-      |       +-- output.name (text, right-aligned)
-      |       +-- <ContextAwareHandle type="source" position="right">
+      |       +-- output.name (right-aligned, truncated; '​' if empty)
+      |       +-- <ContextAwareHandle type="source" position={Position.Right}>
       |
       +-- <div> INPUTS section (flex-col, py-4)
           +-- For each input item:
               |
-              +-- IF input has 'inputs' property -> <RenderInputPanel>
-              |   +-- <Button> toggle (chevron + panel.name)
-              |   +-- <div> collapsible content (bg-[#272727])
-              |       +-- <RenderInput> for each panel input
+              +-- IF 'inputs' in input -> <RenderInputPanel>
+              |   +-- <Button> toggle (ChevronUp/Down + panel.name)
+              |   +-- <div> collapsible content (bg-[#272727];
+              |   |        h-0 overflow-hidden when closed)
+              |   +-- <RenderInput hide={!isOpen}> for each panel input
               |
               +-- ELSE -> <RenderInput>
-                  +-- <ContextAwareHandle type="target" position="left">
-                  +-- IF allowInput && !connected:
-                  |   +-- <ContextAwareInput> (renders Input/SliderNumberInput/Checkbox)
+                  +-- <ContextAwareHandle type="target" position={Position.Left}>
+                  +-- IF allowInput && !isConnected:
+                  |   +-- <ContextAwareInput>  (Input / Select /
+                  |                              SliderNumberInput / Checkbox /
+                  |                              registry component)
                   +-- ELSE:
-                      +-- input.name (text label)
+                      +-- input.name (truncated; '​' if empty)
 
-// When runnerVisualState is defined, the entire nodeContent above
+// When runnerVisualState !== undefined, the entire nodeContent above
 // is wrapped in:
 <NodeStatusIndicator visualState={...} errors={...} warnings={...}>
   {nodeContent}
 </NodeStatusIndicator>
 ```
 
-### Header (name, color, collapse toggle)
+### Header (name, color, debug id, action icons)
 
-The header is a colored bar (`headerColor` background) with:
+The header is a colored bar (`headerColor` background, `rounded-t-md`) with:
 
-- The node `name` displayed as truncated text
-- The node `id` displayed when `enableDebugMode` is true in `FullGraphContext`
-- A `ContextAwareOpenButton` when `showNodeOpenButton` is true (for node groups)
+- The node `name` displayed as truncated text.
+- The node `id` displayed when `state.enableDebugMode` is true in
+  `FullGraphContext`.
+- A right-aligned (`ml-auto`) cluster rendering `ContextAwareNodeHeaderActions`
+  for the computed `headerActions` array.
 
-The header uses `rounded-t-md` to match the node's top border radius.
+### Outputs section
 
-### Input Handles (ContextAwareHandle)
+Outputs are rendered **before** inputs in the DOM. Each output renders a
+`RenderOutput`: a right-justified row with the (truncated, right-aligned)
+`output.name` and a `ContextAwareHandle` with `type='source'` and
+`position={Position.Right}`, absolutely positioned on the right edge. An empty
+name renders a zero-width space (`'​'`) so the row keeps its height.
 
-Each input renders a `ContextAwareHandle` with `type="target"` and
-`position=Position.Left`. The handle sits absolutely positioned on the left edge
-of the input row, centered vertically.
+### Inputs section
 
-### Output Handles (ContextAwareHandle)
+Each non-panel input renders a `RenderInput` row containing a
+`ContextAwareHandle` with `type='target'` and `position={Position.Left}`
+(absolutely positioned on the left edge), followed by either the input label or
+an inline editor.
 
-Each output renders a `ContextAwareHandle` with `type="source"` and
-`position=Position.Right`. The handle sits absolutely positioned on the right
-edge of the output row. Output text is right-aligned.
+Connection detection: inside ReactFlow, `RenderInput` calls
+`useNodeConnections({ handleId: input.id })` and computes
+`isConnected = connections.some(c => c.targetHandle === input.id)`. The inline
+editor is shown only when `input.allowInput && !isConnected`
+(`shouldShowInput`). When `shouldShowInput` is true the row uses tighter
+vertical padding (`py-1`).
 
 ### Input Panels (collapsible groups)
 
-Panels are detected by the presence of an `inputs` property on the input item.
-Each panel renders:
+Panels are detected by `'inputs' in input`. Each panel (`RenderInputPanel`)
+renders:
 
-- A `Button` header with a chevron icon (up when open, down when closed) and the
-  panel name
-- A collapsible `<div>` with `bg-[#272727]` that contains the panel's inputs
-- Panel open/close state is managed via `openPanels: Set<string>` in component
-  state (all panels start closed)
+- A `Button` header (transparent, hover `bg-primary-gray`) with a chevron icon
+  (`ChevronUpIcon` when open, `ChevronDownIcon` when closed) and the panel name.
+  The click handler calls `e.stopPropagation()` and `e.preventDefault()` before
+  toggling.
+- A collapsible `<div>` with `bg-[#272727]`. When closed it gets
+  `h-0 overflow-hidden`; its child `RenderInput` rows receive `hide={!isOpen}`
+  (which adds `h-0 overflow-hidden py-0`). The inputs stay mounted — only their
+  height collapses.
+- Panel open/close state lives in `openPanels: Set<string>` in component state,
+  toggled by `togglePanel(panelId)`. All panels start closed.
 
 ### Direct Inputs (ContextAwareInput)
 
-When an input has `allowInput=true` AND is not connected to another node, the
-label is replaced with an interactive input component:
+When an input has `allowInput=true` AND is not connected, the label is replaced
+with an interactive input component chosen by `input.type`:
 
-- `type: 'string'` renders an `<Input>` text field (or `ReactFlowAwareInput`
-  wrapper in ReactFlow mode)
-- `type: 'number'` renders a `<SliderNumberInput>` slider
-- `type: 'boolean'` renders a `<Checkbox>` with label
-- `type: 'unsupportedDirectly'` renders nothing
+- `'string'` with non-empty `allowedStrings` -> `<Select>` dropdown.
+- `'string'` otherwise -> `<Input>` text field (placeholder = input name,
+  `allowOnlyNumbers={false}`).
+- `'number'` -> `<SliderNumberInput>` (slider + numeric field combo).
+- `'boolean'` -> `<Checkbox>` with the input name as a label.
+- `'unsupportedDirectly'` with a `dataType` -> a custom component looked up in
+  the `InputComponentRegistry` by `dataType.dataTypeUniqueId`, if one is
+  registered; otherwise `null`.
 
-Connection detection uses `useNodeConnections()` from `@xyflow/react`.
+### Header Actions (ContextAwareNodeHeaderActions)
 
-### Open Button (ContextAwareOpenButton)
+`ConfigurableNode` computes a `headerActions: NodeHeaderActionDefinition[]`
+array each render, based on `nodeTypeUniqueId` and the node-type definition read
+from `FullGraphContext`:
 
-The open button renders a `SquareMousePointerIcon` from lucide-react. In
-ReactFlow mode, clicking dispatches `OPEN_NODE_GROUP` via
-`FullGraphContext.allProps.dispatch`. In standalone mode, the icon renders
-without a click handler.
+- `isLoopNode(nodeTypeUniqueId)` -> adds an **edit-loop** action (Pencil icon)
+  that dispatches `OPEN_DRAWER` with
+  `activeDrawer: { type: 'editLoop', nodeId }`.
+- `isSwitchNode(nodeTypeUniqueId)` -> adds an **edit-switch** action (Pencil
+  icon) dispatching `OPEN_DRAWER` with
+  `activeDrawer: { type: 'editSwitch', nodeId }`.
+- `hasSubtree` (the node type has a `subtree`, i.e. it is a node group) -> adds
+  two actions:
+  - **edit-node-type** (Pencil) dispatching `OPEN_DRAWER` with
+    `activeDrawer: { type: 'editNodeType', nodeTypeId: nodeTypeUniqueId }`.
+  - **open-node-group** (`SquareMousePointerIcon`) dispatching `OPEN_NODE_GROUP`
+    with `{ nodeId }`, to navigate into the group's subtree.
+
+`hasSubtree` is computed as
+`!!nodeTypeUniqueId && !!fullGraphContext?.allProps?.state?.typeOfNodes?.[nodeTypeUniqueId]?.subtree`.
 
 ### Resizer (NodeResizerWithMoreControls)
 
 Only rendered when `isCurrentlyInsideReactFlow=true`. Provides customizable
-resize controls using `@xyflow/react`'s `NodeResizeControl`:
+resize controls built on `@xyflow/react`'s `NodeResizeControl`. Notable defaults
+from
+`src/components/atoms/NodeResizerWithMoreControls/NodeResizerWithMoreControls.tsx`
+› `NodeResizerWithMoreControls`:
 
-- Default: horizontal-only resizing with left and right line controls
-- Supports configurable `linePosition`, `handlePosition`, `resizeDirection`
-- Supports `minWidth`, `minHeight`, `maxWidth`, `maxHeight` constraints
+- `linePosition = ['left', 'right']`, `handlePosition = []` (line-variant
+  controls on the left/right edges only by default).
+- `resizeDirection = 'horizontal'` (horizontal-only resizing).
+- `minWidth = 10`, `minHeight = 10`, `maxWidth = maxHeight = Number.MAX_VALUE`.
+- `isVisible = true` (returns `null` when false), `autoScale = true`,
+  `keepAspectRatio = false`.
+- Forwards `onResizeStart`, `onResize`, `onResizeEnd`, `shouldResize`, `color`,
+  and class/style overrides for lines and handles.
 
 ### Status Indicator (NodeStatusIndicator)
 
-When `runnerVisualState` is defined, the entire node content is wrapped in
-`NodeStatusIndicator`, which renders:
-
-- An outline overlay using CSS `outline` (not `border`, so no layout shift)
-- State-specific styling via the `visualState` prop
-- Error/warning tooltip icons positioned absolutely at top-right
+When `runnerVisualState !== undefined`, the entire node content is wrapped in
+`NodeStatusIndicator`, which renders a layout-neutral CSS `outline` overlay,
+state-specific glow/dimming, and error/warning tooltip icons. See the
+[Runner Visual State Integration](#runner-visual-state-integration) section and
+[`nodeStatusIndicatorDoc.md`](nodeStatusIndicatorDoc.md).
 
 ## Supporting Subcomponents
 
+Barrel:
+`src/components/organisms/ConfigurableNode/SupportingSubcomponents/index.ts`
+re-exports (via `export *`) `ContextAwareHandle`, `ContextAwareInput`,
+`ContextAwareNodeHeaderActions`, `ConfigurableNodeReactFlowWrapper`, and — from
+`src/components/organisms/ConfigurableNode/SupportingSubcomponents/ContextAwareHandleShapes.ts`
+— the `handleShapesMap` value and the `HandleShape` type. (There is no symbol
+literally named `ContextAwareHandleShapes`; that is the module/file name.)
+
 ### ContextAwareHandle
 
-**File:** `SupportingSubcomponents/ContextAwareHandle.tsx`
+**File:**
+`src/components/organisms/ConfigurableNode/SupportingSubcomponents/ContextAwareHandle.tsx`
+› `ContextAwareHandle`
 
 Renders a connection handle (port) for inputs or outputs with support for 13
 custom shapes. Operates in two modes:
 
 **ReactFlow mode** (`isCurrentlyInsideReactFlow=true`):
 
-- Renders a ReactFlow `<Handle>` component with transparent background
-- The actual shape is rendered inside the Handle as a non-interactive overlay
-- Uses `useNodeConnections()` to check connection count against `maxConnections`
-- Sets `isConnectable`, `isConnectableStart`, `isConnectableEnd` based on
-  remaining capacity
+- Renders a ReactFlow `<Handle>`
+  (`!w-6 !h-6 !border-none !bg-transparent !pointer-events-auto`) with a
+  transparent background.
+- The actual shape is rendered inside the Handle in a `pointer-events-none`
+  overlay via `renderHandleShape(shape, color, className)`.
+- Uses `useNodeConnections({ handleId: id, handleType: type })` to count
+  connections. When `maxConnections` is defined,
+  `canConnect = connections.length < maxConnections` and is passed to
+  `isConnectable`, `isConnectableStart`, and `isConnectableEnd`. When
+  `maxConnections` is undefined, those flags are left `undefined` (ReactFlow's
+  default — connectable).
 
 **Standalone mode** (`isCurrentlyInsideReactFlow=false`):
 
-- Renders an absolutely positioned `<div>` with the shape
-- Positioned based on `Position.Left` or `Position.Right`
+- Renders an absolutely positioned `<div>` with the shape, offset half its width
+  off the left edge (`Position.Left`) or right edge (`Position.Right`) and
+  vertically centered.
 
-**Available shapes (13):** circle, square, rectangle, list, grid, diamond,
-trapezium, hexagon, star, cross, zigzag, sparkle, parallelogram
+**Available shapes (13):** `circle`, `square`, `rectangle`, `list`, `grid`,
+`diamond`, `trapezium`, `hexagon`, `star`, `cross`, `zigzag`, `sparkle`,
+`parallelogram`. Defined in
+`src/components/organisms/ConfigurableNode/SupportingSubcomponents/ContextAwareHandleShapes.ts`
+› `handleShapes` (a `readonly` tuple), exposed via `handleShapesMap` and the
+`HandleShape` type. Default color is `#A1A1A1`; default shape is `circle`.
 
 Shapes are implemented via:
 
-- CSS `border-radius` (circle)
-- CSS `rotate` (diamond)
-- CSS `clip-path` polygons (trapezium, hexagon, star, parallelogram)
-- CSS `mask` (zigzag, sparkle)
-- Nested `<div>` grids (list, grid, cross)
+- CSS `border-radius` (circle) and `rotate-45` (diamond).
+- CSS `clip-path` polygons through `createBorderedClipPath` (trapezium, hexagon,
+  star, parallelogram) — a 2px black border layer behind a colored shape layer.
+- CSS `mask` (zigzag, sparkle).
+- Nested `<div>` rows/grids (list, grid, cross).
 
 ### ContextAwareInput
 
-**File:** `SupportingSubcomponents/ContextAwareInput.tsx`
+**File:**
+`src/components/organisms/ConfigurableNode/SupportingSubcomponents/ContextAwareInput.tsx`
+› `ContextAwareInput`
 
-Renders the appropriate inline input component based on the input's `type`.
-Operates in two modes:
+Chooses the appropriate inline editor based on `input.type`. Exports both
+`ContextAwareInput` and the internal `ReactFlowAwareInput`.
 
 **ReactFlow mode:** Delegates to `ReactFlowAwareInput`, which:
 
-- Uses `useReactFlow()` and `useNodeId()` to access the ReactFlow instance
-- On value change, calls `input.onChange()` AND updates the ReactFlow node data
-  via `reactflowContext.setNodes()` using
-  `updateHandleInNodeDataMatchingHandleId()`
-- This ensures both the callback and the ReactFlow state stay in sync
+- Reads `nodeId` via `useNodeId()` and `allProps` via
+  `useContext(FullGraphContext)`.
+- On every value change, calls the input's local `onChange` (if provided)
+  **and** dispatches `UPDATE_INPUT_VALUE` through `allProps.dispatch`:
+  ```ts
+  allProps.dispatch({
+    type: actionTypesMap.UPDATE_INPUT_VALUE,
+    payload: { nodeId, inputId: input.id, value: newValue as string | number },
+  });
+  ```
+  This keeps the local callback and the canonical graph state in sync. (Note:
+  this is the current mechanism — earlier versions mutated ReactFlow node data
+  directly via `setNodes()` + `updateHandleInNodeDataMatchingHandleId()`. That
+  is no longer how inline edits propagate.)
 
-**Standalone mode:** Renders the input component directly with only the
-`onChange` callback.
+**Standalone mode:** Renders the same component tree but only invokes the local
+`onChange` — there is no dispatch and no ReactFlow node id.
 
-**Supported input types:** | Type | Component | Notes |
-|------|-----------|-------| | `string` | `<Input>` | Text field with
-placeholder = input name | | `number` | `<SliderNumberInput>` | Slider + number
-input combo | | `boolean` | `<Checkbox>` | Checkbox with label (input name) | |
-`unsupportedDirectly` | `null` | No input rendered |
+**Supported input types:**
 
-### ContextAwareOpenButton
+| `type`                | Component (no `allowedStrings`) | Component (with `allowedStrings`)  | Notes                                                                                                |
+| --------------------- | ------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `string`              | `<Input>`                       | `<Select>` (`StringSelectForNode`) | Placeholder / value label = input name; Select offers deselect + "unsupported".                      |
+| `number`              | `<SliderNumberInput>`           | n/a                                | Slider + number-field combo.                                                                         |
+| `boolean`             | `<Checkbox>` + label            | n/a                                | `'indeterminate'` checkbox states are ignored.                                                       |
+| `unsupportedDirectly` | registry component or `null`    | n/a                                | Renders `inputComponentRegistry[input.dataType.dataTypeUniqueId]` when registered; otherwise `null`. |
 
-**File:** `SupportingSubcomponents/ContextAwareOpenButton.tsx`
+Custom components for `unsupportedDirectly` are resolved through
+`useInputComponentRegistry()`
+(`src/components/organisms/FullGraph/InputComponentRegistryContext.ts` ›
+`useInputComponentRegistry`). A registered component receives
+`{ value, onChange, name, dataTypeId }`.
 
-Conditionally renders a button for opening node groups (navigating into a
-subtree). Only renders when `showButton=true`.
+### ContextAwareNodeHeaderActions
 
-**ReactFlow mode:** Dispatches `OPEN_NODE_GROUP` action via
-`FullGraphContext.allProps.dispatch` with the current `nodeId` (from
-`useNodeId()`).
+**File:**
+`src/components/organisms/ConfigurableNode/SupportingSubcomponents/ContextAwareNodeHeaderActions.tsx`
+› `ContextAwareNodeHeaderActions`
 
-**Standalone mode:** Renders the icon without a click handler.
+Renders a row of clickable Lucide icons for header actions. Returns `null` when
+`actions` is empty.
+
+```ts
+type NodeHeaderActionDefinition = {
+  id: string;
+  icon: LucideIcon;
+  iconClassName?: string;
+  action: Action; // a mainReducer Action object
+};
+
+type ContextAwareNodeHeaderActionsProps = {
+  actions: NodeHeaderActionDefinition[];
+  isCurrentlyInsideReactFlow: boolean;
+};
+```
+
+For each action it renders the icon (`strokeWidth={2.5}`, default class
+`shrink-0 w-6 h-6 aspect-square cursor-pointer hover:opacity-80`, overridable
+via `iconClassName`). In **ReactFlow mode** the icon's `onClick` dispatches
+`actionDef.action` via `fullGraphContext?.allProps?.dispatch`. In **standalone
+mode** the `onClick` is `undefined`, so icons are inert.
+
+> This component **replaces** the former `ContextAwareOpenButton`. The "open
+> node group" behavior is now just one entry (`open-node-group`) in the actions
+> array.
 
 ### ConfigurableNodeReactFlowWrapper
 
-**File:** `SupportingSubcomponents/ConfigurableNodeReactFlowWrapper.tsx`
+**File:**
+`src/components/organisms/ConfigurableNode/SupportingSubcomponents/ConfigurableNodeReactFlowWrapper.tsx`
+› `ConfigurableNodeReactFlowWrapper`
 
-The bridge between ReactFlow's node type system and `ConfigurableNode`.
+The bridge between ReactFlow's node-type system and `ConfigurableNode`.
 Registered as `nodeTypes.configurableNode` in FullGraph.
+
+Its props type, `ConfigurableNodeReactFlowWrapperProps`, is
+`NodeProps<ConfigurableNodeState> & { position: XYPosition }`. The component
+itself is declared with `forwardRef<HTMLDivElement, Omit<…Props, 'position'>>`
+and destructures `{ data = {}, id }`.
 
 **Responsibilities:**
 
-1. Receives `NodeProps<ConfigurableNodeState>` from ReactFlow (includes `data`
-   and `id`)
-2. Reads `FullGraphContext` to get runner state for this node via
-   `nodeRunnerStates.get(id)`
-3. Spreads `data` as props to `ConfigurableNode`
-4. Sets `isCurrentlyInsideReactFlow=true`
-5. Passes `runnerVisualState`, `runnerErrors`, `runnerWarnings` from the runner
-   state
-6. Adds `className='w-full'` so the node fills its ReactFlow container width
+1. Reads `RunnerContext` and looks up `runnerContext?.nodeRunnerStates?.get(id)`
+   for this node's runner state.
+2. Wraps the node in an `<ErrorBoundary>` (`atoms/ErrorBoundary`):
+   - `resetKey={JSON.stringify(data)}` so the boundary resets when node data
+     changes.
+   - A fallback "Render Error" card (red-bordered,
+     `data-slot='error-boundary-node'`) showing an `AlertTriangle` icon beside
+     the "Render Error" label, the node name, the error message, and a "Retry"
+     button.
+   - `onError` logs `[ConfigurableNode:<id>] Render error:` to the console.
+3. Renders `<ConfigurableNode>` with:
+   - `isCurrentlyInsideReactFlow={true}`
+   - `id={id}`
+   - `className='w-full'` (so the node fills its ReactFlow container width)
+   - `{...data}` spread (this comes after `className`, so a `className` inside
+     `data` would override `'w-full'`)
+   - `runnerVisualState={nodeRunnerState?.visualState}`,
+     `runnerErrors={nodeRunnerState?.errors}`,
+     `runnerWarnings={nodeRunnerState?.warnings}`
+   - the forwarded `ref`.
 
 ## Runner Visual State Integration
 
-The runner provides per-node visual state through
-`FullGraphContext.nodeRunnerStates`, a `ReadonlyMap<string, NodeRunnerState>`
-where each entry contains:
+Per-node runner state is provided through **`RunnerContext`** (not
+`FullGraphContext`). `RunnerContext` is defined in
+`src/components/organisms/FullGraph/FullGraphState.ts` › `RunnerContext` and
+carries:
 
-```
-NodeRunnerState {
-  visualState: NodeVisualState    // 'idle' | 'running' | 'completed' | 'errored' | 'skipped' | 'warning'
-  errors?: ReadonlyArray<GraphError>
-  warnings?: ReadonlyArray<string>
-}
+```ts
+type RunnerContextValue = {
+  nodeRunnerStates: ReadonlyMap<string, NodeRunnerState>;
+  selectedStepRecord: ExecutionStepRecord | null;
+  edgeValuesAnimated: boolean;
+};
+
+type NodeRunnerState = {
+  visualState: NodeVisualState; // 'idle' | 'running' | 'completed'
+  // | 'errored' | 'skipped' | 'warning'
+  errors?: ReadonlyArray<GraphError>;
+  warnings?: ReadonlyArray<string>;
+};
 ```
 
 **Data flow:**
@@ -528,9 +729,9 @@ NodeRunnerState {
 ```
 useNodeRunner (hook)
   |
-  | produces Map<nodeId, NodeRunnerState>
+  | produces per-node visual state, errors, warnings
   v
-FullGraphContext.nodeRunnerStates
+RunnerContext.nodeRunnerStates  (ReadonlyMap<string, NodeRunnerState>)
   |
   | read by ConfigurableNodeReactFlowWrapper
   v
@@ -544,44 +745,58 @@ ConfigurableNode checks: runnerVisualState !== undefined?
   NO  -> renders content directly
 ```
 
+`NodeVisualState` is the literal union
+`'idle' | 'running' | 'completed' | 'errored' | 'skipped' | 'warning'`
+(`src/utils/nodeRunner/types.ts` › `NodeVisualState`).
+
 **NodeStatusIndicator visual mapping:**
 
-| NodeVisualState | Outline Style         | Glow Effect         | Icon                   | Overlay           |
-| --------------- | --------------------- | ------------------- | ---------------------- | ----------------- |
-| `idle`          | 5px solid transparent | none                | none                   | none              |
-| `running`       | 5px dashed blue       | breathing animation | none                   | none              |
-| `completed`     | 5px solid green       | green glow          | none                   | none              |
-| `errored`       | 5px solid red         | red glow            | AlertCircle (red)      | none              |
-| `skipped`       | 5px dashed gray       | none                | none                   | 30% black dimming |
-| `warning`       | 5px solid orange      | orange glow         | AlertTriangle (orange) | none              |
+| NodeVisualState | Outline                            | Glow / Extra                   | Icon                          |
+| --------------- | ---------------------------------- | ------------------------------ | ----------------------------- |
+| `idle`          | 5px solid transparent              | none                           | none                          |
+| `running`       | 5px dashed `--primary-blue`        | `running-glow` 2s animation    | none                          |
+| `completed`     | 5px solid `--status-completed`     | green box-shadow               | none                          |
+| `errored`       | 5px solid `--status-errored`       | red box-shadow                 | `AlertCircleIcon` (#FF4444)   |
+| `skipped`       | 5px dashed `--secondary-dark-gray` | opacity 50% + black/30 overlay | none                          |
+| `warning`       | 5px solid `--status-warning`       | orange box-shadow              | `AlertTriangleIcon` (#FFA500) |
 
-Error and warning icons show tooltips on hover using `@floating-ui/react`,
-displaying formatted error messages or warning text.
+The outline overlay div is always mounted (even at `idle`) so transitions are
+smooth when scrubbing the timeline. Error/warning icons sit at the top-right
+(`absolute top-1 right-1`) and show a `@floating-ui/react` tooltip on hover —
+errors are formatted via `formatGraphError()` and joined with `\n\n`; warnings
+are joined with `\n`.
 
 ## Limitations and Deprecated Patterns
 
-1. **No vertical handles**: Handles only support `Position.Left` (inputs) and
-   `Position.Right` (outputs). Top/bottom handle positions are not supported by
+1. **No vertical handles**: Handles only use `Position.Left` (inputs) and
+   `Position.Right` (outputs). Top/bottom positions are not part of
    ConfigurableNode's layout.
 
-2. **`unsupportedDirectly` type renders nothing**: Inputs with
-   `type: 'unsupportedDirectly'` and `allowInput: true` will not render any
-   input component — the `ContextAwareInput` returns `null` for this type.
+2. **`unsupportedDirectly` requires a `dataType` + registered component**: An
+   `unsupportedDirectly` input only renders an editor when it has a `dataType`
+   and a matching component is registered in the `InputComponentRegistry`.
+   Without a registered component (or without a `dataType`), `ContextAwareInput`
+   returns `null`.
 
-3. **Panel state is local**: The `openPanels` Set is local component state.
-   Panel open/close state is not persisted across re-renders that unmount the
-   node (e.g., navigating between group levels) and is not part of the
-   serializable graph state.
+3. **Panel state is local**: `openPanels` is local component state. It is not
+   persisted across unmounts (e.g. navigating between group levels) and is not
+   part of the serializable graph state.
 
-4. **Connection detection relies on hook ordering**: `RenderInput` conditionally
-   calls `useNodeConnections()` based on `isCurrentlyInsideReactFlow`. This is
-   technically a violation of the Rules of Hooks (conditional hook call), but is
-   safe because `isCurrentlyInsideReactFlow` is effectively constant for the
-   lifetime of a mounted node.
+4. **Connection detection relies on hook ordering**: `RenderInput` and
+   `ContextAwareHandle` conditionally call `useNodeConnections()` based on
+   `isCurrentlyInsideReactFlow`. This is technically a Rules-of-Hooks violation
+   (conditional hook call), but is safe because `isCurrentlyInsideReactFlow` is
+   effectively constant for a mounted node's lifetime.
 
-5. **No custom input renderers**: The input rendering is hardcoded to
-   string/number/boolean types. Custom input components for complex data types
-   are not supported — they fall through to the `unsupportedDirectly` case.
+5. **Inline editors persist to graph state via dispatch**: In ReactFlow mode,
+   inline edits dispatch `UPDATE_INPUT_VALUE`. The older direct-mutation path
+   (`setNodes()` + `updateHandleInNodeDataMatchingHandleId()`) is no longer used
+   by `ContextAwareInput` (that helper now lives only in
+   `src/utils/nodeStateManagement/handles/handleSetters.ts` ›
+   `updateHandleInNodeDataMatchingHandleId`).
+
+6. **`data.className` can override `'w-full'`**: The wrapper spreads `{...data}`
+   after `className='w-full'`, so a `className` stored in node `data` wins.
 
 ## Examples
 
@@ -622,7 +837,7 @@ displaying formatted error messages or warning text.
 />
 ```
 
-### Node with interactive inputs
+### Node with interactive inputs (text, number, boolean, dropdown)
 
 ```tsx
 <ConfigurableNode
@@ -645,6 +860,23 @@ displaying formatted error messages or warning text.
       handleColor: '#96CEB4',
       allowInput: true,
       value: 42,
+      onChange: (value) => console.log(value),
+    },
+    {
+      id: 'input3',
+      name: 'Enabled',
+      type: 'boolean',
+      allowInput: true,
+      value: true,
+      onChange: (value) => console.log(value),
+    },
+    {
+      id: 'input4',
+      name: 'Mode',
+      type: 'string',
+      allowInput: true,
+      allowedStrings: ['fast', 'balanced', 'precise'],
+      value: 'balanced',
       onChange: (value) => console.log(value),
     },
   ]}
@@ -676,6 +908,7 @@ displaying formatted error messages or warning text.
           name: 'Threshold',
           type: 'number',
           handleColor: '#96CEB4',
+          handleShape: 'diamond',
           allowInput: true,
         },
         {
@@ -713,7 +946,9 @@ const nodeTypes = {
       data: {
         name: 'My Node',
         headerColor: '#C44536',
-        inputs: [{ id: 'in1', name: 'Input', type: 'string' }],
+        inputs: [
+          { id: 'in1', name: 'Input', type: 'string', allowInput: true },
+        ],
         outputs: [{ id: 'out1', name: 'Output', type: 'string' }],
       },
     },
@@ -721,82 +956,106 @@ const nodeTypes = {
 />;
 ```
 
+> In practice you rarely register this wrapper by hand — `FullGraph` wires
+> `nodeTypes.configurableNode = ConfigurableNodeReactFlowWrapper` for you and
+> derives each node's `data` from `typeOfNodes`. Use the manual registration
+> above only when embedding the node in your own ReactFlow canvas.
+
 ## Relationships with Other Features
 
 ### -> [Handles](../core/handlesDoc.md)
 
 ConfigurableNode uses `ContextAwareHandle` for all connection ports. Each
-input/output handle is configured with a `HandleShape` from the 13 available
-shapes defined in `ContextAwareHandleShapes.ts`. Handle shapes are visually
-rendered inside transparent ReactFlow `<Handle>` elements, providing custom
-visual appearance while maintaining ReactFlow's connection interaction behavior.
+input/output handle is configured with a `HandleShape` from the 13 shapes in
+`src/components/organisms/ConfigurableNode/SupportingSubcomponents/ContextAwareHandleShapes.ts`
+› `handleShapes`. Handle shapes are rendered inside transparent ReactFlow
+`<Handle>` elements, providing custom visual appearance while keeping
+ReactFlow's connection interaction behavior. Connection capacity is enforced via
+`maxConnections` + `useNodeConnections()`.
 
 ### -> [Data Types](../core/dataTypesDoc.md)
 
 Each input and output optionally carries a `dataType` and `inferredDataType`
-reference. These are used by the FullGraph layer for type-safe edge validation
-(preventing incompatible connections). The `handleColor` and `handleShape` are
-typically derived from the data type definitions at the FullGraph level.
-ConfigurableNode itself does not perform type checking — it only renders the
-visual properties.
+reference. These are used by the FullGraph layer for type-safe edge validation.
+`handleColor` and `handleShape` are typically derived from the data type
+definitions at the FullGraph level. The `dataType.dataTypeUniqueId` also keys
+the `InputComponentRegistry` lookup for `unsupportedDirectly` inline editors.
+ConfigurableNode itself performs no type checking — it only renders the visual
+properties and the registered editor.
 
 ### -> [Nodes](../core/nodesDoc.md)
 
 ConfigurableNode is the visual representation of nodes defined in `typeOfNodes`.
-The FullGraph system maps each node type's definition (inputs, outputs, header
-color, name) to `ConfigurableNodeProps` stored as ReactFlow node `data`. The
-`nodeTypeUniqueId` prop links back to the type definition.
+FullGraph maps each node type's definition (inputs, outputs, header color, name,
+optional `subtree`) to `ConfigurableNodeProps` stored as ReactFlow node `data`.
+The `nodeTypeUniqueId` prop links back to the type definition and drives the
+loop/switch/group header actions.
 
-### -> [State Management (UPDATE_INPUT_VALUE, OPEN_NODE_GROUP dispatch)](../core/stateManagementDoc.md)
+### -> [State Management (UPDATE_INPUT_VALUE, OPEN_DRAWER, OPEN_NODE_GROUP)](../core/stateManagementDoc.md)
 
-Two state management dispatch paths exist:
+Two dispatch paths flow out of ConfigurableNode (both via
+`FullGraphContext.allProps.dispatch`):
 
-1. **Input value changes** (`ContextAwareInput` -> `ReactFlowAwareInput`): When
-   a user edits an inline input in ReactFlow mode, the value is updated via
-   `reactflowContext.setNodes()` using
-   `updateHandleInNodeDataMatchingHandleId()`. This updates the ReactFlow node
-   data directly, keeping the visual state and graph state in sync.
+1. **Inline input edits** (`ContextAwareInput` -> `ReactFlowAwareInput`):
+   dispatch `UPDATE_INPUT_VALUE` with `{ nodeId, inputId, value }`. The reducer
+   updates the canonical node data so visual state and graph state stay in sync.
 
-2. **Node group navigation** (`ContextAwareOpenButton` ->
-   `ReactFlowAwareOpenButton`): When a user clicks the open button on a node
-   group, the `OPEN_NODE_GROUP` action is dispatched via
-   `FullGraphContext.allProps.dispatch`. This navigates the FullGraph into the
-   group's subtree.
+2. **Header actions** (`ContextAwareNodeHeaderActions`): dispatch the action
+   object attached to each header icon:
+   - `OPEN_DRAWER` with
+     `activeDrawer: { type: 'editLoop' | 'editSwitch', nodeId }` or
+     `{ type: 'editNodeType', nodeTypeId }`.
+   - `OPEN_NODE_GROUP` with `{ nodeId }` to navigate into a node group's
+     subtree.
+
+The relevant action constants live in
+`src/utils/nodeStateManagement/mainReducer.ts` › `actionTypesMap`, and the
+`ActiveDrawer` union (`editLoop` | `editNodeType` | `editSwitch`) is defined in
+`src/utils/nodeStateManagement/types.ts` › `ActiveDrawer`.
 
 ### -> [Runner (visual state overlays)](../runner/runnerHookDoc.md)
 
 The runner integration is layered:
 
-1. `useNodeRunner` hook produces a `Map<nodeId, NodeRunnerState>` from execution
-   state
-2. This map is provided via `FullGraphContext.nodeRunnerStates`
-3. `ConfigurableNodeReactFlowWrapper` reads the map and passes runner state as
-   props
-4. `ConfigurableNode` conditionally wraps its content with `NodeStatusIndicator`
-5. `NodeStatusIndicator` renders CSS outline overlays and error/warning tooltip
-   icons
+1. `useNodeRunner` produces per-node visual state, errors, and warnings.
+2. These are exposed via `RunnerContext.nodeRunnerStates`
+   (`ReadonlyMap<string, NodeRunnerState>`).
+3. `ConfigurableNodeReactFlowWrapper` reads the map and passes the per-node
+   runner state as props.
+4. `ConfigurableNode` conditionally wraps its content in `NodeStatusIndicator`
+   when `runnerVisualState !== undefined`.
+5. `NodeStatusIndicator` renders the CSS outline overlay and error/warning
+   tooltip icons.
 
-This design avoids prop drilling and keeps the runner integration opt-in — nodes
-without runner state render normally without any overhead.
+This keeps the runner integration opt-in — nodes without runner state render
+normally without overhead.
+
+### -> [NodeStatusIndicator](nodeStatusIndicatorDoc.md)
+
+The status overlay atom that ConfigurableNode wraps its content with. See that
+doc for the full visual-state table, tooltip behavior, and CSS details.
 
 ### -> [FullGraph](fullGraphDoc.md)
 
 ConfigurableNode is rendered exclusively within FullGraph's ReactFlow canvas (in
 production use). FullGraph provides:
 
-- `FullGraphContext` with `allProps` (state + dispatch) and `nodeRunnerStates`
-- The `nodeTypes` registry that maps `'configurableNode'` to
-  `ConfigurableNodeReactFlowWrapper`
-- Edge connection validation and data type checking
-- The node lifecycle (add, remove, move, resize)
+- `FullGraphContext` with `allProps` (`{ state, dispatch }`), used for
+  `enableDebugMode`, subtree detection, inline-edit dispatch, and header
+  actions.
+- `RunnerContext` (via the runner overlay) with `nodeRunnerStates`.
+- `InputComponentRegistryContext` for custom inline editors.
+- The `nodeTypes` registry mapping `'configurableNode'` to
+  `ConfigurableNodeReactFlowWrapper`.
+- Edge connection validation, data-type checking, and the node lifecycle.
 
 ### -> [ReactFlow](../external/reactFlowDoc.md)
 
-ConfigurableNode integrates deeply with ReactFlow (@xyflow/react):
+ConfigurableNode integrates deeply with ReactFlow (`@xyflow/react`):
 
-- `<Handle>` components for connection ports
-- `useNodeConnections()` for connection state detection
-- `useReactFlow()` and `useNodeId()` for node data updates
-- `NodeResizeControl` for resize functionality
-- `Node<Data, Type>` generic for type-safe node state
-- `NodeProps` for the wrapper component interface
+- `<Handle>` components for connection ports.
+- `useNodeConnections()` for connection-state detection and capacity limits.
+- `useNodeId()` for resolving the current node id during inline edits.
+- `NodeResizeControl` (via `NodeResizerWithMoreControls`) for resizing.
+- `Node<Data, Type>` generic for type-safe node state.
+- `NodeProps` for the wrapper component interface.

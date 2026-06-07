@@ -21,6 +21,7 @@ function isDataHandle(h: {
   };
 }): boolean {
   const dtId = h.value.dataType?.dataTypeUniqueId;
+  if (!dtId) return false;
   return (
     dtId === standardDataTypeNamesMap.switchInfer ||
     (dtId !== standardDataTypeNamesMap.bindSwitchNodes &&

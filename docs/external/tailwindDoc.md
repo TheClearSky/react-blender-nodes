@@ -7,16 +7,18 @@ configured entirely through CSS (no `tailwind.config.ts`). The library ships a
 Blender-inspired dark theme with custom color tokens, animations, and utilities
 defined in `src/index.css` via the `@theme inline` block.
 
-Key dependencies:
+Key packages (`tailwindcss`, `@tailwindcss/vite`, and `tw-animate-css` are
+`devDependencies` — build/compile-time only; `clsx`, `tailwind-merge`, and
+`class-variance-authority` are runtime `dependencies`):
 
-| Package                    | Role                                      | Version |
-| -------------------------- | ----------------------------------------- | ------- |
-| `tailwindcss`              | Utility-first CSS framework (v4)          | ^4.1.12 |
-| `@tailwindcss/vite`        | Vite plugin for Tailwind v4               | ^4.1.13 |
-| `clsx`                     | Conditional class string builder          | ^2.1.1  |
-| `tailwind-merge`           | Deduplicates conflicting Tailwind classes | ^3.3.1  |
-| `class-variance-authority` | Variant-based component styling           | ^0.7.1  |
-| `tw-animate-css`           | Animation utilities for Tailwind          | ^1.3.8  |
+| Package                    | Role                                      | Version | Dependency type   |
+| -------------------------- | ----------------------------------------- | ------- | ----------------- |
+| `tailwindcss`              | Utility-first CSS framework (v4)          | ^4.1.12 | `devDependencies` |
+| `@tailwindcss/vite`        | Vite plugin for Tailwind v4               | ^4.1.13 | `devDependencies` |
+| `clsx`                     | Conditional class string builder          | ^2.1.1  | `dependencies`    |
+| `tailwind-merge`           | Deduplicates conflicting Tailwind classes | ^3.3.1  | `dependencies`    |
+| `class-variance-authority` | Variant-based component styling           | ^0.7.1  | `dependencies`    |
+| `tw-animate-css`           | Animation utilities for Tailwind          | ^1.3.8  | `devDependencies` |
 
 Styling architecture:
 
@@ -91,6 +93,43 @@ Used by the node runner execution system:
 | ------------ | ------------------------------------- |
 | `tooltip-bg` | `#181818`                             |
 | `font-main`  | `'DejaVu Sans', 'Roboto', sans-serif` |
+
+### Runner UI Tokens
+
+The node runner panel/timeline define their own surface and accent tokens (used
+as `bg-runner-*`, `border-runner-*`, etc.):
+
+| Token                        | Value                   |
+| ---------------------------- | ----------------------- |
+| `runner-panel-bg`            | `#222222`               |
+| `runner-toolbar-bg`          | `#262626`               |
+| `runner-inset-bg`            | `#161616`               |
+| `runner-pill-bg`             | `#383838`               |
+| `runner-timeline-box-bg`     | `#1a1a1a`               |
+| `runner-timeline-box-border` | `#333333`               |
+| `runner-ruler-bg`            | `#2c2c2c`               |
+| `runner-section-header-bg`   | `#2a2a2a`               |
+| `runner-value-bg`            | `#2a2a2a`               |
+| `runner-value-border`        | `#444444`               |
+| `runner-grid-line`           | `rgba(255,255,255,.04)` |
+| `runner-handle-dot`          | `#555555`               |
+| `runner-bar-completed`       | `#4f8a4f`               |
+| `runner-bar-errored`         | `#a64141`               |
+| `runner-scrubber-blue`       | `#4a85ff`               |
+
+### Animation Tokens
+
+The `@theme inline` block also exposes two named animation tokens (usable as
+`animate-slide-in-right` / `animate-tooltip`):
+
+| Token                      | Value                          |
+| -------------------------- | ------------------------------ |
+| `--animate-slide-in-right` | `slide-in-right 0.2s ease-out` |
+| `--animate-tooltip`        | `tooltip-in 0.15s ease-out`    |
+
+The `running-glow` and `edge-brightness-pulse` keyframes have no `--animate-*`
+token; they are applied inline (e.g.
+`animate-[running-glow_2s_ease-in-out_infinite]`).
 
 ### Color hierarchy (dark to light)
 
@@ -181,8 +220,11 @@ toggle.
 
 ### How it works
 
-1. The `@custom-variant dark (&:is(.dark *))` directive in `index.css` tells
-   Tailwind that `dark:` variants apply when an ancestor has the `.dark` class.
+1. The `@custom-variant dark (&:is(.dark *))` directive in `index.css` defines a
+   `dark:` variant that applies when an ancestor has the `.dark` class. In
+   practice almost no component uses `dark:` -- the only occurrence is a
+   vestigial `dark:aria-invalid:ring-destructive/40` in `Checkbox` carried over
+   from shadcn/ui boilerplate.
 
 2. The `:root` block defines light-mode shadcn/ui variables (unused in
    practice).
@@ -190,9 +232,13 @@ toggle.
 3. The `.dark` class block overrides these with dark-mode values using the
    `oklch` color space.
 
-4. The FullGraph component (the main entry point) renders with
-   `className="dark"` on its container, activating dark mode for the entire node
-   editor.
+4. The FullGraph component (the main entry point) does not add a `.dark`
+   className itself; it passes React Flow's `colorMode='dark'` prop, which
+   drives React Flow's own dark theming. The Blender look comes from the custom
+   color tokens being applied directly (e.g. `bg-primary-black`,
+   `bg-primary-dark-gray`), not from the `.dark` shadcn cascade. Because no
+   container carries the `.dark` class, the shadcn `dark:` overrides in the
+   `.dark` block are effectively dormant.
 
 ### Shadcn/ui variable layers
 
@@ -200,7 +246,7 @@ The project includes two layers of color tokens:
 
 ```
 Layer 1: Custom Blender tokens         Layer 2: shadcn/ui tokens
-(used by most components)              (used by shadcn/ui primitives)
+(used by all components)               (defined but effectively unused)
 
 @theme inline {                        .dark {
   --color-primary-black: #1d1d1d;        --background: oklch(0.145 0 0);
@@ -210,9 +256,12 @@ Layer 1: Custom Blender tokens         Layer 2: shadcn/ui tokens
 }                                      }
 ```
 
-Most hand-written components use the Blender tokens directly
-(`bg-primary-dark-gray`), while shadcn/ui-based components (Badge, Collapsible)
-use the shadcn token layer (`bg-background`, `text-foreground`).
+Components use the Blender tokens directly (`bg-primary-dark-gray`). The
+shadcn-derived primitives in `src/components/atoms` (such as `Button`,
+`Checkbox`, `Modal`) are restyled with Blender tokens too, so the shadcn token
+layer (`bg-background`, `text-foreground`, etc.) is not referenced by any
+component class in `src` -- those variables exist for completeness but are
+effectively unused.
 
 ## CSS Export (react-blender-nodes.css)
 
@@ -260,7 +309,8 @@ react-blender-nodes.css
   +-- Tailwind base/reset styles
   +-- tw-animate-css animation utilities
   +-- Custom @theme tokens (colors, fonts, radii)
-  +-- Custom @keyframes (running-glow, slide-in-right, tooltip-in)
+  +-- Custom @keyframes (running-glow, edge-brightness-pulse,
+  |                      slide-in-right, tooltip-in)
   +-- Custom utility: no-scrollbar
   +-- Vanilla CSS classes (.btn-press, .timeline-block, etc.)
   +-- shadcn/ui CSS variables (:root and .dark)
@@ -289,27 +339,40 @@ exact measurements:
 
 ### Pattern 3: cva for multi-variant components
 
-Only used in `Button` and `Badge` -- components with multiple visual variants:
+Used in `Button` and `Modal` -- components with multiple visual variants. The
+`Button` defines `color`, `applyHoverStyles`, and `size` variants, and resolves
+hover styles through `compoundVariants` (so the base `color` classes set only
+the resting appearance):
 
 ```tsx
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 cursor-pointer py-2 px-4 rounded-md',
+  'inline-flex items-center justify-center gap-2 cursor-pointer \
+  rounded-md transition-all font-main whitespace-nowrap text-primary-white \
+  disabled:cursor-not-allowed disabled:bg-secondary-dark-gray disabled:opacity-50 outline-none focus-visible:outline-none border',
   {
     variants: {
       color: {
-        dark: 'bg-secondary-black border-secondary-dark-gray hover:bg-primary-dark-gray',
-        lightNonPriority: 'bg-primary-gray hover:bg-secondary-light-gray',
-        lightPriority: 'bg-primary-gray hover:bg-primary-light-gray',
+        dark: 'bg-secondary-black border-secondary-dark-gray',
+        lightNonPriority: 'bg-primary-gray border-transparent',
+        lightPriority: 'bg-primary-gray border-transparent',
+        lightParentGroupBasedHover: 'bg-primary-gray border-transparent',
       },
       applyHoverStyles: { true: '', false: '' },
+      size: {
+        normal: 'py-2 px-4 text-[27px] leading-[27px]',
+        small: 'py-2 px-3 text-[16px] leading-[13px] rounded-sm',
+      },
     },
+    defaultVariants: { color: 'dark', applyHoverStyles: true, size: 'normal' },
     compoundVariants: [
-      /* color + hover combinations */
+      /* color + applyHoverStyles -> hover:bg-* combinations */
     ],
-    defaultVariants: { color: 'dark', applyHoverStyles: true },
   },
 );
 ```
+
+`Modal` uses a smaller `modalContentVariants` with a single `size` variant (`sm`
+/ `md` / `lg`) controlling `max-w-*`.
 
 ### Pattern 4: Named group hover states
 
@@ -343,6 +406,7 @@ CSS classes in `index.css`:
 | `.timeline-block`        | `filter: brightness(1.15)` on `:hover`     |
 | `.scrubber-glow`         | Blue drop-shadow glow                      |
 | `.node-runner-scrollbar` | Thin custom scrollbar (4px, #444444 thumb) |
+| `.timeline-scrollbar`    | Thin custom scrollbar (6px, #555 thumb)    |
 | `.no-scrollbar`          | Hides scrollbar completely (utility)       |
 
 ### Pattern 7: Inline styles for dynamic values
@@ -369,7 +433,7 @@ color tokens.
 
 ### Do not hardcode hex values in className
 
-Prefer the semantic tokens over raw hex values:
+Prefer the semantic tokens over raw hex values when one exists for the color:
 
 ```tsx
 // Bad
@@ -378,6 +442,13 @@ Prefer the semantic tokens over raw hex values:
 // Good
 <div className="bg-primary-dark-gray">
 ```
+
+This is an aspirational guideline rather than a universally enforced rule: a few
+existing components still hardcode a hex that has an equivalent token. For
+example, `Modal` (`modalContentVariants` in
+`src/components/atoms/Modal/Modal.tsx`) uses `bg-[#222222]`, which is the same
+value as the existing `runner-panel-bg` token
+(`--color-runner-panel-bg: #222222`) and could be written `bg-runner-panel-bg`.
 
 ### Avoid conflicting with the exported CSS
 
@@ -456,6 +527,10 @@ The import/export dialogs and controls follow the same Button variant system
 
 ### [FullGraph (Top-Level Container)](../ui/fullGraphDoc.md)
 
-The FullGraph component is the root that applies the `dark` class, activating
-the entire dark theme cascade for all child components. The graph background
-uses `bg-primary-black` as the canvas color.
+The FullGraph component is the root, but it does **not** add a `.dark` className
+(see "Dark Mode" above). Instead it passes React Flow's `colorMode='dark'` prop,
+which drives React Flow's own dark theming. The Blender look comes from the
+custom color tokens being applied directly on individual elements (e.g.
+`bg-primary-dark-gray`), not from a `.dark` cascade. The canvas background is
+rendered by React Flow's own `<Background />` component (combined with
+`colorMode='dark'`), rather than a `bg-primary-black` utility on the wrapper.

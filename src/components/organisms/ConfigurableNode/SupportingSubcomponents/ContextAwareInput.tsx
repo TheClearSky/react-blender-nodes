@@ -1,4 +1,5 @@
-import { useReactFlow, useNodeId } from '@xyflow/react';
+import { useNodeId } from '@xyflow/react';
+import { useContext } from 'react';
 import { Input } from '@/components/atoms';
 import { SliderNumberInput } from '@/components/molecules';
 import {
@@ -10,9 +11,10 @@ import {
   SelectUnsupportedItem,
 } from '@/components/molecules/Select/Select';
 import type { ConfigurableNodeInput } from '../ConfigurableNode';
-import { updateHandleInNodeDataMatchingHandleId } from '@/utils/nodeStateManagement/handles/handleSetters';
 import { Checkbox } from '@/components/atoms/Checkbox/Checkbox';
 import { useInputComponentRegistry } from '@/components/organisms/FullGraph/InputComponentRegistryContext';
+import { FullGraphContext } from '@/components/organisms/FullGraph/FullGraphState';
+import { actionTypesMap } from '@/utils/nodeStateManagement/mainReducer';
 
 type ReactFlowAwareInputProps = {
   input: ConfigurableNodeInput;
@@ -51,28 +53,19 @@ function StringSelectForNode({
 }
 
 const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
-  const reactflowContext = useReactFlow();
   const nodeId = useNodeId();
+  const { allProps } = useContext(FullGraphContext);
   const inputComponentRegistry = useInputComponentRegistry();
   const updateNodeValue = (newValue: unknown) => {
-    reactflowContext.setNodes((nodes) =>
-      nodes.map((currentNode) => {
-        if (currentNode.id === nodeId) {
-          return {
-            ...currentNode,
-            data: updateHandleInNodeDataMatchingHandleId(
-              currentNode.data,
-              input.id,
-              { value: newValue },
-              true,
-              false,
-              false,
-            ),
-          };
-        }
-        return currentNode;
-      }),
-    );
+    if (!nodeId) return;
+    allProps.dispatch({
+      type: actionTypesMap.UPDATE_INPUT_VALUE,
+      payload: {
+        nodeId,
+        inputId: input.id,
+        value: newValue as string | number,
+      },
+    });
   };
 
   if (input.type === 'string') {

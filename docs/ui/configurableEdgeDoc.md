@@ -2,16 +2,27 @@
 
 ## Overview
 
-ConfigurableEdge is a custom ReactFlow edge component that renders bezier-curve
-connections between nodes. Its primary distinguishing feature is automatic
-gradient coloring: the edge color transitions smoothly from the source handle's
-color to the target handle's color. It also implements viewport optimization via
-the IntersectionObserver API, reducing visual prominence for edges that leave
-the visible area.
+ConfigurableEdge is the custom ReactFlow edge component that renders
+bezier-curve connections between nodes. It has three distinguishing
+responsibilities:
+
+1. **Gradient coloring** — the edge color transitions smoothly from the source
+   handle's color to the target handle's color via an SVG `<linearGradient>`.
+2. **Viewport optimization** — an `IntersectionObserver` dims edges that leave
+   the visible canvas (`opacity-25`) rather than fully hiding them.
+3. **Runner value inspection** — when a step is selected in the runner timeline,
+   each edge that carries a value for that step displays a value "pill" that
+   either travels along the path (animated) or sits at the path midpoint
+   (static), while the edge itself pulses.
 
 The component lives in
-`src/components/atoms/ConfigurableEdge/ConfigurableEdge.tsx` and is registered
-as the `configurableEdge` edge type in FullGraph.
+`src/components/atoms/ConfigurableEdge/ConfigurableEdge.tsx` ›
+`ConfigurableEdge` and is registered as the `configurableEdge` edge type in
+`src/components/organisms/FullGraph/FullGraphCustomNodesAndEdges.ts` ›
+`edgeTypes`.
+
+**Source:** `src/components/atoms/ConfigurableEdge/ConfigurableEdge.tsx` ›
+`ConfigurableEdge`
 
 ## Entity-Relationship Diagram
 
@@ -19,19 +30,21 @@ as the `configurableEdge` edge type in FullGraph.
 +---------------------+         +------------------------+
 | ConfigurableEdge    |         | ReactFlow BaseEdge     |
 |---------------------|         |------------------------|
-| id                  |-------->| path, label, style     |
-| sourceX, sourceY    |         | markerStart, markerEnd |
-| targetX, targetY    |         | interactionWidth       |
-| sourcePosition      |         +------------------------+
-| targetPosition      |
-| source (node id)    |--+
-| target (node id)    |  |
-| sourceHandleId      |  |   +---------------------------+
-| targetHandleId      |  |   | Node Data                 |
+| id                  |-------->| id, path               |
+| sourceX, sourceY    |         | label, labelStyle      |
+| targetX, targetY    |         | markerStart, markerEnd |
+| sourcePosition      |         | interactionWidth       |
+| targetPosition      |         | className, style       |
+| ...props:           |         | focusable              |
+|   source (node id)  |--+      +------------------------+
+|   target (node id)  |  |
+|   sourceHandleId    |  |   +---------------------------+
+|   targetHandleId    |  |   | Node Data (useNodesData)  |
 +---------------------+  |   |---------------------------|
-                          +-->| inputs[]                  |
+                          +-->| inputs[]  (with panels)   |
                               | outputs[]                 |
-                              | (each has handleColor)    |
+                              | each handle: handleColor, |
+                              |   name, id                |
                               +---------------------------+
                                           |
                                           v
@@ -40,52 +53,88 @@ as the `configurableEdge` edge type in FullGraph.
                               | MatchingHandleId()        |
                               |---------------------------|
                               | Searches inputs/outputs   |
-                              | Returns handle + indices  |
+                              | (incl. panel-nested)      |
+                              | Returns                   |
+                              |   HandleAndRelated-       |
+                              |   Information | undefined |
                               +---------------------------+
+
++---------------------+         +------------------------+
+| RunnerContext       |         | ExecutionStepRecord    |
+| (optional)          |-------->| (selectedStepRecord)   |
+|---------------------|         |------------------------|
+| nodeRunnerStates    |         | nodeId                 |
+| selectedStepRecord  |         | inputValues            |
+| edgeValuesAnimated  |         |   (handleName ->       |
++---------------------+         |    RecordedInputHandle |
+                                |    Value.connections[])|
+                                | outputValues           |
+                                |   (handleName ->       |
+                                |    RecordedOutput-     |
+                                |    HandleValue.value)  |
+                                +------------------------+
 ```
 
 ## Data Flow Diagram
 
 ```
-  ReactFlow renders edge
+  ReactFlow renders edge (type === 'configurableEdge')
            |
            v
   +-------------------+
   | ConfigurableEdge  |
-  | receives props    |
+  | receives EdgeProps|
   +-------------------+
            |
-     +-----+-----+
-     |           |
-     v           v
- getBezierPath  useNodesData(source)
- (path calc)    useNodesData(target)
-     |           |
-     |     +-----+-----+
-     |     |           |
-     |     v           v
-     |  getHandle   getHandle
-     |  (source)    (target)
-     |     |           |
-     |     v           v
-     |  sourceColor  targetColor
-     |  (fallback:   (fallback:
-     |   #A1A1A1)     #A1A1A1)
-     |     |           |
-     +-----+-----+-----+
-                 |
-                 v
-     +------------------------+
-     | SVG <linearGradient>   |
-     | source color -> target |
-     +------------------------+
-                 |
-                 v
-     +------------------------+
-     | BaseEdge renders with  |
-     | stroke: url(#gradient) |
-     | + viewport opacity     |
-     +------------------------+
+     +-----+-----------+------------------+
+     |                 |                  |
+     v                 v                  v
+ getBezierPath   useNodesData(source)  useContext(RunnerContext)
+ -> [edgePath,   useNodesData(target)        |
+     labelX,           |                     v
+     labelY]     +-----+-----+         selectedStepRecord
+     |           |           |         edgeValuesAnimated
+     |           v           v               |
+     |  getHandleFromNode  getHandle...   +---+--------------------+
+     |  ...MatchingHandle  (target)       | inputMatch (useMemo)   |
+     |  Id (source)            |          |  edge.target === step  |
+     |     |                   |          |  .nodeId? scan         |
+     |     v                   v          |  inputValues[].        |
+     |  ?.value.handleColor    same       |  connections for src   |
+     |  ?? '#A1A1A1'                       +-----------+------------+
+     |     |                   |                       |
+     |     |                   |          +------------+------------+
+     |     |                   |          | outputMatch (useMemo)  |
+     |     |                   |          |  edge.source === step  |
+     |     |                   |          |  .nodeId? resolve      |
+     |     |                   |          |  handle name, read     |
+     |     |                   |          |  outputValues.get(name)|
+     |     |                   |          +-----------+------------+
+     |     |                   |                      |
+     |     |                   |          match = inputMatch.found
+     |     |                   |               ? inputMatch : outputMatch
+     |     |                   |                      |
+     |     |                   |          formattedValue =
+     |     |                   |            match.found
+     |     |                   |              ? formatEdgeValue(value)
+     |     |                   |              : null
+     +-----+----+----+---------+----------------------+
+                |    |                                |
+                v    v                                v
+       +------------------------+         +------------------------+
+       | <defs><linearGradient> |         | value pill (when       |
+       | x1/y1 = source, x2/y2  |         | formattedValue != null)|
+       | = target, two <stop>s  |         | animated: <animate-    |
+       +-----------+------------+         | Motion path=edgePath/> |
+                   |                      | static: translate(     |
+                   v                      |   labelX, labelY)      |
+       +------------------------+         +------------------------+
+       | <BaseEdge>             |
+       | stroke: url(#gradient) |
+       | + opacity-25 if off-   |
+       |   screen + pulse if    |
+       |   value shown          |
+       +------------------------+
 ```
 
 ## Type Definitions
@@ -96,11 +145,11 @@ as the `configurableEdge` edge type in FullGraph.
 type ConfigurableEdgeState = Edge<{}, 'configurableEdge'>;
 ```
 
-A ReactFlow `Edge` type with an empty data record and the type literal
+A ReactFlow `Edge` type with an empty data record (`{}`) and the type literal
 `'configurableEdge'`. This is the state shape stored in the ReactFlow edge
-store. The empty data record means all rendering information (colors, path) is
-derived at render time from node data and positional props rather than stored on
-the edge itself.
+store. The empty data record means all rendering information (colors, path,
+value pills) is derived at render time from node data, positional props, and the
+runner context — none of it is persisted on the edge itself.
 
 ### ConfigurableEdgeProps
 
@@ -109,24 +158,33 @@ type ConfigurableEdgeProps = EdgeProps<ConfigurableEdgeState>;
 ```
 
 The full props received by the component, derived from ReactFlow's `EdgeProps`
-generic. Key fields include:
+generic. The component destructures `id`, `sourceX`, `sourceY`, `targetX`,
+`targetY`, `sourcePosition`, `targetPosition` directly and gathers the remaining
+fields under `...props` (notably `source`, `target`, `sourceHandleId`,
+`targetHandleId`, `label`, `labelStyle`, `markerStart`, `markerEnd`,
+`interactionWidth`).
 
-| Prop             | Type        | Description                         |
-| ---------------- | ----------- | ----------------------------------- |
-| `id`             | `string`    | Unique edge identifier              |
-| `sourceX`        | `number`    | X coordinate of source endpoint     |
-| `sourceY`        | `number`    | Y coordinate of source endpoint     |
-| `targetX`        | `number`    | X coordinate of target endpoint     |
-| `targetY`        | `number`    | Y coordinate of target endpoint     |
-| `sourcePosition` | `Position`  | Cardinal direction of source handle |
-| `targetPosition` | `Position`  | Cardinal direction of target handle |
-| `source`         | `string`    | ID of the source node               |
-| `target`         | `string`    | ID of the target node               |
-| `sourceHandleId` | `string`    | ID of the specific source handle    |
-| `targetHandleId` | `string`    | ID of the specific target handle    |
-| `label`          | `ReactNode` | Optional edge label                 |
-| `markerStart`    | `string`    | Optional start marker               |
-| `markerEnd`      | `string`    | Optional end marker                 |
+| Prop               | Type             | Description                                                         |
+| ------------------ | ---------------- | ------------------------------------------------------------------- |
+| `id`               | `string`         | Unique edge identifier (used as the SVG element id and gradient id) |
+| `sourceX`          | `number`         | X coordinate of source endpoint                                     |
+| `sourceY`          | `number`         | Y coordinate of source endpoint                                     |
+| `targetX`          | `number`         | X coordinate of target endpoint                                     |
+| `targetY`          | `number`         | Y coordinate of target endpoint                                     |
+| `sourcePosition`   | `Position`       | Cardinal direction of source handle                                 |
+| `targetPosition`   | `Position`       | Cardinal direction of target handle                                 |
+| `source`           | `string`         | ID of the source node (in `...props`)                               |
+| `target`           | `string`         | ID of the target node (in `...props`)                               |
+| `sourceHandleId`   | `string \| null` | ID of the specific source handle                                    |
+| `targetHandleId`   | `string \| null` | ID of the specific target handle                                    |
+| `label`            | `ReactNode`      | Optional edge label (forwarded to `BaseEdge`)                       |
+| `labelStyle`       | `CSSProperties`  | Optional label style (forwarded)                                    |
+| `markerStart`      | `string`         | Optional start marker (forwarded)                                   |
+| `markerEnd`        | `string`         | Optional end marker (forwarded)                                     |
+| `interactionWidth` | `number`         | Optional invisible click target width (forwarded)                   |
+
+Both `ConfigurableEdgeProps` and `ConfigurableEdgeState` are exported as types
+from the module.
 
 ## Rendering
 
@@ -135,22 +193,34 @@ generic. Key fields include:
 Each edge displays a linear gradient that transitions from the source handle's
 color to the target handle's color:
 
-1. **Color lookup** -- `useNodesData` fetches the current data for the source
-   and target nodes. The `getHandleFromNodeDataMatchingHandleId` utility
-   searches the node's `inputs[]` and `outputs[]` arrays (including handles
-   nested inside collapsible panels) to find the matching handle by ID.
+1. **Color lookup** — `useNodesData(props.source)` and
+   `useNodesData(props.target)` fetch the current data for the source and target
+   nodes. The `getHandleFromNodeDataMatchingHandleId(handleId, nodeData)`
+   utility searches the node's `inputs[]` and `outputs[]` arrays (including
+   handles nested inside collapsible input panels, via the
+   `handleIteratorIncludingIndices` generator) to find the matching handle by
+   ID. It returns a `HandleAndRelatedInformation` object whose `value` is the
+   matched handle; the color is read from `value.handleColor`.
 
-2. **Fallback** -- If a handle is not found or has no `handleColor`, the default
-   `#A1A1A1` (medium gray) is used.
+2. **Fallback** — If a handle is found but has no `handleColor`, the default
+   `#A1A1A1` (medium gray) is used (`?? '#A1A1A1'`). If `props.source` /
+   `props.target` is falsy or the node data has not loaded, the color memo
+   returns `undefined` (no `<stop>` color), which the browser renders as black.
 
-3. **SVG gradient** -- An SVG `<linearGradient>` element is defined in `<defs>`
+3. **Reactivity** — The colors are computed in `useMemo` blocks keyed on
+   `[props.source, sourceNodeData]` and `[props.target, targetNodeData]`.
+   Because `useNodesData` reactively subscribes to node-data changes, editing a
+   handle's color updates the connected edges automatically.
+
+4. **SVG gradient** — An SVG `<linearGradient>` element is emitted in `<defs>`
    with:
    - `gradientUnits="userSpaceOnUse"` so coordinates map to the SVG viewport
    - `x1/y1` set to `sourceX/sourceY`, `x2/y2` set to `targetX/targetY`
-   - Two `<stop>` elements at offsets `0` and `1` for source and target colors
+   - Two `<stop>` elements at offsets `0` (source) and `1` (target)
+   - `id={`linear-gradient-edge-${id}`}`
 
-4. **Application** -- The gradient is applied via
-   `stroke: url(#linear-gradient-edge-{id})` on the `BaseEdge` style prop.
+5. **Application** — The gradient is applied via
+   `style={{ stroke: `url(#linear-gradient-edge-${id})` }}` on the `BaseEdge`.
 
 ```
  Source Handle            Target Handle
@@ -168,10 +238,11 @@ color to the target handle's color:
 
 ### Bezier Curves
 
-The edge path is computed via ReactFlow's `getBezierPath` utility:
+The edge path is computed via ReactFlow's `getBezierPath` utility, which returns
+a 3-tuple `[path, labelX, labelY]`:
 
 ```typescript
-const [edgePath] = getBezierPath({
+const [edgePath, labelX, labelY] = getBezierPath({
   sourceX,
   sourceY,
   sourcePosition,
@@ -181,9 +252,11 @@ const [edgePath] = getBezierPath({
 });
 ```
 
-This produces a cubic bezier SVG path string with control points determined by
-the source and target positions (cardinal directions). The path is passed
-directly to `BaseEdge` as the `path` prop.
+- `edgePath` is a cubic-bezier SVG path string (control points determined by the
+  source/target cardinal positions). It is passed to `BaseEdge` as `path` and
+  reused as the motion path for the animated value pill (see below).
+- `labelX` / `labelY` are the midpoint coordinates of the curve, used to
+  position the static value pill.
 
 ### Viewport Optimization
 
@@ -191,21 +264,25 @@ The component uses the browser's `IntersectionObserver` API to detect when an
 edge leaves the visible viewport:
 
 1. **Observer setup** (in `useEffect`):
-   - Root element: ReactFlow's DOM container (`store.getState().domNode`)
+   - Root element: ReactFlow's DOM container (`store.getState().domNode`); the
+     effect bails out early if it is falsy.
    - Target element: the edge's SVG element, found via
-     `document.getElementById(id)`
-   - Threshold: `1` (triggers when the element is 100% visible)
+     `document.getElementById(id)` (the `BaseEdge` is rendered with `id={id}`);
+     the effect bails out early if it is not found.
+   - Threshold: `1` (triggers when the element is 100% intersecting)
    - Root margin: `20px` (provides a small buffer zone)
+   - The observer callback finds the entry whose `target.id === id` and calls
+     `setIsInViewport(entry.isIntersecting)`.
 
-2. **State tracking**: `isInViewport` boolean state toggles based on observer
-   callbacks.
+2. **State tracking** — `isInViewport` boolean state (initialized to `true`).
+   The active observer is also stored in a `useRef` (`domIntersectionObserver`).
 
-3. **Visual effect**: When `isInViewport` is `false`, the edge receives
+3. **Visual effect** — When `isInViewport` is `false`, the edge receives
    `opacity-25` via Tailwind, making off-screen edges semi-transparent rather
-   than fully hidden. This provides a graceful visual degradation.
+   than fully hidden — a graceful visual degradation.
 
-4. **Cleanup**: The observer disconnects on component unmount via the effect's
-   cleanup function.
+4. **Cleanup** — The effect's cleanup function disconnects the observer and
+   resets the ref to `null` on unmount (and before re-running).
 
 ```
 +------ Viewport (ReactFlow container) ------+
@@ -220,49 +297,156 @@ edge leaves the visible viewport:
                               opacity drops to 0.25
 ```
 
-**Additional CSS classes**:
+### Runner Value Inspection (edge value pills)
 
-- `stroke-7!` -- Forces a stroke width of 7 (Tailwind arbitrary value with
-  `!important`)
-- `in-[g.selected]:brightness-150` -- Increases brightness when the edge is
-  selected (within a selected `<g>` group)
+When the runner timeline has a selected step, ConfigurableEdge can display the
+value that flowed across the edge during that step. This is opt-in: it only
+activates when a `RunnerContext` value is present and a step is selected.
 
-## Limitations and Deprecated Patterns
+1. **Context read** — `const runnerCtx = useContext(RunnerContext)` reads the
+   `RunnerContextValue` (provided by `RunnerOverlay`):
+   `{ nodeRunnerStates, selectedStepRecord, edgeValuesAnimated }`. Outside a
+   runner overlay, `runnerCtx` is `undefined` and no pill is rendered.
 
-- **Threshold of 1**: The `IntersectionObserver` threshold is set to `1`,
-  meaning the callback fires only when the element is _fully_ visible or _fully_
-  not. Partially visible edges may not trigger the transition, which could cause
-  brief visual artifacts during scrolling.
-- **`store.getState().domNode` in dependency array**: The `useEffect` uses
-  `store.getState().domNode` as a dependency. Since `store.getState()` returns a
-  snapshot, this may not trigger re-runs if the DOM node reference changes. In
-  practice, the ReactFlow DOM node is stable for the component's lifetime.
-- **Unused `ref` parameter**: The component uses `forwardRef` but discards the
-  ref (`_`). The ref is not forwarded to any DOM element. This may be a pattern
-  left over from an earlier iteration or kept for API compatibility.
+2. **Input match** (`inputMatch`, `useMemo`) — When `props.target` equals
+   `selectedStepRecord.nodeId`, the component scans the step's `inputValues` (a
+   `ReadonlyMap<handleName, RecordedInputHandleValue>`). For every connection in
+   every input handle, it matches `conn.sourceNodeId === props.source` and
+   `conn.sourceHandleId === (props.sourceHandleId ?? '')`. On a hit it returns
+   `{ found: true, value: conn.value }`.
+
+3. **Output match** (`outputMatch`, `useMemo`) — When `props.source` equals
+   `selectedStepRecord.nodeId`, the component resolves the source handle by ID
+   using
+   `getHandleFromNodeDataMatchingHandleId(sourceHandleId, sourceNodeData.data, false)`.
+   The third argument (`runForInputs = false`) makes the getter skip inputs and
+   search **outputs only**. It then reads
+   `step.outputValues.get(handle.value.name)` (keyed by handle **name**) and, if
+   present, returns `{ found: true, value: outputVal.value }`.
+
+4. **Resolution** — `const match = inputMatch.found ? inputMatch : outputMatch`.
+   `formattedValue = match.found ? formatEdgeValue(match.value) : null`.
+
+5. **Pill geometry** — Pill width is estimated from the text length:
+   `Math.max(40, formattedValue.length * 7.5 + 20)`; height is fixed at `22`.
+   The rounded rect uses `fill='#282828'`, `stroke='#444444'`, `rx={6}`; the
+   text uses `fill='#e6e6e6'`, `fontSize={11}`, `fontFamily='var(--font-main)'`,
+   centered via `textAnchor='middle'` + `dominantBaseline='central'`.
+
+6. **Animated vs. static** —
+   `const animated = runnerCtx?.edgeValuesAnimated ?? true`:
+   - **Animated** — the pill `<g>` contains an
+     `<animateMotion dur='2.5s' repeatCount='indefinite' path={edgePath} />`, so
+     the pill travels along the same bezier path as the edge.
+   - **Static** — the pill `<g>` is positioned at the curve midpoint with
+     `transform={`translate(${labelX}, ${labelY})`}`.
+   - In both cases the `<g>` is `pointerEvents='none'` so it never intercepts
+     clicks.
+
+7. **Edge pulse** — Whenever `formattedValue !== null`, the `BaseEdge` also gets
+   the class `animate-[edge-brightness-pulse_1.5s_ease-in-out_infinite]`. The
+   `edge-brightness-pulse` keyframe (defined in `src/index.css`) oscillates
+   `opacity` between `1` (0%/100%) and `0.35` (50%), drawing attention to edges
+   that carry the inspected step's data.
+
+```
+ selectedStepRecord.nodeId === edge.target   -> inputMatch  (value from connections[])
+ selectedStepRecord.nodeId === edge.source   -> outputMatch (value from outputValues)
+                          |
+                          v
+                  formattedValue
+                          |
+            +-------------+--------------+
+            | animated?                  |
+            v                            v
+   <animateMotion path=edgePath>   translate(labelX, labelY)
+   pill rides the curve            pill pinned at midpoint
+            \____________ + edge pulses ____________/
+```
+
+### `formatEdgeValue` (value formatting)
+
+A module-level helper that turns an arbitrary `unknown` value into a short
+display string for the pill:
+
+| Input                 | Output                                     |
+| --------------------- | ------------------------------------------ |
+| `undefined`           | `undefined`                                |
+| `null`                | `null`                                     |
+| `boolean`             | `true` / `false`                           |
+| `number`              | `String(value)`                            |
+| `string` (short)      | `"value"` (wrapped in quotes)              |
+| `string` (> 12 chars) | `"first 11 chars…"` (truncated + ellipsis) |
+| `Map`                 | `Map(<size>)`                              |
+| `Array`               | `[<length>]`                               |
+| other `object`        | `{<key count>}`                            |
+| anything else         | `String(value)`                            |
+
+The truncation limit is the module constant `MAX_EDGE_VALUE_LENGTH = 12`.
+
+### CSS classes on `BaseEdge`
+
+The `className` is composed via `cn(...)` (from `@/utils`):
+
+- `stroke-7!` — forces a stroke width of 7 (Tailwind arbitrary value with
+  `!important`).
+- `in-[g.selected]:brightness-150` — increases brightness when the edge is
+  selected (i.e., rendered inside a ReactFlow `<g class="selected">`).
+- `opacity-25` — applied only when `!isInViewport` (off-screen dimming).
+- `animate-[edge-brightness-pulse_1.5s_ease-in-out_infinite]` — applied only
+  when `formattedValue !== null` (runner value pulse).
+
+`BaseEdge` is also rendered with `focusable={true}`.
+
+## Limitations and Notes
+
+- **Threshold of 1**: The `IntersectionObserver` threshold is set to `1`, so the
+  callback fires on the transition to/from fully intersecting. Combined with the
+  `20px` root margin this gives a buffer, but edges that are only partially
+  visible may toggle abruptly during fast panning.
+- **`store.getState().domNode` in the dependency array**: The viewport
+  `useEffect` lists `store.getState().domNode` as its dependency. Since
+  `getState()` returns a snapshot value (not a reactive subscription), the
+  effect re-runs only when that value changes between renders; in practice the
+  ReactFlow DOM node is stable for the component's lifetime.
+- **Output match relies on handle `name`**: `outputMatch` looks up
+  `step.outputValues.get(handle.value.name)` — the output record map is keyed by
+  handle **name**, not ID. Two output handles sharing a name on the same node
+  would collide. Input matching, by contrast, uses handle **IDs** on the
+  connection (`sourceHandleId`).
+- **Color memo can return `undefined`**: Before node data loads (or when
+  source/target is falsy), `sourceHandleColor` / `targetHandleColor` are
+  `undefined`, leaving the `<stop>` with no `stopColor` (browser default black)
+  until data resolves.
+- **Unused `ref` parameter**: The component is wrapped in `forwardRef` but
+  discards the ref (the second parameter is `_`); it is not forwarded to any DOM
+  element. `displayName` is set to `'ConfigurableEdge'`.
 
 ## Relationships with Other Features
 
-### -> [Handles (color lookup)](../core/handlesDoc.md)
+### -> [Handles (color & name lookup)](../core/handlesDoc.md)
 
 ConfigurableEdge depends on `getHandleFromNodeDataMatchingHandleId` from
-`src/utils/nodeStateManagement/handles/handleGetters.ts` to resolve handle IDs
-to handle objects. It reads the `handleColor` property from the resolved
-handle's `value`. The getter searches through both flat input/output arrays and
-handles nested within collapsible panels via the
-`handleIteratorIncludingIndices` generator.
+`src/utils/nodeStateManagement/handles/handleGetters.ts` ›
+`getHandleFromNodeDataMatchingHandleId` to resolve handle IDs to handle objects.
+It uses the result's `value.handleColor` (gradient stops) and `value.name`
+(output value lookup). The getter walks both flat input/output arrays and
+panel-nested handles via the `handleIteratorIncludingIndices` generator, and its
+`runForInputs` / `runForOutputs` flags let ConfigurableEdge restrict the search
+to outputs when matching output edges.
 
 ### -> [Edges (state type)](../core/edgesDoc.md)
 
-`ConfigurableEdgeState` is defined as `Edge<{}, 'configurableEdge'>`. This type
-is used wherever edges are stored in the ReactFlow state. The empty data generic
-means ConfigurableEdge derives all its visual properties at render time rather
-than persisting them in edge state.
+`ConfigurableEdgeState` is `Edge<{}, 'configurableEdge'>`. This type is used
+wherever edges are stored in the ReactFlow state. The empty data generic means
+ConfigurableEdge derives all of its visual properties (gradient, opacity, value
+pill) at render time rather than persisting them in edge state.
 
 ### -> [FullGraph (registration)](fullGraphDoc.md)
 
 ConfigurableEdge is registered in
-`src/components/organisms/FullGraph/FullGraphCustomNodesAndEdges.ts`:
+`src/components/organisms/FullGraph/FullGraphCustomNodesAndEdges.ts` ›
+`edgeTypes`:
 
 ```typescript
 const edgeTypes = {
@@ -270,20 +454,46 @@ const edgeTypes = {
 };
 ```
 
-This mapping is passed to the ReactFlow `<ReactFlow edgeTypes={edgeTypes} />`
-component in FullGraph, enabling ReactFlow to render `ConfigurableEdge` for any
-edge with `type: 'configurableEdge'`.
+This mapping is passed to ReactFlow as `<ReactFlow edgeTypes={edgeTypes} />` in
+FullGraph, enabling ReactFlow to render `ConfigurableEdge` for any edge with
+`type: 'configurableEdge'`. The same file also exports the `nodeTypes` registry.
 
-### -> [ReactFlow (BaseEdge, getBezierPath)](../external/reactFlowDoc.md)
+### -> [Runner / Execution Recording (value pills)](../runner/executionRecordingDoc.md)
 
-ConfigurableEdge is built on top of two ReactFlow primitives:
+The value-inspection feature consumes runner state via `RunnerContext`
+(`src/components/organisms/FullGraph/FullGraphState.ts` › `RunnerContext`),
+whose value is supplied by `RunnerOverlay`:
 
-- **`BaseEdge`** -- The underlying SVG edge renderer. ConfigurableEdge passes
-  the computed path, gradient stroke style, labels, markers, and interaction
-  width to it.
-- **`getBezierPath`** -- Computes the SVG path string for a cubic bezier curve
-  between two points with directional control points.
-- **`useNodesData`** -- Reactively subscribes to node data changes so that
+- `selectedStepRecord: ExecutionStepRecord | null` — the currently inspected
+  step. Its `inputValues` (`RecordedInputHandleValue.connections`) and
+  `outputValues` (`RecordedOutputHandleValue.value`) types are defined in
+  `src/utils/nodeRunner/types.ts` › `ExecutionStepRecord`.
+- `edgeValuesAnimated: boolean` — toggles animated vs. static pills; it is wired
+  from the recording view state (`RecordingViewState.edgeValuesAnimated`).
+
+When no `RunnerContext` provider is present (e.g., a FullGraph without
+`functionImplementations`), `useContext` returns `undefined` and the edge
+renders gradient + viewport behavior only.
+
+### -> [NodeStatusIndicator (sibling runner UI)](nodeStatusIndicatorDoc.md)
+
+`RunnerContext.nodeRunnerStates` feeds per-node visual overlays through
+`NodeStatusIndicator`, while the same context's `selectedStepRecord` /
+`edgeValuesAnimated` drive ConfigurableEdge's pills — the two components form
+the node-side and edge-side halves of the runner's on-canvas inspection.
+
+### -> [ReactFlow (BaseEdge, getBezierPath, hooks)](../external/reactFlowDoc.md)
+
+ConfigurableEdge is built on `@xyflow/react` primitives:
+
+- **`BaseEdge`** — the underlying SVG edge renderer. ConfigurableEdge passes the
+  computed path, gradient stroke style, label/labelStyle, markers, interaction
+  width, className, and `focusable`.
+- **`getBezierPath`** — computes the SVG path string plus the midpoint
+  `[labelX, labelY]` for the static pill.
+- **`useNodesData`** — reactively subscribes to source/target node data so
   handle color changes propagate to edges automatically.
-- **`useStoreApi`** -- Accesses the ReactFlow store for the DOM node reference
-  used by the IntersectionObserver.
+- **`useStoreApi`** — accesses the ReactFlow store for `domNode`, used as the
+  `IntersectionObserver` root.
+- **`EdgeProps` / `Edge`** — generic types backing `ConfigurableEdgeProps` and
+  `ConfigurableEdgeState`.

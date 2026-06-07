@@ -8,7 +8,7 @@ process.
 
 ### Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 20+ and npm
 - Git
 - A code editor (VS Code recommended)
 
@@ -27,35 +27,49 @@ process.
    npm install
    ```
 
-3. **Start the development server**
+3. **Run Storybook for development**
 
-   ```bash
-   npm run dev
-   ```
+   Storybook is the primary development environment — it renders every component
+   (including the full graph editor and runner) in isolation with live controls.
 
-4. **Run Storybook for component development**
    ```bash
    npm run storybook
    ```
+
+   Visit `http://localhost:6006` once it starts.
 
 ## 🛠️ Development Commands
 
 ```bash
 # Development
-npm run storybook        # Start Storybook documentation
-npm run build            # Build the library
-npm run type-check       # Run TypeScript type checking
+npm run storybook        # Start Storybook (primary dev environment)
+npm run build-storybook  # Build the static Storybook site
+npm run build            # Build the library (tsc -b && vite build)
+npm run type-check       # Run TypeScript type checking (tsc --noEmit)
 
 # Code Quality
 npm run lint             # Run ESLint
 npm run lint:fix         # Fix ESLint issues
 npm run pretty           # Format code with Prettier
 npm run pretty:check     # Check code formatting
+npm run find-dead-code   # Find unused exports/files with Knip (alias: ded)
 
 # Testing
-npm run test             # Run tests (when implemented)
-npm run test:watch       # Run tests in watch mode
+npm run test             # Run unit tests once (Vitest)
+npm run test:unit        # Run unit tests once
+npm run test:unit:watch  # Run unit tests in watch mode
+npm run test:e2e:dev     # Run Playwright e2e tests against dev Storybook
+npm run test:e2e:build   # Run e2e tests against a freshly built Storybook
+npm run test:e2e:built   # Run e2e tests against an already-built Storybook
+npm run test:e2e:ui      # Open the Playwright UI runner
+npm run report           # Open the last Playwright HTML report
+
+# Convenience
+npm run checklist        # Full pre-publish check: install, prepare hooks, format, build, build Storybook (alias: cl)
 ```
+
+Append `:h` to any `test:e2e:*` command (e.g. `npm run test:e2e:dev:h`) to run
+it in headed mode.
 
 ## 📁 Project Structure
 
@@ -65,30 +79,71 @@ react-blender-nodes/
 │   ├── components/                 # Component library organized by atomic design
 │   │   ├── atoms/                  # Basic building blocks
 │   │   │   ├── Button/             # Reusable button component
-│   │   │   ├── ConfigurableConnection/ # Node connection line component
-│   │   │   ├── ConfigurableEdge/   # Edge/connection rendering component
-│   │   │   ├── Input/              # Text/number input component
-│   │   │   └── NodeResizerWithMoreControls/ # Node resizing controls
+│   │   │   ├── Accordion/          # Collapsible sections
+│   │   │   ├── Checkbox/           # Checkbox control
+│   │   │   ├── ConfigurableConnection/ # In-progress connection line
+│   │   │   ├── ConfigurableEdge/   # Edge/connection rendering
+│   │   │   ├── ErrorBoundary/      # Render error boundary
+│   │   │   ├── Input/              # Text/number input
+│   │   │   ├── Modal/              # Modal dialog
+│   │   │   ├── NodeResizerWithMoreControls/ # Node resizing controls
+│   │   │   ├── NodeStatusIndicator/ # Runner status badge on nodes
+│   │   │   ├── ScrollableButtonContainer/
+│   │   │   └── Tooltip/
 │   │   ├── molecules/              # Composed components
-│   │   │   ├── SliderNumberInput/  # Combined slider and number input
-│   │   │   └── ContextMenu/        # Context menu component
+│   │   │   ├── ButtonToggle/
+│   │   │   ├── ColorPicker/
+│   │   │   ├── ContextMenu/        # Right-click add-node menu
+│   │   │   ├── DragList/           # Reorderable list (handle editing)
+│   │   │   ├── ExecutionStepInspector/ # Per-step input/output inspector
+│   │   │   ├── ExecutionTimeline/  # Multi-track runner timeline
+│   │   │   ├── LoopEditDrawer/     # Loop structure editor
+│   │   │   ├── NodeTypeEditDrawer/ # Node type editor
+│   │   │   ├── PresetModal/
+│   │   │   ├── RunControls/        # Run / step / pause / resume controls
+│   │   │   ├── Select/
+│   │   │   ├── SliderNumberInput/  # Combined slider + number input
+│   │   │   ├── SwitchEditDrawer/   # Switch structure editor
+│   │   │   └── ZoneFrameOverlay/   # Loop/switch zone frame rendering
 │   │   └── organisms/              # Complex components
 │   │       ├── ConfigurableNode/   # Main node component
-│   │       └── FullGraph/          # Complete graph editor
+│   │       ├── FullGraph/          # Complete graph editor (state, history, drawers)
+│   │       └── NodeRunnerPanel/    # Runner UI shell (timeline + inspector + controls)
 │   ├── hooks/                      # Custom React hooks
-│   │   ├── useClickedOutside.ts    # Click outside detection
-│   │   └── useDrag.ts              # Drag interaction hook
+│   │   ├── useAutoScroll.ts        # Auto-scroll a container during live runs
+│   │   ├── useClickedOutside.ts    # Click-outside detection
+│   │   ├── useDrag.ts              # Drag interaction hook
+│   │   ├── useFloatingTooltip.ts   # Floating UI tooltip positioning
+│   │   ├── useResizeHandle.ts      # Resize-handle drag hook
+│   │   └── useSlideAnimation.ts    # Drawer slide animation
 │   ├── utils/                      # Utility functions
-│   │   ├── nodeStateManagement/    # State management
+│   │   ├── nodeStateManagement/    # State, reducer, validation, history
+│   │   │   ├── planApply/          # validateAction → plan → applyPlan pipeline
+│   │   │   ├── nodes/              # Node construction + switch structures
+│   │   │   ├── edges/              # Edge helpers
+│   │   │   ├── handles/            # Handle construction
+│   │   │   ├── zones/              # First-class zone discovery + lifecycle
+│   │   │   ├── graphEvent.ts       # Graph event stream taxonomy
+│   │   │   ├── applyWithHistory.ts # Undo/redo patch recording
+│   │   │   └── standardNodes.ts    # Built-in loop/switch/group nodes & data types
+│   │   ├── nodeRunner/             # Graph execution
+│   │   │   ├── compiler.ts         # Graph → execution plan
+│   │   │   ├── loopCompiler.ts     # Loop body compilation
+│   │   │   ├── switchCompiler.ts   # Branch resolution
+│   │   │   ├── groupCompiler.ts    # Node group subtree resolution
+│   │   │   ├── executor/           # Plan execution engine
+│   │   │   ├── executionRecorder.ts# Per-step timing + I/O recording
+│   │   │   └── useNodeRunner.ts    # Runner hook (entry point of the runner module)
+│   │   ├── importExport/           # JSON state + recording import/export & repair
 │   │   ├── cnHelper.ts             # Class name utility
 │   │   ├── geometry.ts             # Geometric calculations
 │   │   └── conversions.ts          # Type conversions
-│   ├── @types/                     # TypeScript definitions
 │   ├── index.ts                    # Main library entry point
 │   └── index.css                   # Global styles
+├── e2e/                            # Playwright end-to-end tests (against Storybook)
 ├── .storybook/                     # Storybook configuration
 ├── .github/                        # GitHub workflows
-├── docs/                           # Documentation and screenshots
+├── docs/                           # Architecture docs (see docs/index.md) and screenshots
 └── dist/                           # Built library (generated)
 ```
 
@@ -98,16 +153,20 @@ react-blender-nodes/
 
 This library follows atomic design methodology:
 
-- **Atoms**: Basic UI elements (Button, Handle, Edge, Input)
-- **Molecules**: Simple component groups (SliderNumberInput, ContextMenu)
-- **Organisms**: Complex components (ConfigurableNode, FullGraph)
+- **Atoms**: Basic UI elements (Button, Input, ConfigurableEdge, Tooltip,
+  NodeStatusIndicator)
+- **Molecules**: Simple component groups (SliderNumberInput, ContextMenu, the
+  edit drawers, ExecutionTimeline, RunControls)
+- **Organisms**: Complex components (ConfigurableNode, FullGraph,
+  NodeRunnerPanel)
 
 ### Key Design Principles
 
 1. **Composition over Inheritance**: Components are built by composing smaller
    parts
 2. **Props Interface**: Clear, typed interfaces for all component props
-3. **Forward Refs**: All components support ref forwarding
+3. **Forward Refs**: Components that need to expose their DOM element use
+   `forwardRef` (it is the exception, not the default)
 4. **TypeScript First**: Full type safety throughout the codebase
 
 ## 📝 Code Style Guidelines
@@ -135,7 +194,8 @@ function MyComponent(props: any) {
 
 ### React Patterns
 
-- Use `forwardRef` for all components that render DOM elements
+- Declare components as plain `function`s; use `forwardRef` only when a
+  component needs to expose its DOM element to a parent
 - Implement proper `displayName` for debugging
 - Use `useCallback` and `useMemo` for performance optimization
 - Follow the custom hook naming convention (`use` prefix)
@@ -161,12 +221,31 @@ function MyComponent(props: any) {
 
 ## 🧪 Testing Strategy
 
-### Component Testing
+The project uses three complementary layers. Run all three (plus type-check and
+build) before opening a PR.
+
+### Unit Tests (Vitest)
+
+- Cover state management, validation, the runner compiler/executor, and
+  import/export logic
+- Live under `src/__tests__/` (mirroring the `src/utils/` tree) as `*.test.ts`
+  files, configured via `vitest.config.ts`
+- Run with `npm run test` (single run) or `npm run test:unit:watch` (watch mode)
+
+### Stories (Storybook)
 
 - Write Storybook stories for all components
 - Include interactive controls for props
 - Test edge cases and error states
 - Document component behavior
+
+### End-to-End Tests (Playwright)
+
+- Live in `e2e/` and drive the rendered Storybook to verify real interactions
+  (adding nodes, connecting handles, running graphs, undo/redo)
+- Run against the dev server with `npm run test:e2e:dev`, or against a built
+  Storybook with `npm run test:e2e:build`
+- View the last report with `npm run report`
 
 ### Story Structure
 
@@ -227,6 +306,7 @@ For new features, please:
    npm run lint
    npm run pretty:check
    npm run type-check
+   npm run test
    npm run build
    ```
 
@@ -241,9 +321,10 @@ For new features, please:
 
 ### Review Process
 
-1. **Automated checks** must pass (linting, type checking, build)
+1. **Automated checks** must pass (linting, type checking, unit + e2e tests,
+   build)
 2. **Code review** by maintainers
-3. **Testing** in Storybook
+3. **Manual verification** in Storybook
 4. **Approval** and merge
 
 ## 🏗️ Building and Publishing
@@ -257,7 +338,7 @@ npm run build
 This creates the `dist/` folder with:
 
 - `react-blender-nodes.es.js` - ES module build
-- `react-blender-nodes.umd.js` - UMD build
+- `react-blender-nodes.umd.js` - UMD/CommonJS build
 - `react-blender-nodes.css` - Compiled styles
 - `index.d.ts` - TypeScript declarations
 
@@ -272,23 +353,28 @@ npm publish
 
 ### Color Palette
 
-The library uses a Blender-inspired color scheme:
+The library uses a Blender-inspired color scheme, defined as Tailwind theme
+tokens (`--color-*`) in `src/index.css`:
 
 ```css
-:root {
-  --primary-black: #181818;
-  --primary-dark-gray: #272727;
-  --primary-gray: #3f3f3f;
-  --primary-white: #ffffff;
-  --secondary-black: #0d1117;
-  --secondary-dark-gray: #21262d;
-  --secondary-light-gray: #f0f6fc;
+@theme inline {
+  --color-primary-white: #e6e6e6; /* text */
+  --color-primary-black: #1d1d1d; /* base background */
+  --color-secondary-black: #282828; /* dark button background */
+  --color-primary-dark-gray: #303030; /* node background, hover dark button */
+  --color-secondary-dark-gray: #444444; /* dark button border */
+  --color-primary-gray: #545454; /* light button background */
+  --color-secondary-light-gray: #656565; /* light button non-priority hover */
+  --color-primary-light-gray: #797979; /* light button priority hover */
+  --color-primary-blue: #4772b3; /* slider blue */
 }
 ```
 
 ### Typography
 
-- **Font Family**: System fonts with fallbacks
+- **Font Family**: `DejaVu Sans` (bundled via `@fontsource/dejavu-sans`),
+  falling back to `Roboto` then `sans-serif` (exposed as the `--font-main` token
+  / `font-main` utility)
 - **Font Sizes**: Consistent scale using Tailwind classes
 - **Line Heights**: Optimized for readability
 

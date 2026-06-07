@@ -13,6 +13,7 @@ import type {
   GamutInfo,
   OklchColor,
 } from '../lib/types';
+import { clamp } from '../lib/math';
 
 type ColorComponent = 'l' | 'c' | 'h' | 'alpha';
 
@@ -68,9 +69,6 @@ function coerce(
   return input;
 }
 
-function clamp(x: number, lo: number, hi: number) {
-  return Math.min(Math.max(x, lo), hi);
-}
 function wrapHue(h: number) {
   const m = h % 360;
   return m < 0 ? m + 360 : m;

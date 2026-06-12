@@ -12,7 +12,7 @@ function convertStringToNumber(inputNumberAsString: string) {
 
   //Remove all non-numeric and non-decimal characters, we will just use the first decimal point
   const textWithJustNumbersAndDecimals = inputNumberAsString.replaceAll(
-    /[^0-9\.]/g,
+    /[^0-9.]/g,
     '',
   );
 

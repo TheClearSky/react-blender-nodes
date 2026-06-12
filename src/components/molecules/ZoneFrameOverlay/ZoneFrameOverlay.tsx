@@ -15,11 +15,13 @@ type ZoneFrameOverlayProps = {
 };
 
 function ZoneFrameOverlay({ zones, nodes }: ZoneFrameOverlayProps) {
-  const viewport = useStore((s) => ({
-    x: s.transform[0],
-    y: s.transform[1],
-    zoom: s.transform[2],
-  }));
+  // R2: without an equality fn the fresh `{x,y,zoom}` literal makes this overlay
+  // reconcile on EVERY ReactFlow store tick (drag, select, hover, dimensions),
+  // not just when the transform changes. Compare the three scalars instead.
+  const viewport = useStore(
+    (s) => ({ x: s.transform[0], y: s.transform[1], zoom: s.transform[2] }),
+    (a, b) => a.x === b.x && a.y === b.y && a.zoom === b.zoom,
+  );
 
   const zoneFrames = useMemo(() => {
     if (!zones) return [];

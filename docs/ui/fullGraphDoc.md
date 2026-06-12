@@ -120,7 +120,7 @@ FullGraph (outer)                          FullGraph.tsx › FullGraph
         +-- ErrorBoundary (graph)        wraps everything
         |     +-- InputComponentRegistryContext.Provider (inputComponents)
         |
-        +-- [conditional] RecordingViewStateProvider   RecordingViewStateContext.tsx › RecordingViewStateProvider
+        +-- [conditional] RecordingViewStateProvider   RecordingViewStateProvider.tsx › RecordingViewStateProvider
         |     +-- ErrorBoundary (runner)
         |     +-- RunnerOverlay                        RunnerOverlay.tsx › RunnerOverlay
         |           +-- useNodeRunner()    (compile, execute, replay, record)
@@ -394,6 +394,14 @@ FullGraph defines and consumes four contexts. They are intentionally split so
 that runner state and controlled-record state do not force every node to
 re-render when only one of them changes.
 
+A fifth, optional context lives OUTSIDE FullGraph: the consumer can wrap
+`<FullGraph>` in `GraphThemeProvider` (from
+`src/components/organisms/FullGraph/GraphThemeProvider.tsx` ›
+`GraphThemeProvider`) to retheme the whole tree; components read it via
+`src/components/organisms/FullGraph/GraphThemeContext.ts` › `useGraphTheme`
+(non-throwing — `undefined` keeps the default dark look). See
+[themingDoc.md](./themingDoc.md).
+
 ### FullGraphContext
 
 Defined at `src/components/organisms/FullGraph/FullGraphState.ts` ›
@@ -490,13 +498,14 @@ number, boolean) always use their native components. Follows the same
 
 ### RecordingViewStateContext
 
-Defined in `src/components/organisms/FullGraph/RecordingViewStateContext.tsx` ›
-`RecordingViewStateContext`, provided by `RecordingViewStateProvider` (only
-inside the runner branch). Holds all runner/timeline UI preferences (selected
-step index, panel open, edge-value animation, auto-scroll, time mode, timeline
-collapsed, selected loop iterations, autoplay interval) and `getViewState` /
-`restoreViewState` serializers used to persist these preferences into an
-`ExecutionRecord`'s `viewState` on export.
+Defined in `src/components/organisms/FullGraph/RecordingViewStateContext.ts` ›
+`RecordingViewStateContext`, provided by `RecordingViewStateProvider` (from
+`src/components/organisms/FullGraph/RecordingViewStateProvider.tsx` ›
+`RecordingViewStateProvider`; only inside the runner branch). Holds all
+runner/timeline UI preferences (selected step index, panel open, edge-value
+animation, auto-scroll, time mode, timeline collapsed, selected loop iterations,
+autoplay interval) and `getViewState` / `restoreViewState` serializers used to
+persist these preferences into an `ExecutionRecord`'s `viewState` on export.
 
 ---
 

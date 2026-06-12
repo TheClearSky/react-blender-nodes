@@ -7,7 +7,7 @@ import {
 } from './ConfigurableNode';
 import { cn } from '@/utils/cnHelper';
 
-import { handleShapesMap } from './SupportingSubcomponents/ContextAwareHandle';
+import { handleShapesMap } from './SupportingSubcomponents/ContextAwareHandleShapes';
 
 const meta = {
   title: 'Organisms/ConfigurableNode',

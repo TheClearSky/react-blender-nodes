@@ -35,13 +35,14 @@ import {
   type TypeOfInput,
   type TypeOfInputPanel,
 } from '@/utils/nodeStateManagement/types';
-import { getCurrentNodesAndEdgesFromState } from '@/utils';
+import { cn, getCurrentNodesAndEdgesFromState } from '@/utils';
 import {
   FullGraphContext,
   RecordContext,
   createContextValue,
 } from './FullGraphState';
-import { RecordingViewStateProvider } from './RecordingViewStateContext';
+import { RecordingViewStateProvider } from './RecordingViewStateProvider';
+import { useGraphTheme } from './GraphThemeContext';
 import { nodeTypes, edgeTypes } from './FullGraphCustomNodesAndEdges';
 import type {
   FunctionImplementations,
@@ -208,6 +209,7 @@ function FullGraphWithReactFlowProvider<
   'executionRecord' | 'onExecutionRecordChange'
 >) {
   const [reactFlowKey, setReactFlowKey] = useState(0);
+  const theme = useGraphTheme();
 
   const {
     handleExportState,
@@ -706,7 +708,7 @@ function FullGraphWithReactFlowProvider<
         proOptions={{
           hideAttribution: true,
         }}
-        colorMode='dark'
+        colorMode={theme?.reactFlow?.colorMode ?? 'dark'}
         selectNodesOnDrag={true}
         elevateNodesOnSelect={true}
         elevateEdgesOnSelect={true}
@@ -740,16 +742,22 @@ function FullGraphWithReactFlowProvider<
             nodeIds: nodes.map((n) => n.id),
             edgeIds: edges.map((e) => e.id),
           });
+          // S3: bracket the whole delete in one batch so a single undo restores
+          // the node AND its edges together. ReactFlow applies a connected-node
+          // delete as a separate edge-remove and node-remove (two undoable
+          // entries); the batch (closed in onDelete) collapses them into one.
+          if (success) dispatch({ type: actionTypesMap.BEGIN_BATCH });
           return success;
         }}
+        onDelete={() => dispatch({ type: actionTypesMap.END_BATCH })}
       >
-        <Controls />
-        <Background />
+        <Controls className={theme?.reactFlow?.controls?.className} />
+        <Background {...theme?.reactFlow?.background} />
         <ZoneFrameOverlay
           zones={currentNodesAndEdges.zones}
           nodes={currentNodesAndEdges.nodes}
         />
-        <MiniMap pannable />
+        <MiniMap pannable {...theme?.reactFlow?.miniMap} />
       </ReactFlow>
 
       {/* Context Menu */}
@@ -807,7 +815,10 @@ function FullGraphWithReactFlowProvider<
       fallback={({ error, reset }) => (
         <div
           data-slot='error-boundary-graph'
-          className='flex h-full w-full flex-col items-center justify-center gap-3 bg-zinc-900 text-zinc-300'
+          className={cn(
+            'flex h-full w-full flex-col items-center justify-center gap-3 bg-zinc-900 text-zinc-300',
+            theme?.errorBoundary?.container,
+          )}
         >
           <AlertTriangle className='h-10 w-10 text-red-400' />
           <p className='text-sm font-medium text-red-400'>
@@ -819,7 +830,10 @@ function FullGraphWithReactFlowProvider<
           <button
             type='button'
             onClick={reset}
-            className='mt-2 inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-zinc-700'
+            className={cn(
+              'mt-2 inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-zinc-700',
+              theme?.errorBoundary?.retryButton,
+            )}
           >
             <RotateCcw className='h-3 w-3' />
             Retry
@@ -836,7 +850,7 @@ function FullGraphWithReactFlowProvider<
             width: '100%',
             height: '100%',
           }}
-          className='relative'
+          className={cn('relative', theme?.root)}
         >
           {functionImplementations ? (
             <RecordingViewStateProvider>
@@ -844,7 +858,10 @@ function FullGraphWithReactFlowProvider<
                 fallback={({ error, reset }) => (
                   <div
                     data-slot='error-boundary-runner'
-                    className='flex h-full w-full flex-col items-center justify-center gap-3 rounded-md border border-red-500/50 bg-zinc-900 p-6 text-zinc-300'
+                    className={cn(
+                      'flex h-full w-full flex-col items-center justify-center gap-3 rounded-md border border-red-500/50 bg-zinc-900 p-6 text-zinc-300',
+                      theme?.errorBoundary?.container,
+                    )}
                   >
                     <AlertTriangle className='h-8 w-8 text-red-400' />
                     <p className='text-sm font-medium text-red-400'>
@@ -856,7 +873,10 @@ function FullGraphWithReactFlowProvider<
                     <button
                       type='button'
                       onClick={reset}
-                      className='mt-2 inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-zinc-700'
+                      className={cn(
+                        'mt-2 inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-zinc-700',
+                        theme?.errorBoundary?.retryButton,
+                      )}
                     >
                       <RotateCcw className='h-3 w-3' />
                       Retry
@@ -1047,11 +1067,22 @@ function FullGraph<
     [executionRecord, onExecutionRecordChange, noop],
   );
 
+  // R1: memoize the context value on only the slices consumers read. immer keeps
+  // identity for untouched slices, so this stays stable across drags / viewport /
+  // unrelated dispatches, and nodes stop re-rendering on every state change.
+  const fullGraphContextValue = useMemo(
+    () =>
+      createContextValue({
+        typeOfNodes: state.typeOfNodes,
+        enableDebugMode: state.enableDebugMode,
+        dispatch,
+      }),
+    [state.typeOfNodes, state.enableDebugMode, dispatch],
+  );
+
   return (
     <ReactFlowProvider>
-      <FullGraphContext.Provider
-        value={createContextValue({ state, dispatch })}
-      >
+      <FullGraphContext.Provider value={fullGraphContextValue}>
         <RecordContext.Provider value={recordContextValue}>
           <FullGraphWithReactFlowProvider
             state={state}

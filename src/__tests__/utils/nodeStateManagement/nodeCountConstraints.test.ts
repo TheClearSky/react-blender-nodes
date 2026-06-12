@@ -182,7 +182,7 @@ describe('Node count constraints — ADD_NODE max', () => {
   });
 
   it('max: 0 prevents any addition in that scope', () => {
-    let state: State<TestDataTypeId, TestNodeTypeId> = {
+    const state: State<TestDataTypeId, TestNodeTypeId> = {
       ...createBaseState(),
       nodeCountConstraints: {
         testSource: { maxInRoot: 0 },

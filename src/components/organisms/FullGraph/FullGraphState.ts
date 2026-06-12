@@ -260,10 +260,20 @@ function useFullGraph<
  * (right-click menu, group selector) that use the correct node type IDs.
  */
 function createContextValue(props: {
-  state: unknown;
+  typeOfNodes: unknown;
+  enableDebugMode: unknown;
   dispatch: unknown;
 }): React.ContextType<typeof FullGraphContext> {
-  const allProps = props as unknown as FullGraphProps;
+  // R1: expose only the slices actually read through this context so the value
+  // keeps a stable identity across unrelated dispatches — a fresh value here
+  // re-renders every node on the canvas. Callers MUST memoize on these slices.
+  const allProps = {
+    state: {
+      typeOfNodes: props.typeOfNodes,
+      enableDebugMode: props.enableDebugMode,
+    },
+    dispatch: props.dispatch,
+  } as unknown as FullGraphProps;
   return { allProps };
 }
 

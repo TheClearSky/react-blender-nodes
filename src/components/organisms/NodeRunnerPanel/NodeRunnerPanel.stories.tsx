@@ -3,7 +3,7 @@ import { useState, useCallback, useRef } from 'react';
 import { fn } from 'storybook/test';
 
 import { NodeRunnerPanel, type NodeRunnerPanelProps } from './NodeRunnerPanel';
-import { RecordingViewStateProvider } from '@/components/organisms/FullGraph/RecordingViewStateContext';
+import { RecordingViewStateProvider } from '@/components/organisms/FullGraph/RecordingViewStateProvider';
 import type { RunMode } from '@/components/molecules/RunControls/RunControls';
 import type {
   RunnerState,

@@ -51,7 +51,14 @@ export const HorizontalAdjustableWidth = {
     parentWidth: 400,
     parentBorder: true,
   },
-  render: ({ parentWidth, parentBorder, ...args }: any) => (
+  render: ({
+    parentWidth,
+    parentBorder,
+    ...args
+  }: {
+    parentWidth: number;
+    parentBorder: boolean;
+  }) => (
     <div
       className={cn(
         'border-2',

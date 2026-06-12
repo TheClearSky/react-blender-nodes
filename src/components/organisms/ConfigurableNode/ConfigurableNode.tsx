@@ -24,6 +24,7 @@ import { z } from 'zod';
 import { FullGraphContext } from '../FullGraph/FullGraphState';
 import type { NodeVisualState, GraphError } from '@/utils/nodeRunner/types';
 import { NodeStatusIndicator } from '@/components/atoms/NodeStatusIndicator/NodeStatusIndicator';
+import { useGraphTheme } from '../FullGraph/GraphThemeContext';
 
 /**
  * Configuration for a node input
@@ -240,54 +241,75 @@ type RenderInputProps<
 };
 
 // Helper function to render a single input
-const RenderInput = forwardRef<HTMLDivElement, RenderInputProps>(
-  ({ input, isCurrentlyInsideReactFlow, hide = false }, ref) => {
-    // Check if this input is connected (only when inside ReactFlow)
-    const connections = isCurrentlyInsideReactFlow
-      ? useNodeConnections({
-          handleId: input.id,
-        })
-      : [];
-    const isConnected =
-      isCurrentlyInsideReactFlow &&
-      connections.some((connection) => connection.targetHandle === input.id);
+const RenderInputView = forwardRef<
+  HTMLDivElement,
+  RenderInputProps & { isConnected: boolean }
+>(({ input, isCurrentlyInsideReactFlow, hide = false, isConnected }, ref) => {
+  const theme = useGraphTheme();
+  // Determine if we should show the input component or just the label
+  const shouldShowInput = input.allowInput && !isConnected;
 
-    // Determine if we should show the input component or just the label
-    const shouldShowInput = input.allowInput && !isConnected;
-
-    return (
-      <div
-        key={input.id}
-        ref={ref}
-        className={cn(
-          'text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row py-3',
-          hide && 'h-0 overflow-hidden py-0',
-          shouldShowInput && 'py-1',
+  return (
+    <div
+      key={input.id}
+      ref={ref}
+      className={cn(
+        'text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row py-3',
+        hide && 'h-0 overflow-hidden py-0',
+        shouldShowInput && 'py-1',
+        theme?.node?.inputRow,
+      )}
+    >
+      <ContextAwareHandle
+        type='target'
+        position={Position.Left}
+        id={input.id}
+        color={input.handleColor}
+        shape={input.handleShape}
+        maxConnections={input.maxConnections}
+        isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+      />
+      <div className='flex-1 flex items-center gap-3 w-full'>
+        {!shouldShowInput && (
+          <div className='truncate'>{input.name || '\u200B'}</div>
         )}
-      >
-        <ContextAwareHandle
-          type='target'
-          position={Position.Left}
-          id={input.id}
-          color={input.handleColor}
-          shape={input.handleShape}
-          maxConnections={input.maxConnections}
-          isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
-        />
-        <div className='flex-1 flex items-center gap-3 w-full'>
-          {!shouldShowInput && (
-            <div className='truncate'>{input.name || '\u200B'}</div>
-          )}
-          {shouldShowInput && (
-            <div className='flex-1 w-full'>
-              <ContextAwareInput
-                input={input}
-                isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
-              />
-            </div>
-          )}
-        </div>
+        {shouldShowInput && (
+          <div className='flex-1 w-full'>
+            <ContextAwareInput
+              input={input}
+              isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+            />
+          </div>
+        )}
       </div>
+    </div>
+  );
+});
+
+RenderInputView.displayName = 'RenderInputView';
+
+// Inside ReactFlow: subscribe to this input handle's connections so a wired input
+// hides its editor. Isolated so useNodeConnections is never called conditionally.
+const ConnectedRenderInput = forwardRef<HTMLDivElement, RenderInputProps>(
+  (props, ref) => {
+    const connections = useNodeConnections({ handleId: props.input.id });
+    const isConnected = connections.some(
+      (connection) => connection.targetHandle === props.input.id,
+    );
+    return <RenderInputView ref={ref} {...props} isConnected={isConnected} />;
+  },
+);
+
+ConnectedRenderInput.displayName = 'ConnectedRenderInput';
+
+const RenderInput = forwardRef<HTMLDivElement, RenderInputProps>(
+  (props, ref) => {
+    // useNodeConnections requires the ReactFlow provider and throws without it,
+    // so only the in-ReactFlow variant calls it (via ConnectedRenderInput).
+    return props.isCurrentlyInsideReactFlow ? (
+      <ConnectedRenderInput ref={ref} {...props} />
+    ) : (
+      <RenderInputView ref={ref} {...props} isConnected={false} />
     );
   },
 );
@@ -311,11 +333,15 @@ type RenderOutputProps<
 
 const RenderOutput = forwardRef<HTMLDivElement, RenderOutputProps>(
   ({ output, isCurrentlyInsideReactFlow }, ref) => {
+    const theme = useGraphTheme();
     return (
       <div
         key={output.id}
         ref={ref}
-        className='text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row justify-end py-3'
+        className={cn(
+          'text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row justify-end py-3',
+          theme?.node?.outputRow,
+        )}
       >
         <div className='truncate text-right'>{output.name || '\u200B'}</div>
         <ContextAwareHandle
@@ -353,44 +379,51 @@ type RenderInputPanelProps<
 };
 
 const RenderInputPanel = forwardRef<HTMLDivElement, RenderInputPanelProps>(
-  ({ panel, isCurrentlyInsideReactFlow, isOpen, onToggle }, ref) => (
-    <div key={panel.id} ref={ref} className='flex flex-col'>
-      {/* Panel header with toggle button - same spacing as regular inputs */}
-      <Button
-        onClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          onToggle();
-        }}
-        className='bg-transparent border-none hover:bg-primary-gray rounded-none justify-start'
-      >
-        {/* Arrow on the left */}
-        {isOpen ? (
-          <ChevronUpIcon className='w-6 h-6 shrink-0 mr-2' />
-        ) : (
-          <ChevronDownIcon className='w-6 h-6 shrink-0 mr-2' />
-        )}
-        <span className='truncate'>{panel.name}</span>
-      </Button>
+  ({ panel, isCurrentlyInsideReactFlow, isOpen, onToggle }, ref) => {
+    const theme = useGraphTheme();
+    return (
+      <div key={panel.id} ref={ref} className='flex flex-col'>
+        {/* Panel header with toggle button - same spacing as regular inputs */}
+        <Button
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onToggle();
+          }}
+          className={cn(
+            'bg-transparent border-none hover:bg-primary-gray rounded-none justify-start',
+            theme?.node?.panelHeader,
+          )}
+        >
+          {/* Arrow on the left */}
+          {isOpen ? (
+            <ChevronUpIcon className='w-6 h-6 shrink-0 mr-2' />
+          ) : (
+            <ChevronDownIcon className='w-6 h-6 shrink-0 mr-2' />
+          )}
+          <span className='truncate'>{panel.name}</span>
+        </Button>
 
-      {/* Panel content - only render if open */}
-      <div
-        className={cn(
-          'flex flex-col bg-[#272727]',
-          !isOpen && 'h-0 overflow-hidden',
-        )}
-      >
-        {panel.inputs.map((input) => (
-          <RenderInput
-            key={input.id}
-            input={input}
-            isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
-            hide={!isOpen}
-          />
-        ))}
+        {/* Panel content - only render if open */}
+        <div
+          className={cn(
+            'flex flex-col bg-node-panel-content-bg',
+            !isOpen && 'h-0 overflow-hidden',
+            theme?.node?.panelContent,
+          )}
+        >
+          {panel.inputs.map((input) => (
+            <RenderInput
+              key={input.id}
+              input={input}
+              isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+              hide={!isOpen}
+            />
+          ))}
+        </div>
       </div>
-    </div>
-  ),
+    );
+  },
 );
 
 RenderInputPanel.displayName = 'RenderInputPanel';
@@ -492,6 +525,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
     const [openPanels, setOpenPanels] = useState<Set<string>>(new Set());
 
     const fullGraphContext = useContext(FullGraphContext);
+    const theme = useGraphTheme();
 
     const hasSubtree =
       !!nodeTypeUniqueId &&
@@ -566,19 +600,24 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
         className={cn(
           'flex flex-col gap-0 rounded-md w-max border-[1.5px] border-transparent focus:border-white',
           'in-[.selected]:border-white', //in-[.selected]:text-white is handled by the parent (inside react flow)
+          theme?.node?.container,
           className,
         )}
         {...props}
         ref={ref}
       >
         <div
-          className='text-primary-white text-left text-[27px] leading-[27px] font-main \
-          px-4 transition-all rounded-t-md truncate flex justify-between items-center'
+          className={cn(
+            'text-primary-white text-left text-[27px] leading-[27px] font-main px-4 transition-all rounded-t-md truncate flex justify-between items-center',
+            theme?.node?.header,
+          )}
           style={{
             backgroundColor: headerColor,
           }}
         >
-          <p className='truncate py-2'>{name}</p>
+          <p className={cn('truncate py-2', theme?.node?.headerTitle)}>
+            {name}
+          </p>
           {fullGraphContext?.allProps?.state?.enableDebugMode && (
             <p className='shrink-0 py-2'>{id}</p>
           )}
@@ -589,11 +628,18 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
             />
           </div>
         </div>
-        <div className='min-h-[50px] rounded-b-md bg-primary-dark-gray'>
+        <div
+          className={cn(
+            'min-h-[50px] rounded-b-md bg-primary-dark-gray',
+            theme?.node?.body,
+          )}
+        >
           {isCurrentlyInsideReactFlow && (
             <NodeResizerWithMoreControls {...nodeResizerProps} />
           )}
-          <div className='flex flex-col py-4'>
+          <div
+            className={cn('flex flex-col py-4', theme?.node?.outputsSection)}
+          >
             {outputs.map((output) => (
               <RenderOutput
                 key={output.id}
@@ -602,7 +648,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
               />
             ))}
           </div>
-          <div className='flex flex-col py-4'>
+          <div className={cn('flex flex-col py-4', theme?.node?.inputsSection)}>
             {inputs.map((input) => {
               // Check if this is a panel or a regular input
               if ('inputs' in input) {

@@ -8,6 +8,8 @@ import {
   type NodeRunnerState,
 } from './FullGraphState';
 import { useRecordingViewState } from './RecordingViewStateContext';
+import { useGraphTheme } from './GraphThemeContext';
+import { cn } from '@/utils';
 import type { ExecutionRecord } from '@/utils/nodeRunner/types';
 import {
   useNodeRunner,
@@ -80,6 +82,7 @@ function RunnerOverlay<
 
   const { getNode, setCenter, getViewport } = useReactFlow();
   const panelRef = useRef<HTMLDivElement>(null);
+  const theme = useGraphTheme();
 
   const viewState = useRecordingViewState();
   const {
@@ -235,14 +238,15 @@ function RunnerOverlay<
     runner.maxLoopIterations,
   ]);
 
+  // R1: memoize so the context value stays stable across graph dispatches that
+  // don't touch runner state — otherwise every node re-renders on every dispatch.
+  const runnerContextValue = useMemo(
+    () => ({ nodeRunnerStates, selectedStepRecord, edgeValuesAnimated }),
+    [nodeRunnerStates, selectedStepRecord, edgeValuesAnimated],
+  );
+
   return (
-    <RunnerContext.Provider
-      value={{
-        nodeRunnerStates,
-        selectedStepRecord,
-        edgeValuesAnimated,
-      }}
-    >
+    <RunnerContext.Provider value={runnerContextValue}>
       {children}
 
       <NodeRunnerPanel
@@ -268,7 +272,10 @@ function RunnerOverlay<
         <button
           type='button'
           onClick={() => setIsRunnerPanelOpen(true)}
-          className='btn-press absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-secondary-dark-gray/60 bg-secondary-black/90 px-4 py-2 text-[12px] font-medium text-primary-white shadow-xl backdrop-blur-sm transition-colors hover:bg-primary-dark-gray'
+          className={cn(
+            'btn-press absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-secondary-dark-gray/60 bg-secondary-black/90 px-4 py-2 text-[12px] font-medium text-primary-white shadow-xl backdrop-blur-sm transition-colors hover:bg-primary-dark-gray',
+            theme?.runnerToggleButton,
+          )}
           title='Open runner panel'
         >
           <Play className='h-3.5 w-3.5' />

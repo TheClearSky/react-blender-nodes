@@ -19,7 +19,7 @@ type CreateNodeContextMenuProps<
   NodeTypeUniqueId extends string = string,
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
   ComplexSchemaType extends UnderlyingType extends 'complex'
-    ? any
+    ? z.ZodType
     : never = never,
 > = {
   typeOfNodes: State<

@@ -45,6 +45,7 @@ function compileSwitchStructures<
     UnderlyingType,
     ComplexSchemaType
   >['edges'],
+  maxIterations: number,
   functionImplementations: FunctionImplementations<NodeTypeUniqueId>,
   compileGraph: (
     state: State<
@@ -136,7 +137,7 @@ function compileSwitchStructures<
         state,
         nodesForGroupCheck,
         functionImplementations,
-        100,
+        maxIterations,
         compileGraph,
         depth + 1,
       );

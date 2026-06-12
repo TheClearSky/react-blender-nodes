@@ -133,7 +133,7 @@ rendered inside a `RecordingViewStateProvider`.
 
 `ExecutionTimeline` reads several pieces of UI state from
 `useRecordingViewState()`
-(`src/components/organisms/FullGraph/RecordingViewStateContext.tsx` ›
+(`src/components/organisms/FullGraph/RecordingViewStateContext.ts` ›
 `useRecordingViewState`) rather than holding them locally:
 
 | Field / setter                                   | Type                         | Used for                                                                                                                                                                                                                      |

@@ -1,0 +1,61 @@
+LONG-TERM TODOS — decisions log (finalized 2026-06-11 with Deepak's answers; full clarity reached)
+
+================================================================================
+1. THEME SYSTEM (one optional useContext)
+================================================================================
+STATUS: SHIPPED 2026-06-12 — GraphThemeProvider + GraphTheme slot map +
+blenderDark/light presets; docs/ui/themingDoc.md; demo gallery (11 themes incl.
+the README-logo theme) in FullGraph.stories.tsx › ThemedPlayground.
+DECISIONS:
+- Fine-grained control via TAILWIND CLASSES wired optionally into every major
+  component in the graph: a theme is a typed map of per-component/per-slot
+  className overrides.
+- Merge semantics: cn() APPEND with theme classes LAST — defaults stay,
+  tailwind-merge resolves conflicts in the theme's favor; partial overrides
+  stay tiny (e.g. just 'bg-zinc-900').
+- The theme also controls the ReactFlow props that decide theming (colorMode,
+  Background, MiniMap colors, connection-line styling, …) via a dedicated
+  reactFlow section of the theme object.
+- Prebuilt named PRESETS, partial + deep-merged with user overrides.
+  v1 presets: 'blenderDark' (current look, the default) and 'light'.
+- Scope: the FullGraph tree only (incl. runner panel + ReactFlow surface).
+  Standalone atoms used outside the graph keep their defaults.
+- Mechanism: ONE optional ThemeProvider context; no provider = current dark
+  look; zero breaking change.
+
+================================================================================
+2. PLUGGABLE RUN TARGETS (subcompile / codegen / alternate execution)
+================================================================================
+DECISIONS:
+- Pluggable run-target system, all client-side (nothing server-side ships);
+  UX = switching systems when clicking Run (split Run button with a target
+  dropdown listing registered targets).
+- Contract has TWO first-class modes:
+  * 'execute' targets produce an ExecutionRecord and feed the timeline /
+    recording UI exactly like today;
+  * 'artifact' targets return a file/string (download or callback) and skip
+    the timeline.
+- RunTarget interface (registered via a runTargets prop/registry):
+  { id, label, icon?, mode: 'execute' | 'artifact', run(context) }
+  with context = { state, executionPlan, functionImplementations, options
+  (maxLoopIterations…), abortSignal, recorder hooks }. Targets receive the
+  compiled ExecutionPlan by default (compile() remains the single frontend /
+  stable IR); raw State stays available as an escape hatch.
+- v1 BUILT-INS: (1) the current in-process executor (default), (2) codegen-js
+  — emit a standalone JS function from the plan, (3) JSON-IR export of the
+  ExecutionPlan. Consumers can plug their own targets (including ones that
+  talk to THEIR backend — we just don't ship one).
+
+================================================================================
+3. ORDERED INPUTS FOR MULTI-CONNECTION HANDLES
+================================================================================
+DECISIONS:
+- UI: numbered order badges on incoming edges at the target handle, shown
+  whenever a handle has 2+ connections; clicking the handle opens a compact
+  popover using the existing DragList to reorder.
+- Persistence: connection order lives on the input handle and IS part of the
+  exported state JSON (public format addition).
+- Undo: a reorder is a single undoable history entry.
+- Runtime: the runner's connections[] array follows the stored order — this
+  becomes a documented contract for FunctionImplementations.
+================================================================================

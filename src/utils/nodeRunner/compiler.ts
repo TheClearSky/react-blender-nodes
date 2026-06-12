@@ -172,6 +172,7 @@ function compile<
     state,
     nodes,
     edges,
+    maxLoopIterations,
     functionImplementations,
     compile,
     depth ?? 0,

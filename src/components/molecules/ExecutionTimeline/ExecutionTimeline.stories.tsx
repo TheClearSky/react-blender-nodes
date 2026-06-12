@@ -6,7 +6,7 @@ import {
   ExecutionTimeline,
   type ExecutionTimelineProps,
 } from './ExecutionTimeline';
-import { RecordingViewStateProvider } from '@/components/organisms/FullGraph/RecordingViewStateContext';
+import { RecordingViewStateProvider } from '@/components/organisms/FullGraph/RecordingViewStateProvider';
 import type {
   ExecutionRecord,
   ExecutionStepRecord,

@@ -376,14 +376,19 @@ function useNodeRunner<
   const lastSetRecordRef = useRef<ExecutionRecord | null>(
     executionRecord ?? null,
   );
-  const setExecutionRecord = useCallback(
-    (record: ExecutionRecord | null) => {
-      lastSetRecordRef.current = record;
-      if (!isControlled) setInternalRecord(record);
-      onExecutionRecordChange?.(record);
-    },
-    [isControlled, onExecutionRecordChange],
-  );
+  // Keep the latest external callback + controlled flag in refs so the STABLE
+  // setExecutionRecord below always reaches the current handler. Without this,
+  // finalizeRun and the run callbacks (deps `[]`) close over the first render's
+  // setExecutionRecord and notify a stale onExecutionRecordChange (S4).
+  const onExecutionRecordChangeRef = useRef(onExecutionRecordChange);
+  onExecutionRecordChangeRef.current = onExecutionRecordChange;
+  const isControlledRef = useRef(isControlled);
+  isControlledRef.current = isControlled;
+  const setExecutionRecord = useCallback((record: ExecutionRecord | null) => {
+    lastSetRecordRef.current = record;
+    if (!isControlledRef.current) setInternalRecord(record);
+    onExecutionRecordChangeRef.current?.(record);
+  }, []);
 
   // ── React state ──────────────────────────────────────
   const [runnerState, setRunnerState] = useState<RunnerState>(() =>

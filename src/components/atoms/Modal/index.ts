@@ -10,8 +10,9 @@ export {
   ModalFooter,
   ModalClose,
   ModalCloseButton,
-  modalContentVariants,
 } from './Modal';
+
+export { modalContentVariants } from './modalVariants';
 
 export type {
   ModalContentProps,

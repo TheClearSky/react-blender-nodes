@@ -5,6 +5,7 @@ import type {
   ExecutionStepRecord,
   LoopRecord,
   LoopIterationRecord,
+  SwitchRecord,
   GroupRecord,
   ConcurrencyLevelRecord,
   RecordedInputHandleValue,
@@ -51,7 +52,10 @@ function recordToReadonlyMap<T>(
  * pass through unchanged. Functions, symbols, and other non-serializable
  * values are replaced with a placeholder string.
  */
-function safeSerializeValue(value: unknown): unknown {
+function safeSerializeValue(
+  value: unknown,
+  seen: WeakSet<object> = new WeakSet(),
+): unknown {
   if (value === null || value === undefined) return value;
   const type = typeof value;
   if (type === 'string' || type === 'number' || type === 'boolean')
@@ -60,16 +64,28 @@ function safeSerializeValue(value: unknown): unknown {
   if (type === 'symbol') return `[Symbol: ${value.toString()}]`;
   if (type === 'bigint') return value.toString();
 
+  // Cycle guard: `seen` tracks the ANCESTORS on the current path (added on the
+  // way down, removed on the way back up) so a self-referential container
+  // (e.g. a node output where `o.self = o`) becomes `[Circular]` instead of
+  // overflowing the stack — while a value merely shared by two siblings (a DAG,
+  // not a cycle) still serializes fully.
+  if (typeof value === 'object' && seen.has(value)) return '[Circular]';
+
   if (value instanceof Map) {
+    seen.add(value);
     const obj: Record<string, unknown> = {};
     for (const [k, v] of value) {
-      obj[String(k)] = safeSerializeValue(v);
+      obj[String(k)] = safeSerializeValue(v, seen);
     }
+    seen.delete(value);
     return obj;
   }
 
   if (value instanceof Set) {
-    return [...value].map(safeSerializeValue);
+    seen.add(value);
+    const result = [...value].map((v) => safeSerializeValue(v, seen));
+    seen.delete(value);
+    return result;
   }
 
   if (value instanceof Error) {
@@ -82,15 +98,20 @@ function safeSerializeValue(value: unknown): unknown {
   }
 
   if (Array.isArray(value)) {
-    return value.map(safeSerializeValue);
+    seen.add(value);
+    const result = value.map((v) => safeSerializeValue(v, seen));
+    seen.delete(value);
+    return result;
   }
 
   if (isObject(value)) {
     // Plain object — recursively serialize values
+    seen.add(value);
     const obj: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
-      obj[k] = safeSerializeValue(v);
+      obj[k] = safeSerializeValue(v, seen);
     }
+    seen.delete(value);
     return obj;
   }
 
@@ -167,14 +188,24 @@ type SerializedStepRecord = Omit<
 
 type SerializedLoopIterationRecord = Omit<
   LoopIterationRecord,
-  'stepRecords' | 'nestedLoopRecords'
+  'stepRecords' | 'nestedLoopRecords' | 'nestedSwitchRecords'
 > & {
   stepRecords: ReadonlyArray<SerializedStepRecord>;
   nestedLoopRecords?: Record<string, SerializedLoopRecord>;
+  nestedSwitchRecords?: Record<string, SerializedSwitchRecord>;
 };
 
 type SerializedLoopRecord = Omit<LoopRecord, 'iterations'> & {
   iterations: ReadonlyArray<SerializedLoopIterationRecord>;
+};
+
+type SerializedSwitchRecord = Omit<
+  SwitchRecord,
+  'stepRecords' | 'nestedLoopRecords' | 'nestedSwitchRecords'
+> & {
+  stepRecords: ReadonlyArray<SerializedStepRecord>;
+  nestedLoopRecords?: Record<string, SerializedLoopRecord>;
+  nestedSwitchRecords?: Record<string, SerializedSwitchRecord>;
 };
 
 type SerializedGroupRecord = Omit<
@@ -200,7 +231,7 @@ type SerializedExecutionRecord = Omit<
   errors: ReadonlyArray<SerializedGraphError>;
   concurrencyLevels: ReadonlyArray<ConcurrencyLevelRecord>;
   loopRecords: Record<string, SerializedLoopRecord>;
-  switchRecords: Record<string, unknown>;
+  switchRecords: Record<string, SerializedSwitchRecord>;
   groupRecords: Record<string, SerializedGroupRecord>;
   finalValues: Record<string, unknown>;
 };
@@ -274,10 +305,16 @@ function serializeLoopIterationRecord(
   for (const [k, v] of iter.nestedLoopRecords) {
     nested[k] = serializeLoopRecord(v);
   }
+  const nestedSwitches: Record<string, SerializedSwitchRecord> = {};
+  for (const [k, v] of iter.nestedSwitchRecords) {
+    nestedSwitches[k] = serializeSwitchRecord(v);
+  }
   return {
     ...iter,
     stepRecords: iter.stepRecords.map(serializeStepRecord),
     nestedLoopRecords: Object.keys(nested).length > 0 ? nested : undefined,
+    nestedSwitchRecords:
+      Object.keys(nestedSwitches).length > 0 ? nestedSwitches : undefined,
   };
 }
 
@@ -290,12 +327,19 @@ function deserializeLoopIterationRecord(
       nestedLoopRecords.set(k, deserializeLoopRecord(v));
     }
   }
+  const nestedSwitchRecords = new Map<string, SwitchRecord>();
+  if (obj.nestedSwitchRecords) {
+    for (const [k, v] of Object.entries(obj.nestedSwitchRecords)) {
+      nestedSwitchRecords.set(k, deserializeSwitchRecord(v));
+    }
+  }
   return {
     ...obj,
     stepRecords: (obj.stepRecords ?? []).map((s: SerializedStepRecord) =>
       deserializeStepRecord(s),
     ),
     nestedLoopRecords,
+    nestedSwitchRecords,
   };
 }
 
@@ -312,6 +356,52 @@ function deserializeLoopRecord(obj: SerializedLoopRecord): LoopRecord {
     iterations: (obj.iterations ?? []).map((i: SerializedLoopIterationRecord) =>
       deserializeLoopIterationRecord(i),
     ),
+  };
+}
+
+// ─────────────────────────────────────────────────────
+// SwitchRecord serialization (recursive)
+// ─────────────────────────────────────────────────────
+
+function serializeSwitchRecord(rec: SwitchRecord): SerializedSwitchRecord {
+  const nestedLoops: Record<string, SerializedLoopRecord> = {};
+  for (const [k, v] of rec.nestedLoopRecords) {
+    nestedLoops[k] = serializeLoopRecord(v);
+  }
+  const nestedSwitches: Record<string, SerializedSwitchRecord> = {};
+  for (const [k, v] of rec.nestedSwitchRecords) {
+    nestedSwitches[k] = serializeSwitchRecord(v);
+  }
+  return {
+    ...rec,
+    stepRecords: rec.stepRecords.map(serializeStepRecord),
+    nestedLoopRecords:
+      Object.keys(nestedLoops).length > 0 ? nestedLoops : undefined,
+    nestedSwitchRecords:
+      Object.keys(nestedSwitches).length > 0 ? nestedSwitches : undefined,
+  };
+}
+
+function deserializeSwitchRecord(obj: SerializedSwitchRecord): SwitchRecord {
+  const nestedLoopRecords = new Map<string, LoopRecord>();
+  if (obj.nestedLoopRecords) {
+    for (const [k, v] of Object.entries(obj.nestedLoopRecords)) {
+      nestedLoopRecords.set(k, deserializeLoopRecord(v));
+    }
+  }
+  const nestedSwitchRecords = new Map<string, SwitchRecord>();
+  if (obj.nestedSwitchRecords) {
+    for (const [k, v] of Object.entries(obj.nestedSwitchRecords)) {
+      nestedSwitchRecords.set(k, deserializeSwitchRecord(v));
+    }
+  }
+  return {
+    ...obj,
+    stepRecords: (obj.stepRecords ?? []).map((s: SerializedStepRecord) =>
+      deserializeStepRecord(s),
+    ),
+    nestedLoopRecords,
+    nestedSwitchRecords,
   };
 }
 
@@ -355,6 +445,12 @@ function serializeExecutionRecord(
     loopRecords[k] = serializeLoopRecord(v);
   }
 
+  // Serialize switchRecords Map → Record (recursive)
+  const switchRecords: Record<string, SerializedSwitchRecord> = {};
+  for (const [k, v] of record.switchRecords) {
+    switchRecords[k] = serializeSwitchRecord(v);
+  }
+
   // Serialize groupRecords Map → Record (recursive)
   const groupRecords: Record<string, SerializedGroupRecord> = {};
   for (const [k, v] of record.groupRecords) {
@@ -379,7 +475,7 @@ function serializeExecutionRecord(
     errors: record.errors.map(serializeGraphError),
     concurrencyLevels: [...record.concurrencyLevels],
     loopRecords,
-    switchRecords: Object.fromEntries([...(record.switchRecords ?? new Map())]),
+    switchRecords,
     groupRecords,
     finalValues,
     ...(record.viewState ? { viewState: record.viewState } : {}),
@@ -398,6 +494,14 @@ function deserializeExecutionRecord(
   if (obj.loopRecords) {
     for (const [k, v] of Object.entries(obj.loopRecords)) {
       loopRecords.set(k, deserializeLoopRecord(v));
+    }
+  }
+
+  // Deserialize switchRecords (recursive)
+  const switchRecords = new Map<string, SwitchRecord>();
+  if (obj.switchRecords) {
+    for (const [k, v] of Object.entries(obj.switchRecords)) {
+      switchRecords.set(k, deserializeSwitchRecord(v));
     }
   }
 
@@ -433,7 +537,7 @@ function deserializeExecutionRecord(
     ),
     concurrencyLevels: obj.concurrencyLevels ?? [],
     loopRecords,
-    switchRecords: new Map(),
+    switchRecords,
     groupRecords,
     finalValues,
     ...(obj.viewState ? { viewState: obj.viewState } : {}),

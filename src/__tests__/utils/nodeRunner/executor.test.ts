@@ -1,25 +1,69 @@
 import { describe, it, expect } from 'vitest';
-import {
-  execute,
-  executeStepByStep,
-  buildNodeInfoMap,
-} from '@/utils/nodeRunner/executor';
+import { execute } from '@/utils/nodeRunner/executor';
 import type {
   ExecutionPlan,
   StandardExecutionStep,
   InputResolutionEntry,
 } from '@/utils/nodeRunner/types';
 
-describe('nodeRunner/executor', () => {
-  it('should export the expected functions', () => {
-    expect(execute).toBeDefined();
-    expect(typeof execute).toBe('function');
+describe('nodeRunner/executor — successful execution', () => {
+  it('executes a node, stores its output value, and records completion', async () => {
+    const stepA: StandardExecutionStep = {
+      kind: 'standard',
+      nodeId: 'node-a',
+      nodeTypeId: 'producer',
+      nodeTypeName: 'Producer',
+      concurrencyLevel: 0,
+    };
 
-    expect(executeStepByStep).toBeDefined();
-    expect(typeof executeStepByStep).toBe('function');
+    const plan: ExecutionPlan = {
+      levels: [[stepA]],
+      inputResolutionMap: new Map(),
+      outputDistributionMap: new Map(),
+      nodeCount: 1,
+      warnings: [],
+    };
 
-    expect(buildNodeInfoMap).toBeDefined();
-    expect(typeof buildNodeInfoMap).toBe('function');
+    const state = {
+      nodes: [
+        {
+          id: 'node-a',
+          position: { x: 0, y: 0 },
+          data: {
+            nodeTypeUniqueId: 'producer',
+            inputs: [],
+            outputs: [{ id: 'output-0', name: 'Out' }],
+          },
+        },
+      ],
+      edges: [],
+      typeOfNodes: { producer: { name: 'Producer' } },
+      dataTypes: {},
+    };
+
+    const implementations = {
+      producer: () => new Map([['Out', 42]]),
+    };
+
+    const record = await execute(
+      plan,
+      implementations,
+      state as unknown as Parameters<typeof execute>[2],
+      {
+        onNodeStateChange: () => {},
+        abortSignal: new AbortController().signal,
+      },
+    );
+
+    expect(record.status).toBe('completed');
+
+    const stepRecord = record.steps.find((s) => s.nodeId === 'node-a');
+    expect(stepRecord?.status).toBe('completed');
+    // The produced output is captured on the step and in the ValueStore snapshot.
+    expect(
+      [...(stepRecord?.outputValues.values() ?? [])].map((v) => v.value),
+    ).toContain(42);
+    expect([...record.finalValues.values()]).toContain(42);
   });
 });
 
@@ -104,12 +148,17 @@ describe('nodeRunner/executor — error propagation', () => {
     const nodeStates: Map<string, string> = new Map();
     const controller = new AbortController();
 
-    const record = await execute(plan, implementations, state as any, {
-      onNodeStateChange: (nodeId, visualState) => {
-        nodeStates.set(nodeId, visualState);
+    const record = await execute(
+      plan,
+      implementations,
+      state as unknown as Parameters<typeof execute>[2],
+      {
+        onNodeStateChange: (nodeId, visualState) => {
+          nodeStates.set(nodeId, visualState);
+        },
+        abortSignal: controller.signal,
       },
-      abortSignal: controller.signal,
-    });
+    );
 
     // A should have errored
     expect(nodeStates.get('node-a')).toBe('errored');

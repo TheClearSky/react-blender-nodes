@@ -131,7 +131,7 @@ const typeOfNodes = {
 // ---------------------------------------------------------------------------
 
 // Use a factory to get the inferred state type from makeStateWithAutoInfer
-function createEmptyState() {
+function _createEmptyState() {
   return makeStateWithAutoInfer({
     dataTypes,
     typeOfNodes,
@@ -139,7 +139,7 @@ function createEmptyState() {
     edges: [],
   });
 }
-type TestState = ReturnType<typeof createEmptyState>;
+type TestState = ReturnType<typeof _createEmptyState>;
 
 function buildNode(
   nodeType: NodeTypeId,

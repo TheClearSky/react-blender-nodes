@@ -1,15 +1,20 @@
-import {
-  ResizeControlVariant,
-  type ResizeControlDirection,
-} from '@xyflow/system';
-
-import { NodeResizeControl } from '@xyflow/react';
+import { type ComponentProps } from 'react';
+import { NodeResizeControl, ResizeControlVariant } from '@xyflow/react';
 import type {
   ControlLinePosition,
   ControlPosition,
   NodeResizerProps,
 } from '@xyflow/react';
 import { cn } from '@/utils';
+
+/**
+ * Resize direction, derived from the ReactFlow control's own prop type so it
+ * stays in lockstep with the underlying control instead of reaching into
+ * `@xyflow/system` internals for a single prop type.
+ */
+type ResizeControlDirection = NonNullable<
+  ComponentProps<typeof NodeResizeControl>['resizeDirection']
+>;
 
 /**
  * Props for the NodeResizerWithMoreControls component

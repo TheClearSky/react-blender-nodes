@@ -716,7 +716,7 @@ describe('REPLACE_STATE', () => {
     expect(next.viewport).toEqual({ x: 99, y: 99, zoom: 99 });
   });
 
-  it('returned state reference equals the replacement payload', () => {
+  it('replaces state with the payload content without mutating the payload', () => {
     const state = createTestState();
     const replacement = createTestState();
 
@@ -725,8 +725,12 @@ describe('REPLACE_STATE', () => {
       payload: { state: replacement },
     });
 
-    // REPLACE_STATE returns the payload directly (bypasses Immer produce)
-    expect(next).toBe(replacement);
+    // S1: REPLACE_STATE now returns a FRESH tree (reducer purity) rather than
+    // the dispatched payload object, while carrying the replacement's content.
+    expect(next).not.toBe(replacement);
+    expect(next.dataTypes).toEqual(replacement.dataTypes);
+    expect(next.typeOfNodes).toEqual(replacement.typeOfNodes);
+    expect(next.nodes).toEqual(replacement.nodes);
   });
 });
 

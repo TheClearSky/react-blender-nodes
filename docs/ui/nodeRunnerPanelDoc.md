@@ -28,7 +28,7 @@ animation (from the right).
 > state, selected-step state, or most timeline UI preferences via props. Those
 > live in a shared React context, `RecordingViewStateContext`, consumed through
 > the `useRecordingViewState()` hook
-> (`src/components/organisms/FullGraph/RecordingViewStateContext.tsx` ›
+> (`src/components/organisms/FullGraph/RecordingViewStateContext.ts` ›
 > `useRecordingViewState`). The panel reads `isRunnerPanelOpen`,
 > `selectedStepIndex`, and `edgeValuesAnimated` (plus their setters) from that
 > context. As a result the component **must** be rendered inside a
@@ -517,7 +517,7 @@ what actually renders NodeRunnerPanel. It:
 // ConfigurableNode), so it cannot be imported from
 // '@theclearsky/react-blender-nodes'. Import it via the internal path:
 import { NodeRunnerPanel } from '@/components/organisms/NodeRunnerPanel';
-import { RecordingViewStateProvider } from '@/components/organisms/FullGraph/RecordingViewStateContext';
+import { RecordingViewStateProvider } from '@/components/organisms/FullGraph/RecordingViewStateProvider';
 
 // NodeRunnerPanel MUST be rendered inside a RecordingViewStateProvider,
 // which owns isRunnerPanelOpen / selectedStepIndex / edgeValuesAnimated.

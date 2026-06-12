@@ -7,6 +7,7 @@ import {
 } from '@xyflow/react';
 import { forwardRef, type HTMLAttributes } from 'react';
 import { handleShapesMap, type HandleShape } from './ContextAwareHandleShapes';
+import { useGraphTheme } from '../../FullGraph/GraphThemeContext';
 
 /**
  * Props for the ContextAwareHandle component
@@ -280,6 +281,97 @@ const renderHandleShape = (
  * />
  * ```
  */
+type ConnectableHandleProps = {
+  type: HandleType;
+  position: Position;
+  id: string;
+  color?: string;
+  shape: HandleShape;
+  maxConnections?: number;
+  className?: string;
+} & HTMLAttributes<HTMLDivElement>;
+
+// Variant rendered INSIDE a ReactFlow provider: always calls useNodeConnections
+// (the hook throws without the provider, so it must never be called conditionally).
+const ConnectableHandle = forwardRef<HTMLDivElement, ConnectableHandleProps>(
+  (
+    { type, position, id, color, shape, maxConnections, className, ...props },
+    ref,
+  ) => {
+    const connections = useNodeConnections({
+      handleId: id,
+      handleType: type,
+    });
+    const theme = useGraphTheme();
+    const canConnect =
+      maxConnections !== undefined
+        ? connections.length < maxConnections
+        : undefined;
+    return (
+      <Handle
+        type={type}
+        position={position}
+        id={id}
+        className={cn(
+          '!w-6 !h-6 !border-none !bg-transparent !pointer-events-auto',
+          className,
+        )}
+        style={{
+          backgroundColor: 'transparent',
+        }}
+        isConnectable={canConnect}
+        isConnectableStart={canConnect}
+        isConnectableEnd={canConnect}
+        {...props}
+        ref={ref}
+      >
+        <div className={cn('pointer-events-none flex justify-center')}>
+          {renderHandleShape(
+            shape,
+            color || '#A1A1A1',
+            cn(className, theme?.node?.handleShape),
+          )}
+        </div>
+      </Handle>
+    );
+  },
+);
+ConnectableHandle.displayName = 'ConnectableHandle';
+
+type StaticHandleProps = {
+  position: Position;
+  color?: string;
+  shape: HandleShape;
+  className?: string;
+} & HTMLAttributes<HTMLDivElement>;
+
+// Variant rendered OUTSIDE ReactFlow (e.g. node-type preview): never calls hooks.
+const StaticHandle = forwardRef<HTMLDivElement, StaticHandleProps>(
+  ({ position, color, shape, className, ...props }, ref) => {
+    const theme = useGraphTheme();
+    return (
+      <div
+        className={cn(
+          'absolute',
+          position === Position.Right &&
+            'right-0 top-1/2 -translate-y-1/2 translate-x-1/2',
+          position === Position.Left &&
+            'left-0 top-1/2 -translate-y-1/2 -translate-x-1/2',
+        )}
+        {...props}
+        ref={ref}
+      >
+        {renderHandleShape(
+          shape,
+          color || '#A1A1A1',
+          cn(className, theme?.node?.handleShape),
+        )}
+      </div>
+    );
+  },
+);
+StaticHandle.displayName = 'StaticHandle';
+
 const ContextAwareHandle = forwardRef<HTMLDivElement, ContextAwareHandleProps>(
   (
     {
@@ -295,61 +387,36 @@ const ContextAwareHandle = forwardRef<HTMLDivElement, ContextAwareHandleProps>(
     },
     ref,
   ) => {
-    const connections = isCurrentlyInsideReactFlow
-      ? useNodeConnections({
-          handleId: id,
-          handleType: type,
-        })
-      : [];
+    // Pick the variant by context membership so neither calls a hook conditionally.
     if (isCurrentlyInsideReactFlow) {
-      const canConnect =
-        maxConnections !== undefined
-          ? connections.length < maxConnections
-          : undefined;
       return (
-        <Handle
+        <ConnectableHandle
           type={type}
           position={position}
           id={id}
-          className={cn(
-            '!w-6 !h-6 !border-none !bg-transparent !pointer-events-auto',
-            className,
-          )}
-          style={{
-            backgroundColor: 'transparent',
-          }}
-          isConnectable={canConnect}
-          isConnectableStart={canConnect}
-          isConnectableEnd={canConnect}
+          color={color}
+          shape={shape}
+          maxConnections={maxConnections}
+          className={className}
           {...props}
           ref={ref}
-        >
-          <div className={cn('pointer-events-none flex justify-center')}>
-            {renderHandleShape(shape, color || '#A1A1A1', className)}
-          </div>
-        </Handle>
+        />
       );
     }
-
     return (
-      <div
-        className={cn(
-          'absolute',
-          position === Position.Right &&
-            'right-0 top-1/2 -translate-y-1/2 translate-x-1/2',
-          position === Position.Left &&
-            'left-0 top-1/2 -translate-y-1/2 -translate-x-1/2',
-        )}
+      <StaticHandle
+        position={position}
+        color={color}
+        shape={shape}
+        className={className}
         {...props}
         ref={ref}
-      >
-        {renderHandleShape(shape, color || '#A1A1A1', className)}
-      </div>
+      />
     );
   },
 );
 
 ContextAwareHandle.displayName = 'ContextAwareHandle';
 
-export { ContextAwareHandle, handleShapesMap };
+export { ContextAwareHandle };
 export type { ContextAwareHandleProps, HandleShape };

@@ -17,6 +17,7 @@ import {
   useState,
 } from 'react';
 import { RunnerContext } from '@/components/organisms/FullGraph/FullGraphState';
+import { useGraphTheme } from '@/components/organisms/FullGraph/GraphThemeContext';
 
 const MAX_EDGE_VALUE_LENGTH = 12;
 
@@ -39,7 +40,7 @@ function formatEdgeValue(value: unknown): string {
 }
 
 /** State type for configurable edges */
-type ConfigurableEdgeState = Edge<{}, 'configurableEdge'>;
+type ConfigurableEdgeState = Edge<Record<string, never>, 'configurableEdge'>;
 
 /** Props for the ConfigurableEdge component */
 type ConfigurableEdgeProps = EdgeProps<ConfigurableEdgeState>;
@@ -207,6 +208,7 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
 
     // ── Runner inspection: match this edge to an input or output value ──
     const runnerCtx = useContext(RunnerContext);
+    const theme = useGraphTheme();
 
     type MatchResult = { found: true; value: unknown } | { found: false };
 
@@ -319,14 +321,19 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
                   width={pillWidth}
                   height={pillHeight}
                   rx={6}
-                  fill='#282828'
-                  stroke='#444444'
+                  className={cn(
+                    'fill-edge-value-pill-bg stroke-edge-value-pill-border',
+                    theme?.edge?.valuePillBox,
+                  )}
                   strokeWidth={1}
                 />
                 <text
                   textAnchor='middle'
                   dominantBaseline='central'
-                  fill='#e6e6e6'
+                  className={cn(
+                    'fill-edge-value-pill-text',
+                    theme?.edge?.valuePillText,
+                  )}
                   fontSize={11}
                   fontFamily='var(--font-main)'
                 >
@@ -345,14 +352,19 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
                   width={pillWidth}
                   height={pillHeight}
                   rx={6}
-                  fill='#282828'
-                  stroke='#444444'
+                  className={cn(
+                    'fill-edge-value-pill-bg stroke-edge-value-pill-border',
+                    theme?.edge?.valuePillBox,
+                  )}
                   strokeWidth={1}
                 />
                 <text
                   textAnchor='middle'
                   dominantBaseline='central'
-                  fill='#e6e6e6'
+                  className={cn(
+                    'fill-edge-value-pill-text',
+                    theme?.edge?.valuePillText,
+                  )}
                   fontSize={11}
                   fontFamily='var(--font-main)'
                 >

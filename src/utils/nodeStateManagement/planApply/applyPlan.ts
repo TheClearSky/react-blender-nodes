@@ -447,10 +447,17 @@ function applyPlan<
         ComplexSchemaType
       >;
       const rehydrated = rehydrateAllZones(imported);
-      imported.zones = rehydrated.zones;
-      imported.zoneIndex = rehydrated.zoneIndex;
-      delete imported.history;
-      return imported;
+      // Reducer purity: return a fresh tree instead of mutating the dispatched
+      // action payload. Drop `history` and attach the rehydrated zones without
+      // touching `imported`. (The merged dataTypes/typeOfNodes still alias the
+      // live type definitions by design, so immer freezes them — harmless today
+      // as nothing mutates those schemas, only compares identity.)
+      const { history: _history, ...rest } = imported;
+      return {
+        ...rest,
+        zones: rehydrated.zones,
+        zoneIndex: rehydrated.zoneIndex,
+      };
     }
 
     case 'OPEN_NODE_GROUP': {

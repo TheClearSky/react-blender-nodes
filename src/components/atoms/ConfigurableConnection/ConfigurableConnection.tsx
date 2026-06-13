@@ -7,6 +7,7 @@ import {
   type ConnectionLineComponentProps,
 } from '@xyflow/react';
 import { useMemo } from 'react';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 /** Props for the ConfigurableConnection component */
 type ConfigurableConnectionProps = {} & ConnectionLineComponentProps;
@@ -46,6 +47,9 @@ const ConfigurableConnection = ({
 }: ConfigurableConnectionProps) => {
   const { fromHandle } = useConnection();
   const nodeData = useNodesData(fromHandle?.nodeId || '');
+  const theme = useGraphTheme();
+  const fallbackStrokeColor =
+    theme?.reactFlow?.connectionLine?.fallbackStrokeColor ?? '#A1A1A1';
 
   const handleColor = useMemo(() => {
     if (!fromHandle?.id || !nodeData?.data) return;
@@ -53,8 +57,8 @@ const ConfigurableConnection = ({
       fromHandle?.id,
       nodeData?.data,
     )?.value;
-    return inputOrOutput?.handleColor ?? '#A1A1A1';
-  }, [fromHandle?.id, nodeData?.data]);
+    return inputOrOutput?.handleColor ?? fallbackStrokeColor;
+  }, [fromHandle?.id, nodeData?.data, fallbackStrokeColor]);
 
   const [edgePath] = getBezierPath({
     sourceX: fromX,
@@ -69,7 +73,7 @@ const ConfigurableConnection = ({
     <BaseEdge
       path={edgePath}
       className='stroke-7! in-[g.selected]:brightness-150'
-      style={{ stroke: handleColor || '#A1A1A1' }}
+      style={{ stroke: handleColor || fallbackStrokeColor }}
       focusable={true}
     />
   );

@@ -7,6 +7,8 @@ import {
 } from '@xyflow/react';
 import { ConfigurableNodeReactFlowWrapper } from '@/components';
 import { ConfigurableEdge } from '@/components/atoms/ConfigurableEdge/ConfigurableEdge';
+import { cn } from '@/utils';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import type { ConnectionNeighborhood } from '@/utils/nodeStateManagement/handles/handleDeletionAnalysis';
 
 // Reuse the real renderers so the preview is visually identical to the canvas.
@@ -35,6 +37,7 @@ function ConnectionMiniMap({
   height = 170,
   highlightColor = '#ef4444',
 }: ConnectionMiniMapProps) {
+  const theme = useGraphTheme();
   const nodes = useMemo<Node[]>(
     () =>
       neighborhood.nodes.map((node) => ({
@@ -128,7 +131,10 @@ function ConnectionMiniMap({
   return (
     <div
       ref={containerRef}
-      className='rounded overflow-hidden border border-secondary-dark-gray bg-[#1a1a1a]'
+      className={cn(
+        'rounded overflow-hidden border border-secondary-dark-gray bg-mini-map-bg',
+        theme?.connectionMiniMap?.container,
+      )}
       style={{ height }}
     >
       {ready && (
@@ -150,7 +156,7 @@ function ConnectionMiniMap({
             minZoom={0.05}
             maxZoom={2}
             proOptions={{ hideAttribution: true }}
-            colorMode='dark'
+            colorMode={theme?.reactFlow?.colorMode ?? 'dark'}
           />
         </ReactFlowProvider>
       )}

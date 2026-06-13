@@ -142,14 +142,15 @@ The component lives in
 ### ConfigurableEdgeState
 
 ```typescript
-type ConfigurableEdgeState = Edge<{}, 'configurableEdge'>;
+type ConfigurableEdgeState = Edge<Record<string, unknown>, 'configurableEdge'>;
 ```
 
-A ReactFlow `Edge` type with an empty data record (`{}`) and the type literal
-`'configurableEdge'`. This is the state shape stored in the ReactFlow edge
-store. The empty data record means all rendering information (colors, path,
-value pills) is derived at render time from node data, positional props, and the
-runner context — none of it is persisted on the edge itself.
+A ReactFlow `Edge` type whose `data` is typed `Record<string, unknown>` and the
+type literal `'configurableEdge'`. This is the state shape stored in the
+ReactFlow edge store. The library reads no edge `data` of its own: all rendering
+information (colors, path, value pills) is derived at render time from node
+data, positional props, and the runner context — none of it is persisted on the
+edge itself (consumers may attach their own `data`, which the library ignores).
 
 ### ConfigurableEdgeProps
 
@@ -437,10 +438,11 @@ to outputs when matching output edges.
 
 ### -> [Edges (state type)](../core/edgesDoc.md)
 
-`ConfigurableEdgeState` is `Edge<{}, 'configurableEdge'>`. This type is used
-wherever edges are stored in the ReactFlow state. The empty data generic means
-ConfigurableEdge derives all of its visual properties (gradient, opacity, value
-pill) at render time rather than persisting them in edge state.
+`ConfigurableEdgeState` is `Edge<Record<string, unknown>, 'configurableEdge'>`.
+This type is used wherever edges are stored in the ReactFlow state. The library
+reads no edge `data`: ConfigurableEdge derives all of its visual properties
+(gradient, opacity, value pill) at render time rather than persisting them in
+edge state.
 
 ### -> [FullGraph (registration)](fullGraphDoc.md)
 

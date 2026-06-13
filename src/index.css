@@ -1,4 +1,15 @@
-@import 'tailwindcss';
+/* Scope Tailwind's source scanning to the library source tree so non-source
+   artifacts (review notes outside src/, e2e spec titles) can never leak
+   classes into the shipped CSS — this is what removed the scraped
+   `[review:…]` garbage rules.
+
+   NOTE: story files are deliberately NOT excluded. `@source not` is global to
+   every consumer of this stylesheet, so excluding `*.stories.tsx` here would
+   also strip the gallery themes' one-off classes (e.g. node-body `bg-[#…]`,
+   accent borders) from the STORYBOOK build, leaving the ThemedPlayground
+   gallery unstyled. The few gallery utilities in the shipped CSS are an
+   acceptable cost for the demo rendering correctly. */
+@import 'tailwindcss' source('../src');
 @import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
@@ -17,8 +28,8 @@
   }
   50% {
     box-shadow:
-      0 0 12px 2px rgba(71, 114, 179, 0.45),
-      0 0 4px 0 rgba(71, 114, 179, 0.25);
+      0 0 12px 2px var(--color-running-glow-strong),
+      0 0 4px 0 var(--color-running-glow-soft);
   }
 }
 
@@ -67,13 +78,9 @@
   filter: brightness(1.15);
 }
 
-.scrubber-glow {
-  filter: drop-shadow(0 0 4px rgba(71, 114, 179, 0.5));
-}
-
 .node-runner-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #444444 transparent;
+  scrollbar-color: var(--color-graph-scrollbar-thumb) transparent;
 }
 
 .node-runner-scrollbar::-webkit-scrollbar {
@@ -86,25 +93,78 @@
 }
 
 .node-runner-scrollbar::-webkit-scrollbar-thumb {
-  background: #444444;
+  background: var(--color-graph-scrollbar-thumb);
   border-radius: 2px;
 }
 
 .timeline-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #555 #1a1a1a;
+  scrollbar-color: var(--color-timeline-scrollbar-thumb)
+    var(--color-timeline-scrollbar-track);
 }
 .timeline-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 8px;
 }
 .timeline-scrollbar::-webkit-scrollbar-track {
-  background: #2c2c2c;
+  background: var(--color-timeline-scrollbar-track-webkit);
   border-radius: 4px;
 }
 .timeline-scrollbar::-webkit-scrollbar-thumb {
-  background: #555;
+  background: var(--color-timeline-scrollbar-thumb);
   border-radius: 4px;
+}
+
+/* Themeable component tokens — plain (non-inline) @theme so generated
+   utilities reference var() and respond to runtime overrides like
+   [--color-graph-menu-bg:#f5f5f5] set by a GraphTheme root slot.
+   `static` forces every variable to be emitted even when it is referenced
+   only from JS string literals (inline styles, SVG attributes) — emission
+   must never depend on Tailwind's source scanner finding those literals. */
+@theme static {
+  --color-graph-scrollbar-thumb: #444444;
+  --color-timeline-scrollbar-thumb: #555555;
+  --color-timeline-scrollbar-track: #1a1a1a;
+  --color-timeline-scrollbar-track-webkit: #2c2c2c;
+  --color-timeline-ruler-border: #3a3a3a;
+  --color-timeline-tick: #555555;
+  --color-running-glow-strong: rgba(71, 114, 179, 0.45);
+  --color-running-glow-soft: rgba(71, 114, 179, 0.25);
+  --color-edge-value-pill-bg: #282828;
+  --color-edge-value-pill-border: #444444;
+  --color-edge-value-pill-text: #e6e6e6;
+  --color-timeline-loop-accent: #8c52d1;
+  --color-timeline-switch-accent: #d18c52;
+  --color-timeline-scrubber-active: #6a9be0;
+  --color-timeline-scrubber-line: rgba(74, 133, 255, 0.5);
+  --color-timeline-scrubber-line-active: rgba(74, 133, 255, 0.7);
+  --color-runner-muted-text: #9a9a9a;
+  --color-timeline-hover-text: #eeeeee;
+  --color-inspector-badge-completed-text: #e0f0e0;
+  --color-inspector-badge-errored-text: #f0e0e0;
+  --color-inspector-skipped: #888888;
+  --color-inspector-progress-track: #333333;
+  --color-runner-resize-handle-bg: #2b2b2b;
+  --color-runner-resize-handle-hover-bg: #353535;
+  --color-graph-menu-bg: #181818;
+  --color-graph-menu-item-hover-bg: #3f3f3f;
+  --color-graph-node-panel-content-bg: #272727;
+  --color-graph-elevated-surface-bg: #222222;
+  --color-graph-input-placeholder: #6b6b6b;
+  --color-drag-list-ghost-accent: #aaaaaa;
+  --color-drag-list-item-hover-bg: #383838;
+  --color-mini-map-bg: #1a1a1a;
+  --color-graph-toggle-track-bg: #1a1a1a;
+  /* Moved from the inline block (values unchanged) so their utilities are
+     var-driven and themes can re-anchor them per surface. */
+  --color-tooltip-bg: #181818;
+  --color-primary-gray: #545454; /*light button background*/
+  --color-runner-scrubber-blue: #4a85ff;
+  /* Accent glow shadows consumed via shadow-[..._var(--color-...)] classes. */
+  --color-timeline-snap-glow: rgba(71, 114, 179, 0.4);
+  --color-timeline-drag-target-glow: rgba(71, 114, 179, 0.7);
+  --color-runner-play-button-glow: rgba(74, 120, 194, 0.4);
+  --color-runner-active-button-glow: rgba(71, 114, 179, 0.5);
 }
 
 @theme inline {
@@ -118,8 +178,6 @@
   --color-primary-dark-gray: #303030; /*node background, hover dark button*/
   --color-secondary-dark-gray: #444444; /*dark button border*/
 
-  --color-primary-gray: #545454; /*light button background*/
-
   --color-secondary-light-gray: #656565; /*light button non priority hover*/
   --color-secondary-light-gray-as-transparent-overlay-over-primary-gray: #ffffff1a; /*light button non priority hover as transparent overlay over primary gray*/
   --color-primary-light-gray: #797979; /*light button priority hover*/
@@ -131,7 +189,6 @@
   --color-status-errored: #ff4444;
   --color-status-warning: #ffa500;
   --color-status-skipped: #555555;
-  --color-tooltip-bg: #181818;
 
   --color-runner-panel-bg: #222222;
   --color-runner-toolbar-bg: #262626;
@@ -147,7 +204,6 @@
   --color-runner-handle-dot: #555555;
   --color-runner-bar-completed: #4f8a4f;
   --color-runner-bar-errored: #a64141;
-  --color-runner-scrubber-blue: #4a85ff;
 
   --animate-slide-in-right: slide-in-right 0.2s ease-out;
   --animate-tooltip: tooltip-in 0.15s ease-out;

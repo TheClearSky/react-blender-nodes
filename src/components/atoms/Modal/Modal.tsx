@@ -58,17 +58,21 @@ function ModalOverlay({
 // ---------------------------------------------------------------------------
 
 type ModalContentProps = React.ComponentProps<typeof DialogPrimitive.Content> &
-  VariantProps<typeof modalContentVariants>;
+  VariantProps<typeof modalContentVariants> & {
+    /** Extra classes for the dimming overlay behind the dialog (e.g. a theme's `modal.overlay` slot). */
+    overlayClassName?: string;
+  };
 
 function ModalContent({
   className,
   children,
   size,
+  overlayClassName,
   ...props
 }: ModalContentProps) {
   return (
     <DialogPrimitive.Portal>
-      <ModalOverlay />
+      <ModalOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot='modal-content'
         className={cn(modalContentVariants({ size }), className)}

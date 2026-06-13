@@ -585,25 +585,41 @@ const handleShapes = [
 // Clicking a node type adds it at the cursor position
 ```
 
-## 🎨 Styling
+## 🎨 Styling & Theming
 
-The library uses Tailwind CSS for styling and provides a dark theme that matches
-Blender's aesthetic:
+Import the stylesheet once; the graph ships with the default Blender-style dark
+look:
 
 ```css
-/* Import the default styles */
 @import '@theclearsky/react-blender-nodes/style.css';
-
-/* Customize colors by overriding the theme tokens.
-   They are defined inside an `@theme inline` block and are prefixed
-   with `--color-`. */
-@theme inline {
-  --color-primary-black: #1d1d1d;
-  --color-primary-dark-gray: #303030;
-  --color-primary-gray: #545454;
-  --color-primary-white: #e6e6e6;
-}
 ```
+
+To retheme the graph, wrap it in the optional `GraphThemeProvider` — a theme is
+a typed map of per-component/per-slot Tailwind className overrides plus a
+`reactFlow` section, deep-merged over a named preset (`'blenderDark'` |
+`'light'`):
+
+```tsx
+import {
+  FullGraph,
+  GraphThemeProvider,
+} from '@theclearsky/react-blender-nodes';
+
+<GraphThemeProvider preset='light' theme={{ node: { header: 'rounded-none' } }}>
+  <FullGraph state={state} dispatch={dispatch} />
+</GraphThemeProvider>;
+```
+
+Without a provider the graph keeps its default look — theming is purely
+additive. The built-in presets work out of the box (their classes ship in
+`style.css`); classes you write yourself need your own Tailwind v4 build
+scanning the files that contain them. Var-driven surfaces (scrollbars, glows,
+timeline accents) are recolored through CSS variables on the `root` slot, e.g.
+`theme={{ root: '[--color-graph-menu-bg:#f5f5f5]' }}` — re-declaring the
+`@theme inline` tokens from your own CSS does NOT restyle the pre-built
+stylesheet (those utilities inline their values at build time). See
+[docs/ui/themingDoc.md](docs/ui/themingDoc.md) for the full slot map, the three
+theming mechanisms, and the portal caveats.
 
 ## 📚 Documentation
 

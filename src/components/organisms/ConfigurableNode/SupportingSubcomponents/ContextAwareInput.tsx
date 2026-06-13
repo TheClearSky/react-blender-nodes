@@ -1,6 +1,8 @@
 import { useNodeId } from '@xyflow/react';
 import { useContext } from 'react';
+import { cn } from '@/utils';
 import { Input } from '@/components/atoms';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { SliderNumberInput } from '@/components/molecules';
 import {
   Select,
@@ -30,6 +32,7 @@ function StringSelectForNode({
   };
   onValueChange: (value: string | undefined) => void;
 }) {
+  const theme = useGraphTheme();
   return (
     <Select
       value={input.value ?? ''}
@@ -37,13 +40,17 @@ function StringSelectForNode({
       allowDeselect
       renderInline
     >
-      <SelectTrigger>
+      <SelectTrigger className={theme?.select?.trigger}>
         <SelectValue placeholder={input.name} unsupportedLabel='unsupported' />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className={theme?.select?.content}>
         <SelectUnsupportedItem />
         {input.allowedStrings.map((option) => (
-          <SelectItem key={option} value={option}>
+          <SelectItem
+            key={option}
+            value={option}
+            className={theme?.select?.item}
+          >
             {option}
           </SelectItem>
         ))}
@@ -56,6 +63,7 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
   const nodeId = useNodeId();
   const { allProps } = useContext(FullGraphContext);
   const inputComponentRegistry = useInputComponentRegistry();
+  const theme = useGraphTheme();
   const updateNodeValue = (newValue: unknown) => {
     if (!nodeId) return;
     allProps.dispatch({
@@ -91,7 +99,7 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
           updateNodeValue(newValue);
         }}
         allowOnlyNumbers={false}
-        className='w-full'
+        className={cn('w-full', theme?.node?.inputField)}
       />
     );
   }
@@ -105,7 +113,7 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
           input.onChange?.(newValue);
           updateNodeValue(newValue);
         }}
-        className='w-full'
+        className={cn('w-full', theme?.node?.inputField)}
       />
     );
   }
@@ -122,7 +130,8 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
             }
           }}
         />
-        <p className='text-primary-white text-[27px] leading-[27px] font-main truncate'>
+        {/* No own color: inherits the row (inputRow slot recolors it in themes). */}
+        <p className='text-[27px] leading-[27px] font-main truncate'>
           {input.name}
         </p>
       </div>
@@ -160,6 +169,7 @@ const ContextAwareInput = ({
   isCurrentlyInsideReactFlow,
 }: ContextAwareInputProps) => {
   const inputComponentRegistry = useInputComponentRegistry();
+  const theme = useGraphTheme();
 
   if (isCurrentlyInsideReactFlow) {
     return <ReactFlowAwareInput input={input} />;
@@ -174,16 +184,20 @@ const ContextAwareInput = ({
         }}
         allowDeselect
       >
-        <SelectTrigger>
+        <SelectTrigger className={theme?.select?.trigger}>
           <SelectValue
             placeholder={input.name}
             unsupportedLabel='unsupported'
           />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className={theme?.select?.content}>
           <SelectUnsupportedItem />
           {input.allowedStrings.map((option) => (
-            <SelectItem key={option} value={option}>
+            <SelectItem
+              key={option}
+              value={option}
+              className={theme?.select?.item}
+            >
               {option}
             </SelectItem>
           ))}
@@ -195,7 +209,7 @@ const ContextAwareInput = ({
         value={input.value}
         onChange={input.onChange}
         allowOnlyNumbers={false}
-        className='w-full'
+        className={cn('w-full', theme?.node?.inputField)}
       />
     );
   }
@@ -206,7 +220,7 @@ const ContextAwareInput = ({
         name={input.name}
         value={input.value}
         onChange={input.onChange}
-        className='w-full'
+        className={cn('w-full', theme?.node?.inputField)}
       />
     );
   }
@@ -222,7 +236,8 @@ const ContextAwareInput = ({
             }
           }}
         />
-        <p className='text-primary-white text-[27px] leading-[27px] font-main truncate'>
+        {/* No own color: inherits the row (inputRow slot recolors it in themes). */}
+        <p className='text-[27px] leading-[27px] font-main truncate'>
           {input.name}
         </p>
       </div>

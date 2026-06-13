@@ -6,7 +6,7 @@ import type { Page, Locator } from '@playwright/test';
  * Reliable hooks:
  *   - `[data-step-index="N"]` on each flat step block
  *   - `.timeline-block` class on all step blocks
- *   - `bg-[#8c52d1]/60` (purple) on loop iteration blocks
+ *   - `bg-timeline-loop-accent/60` (purple) on loop iteration blocks
  *   - `.tabular-nums` span next to a Timer icon for total duration
  *   - text like "N steps" for step count
  */
@@ -23,11 +23,11 @@ function getTimelineBlock(page: Page, stepIndex: number): Locator {
 
 /**
  * All loop iteration blocks. The iteration block wrapper renders with the
- * theme purple `bg-[#8c52d1]/60`. Tests typically scope this by the overall
- * iteration count, not by which loop it belongs to.
+ * theme purple `bg-timeline-loop-accent/60`. Tests typically scope this by the
+ * overall iteration count, not by which loop it belongs to.
  */
 function getAllLoopIterationBlocks(page: Page): Locator {
-  return page.locator('div.bg-\\[\\#8c52d1\\]\\/60');
+  return page.locator('div.bg-timeline-loop-accent\\/60');
 }
 
 /** Total duration number+unit text in the timeline toolbar (e.g. "2.80ms"). */

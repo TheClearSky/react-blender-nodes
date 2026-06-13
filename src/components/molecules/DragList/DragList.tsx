@@ -12,16 +12,17 @@ import {
 } from './types';
 import { useDragList } from './useDragList';
 import { DragListItemRow } from './DragListItem';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { pathsAreEqual } from './dragListTreeUtils';
 
 const FLIP_DURATION_MS = 200;
 
 const GHOST_DASHED_BORDER = {
   backgroundImage: [
-    'repeating-linear-gradient(0deg, #aaa 0, #aaa 10px, transparent 10px, transparent 18px)',
-    'repeating-linear-gradient(90deg, #aaa 0, #aaa 10px, transparent 10px, transparent 18px)',
-    'repeating-linear-gradient(180deg, #aaa 0, #aaa 10px, transparent 10px, transparent 18px)',
-    'repeating-linear-gradient(270deg, #aaa 0, #aaa 10px, transparent 10px, transparent 18px)',
+    'repeating-linear-gradient(0deg, var(--color-drag-list-ghost-accent) 0, var(--color-drag-list-ghost-accent) 10px, transparent 10px, transparent 18px)',
+    'repeating-linear-gradient(90deg, var(--color-drag-list-ghost-accent) 0, var(--color-drag-list-ghost-accent) 10px, transparent 10px, transparent 18px)',
+    'repeating-linear-gradient(180deg, var(--color-drag-list-ghost-accent) 0, var(--color-drag-list-ghost-accent) 10px, transparent 10px, transparent 18px)',
+    'repeating-linear-gradient(270deg, var(--color-drag-list-ghost-accent) 0, var(--color-drag-list-ghost-accent) 10px, transparent 10px, transparent 18px)',
   ].join(', '),
   backgroundSize: '2px 100%, 100% 2px, 2px 100%, 100% 2px',
   backgroundPosition: '0 0, 0 0, 100% 0, 0 100%',
@@ -52,6 +53,7 @@ function InlineGhost<T extends Record<string, unknown>>({
   indentationPerLevel,
   renderContent,
 }: InlineGhostProps<T>) {
+  const theme = useGraphTheme();
   const content = renderContent ? (
     renderContent(item, depth)
   ) : (
@@ -65,6 +67,7 @@ function InlineGhost<T extends Record<string, unknown>>({
         'flex items-center gap-2 px-2.5 py-2 rounded-md',
         'text-[14px] leading-[14px] font-main',
         'pointer-events-none opacity-80',
+        theme?.dragList?.ghost,
       )}
       style={{
         ...GHOST_DASHED_BORDER,
@@ -95,6 +98,7 @@ function FloatingDragPreview<T extends Record<string, unknown>>({
   width,
   renderContent,
 }: FloatingDragPreviewProps<T>) {
+  const theme = useGraphTheme();
   const content = renderContent ? (
     renderContent(item, 0)
   ) : (
@@ -111,6 +115,7 @@ function FloatingDragPreview<T extends Record<string, unknown>>({
         'text-[14px] leading-[14px] font-main',
         'shadow-lg shadow-black/40',
         'opacity-90',
+        theme?.dragList?.preview,
       )}
       style={{
         left: pointerX - offsetX,

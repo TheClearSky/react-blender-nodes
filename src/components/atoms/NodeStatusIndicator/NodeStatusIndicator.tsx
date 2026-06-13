@@ -3,6 +3,7 @@ import { FloatingArrow } from '@floating-ui/react';
 import { useFloatingTooltip } from '@/hooks/useFloatingTooltip';
 import { AlertCircleIcon, AlertTriangleIcon } from 'lucide-react';
 import { cn } from '@/utils';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import type { NodeVisualState, GraphError } from '@/utils/nodeRunner/types';
 import { formatGraphError } from '@/utils/nodeRunner/errors';
 
@@ -52,6 +53,7 @@ function StatusTooltip({
     hoverDelay: { open: 150, close: 0 },
     transitionDuration: 150,
   });
+  const theme = useGraphTheme();
 
   return (
     <>
@@ -73,7 +75,10 @@ function StatusTooltip({
         >
           <div
             style={transitionStyles}
-            className='max-w-xs rounded-md bg-[#181818] border border-secondary-dark-gray px-3 py-2 text-[14px] leading-[18px] font-main text-primary-white shadow-lg whitespace-pre-wrap pointer-events-auto'
+            className={cn(
+              'max-w-xs rounded-md bg-tooltip-bg border border-secondary-dark-gray px-3 py-2 text-[14px] leading-[18px] font-main text-primary-white shadow-lg whitespace-pre-wrap pointer-events-auto',
+              theme?.statusIndicator?.tooltip,
+            )}
           >
             {content}
             <FloatingArrow
@@ -81,7 +86,7 @@ function StatusTooltip({
               context={context}
               width={10}
               height={5}
-              fill='#181818'
+              fill='var(--color-tooltip-bg)'
               strokeWidth={1}
               stroke='var(--color-secondary-dark-gray)'
             />
@@ -144,7 +149,7 @@ function NodeStatusIndicator({
       {/* Error icon */}
       {visualState === 'errored' && errorTooltipContent && (
         <StatusTooltip
-          icon={<AlertCircleIcon className='w-5 h-5 text-[#FF4444]' />}
+          icon={<AlertCircleIcon className='w-5 h-5 text-status-errored' />}
           content={errorTooltipContent}
         />
       )}
@@ -152,7 +157,7 @@ function NodeStatusIndicator({
       {/* Warning icon */}
       {visualState === 'warning' && warningTooltipContent && (
         <StatusTooltip
-          icon={<AlertTriangleIcon className='w-5 h-5 text-[#FFA500]' />}
+          icon={<AlertTriangleIcon className='w-5 h-5 text-status-warning' />}
           content={warningTooltipContent}
         />
       )}

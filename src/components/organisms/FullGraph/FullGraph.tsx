@@ -14,6 +14,7 @@ import {
   Controls,
   MiniMap,
   SelectionMode,
+  type BackgroundVariant,
   type XYPosition,
   ReactFlowProvider,
   useReactFlow,
@@ -42,7 +43,7 @@ import {
   createContextValue,
 } from './FullGraphState';
 import { RecordingViewStateProvider } from './RecordingViewStateProvider';
-import { useGraphTheme } from './GraphThemeContext';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { nodeTypes, edgeTypes } from './FullGraphCustomNodesAndEdges';
 import type {
   FunctionImplementations,
@@ -752,7 +753,17 @@ function FullGraphWithReactFlowProvider<
         onDelete={() => dispatch({ type: actionTypesMap.END_BATCH })}
       >
         <Controls className={theme?.reactFlow?.controls?.className} />
-        <Background {...theme?.reactFlow?.background} />
+        <Background
+          {...theme?.reactFlow?.background}
+          // The theme exposes a library-owned 'lines' | 'dots' | 'cross'
+          // union; xyflow types the prop as its string ENUM whose members are
+          // exactly these strings, so the cast is sound.
+          variant={
+            theme?.reactFlow?.background?.variant as
+              | BackgroundVariant
+              | undefined
+          }
+        />
         <ZoneFrameOverlay
           zones={currentNodesAndEdges.zones}
           nodes={currentNodesAndEdges.nodes}

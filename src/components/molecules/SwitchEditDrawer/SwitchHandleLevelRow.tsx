@@ -1,4 +1,6 @@
 import { Input } from '@/components/atoms';
+import { cn } from '@/utils';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { HandleLevelRowShell } from '@/components/molecules/RegionChannelEditDrawer/HandleLevelRowShell';
 import type { SwitchHandleLevel } from './switchLevelConversion';
 import { getCommonName, stripZonePrefix } from './switchLevelConversion';
@@ -47,6 +49,7 @@ function SwitchHandleLevelRow({
   level,
   onUpdateLevel,
 }: SwitchHandleLevelRowProps) {
+  const theme = useGraphTheme();
   const commonName = getCommonName(level);
 
   function renameAll(trimmed: string) {
@@ -92,7 +95,7 @@ function SwitchHandleLevelRow({
                 onChange={(value: string) => handleSingleNameChange(key, value)}
                 allowOnlyNumbers={false}
                 liveUpdate
-                className='flex-1 min-w-0'
+                className={cn('flex-1 min-w-0', theme?.node?.inputField)}
               />
             </div>
           ))}

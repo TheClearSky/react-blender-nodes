@@ -2,6 +2,8 @@ import {
   type State,
   type SupportedUnderlyingTypes,
   type ActiveDrawer,
+  type TypeOfInput,
+  type TypeOfInputPanel,
 } from './types';
 import { z } from 'zod';
 import { type Connection, type XYPosition, type Viewport } from '@xyflow/react';
@@ -201,14 +203,18 @@ type Action<
         /** ID of the node type to update */
         nodeTypeId: NodeTypeUniqueId;
         /** Partial updates to apply */
+        // Static type imports (not inline import('./types') qualifiers):
+        // inline qualifiers are hoisted verbatim into the rolled-up
+        // dist/index.d.ts as relative imports that escape the package
+        // (guarded by scripts/check-dist-types.mjs).
         updates: {
           name?: string;
           headerColor?: string;
           inputs?: (
-            | import('./types').TypeOfInput<DataTypeUniqueId>
-            | import('./types').TypeOfInputPanel<DataTypeUniqueId>
+            | TypeOfInput<DataTypeUniqueId>
+            | TypeOfInputPanel<DataTypeUniqueId>
           )[];
-          outputs?: import('./types').TypeOfInput<DataTypeUniqueId>[];
+          outputs?: TypeOfInput<DataTypeUniqueId>[];
         };
       };
     }

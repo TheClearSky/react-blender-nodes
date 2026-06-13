@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Info, Undo2 } from 'lucide-react';
 import { Button } from '@/components/atoms';
+import { cn } from '@/utils';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { useSlideAnimation } from '@/hooks/useSlideAnimation';
 import { DragList } from '@/components/molecules/DragList';
 import type { DragListItem } from '@/components/molecules/DragList/types';
@@ -77,6 +79,7 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
   getChannelBlastRadius,
   getNeighborhood,
 }: RegionChannelEditDrawerProps<TLevel>) {
+  const theme = useGraphTheme();
   const { mounted, ref, style } = useSlideAnimation(isOpen, {
     hiddenTransform: 'translateX(100%)',
     visibleTransform: 'translateX(0)',
@@ -185,23 +188,49 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
       <div
         ref={ref}
         style={style}
-        className='w-full h-full pointer-events-auto flex flex-col bg-[#222222] border-l border-secondary-dark-gray'
+        className={cn(
+          'w-full h-full pointer-events-auto flex flex-col bg-graph-elevated-surface-bg border-l border-secondary-dark-gray',
+          theme?.drawer?.container,
+        )}
       >
-        <div className='flex items-center justify-between border-b border-secondary-dark-gray px-3 py-2.5'>
-          <span className='text-primary-white text-[16px] leading-[16px] font-main truncate'>
+        <div
+          className={cn(
+            'flex items-center justify-between border-b border-secondary-dark-gray px-3 py-2.5',
+            theme?.drawer?.header,
+          )}
+        >
+          <span
+            className={cn(
+              'text-primary-white text-[16px] leading-[16px] font-main truncate',
+              theme?.drawer?.title,
+            )}
+          >
             {title}
           </span>
           <Button
             size='small'
             onClick={onClose}
-            className='bg-transparent border-none hover:bg-primary-gray p-1'
+            className={cn(
+              'bg-transparent border-none hover:bg-primary-gray p-1',
+              theme?.drawer?.closeButton,
+            )}
           >
             <X className='w-[18px] h-[18px]' />
           </Button>
         </div>
 
-        <div className='flex-1 overflow-y-auto p-3 flex flex-col gap-3'>
-          <label className='text-primary-white text-sm font-main'>
+        <div
+          className={cn(
+            'flex-1 overflow-y-auto p-3 flex flex-col gap-3',
+            theme?.drawer?.content,
+          )}
+        >
+          <label
+            className={cn(
+              'text-primary-white text-sm font-main',
+              theme?.drawer?.label,
+            )}
+          >
             Data Channels ({localLevels.length})
           </label>
 
@@ -224,14 +253,24 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
               }}
             />
           ) : (
-            <div className='text-secondary-light-gray text-sm py-2 text-center'>
+            <div
+              className={cn(
+                'text-secondary-light-gray text-sm py-2 text-center',
+                theme?.drawer?.emptyState,
+              )}
+            >
               {emptyStateText}
             </div>
           )}
 
           {deletedLevels.length > 0 && (
             <div className='flex flex-col gap-1.5'>
-              <label className='text-primary-white text-sm font-main'>
+              <label
+                className={cn(
+                  'text-primary-white text-sm font-main',
+                  theme?.drawer?.label,
+                )}
+              >
                 Deleted ({deletedLevels.length})
               </label>
               <div className='flex flex-col gap-1'>
@@ -270,11 +309,26 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
           )}
         </div>
 
-        <div className='border-t border-secondary-dark-gray px-3 py-2 flex gap-2'>
-          <Button size='small' color='lightNonPriority' onClick={handleSave}>
+        <div
+          className={cn(
+            'border-t border-secondary-dark-gray px-3 py-2 flex gap-2',
+            theme?.drawer?.footer,
+          )}
+        >
+          <Button
+            size='small'
+            color='lightNonPriority'
+            onClick={handleSave}
+            className={theme?.drawer?.footerButton}
+          >
             {deletedLevels.length > 0 ? 'Save & Review Deletions' : 'Save'}
           </Button>
-          <Button size='small' color='dark' onClick={onClose}>
+          <Button
+            size='small'
+            color='dark'
+            onClick={onClose}
+            className={theme?.drawer?.footerButton}
+          >
             Cancel
           </Button>
         </div>

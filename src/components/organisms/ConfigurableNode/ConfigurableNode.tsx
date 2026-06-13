@@ -24,7 +24,7 @@ import { z } from 'zod';
 import { FullGraphContext } from '../FullGraph/FullGraphState';
 import type { NodeVisualState, GraphError } from '@/utils/nodeRunner/types';
 import { NodeStatusIndicator } from '@/components/atoms/NodeStatusIndicator/NodeStatusIndicator';
-import { useGraphTheme } from '../FullGraph/GraphThemeContext';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 /**
  * Configuration for a node input
@@ -251,7 +251,6 @@ const RenderInputView = forwardRef<
 
   return (
     <div
-      key={input.id}
       ref={ref}
       className={cn(
         'text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row py-3',
@@ -336,7 +335,6 @@ const RenderOutput = forwardRef<HTMLDivElement, RenderOutputProps>(
     const theme = useGraphTheme();
     return (
       <div
-        key={output.id}
         ref={ref}
         className={cn(
           'text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row justify-end py-3',
@@ -382,7 +380,7 @@ const RenderInputPanel = forwardRef<HTMLDivElement, RenderInputPanelProps>(
   ({ panel, isCurrentlyInsideReactFlow, isOpen, onToggle }, ref) => {
     const theme = useGraphTheme();
     return (
-      <div key={panel.id} ref={ref} className='flex flex-col'>
+      <div ref={ref} className='flex flex-col'>
         {/* Panel header with toggle button - same spacing as regular inputs */}
         <Button
           onClick={(e) => {
@@ -407,7 +405,7 @@ const RenderInputPanel = forwardRef<HTMLDivElement, RenderInputPanelProps>(
         {/* Panel content - only render if open */}
         <div
           className={cn(
-            'flex flex-col bg-node-panel-content-bg',
+            'flex flex-col bg-graph-node-panel-content-bg',
             !isOpen && 'h-0 overflow-hidden',
             theme?.node?.panelContent,
           )}

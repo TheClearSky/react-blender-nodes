@@ -21,6 +21,7 @@ import {
 } from '@floating-ui/react';
 import { Info } from 'lucide-react';
 import { cn } from '@/utils';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 // ─────────────────────────────────────────────────────
 // Props
@@ -45,6 +46,8 @@ type TooltipProps = {
   as?: 'span' | 'div' | ComponentType<HTMLAttributes<HTMLElement>>;
   /** Extra props forwarded to the trigger wrapper (e.g. data-*, onClick) */
   triggerProps?: HTMLAttributes<HTMLElement>;
+  /** Extra classes appended to the floating tooltip panel */
+  contentClassName?: string;
 };
 
 // ─────────────────────────────────────────────────────
@@ -61,10 +64,14 @@ function Tooltip({
   style,
   as: Tag = 'span',
   triggerProps,
+  contentClassName,
 }: TooltipProps) {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLElement>(null);
   const arrowRef = useRef<SVGSVGElement>(null);
+  // Optional graph-theme fallback: undefined without a GraphThemeProvider,
+  // so standalone usage keeps the default look.
+  const theme = useGraphTheme();
 
   const { refs, floatingStyles, context } = useFloating({
     open: isOpen,
@@ -111,7 +118,11 @@ function Tooltip({
           >
             <div
               style={{ ...transitionStyles, maxWidth: `${maxWidth}px` }}
-              className='rounded-md border-[1.25px] border-primary-white/60 bg-tooltip-bg px-3 py-2 text-[12px] text-primary-white shadow-2xl backdrop-blur-sm'
+              className={cn(
+                'rounded-md border-[1.25px] border-primary-white/60 bg-tooltip-bg px-3 py-2 text-[12px] text-primary-white shadow-2xl backdrop-blur-sm',
+                theme?.tooltip?.content,
+                contentClassName,
+              )}
             >
               {content}
               <FloatingArrow

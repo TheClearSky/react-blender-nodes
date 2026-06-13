@@ -15,6 +15,7 @@ import type {
 } from '@/utils/nodeRunner/types';
 import { formatGraphError } from '@/utils/nodeRunner/errors';
 import { Tooltip } from '@/components/atoms/Tooltip';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 // ─────────────────────────────────────────────────────
 // Props
@@ -95,29 +96,31 @@ const statusBadgeConfig: Record<
 > = {
   completed: {
     bg: 'bg-runner-bar-completed',
-    text: 'text-[#e0f0e0]',
+    text: 'text-inspector-badge-completed-text',
     label: 'Completed',
   },
   errored: {
     bg: 'bg-runner-bar-errored',
-    text: 'text-[#f0e0e0]',
+    text: 'text-inspector-badge-errored-text',
     label: 'Error',
   },
   skipped: {
-    bg: 'bg-[#888888]/30',
-    text: 'text-[#888888]',
+    bg: 'bg-inspector-skipped/30',
+    text: 'text-inspector-skipped',
     label: 'Skipped',
   },
 };
 
 function StatusBadge({ status }: { status: ExecutionStepRecord['status'] }) {
   const c = statusBadgeConfig[status];
+  const theme = useGraphTheme();
   return (
     <span
       className={cn(
         'rounded-full px-3 py-1 text-[13px] font-medium',
         c.bg,
         c.text,
+        theme?.inspector?.statusBadge,
       )}
     >
       {c.label}
@@ -138,10 +141,11 @@ function ConnectionLine({
   hideComplex: boolean;
   debugMode: boolean;
 }) {
+  const theme = useGraphTheme();
   return (
     <div className='flex flex-col gap-1.5'>
       <div className='text-[13px]'>
-        <span className='text-[#9a9a9a]'>Coming From–</span>{' '}
+        <span className='text-runner-muted-text'>Coming From–</span>{' '}
         <span className='text-primary-white/80'>
           {conn.sourceNodeName} / {conn.sourceHandleName}
         </span>
@@ -151,7 +155,12 @@ function ConnectionLine({
           nodeId: {conn.sourceNodeId} &middot; handleId: {conn.sourceHandleId}
         </div>
       )}
-      <div className='rounded-md border border-runner-value-border bg-runner-value-bg px-3 py-2 font-mono text-[14px] text-primary-white'>
+      <div
+        className={cn(
+          'rounded-md border border-runner-value-border bg-runner-value-bg px-3 py-2 font-mono text-[14px] text-primary-white',
+          theme?.inspector?.valueBox,
+        )}
+      >
         {formatValue(conn.value, hideComplex)}
       </div>
     </div>
@@ -173,6 +182,7 @@ function InputHandleDisplay({
   hideComplex: boolean;
   debugMode: boolean;
 }) {
+  const theme = useGraphTheme();
   return (
     <div className='flex flex-col gap-1.5'>
       <div className='text-[14px] text-primary-white'>
@@ -192,7 +202,12 @@ function InputHandleDisplay({
           />
         ))
       ) : handleValue.isDefault ? (
-        <div className='rounded-md border border-runner-value-border bg-runner-value-bg px-3 py-2 font-mono text-[14px] text-primary-white'>
+        <div
+          className={cn(
+            'rounded-md border border-runner-value-border bg-runner-value-bg px-3 py-2 font-mono text-[14px] text-primary-white',
+            theme?.inspector?.valueBox,
+          )}
+        >
           {formatValue(handleValue.defaultValue, hideComplex)}
         </div>
       ) : (
@@ -217,6 +232,7 @@ function OutputHandleDisplay({
   handleValue: RecordedOutputHandleValue;
   hideComplex: boolean;
 }) {
+  const theme = useGraphTheme();
   return (
     <div className='flex flex-col gap-1.5'>
       <div className='text-[14px] text-primary-white'>
@@ -225,7 +241,12 @@ function OutputHandleDisplay({
           ({handleValue.dataTypeId})
         </span>
       </div>
-      <div className='rounded-md border border-runner-value-border bg-runner-value-bg px-3 py-2 font-mono text-[14px] text-primary-white'>
+      <div
+        className={cn(
+          'rounded-md border border-runner-value-border bg-runner-value-bg px-3 py-2 font-mono text-[14px] text-primary-white',
+          theme?.inspector?.valueBox,
+        )}
+      >
         {formatValue(handleValue.value, hideComplex)}
       </div>
     </div>
@@ -247,15 +268,26 @@ function ExecutionStepInspector({
   edgeValuesAnimated,
   onEdgeValuesAnimatedChange,
 }: ExecutionStepInspectorProps) {
+  const theme = useGraphTheme();
   if (!stepRecord) return null;
 
   const inputEntries = Array.from(stepRecord.inputValues.entries());
   const outputEntries = Array.from(stepRecord.outputValues.entries());
 
   return (
-    <div className='flex w-[340px] animate-slide-in-right flex-col bg-runner-panel-bg'>
+    <div
+      className={cn(
+        'flex w-[340px] animate-slide-in-right flex-col bg-runner-panel-bg',
+        theme?.inspector?.container,
+      )}
+    >
       {/* Header */}
-      <div className='flex items-center justify-between border-b border-secondary-dark-gray px-4 py-3'>
+      <div
+        className={cn(
+          'flex items-center justify-between border-b border-secondary-dark-gray px-4 py-3',
+          theme?.inspector?.header,
+        )}
+      >
         <div className='flex items-center gap-2.5'>
           <Package className='h-5 w-5 text-primary-white' />
           <span className='text-[15px] tracking-wide text-primary-white'>
@@ -300,13 +332,18 @@ function ExecutionStepInspector({
         </div>
 
         {/* Timeline box */}
-        <div className='rounded-md border border-runner-value-border bg-runner-timeline-box-bg px-3 py-2.5'>
+        <div
+          className={cn(
+            'rounded-md border border-runner-value-border bg-runner-timeline-box-bg px-3 py-2.5',
+            theme?.inspector?.timelineBox,
+          )}
+        >
           <div className='text-center text-[13px] text-secondary-light-gray'>
             {stepRecord.startTime.toFixed(2)}ms{' '}
             <span className='text-secondary-dark-gray'>&rarr;</span>{' '}
             {stepRecord.endTime.toFixed(2)}ms
           </div>
-          <div className='relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#333]'>
+          <div className='relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-inspector-progress-track'>
             <div
               className='absolute h-full rounded-full bg-secondary-light-gray/50'
               style={{
@@ -333,7 +370,12 @@ function ExecutionStepInspector({
                 const iterationRecord =
                   loopRecord?.iterations[stepRecord.loopIteration];
                 return (
-                  <div className='rounded-md border border-runner-value-border px-3 py-2'>
+                  <div
+                    className={cn(
+                      'rounded-md border border-runner-value-border px-3 py-2',
+                      theme?.inspector?.contextBox,
+                    )}
+                  >
                     <div className='text-[12px] text-primary-white'>
                       Loop iteration {stepRecord.loopIteration + 1}
                       {loopRecord ? ` of ${loopRecord.totalIterations}` : ''}
@@ -377,7 +419,12 @@ function ExecutionStepInspector({
           value='inputs'
           className='border-b border-secondary-dark-gray'
         >
-          <AccordionTrigger className='gap-1.5 border-b border-secondary-dark-gray bg-runner-section-header-bg px-4 py-2.5 text-[14px] text-primary-white hover:no-underline [&>svg]:text-secondary-light-gray'>
+          <AccordionTrigger
+            className={cn(
+              'gap-1.5 border-b border-secondary-dark-gray bg-runner-section-header-bg px-4 py-2.5 text-[14px] text-primary-white hover:no-underline [&>svg]:text-secondary-light-gray',
+              theme?.inspector?.sectionHeader,
+            )}
+          >
             Inputs
           </AccordionTrigger>
           <AccordionContent className='p-4'>
@@ -410,7 +457,12 @@ function ExecutionStepInspector({
           value='outputs'
           className='border-b border-secondary-dark-gray'
         >
-          <AccordionTrigger className='gap-1.5 border-b border-secondary-dark-gray bg-runner-section-header-bg px-4 py-2.5 text-[14px] text-primary-white hover:no-underline [&>svg]:text-secondary-light-gray'>
+          <AccordionTrigger
+            className={cn(
+              'gap-1.5 border-b border-secondary-dark-gray bg-runner-section-header-bg px-4 py-2.5 text-[14px] text-primary-white hover:no-underline [&>svg]:text-secondary-light-gray',
+              theme?.inspector?.sectionHeader,
+            )}
+          >
             Outputs
           </AccordionTrigger>
           <AccordionContent className='p-4'>
@@ -441,7 +493,12 @@ function ExecutionStepInspector({
       {/* Error section */}
       {stepRecord.error && (
         <div className='p-4'>
-          <div className='rounded-md border border-status-errored/30 bg-status-errored/10 p-2.5'>
+          <div
+            className={cn(
+              'rounded-md border border-status-errored/30 bg-status-errored/10 p-2.5',
+              theme?.inspector?.errorBox,
+            )}
+          >
             <div className='mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-status-errored'>
               Error
             </div>

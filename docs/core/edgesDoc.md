@@ -317,12 +317,12 @@ All edges in the graph are stored as an array of `ConfigurableEdgeState`.
 
 ```typescript
 // `src/components/atoms/ConfigurableEdge/ConfigurableEdge.tsx` › `ConfigurableEdgeState`
-type ConfigurableEdgeState = Edge<{}, 'configurableEdge'>;
+type ConfigurableEdgeState = Edge<Record<string, unknown>, 'configurableEdge'>;
 ```
 
-A ReactFlow `Edge` with no custom data and the type discriminator
-`'configurableEdge'`. Every edge in the system uses this type. The key fields
-inherited from ReactFlow's `Edge`:
+A ReactFlow `Edge` whose `data` is typed `Record<string, unknown>` (the library
+reads none of it) and the type discriminator `'configurableEdge'`. Every edge in
+the system uses this type. The key fields inherited from ReactFlow's `Edge`:
 
 | Field          | Type     | Description                             |
 | -------------- | -------- | --------------------------------------- |
@@ -849,9 +849,10 @@ consumers.
 
 ## Limitations and Deprecated Patterns
 
-- **No custom edge data**: `ConfigurableEdgeState` uses
-  `Edge<{}, 'configurableEdge'>` with empty data. All edge metadata is derived
-  from the connected handles at render time.
+- **No library-read edge data**: `ConfigurableEdgeState` is
+  `Edge<Record<string, unknown>, 'configurableEdge'>`; the library persists and
+  reads no edge `data` (consumers may attach their own, which it ignores). All
+  edge metadata is derived from the connected handles at render time.
 - **Single edge type**: All edges use `'configurableEdge'`. There is no
   mechanism for custom edge types.
 - **`addEdgeWithTypeChecking` is legacy/test-only**: the mutating

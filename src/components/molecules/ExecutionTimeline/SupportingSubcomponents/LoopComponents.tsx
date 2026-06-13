@@ -19,6 +19,7 @@ import {
   type LoopIterationDisplay,
 } from './types';
 import { FlatSection } from './FlatSection';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 // ─────────────────────────────────────────────────────
 // LoopIterationTooltipContent
@@ -109,9 +110,9 @@ function LoopIterationBlockInner({
         />
       }
       className={cn(
-        'absolute cursor-pointer rounded-[2px] bg-[#8c52d1]/60',
+        'absolute cursor-pointer rounded-[2px] bg-timeline-loop-accent/60',
         isSelected &&
-          'z-10 ring-1 ring-[#8c52d1] ring-offset-0 bg-[#8c52d1]/80',
+          'z-10 ring-1 ring-timeline-loop-accent ring-offset-0 bg-timeline-loop-accent/80',
         !isSelected &&
           hasSelectedStep &&
           'z-10 ring-1 ring-white/50 ring-offset-0',
@@ -132,7 +133,7 @@ function LoopIterationBlockInner({
     >
       {showLabel ? (
         <span
-          className='flex items-center gap-1 truncate px-2 text-[11px] font-normal text-[#eee] drop-shadow-sm select-none'
+          className='flex items-center gap-1 truncate px-2 text-[11px] font-normal text-timeline-hover-text drop-shadow-sm select-none'
           style={{ lineHeight: `${blockHeight}px` }}
         >
           <Repeat className='h-2.5 w-2.5 flex-shrink-0' />
@@ -140,7 +141,7 @@ function LoopIterationBlockInner({
         </span>
       ) : (
         <span
-          className='flex items-center justify-center text-[9px] font-medium text-[#eee] select-none w-full'
+          className='flex items-center justify-center text-[9px] font-medium text-timeline-hover-text select-none w-full'
           style={{ lineHeight: `${blockHeight}px` }}
         >
           {iterRecord.iteration}
@@ -363,6 +364,7 @@ function LoopSection({
   selectedIterations: ReadonlyMap<string, number>;
   onNestedSelectIteration: (loopId: string, iteration: number | null) => void;
 }) {
+  const theme = useGraphTheme();
   const { iterations } = segment;
   const iterationToShow =
     selectedIteration !== null ? (iterations[selectedIteration] ?? null) : null;
@@ -382,8 +384,13 @@ function LoopSection({
       {/* Expanded iteration detail */}
       {iterationToShow && (
         <div className='mb-1'>
-          <div className='sticky left-0 z-[5] ml-4 flex w-fit items-center gap-2 rounded-t-[3px] border border-b-0 border-[#8c52d1]/30 bg-runner-timeline-box-bg px-2 py-1 text-[10px]'>
-            <Repeat className='h-2.5 w-2.5 text-[#8c52d1]' />
+          <div
+            className={cn(
+              'sticky left-0 z-[5] ml-4 flex w-fit items-center gap-2 rounded-t-[3px] border border-b-0 border-timeline-loop-accent/30 bg-runner-timeline-box-bg px-2 py-1 text-[10px]',
+              theme?.timeline?.loopHeader,
+            )}
+          >
+            <Repeat className='h-2.5 w-2.5 text-timeline-loop-accent' />
             <span className='font-medium text-primary-white'>
               Iteration {iterationToShow.iteration}
             </span>
@@ -401,7 +408,12 @@ function LoopSection({
               </span>
             )}
           </div>
-          <div className='-mt-px rounded-[3px] border border-[#8c52d1]/30 bg-runner-timeline-box-bg/50'>
+          <div
+            className={cn(
+              '-mt-px rounded-[3px] border border-timeline-loop-accent/30 bg-runner-timeline-box-bg/50',
+              theme?.timeline?.detailBox,
+            )}
+          >
             <IterationDetail
               iteration={iterationToShow}
               nestedLoopRecords={iterationToShow.nestedLoopRecords}

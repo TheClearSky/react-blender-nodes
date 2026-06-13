@@ -385,7 +385,9 @@ function SelectValue({
   }
 
   return (
-    <span className={cn(!displayText && 'text-[#6B6B6B]', className)}>
+    <span
+      className={cn(!displayText && 'text-graph-input-placeholder', className)}
+    >
       {displayText || placeholder}
     </span>
   );
@@ -479,7 +481,7 @@ function SelectContent({ children, className }: SelectContentProps) {
         <div
           style={transitionStyles}
           className={cn(
-            'overflow-hidden rounded-md border border-secondary-dark-gray bg-[#181818] text-primary-white shadow-md',
+            'overflow-hidden rounded-md border border-secondary-dark-gray bg-graph-menu-bg text-primary-white shadow-md',
             className,
           )}
         >
@@ -538,7 +540,7 @@ function SelectItem({
           : size === 'small'
             ? 'py-1 pl-3 pr-1.5 text-[16px] leading-[16px] rounded-sm'
             : 'py-1.5 pl-4 pr-2 text-[27px] leading-[27px] rounded-sm',
-        isActive && 'bg-[#3F3F3F]',
+        isActive && 'bg-graph-menu-item-hover-bg',
         disabled && 'pointer-events-none opacity-50',
         className,
       )}
@@ -630,7 +632,7 @@ function SelectUnsupportedItem({ className }: SelectUnsupportedItemProps) {
       onClick={() => handleSelect(value)}
       className={cn(
         'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-4 pr-2',
-        'text-[27px] leading-[27px] font-main text-red-500/60 hover:bg-[#3F3F3F]',
+        'text-[27px] leading-[27px] font-main text-red-500/60 hover:bg-graph-menu-item-hover-bg',
         className,
       )}
     >

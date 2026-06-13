@@ -1,6 +1,8 @@
 import { useContext } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { FullGraphContext } from '../../FullGraph/FullGraphState';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
+import { cn } from '@/utils';
 import type { Action } from '@/utils/nodeStateManagement/mainReducer';
 
 type NodeHeaderActionDefinition = {
@@ -20,6 +22,7 @@ function ContextAwareNodeHeaderActions({
   isCurrentlyInsideReactFlow,
 }: ContextAwareNodeHeaderActionsProps) {
   const fullGraphContext = useContext(FullGraphContext);
+  const theme = useGraphTheme();
 
   if (actions.length === 0) return null;
 
@@ -35,10 +38,11 @@ function ContextAwareNodeHeaderActions({
           <Icon
             key={actionDef.id}
             strokeWidth={2.5}
-            className={
+            className={cn(
               actionDef.iconClassName ??
-              'shrink-0 w-6 h-6 aspect-square cursor-pointer hover:opacity-80'
-            }
+                'shrink-0 w-6 h-6 aspect-square cursor-pointer hover:opacity-80',
+              theme?.node?.headerActionIcon,
+            )}
             onClick={handleClick}
           />
         );

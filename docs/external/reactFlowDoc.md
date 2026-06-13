@@ -202,7 +202,7 @@ The project wraps ReactFlow's generic types with its own data payloads:
 ReactFlow Type          Project Wrapper                    Custom Data
 ---------------------------------------------------------------------------
 Node<Data>              ConfigurableNodeReactFlowWrapperProps   ConfigurableNodeState (handles, inputs, outputs, nodeTypeUniqueId)
-Edge<Data>              ConfigurableEdgeState                   Edge<{}, 'configurableEdge'>
+Edge<Data>              ConfigurableEdgeState                   Edge<Record<string, unknown>, 'configurableEdge'>
 NodeChange<Node>        NodeChanges<U, N, C, D>                 Parameterized by project generics
 EdgeChange<Edge>        EdgeChanges                             EdgeChange<ConfigurableEdgeState>
 Connection              (used directly)                         Extracted in ADD_EDGE_BY_REACT_FLOW

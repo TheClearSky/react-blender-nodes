@@ -1,4 +1,6 @@
 import { Input } from '@/components/atoms';
+import { cn } from '@/utils';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { HandleLevelRowShell } from '@/components/molecules/RegionChannelEditDrawer/HandleLevelRowShell';
 import type { LoopHandleLevel } from './loopLevelConversion';
 import { getCommonName } from './loopLevelConversion';
@@ -21,6 +23,7 @@ const HANDLE_GROUPS: Array<{
 ];
 
 function LoopHandleLevelRow({ level, onUpdateLevel }: LoopHandleLevelRowProps) {
+  const theme = useGraphTheme();
   const commonName = getCommonName(level);
 
   function renameAll(trimmed: string) {
@@ -62,7 +65,7 @@ function LoopHandleLevelRow({ level, onUpdateLevel }: LoopHandleLevelRowProps) {
               onChange={(value: string) => handleSingleNameChange(inKey, value)}
               allowOnlyNumbers={false}
               liveUpdate
-              className='flex-1 min-w-0'
+              className={cn('flex-1 min-w-0', theme?.node?.inputField)}
             />
           </div>
           <div className='flex items-center gap-1.5'>
@@ -77,7 +80,7 @@ function LoopHandleLevelRow({ level, onUpdateLevel }: LoopHandleLevelRowProps) {
               }
               allowOnlyNumbers={false}
               liveUpdate
-              className='flex-1 min-w-0'
+              className={cn('flex-1 min-w-0', theme?.node?.inputField)}
             />
           </div>
         </div>

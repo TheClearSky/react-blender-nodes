@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Maximize2 } from 'lucide-react';
+import { cn } from '@/utils/cnHelper';
 import {
   Modal,
   ModalContent,
@@ -11,6 +12,7 @@ import {
 } from '@/components/atoms/Modal/Modal';
 import type { ConnectionNeighborhood } from '@/utils/nodeStateManagement/handles/handleDeletionAnalysis';
 import { ButtonToggle } from '@/components/molecules/ButtonToggle/ButtonToggle';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { ConnectionMiniMap } from './ConnectionMiniMap';
 
 type ExpandableConnectionMiniMapProps = {
@@ -57,6 +59,7 @@ function ExpandableConnectionMiniMap({
 }: ExpandableConnectionMiniMapProps) {
   const [expanded, setExpanded] = useState(false);
   const [view, setView] = useState<'neighbourhood' | 'tree'>('neighbourhood');
+  const theme = useGraphTheme();
   const activeData = view === 'tree' && wholeTree ? wholeTree : neighborhood;
   const showInlineToggle = inlineToggle && !!wholeTree;
 
@@ -95,6 +98,8 @@ function ExpandableConnectionMiniMap({
       <Modal open={expanded} onOpenChange={setExpanded}>
         <ModalContent
           size='fullscreen'
+          className={theme?.modal?.content}
+          overlayClassName={theme?.modal?.overlay}
           // The embedded ReactFlow takes focus on pan/zoom and swallows the
           // Escape keydown before it bubbles to Radix's document listener, so
           // Escape wouldn't close the modal. Catch it in the capture phase
@@ -106,14 +111,21 @@ function ExpandableConnectionMiniMap({
             }
           }}
         >
-          <ModalHeader>
-            <ModalTitle>{title ?? 'Connection preview'}</ModalTitle>
+          <ModalHeader className={theme?.modal?.header}>
+            <ModalTitle className={theme?.modal?.title}>
+              {title ?? 'Connection preview'}
+            </ModalTitle>
             <ModalDescription>
               {description ?? 'Read-only preview — pan and zoom to explore.'}
             </ModalDescription>
           </ModalHeader>
           <ModalCloseButton />
-          <ModalBody className='p-2 min-h-0 flex flex-col gap-2'>
+          <ModalBody
+            className={cn(
+              'p-2 min-h-0 flex flex-col gap-2',
+              theme?.modal?.body,
+            )}
+          >
             {wholeTree && (
               <div className='flex shrink-0 justify-end'>
                 <ButtonToggle

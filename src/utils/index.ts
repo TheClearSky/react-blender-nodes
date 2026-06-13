@@ -3,3 +3,4 @@ export * from './geometry';
 export * from './conversions';
 export * from './nodeStateManagement';
 export * from './importExport';
+export * from './theme';

@@ -4,6 +4,8 @@ import {
   niceTickInterval,
   formatTime,
 } from './types';
+import { cn } from '@/utils';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 // ─────────────────────────────────────────────────────
 // TimeRuler — at top, with duration/step info
@@ -20,6 +22,7 @@ function TimeRuler({
   totalDuration: number;
   onScrubDown: (e: React.MouseEvent) => void;
 }) {
+  const theme = useGraphTheme();
   const roughInterval = MIN_LABEL_GAP_PX / timeScale;
   const tickInterval = niceTickInterval(roughInterval);
 
@@ -30,7 +33,10 @@ function TimeRuler({
 
   return (
     <div
-      className='relative border-b border-[#3a3a3a] bg-runner-ruler-bg'
+      className={cn(
+        'relative border-b border-timeline-ruler-border bg-runner-ruler-bg',
+        theme?.timeline?.ruler,
+      )}
       style={{ height: `${RULER_HEIGHT}px`, width: `${contentWidth}px` }}
     >
       <div
@@ -46,10 +52,10 @@ function TimeRuler({
               className='absolute bottom-1 -translate-x-1/2'
               style={{ left: `${x}px` }}
             >
-              <span className='font-mono text-[11px] tabular-nums text-[#9a9a9a] select-none whitespace-nowrap'>
+              <span className='font-mono text-[11px] tabular-nums text-runner-muted-text select-none whitespace-nowrap'>
                 {formatTime(t)}
               </span>
-              <div className='absolute -bottom-1 left-1/2 h-1 w-px bg-[#555]' />
+              <div className='absolute -bottom-1 left-1/2 h-1 w-px bg-timeline-tick' />
             </div>
           );
         })}

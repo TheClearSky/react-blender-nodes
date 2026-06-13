@@ -54,7 +54,7 @@ function ColorPickerCssInput({
       className={cn(
         'rounded-md text-primary-white bg-primary-black font-mono',
         'outline-none focus-visible:outline-none',
-        'border w-full placeholder:text-[#6B6B6B]',
+        'border w-full placeholder:text-graph-input-placeholder',
         error ? 'border-red-500' : 'border-secondary-dark-gray',
         isSmall ? 'h-[28px] px-2.5 text-[13px]' : 'h-[44px] px-4 text-[22px]',
         className,

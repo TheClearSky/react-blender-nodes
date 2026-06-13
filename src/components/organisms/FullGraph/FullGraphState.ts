@@ -27,9 +27,20 @@ type NodeRunnerState = {
   warnings?: ReadonlyArray<string>;
 };
 
-const FullGraphContext = createContext<{
-  allProps: FullGraphProps;
-}>(null!); //the not-null assertion (null!) is because-
+/**
+ * The runtime context value deliberately carries ONLY the state slices that
+ * internal node components read (R1: stable identity across unrelated
+ * dispatches), so the type promises exactly that instead of a full
+ * FullGraphProps whose other state fields would be `undefined` at runtime.
+ */
+type FullGraphContextValue = {
+  allProps: {
+    state: Pick<FullGraphProps['state'], 'typeOfNodes' | 'enableDebugMode'>;
+    dispatch: FullGraphProps['dispatch'];
+  };
+};
+
+const FullGraphContext = createContext<FullGraphContextValue>(null!); //the not-null assertion (null!) is because-
 // we are creating a context that is always provided (right below)
 
 // ─────────────────────────────────────────────────────
@@ -183,7 +194,24 @@ function useFullGraph<
     UnderlyingType,
     ComplexSchemaType
   >,
-) {
+  // Explicit return type: without it, declaration emit synthesizes a module
+  // specifier for the inferred Action type that escapes the rolled-up
+  // dist/index.d.ts as an unresolvable relative import (consumer `dispatch`
+  // silently degrades to `any`). Guarded by scripts/check-dist-types.ts.
+): {
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >;
+  dispatch: GraphStore<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['dispatch'];
+} {
   // Latest-value ref for the consumer's onGraphEvent callback. The store
   // closes over a getter (not the value) so identity changes from
   // render-to-render don't force store recreation.
@@ -273,7 +301,7 @@ function createContextValue(props: {
       enableDebugMode: props.enableDebugMode,
     },
     dispatch: props.dispatch,
-  } as unknown as FullGraphProps;
+  } as unknown as FullGraphContextValue['allProps'];
   return { allProps };
 }
 
@@ -286,4 +314,9 @@ export {
   useRecordContext,
 };
 
-export type { NodeRunnerState, RunnerContextValue, UseFullGraphOptions };
+export type {
+  NodeRunnerState,
+  RunnerContextValue,
+  UseFullGraphOptions,
+  FullGraphContextValue,
+};

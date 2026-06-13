@@ -27,6 +27,16 @@ type ContextMenuItem = {
   separator?: boolean;
 };
 
+/** Per-part className overrides (e.g. supplied by the graph theme). */
+type ContextMenuClassNames = {
+  list?: string;
+  item?: string;
+  itemLabel?: string;
+  shortcut?: string;
+  separator?: string;
+  submenuPanel?: string;
+};
+
 /**
  * Props for the ContextMenu component
  */
@@ -37,6 +47,8 @@ type ContextMenuProps = {
   className?: string;
   /** Optional callback when any item is clicked */
   onItemClick?: (item: ContextMenuItem) => void;
+  /** Per-part className overrides appended after the default classes */
+  classNames?: ContextMenuClassNames;
 };
 
 /**
@@ -50,6 +62,7 @@ const ContextMenuItemComponent = ({
   onHover,
   itemRef,
   itemTransitionStyle,
+  classNames,
 }: {
   item: ContextMenuItem;
   index: number;
@@ -57,19 +70,23 @@ const ContextMenuItemComponent = ({
   onHover: (itemId: string | null) => void;
   itemRef: (el: HTMLDivElement | null) => void;
   itemTransitionStyle?: React.CSSProperties;
+  classNames?: ContextMenuClassNames;
 }) => {
   const hasSubItems = item.subItems && item.subItems.length > 0;
 
   return (
     <li className='relative'>
       {item.separator && index > 0 && (
-        <div className='border-t border-gray-600 m-0' />
+        <div
+          className={cn('border-t border-gray-600 m-0', classNames?.separator)}
+        />
       )}
       <div
         ref={itemRef}
         className={cn(
-          'flex items-center justify-between gap-2 px-3 py-1.25 hover:bg-[#3F3F3F] cursor-pointer',
+          'flex items-center justify-between gap-2 px-3 py-1.25 hover:bg-graph-menu-item-hover-bg cursor-pointer',
           'transition-colors duration-150',
+          classNames?.item,
         )}
         style={itemTransitionStyle}
         onClick={() => onItemClick(item)}
@@ -81,13 +98,23 @@ const ContextMenuItemComponent = ({
               {item.icon}
             </span>
           )}
-          <span className='text-sm leading-3.5 text-primary-white font-main'>
+          <span
+            className={cn(
+              'text-sm leading-3.5 text-primary-white font-main',
+              classNames?.itemLabel,
+            )}
+          >
             {item.label}
           </span>
         </div>
         <div className='flex items-center gap-2'>
           {item.shortcut && (
-            <span className='text-sm leading-3.5 text-gray-400 font-mono'>
+            <span
+              className={cn(
+                'text-sm leading-3.5 text-gray-400 font-mono',
+                classNames?.shortcut,
+              )}
+            >
               {item.shortcut}
             </span>
           )}
@@ -113,12 +140,14 @@ const ContextMenuSubmenu = ({
   className,
   bare = false,
   itemTransitionStyle,
+  classNames,
 }: {
   subItems: ContextMenuItem[];
   onItemClick?: (item: ContextMenuItem) => void;
   className?: string;
   bare?: boolean;
   itemTransitionStyle?: React.CSSProperties;
+  classNames?: ContextMenuClassNames;
 }) => {
   const {
     activeSubItems,
@@ -151,7 +180,11 @@ const ContextMenuSubmenu = ({
       <ul
         className={cn(
           'min-w-48 py-1',
-          !bare && 'bg-[#181818] border border-none rounded-md shadow-lg',
+          !bare && 'bg-graph-menu-bg border border-none rounded-md shadow-lg',
+          // Bare crossfade layers must stay transparent: an opaque themed
+          // list bg on the absolutely-positioned outgoing layer would paint
+          // over the incoming items for the whole crossfade.
+          !bare && classNames?.list,
           className,
         )}
         onMouseLeave={handleListMouseLeave}
@@ -165,6 +198,7 @@ const ContextMenuSubmenu = ({
             onHover={handleHover}
             itemRef={makeItemRef(item.id)}
             itemTransitionStyle={itemTransitionStyle}
+            classNames={classNames}
           />
         ))}
       </ul>
@@ -198,7 +232,10 @@ const ContextMenuSubmenu = ({
           >
             {/* Visual panel — has bg, rounded corners, shadow, animated size + overflow clip */}
             <div
-              className='bg-[#181818] rounded-md shadow-lg ml-1'
+              className={cn(
+                'bg-graph-menu-bg rounded-md shadow-lg ml-1',
+                classNames?.submenuPanel,
+              )}
               style={{
                 ...panelSizeStyles,
                 transitionProperty: 'opacity, translate, width, height',
@@ -217,6 +254,7 @@ const ContextMenuSubmenu = ({
                     <ContextMenuSubmenu
                       subItems={prevSubItems}
                       onItemClick={onItemClick}
+                      classNames={classNames}
                       bare
                       itemTransitionStyle={
                         crossfadePhase === 'initial'
@@ -237,6 +275,7 @@ const ContextMenuSubmenu = ({
                     <ContextMenuSubmenu
                       subItems={activeSubItems}
                       onItemClick={onItemClick}
+                      classNames={classNames}
                       bare
                       itemTransitionStyle={
                         crossfadePhase === 'initial'
@@ -258,6 +297,7 @@ const ContextMenuSubmenu = ({
                   <ContextMenuSubmenu
                     subItems={exitSubItems}
                     onItemClick={onItemClick}
+                    classNames={classNames}
                     bare
                   />
                 )}
@@ -344,12 +384,17 @@ export const ContextMenu = ({
   subItems,
   className,
   onItemClick,
+  classNames,
 }: ContextMenuProps) => {
   return (
     <div className={cn('relative', className)}>
-      <ContextMenuSubmenu subItems={subItems} onItemClick={onItemClick} />
+      <ContextMenuSubmenu
+        subItems={subItems}
+        onItemClick={onItemClick}
+        classNames={classNames}
+      />
     </div>
   );
 };
 
-export type { ContextMenuItem, ContextMenuProps };
+export type { ContextMenuItem, ContextMenuProps, ContextMenuClassNames };

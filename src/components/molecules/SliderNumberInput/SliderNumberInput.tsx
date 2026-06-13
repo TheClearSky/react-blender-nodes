@@ -209,7 +209,7 @@ const SliderNumberInput = forwardRef<
 
     const gradient =
       valuePercentage !== -1
-        ? `linear-gradient(90deg,#4772b3 ${valuePercentage}%, #545454 ${valuePercentage}%)`
+        ? `linear-gradient(90deg,var(--color-primary-blue) ${valuePercentage}%, var(--color-primary-gray) ${valuePercentage}%)`
         : '';
 
     // Size-dependent classes

@@ -17,7 +17,7 @@ import {
   useState,
 } from 'react';
 import { RunnerContext } from '@/components/organisms/FullGraph/FullGraphState';
-import { useGraphTheme } from '@/components/organisms/FullGraph/GraphThemeContext';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 const MAX_EDGE_VALUE_LENGTH = 12;
 
@@ -40,7 +40,7 @@ function formatEdgeValue(value: unknown): string {
 }
 
 /** State type for configurable edges */
-type ConfigurableEdgeState = Edge<Record<string, never>, 'configurableEdge'>;
+type ConfigurableEdgeState = Edge<Record<string, unknown>, 'configurableEdge'>;
 
 /** Props for the ConfigurableEdge component */
 type ConfigurableEdgeProps = EdgeProps<ConfigurableEdgeState>;

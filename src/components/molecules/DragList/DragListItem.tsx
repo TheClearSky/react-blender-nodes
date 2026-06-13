@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { GripVertical, Trash2, ChevronDown } from 'lucide-react';
 import { cn } from '@/utils/cnHelper';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { isDragListNonLeaf, type DragListItemProps } from './types';
 import { pathToKey } from './dragListTreeUtils';
 
@@ -23,6 +24,8 @@ function DragListItemRow<
 }: DragListItemProps<T>) {
   const pathKey = pathToKey(path);
   const isNonLeaf = isDragListNonLeaf(item);
+  // Optional graph-theme fallback: undefined without a GraphThemeProvider.
+  const theme = useGraphTheme();
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent) => {
@@ -72,9 +75,10 @@ function DragListItemRow<
       data-path={pathKey}
       className={cn(
         'group flex items-center gap-2 px-2.5 py-2 rounded-md',
-        'bg-primary-dark-gray hover:bg-[#383838]',
+        'bg-primary-dark-gray hover:bg-drag-list-item-hover-bg',
         'text-[14px] leading-[14px] font-main',
         'select-none',
+        theme?.dragList?.row,
       )}
       style={{ marginLeft: depth * indentationPerLevel }}
     >

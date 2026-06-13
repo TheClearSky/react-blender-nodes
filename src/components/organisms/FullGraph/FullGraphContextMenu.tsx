@@ -14,6 +14,7 @@ import {
   type ContextMenuItem,
 } from '../../molecules/ContextMenu/ContextMenu';
 import { cn } from '@/utils';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 type FullGraphContextMenuProps = {
   isOpen: boolean;
@@ -33,6 +34,7 @@ const FullGraphContextMenu = ({
   // Track mounted state separately so the element stays in DOM during exit fade
   const [isMounted, setIsMounted] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const theme = useGraphTheme();
 
   useEffect(() => {
     if (timeoutRef.current) {
@@ -106,7 +108,7 @@ const FullGraphContextMenu = ({
       onClick={(e) => e.stopPropagation()}
       {...getFloatingProps()}
     >
-      <ContextMenu subItems={items} />
+      <ContextMenu subItems={items} classNames={theme?.contextMenu} />
     </div>
   );
 };

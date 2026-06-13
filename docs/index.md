@@ -316,6 +316,14 @@ used across the entire codebase, see
 | [executionRecordingDoc.md](./runner/executionRecordingDoc.md) | Recording export/import format               |
 | [fullGraphDoc.md](./ui/fullGraphDoc.md)                       | Import/export UI integration                 |
 
+### Theming the Graph
+
+| Doc                                         | Why                                                           |
+| ------------------------------------------- | ------------------------------------------------------------- |
+| [themingDoc.md](./ui/themingDoc.md)         | GraphThemeProvider, slot map, presets, var-override mechanism |
+| [tailwindDoc.md](./external/tailwindDoc.md) | Token blocks (inline vs themeable), cn() conflict resolution  |
+| [fullGraphDoc.md](./ui/fullGraphDoc.md)     | Where the provider sits relative to FullGraph's contexts      |
+
 ### Adding a New UI Atom
 
 | Doc                                           | Why                                                                                         |
@@ -381,44 +389,45 @@ used across the entire codebase, see
 
 ### UI Components
 
-| #   | Feature                | Doc                                                               | Description                                                                   |
-| --- | ---------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| 17  | FullGraph              | [fullGraphDoc.md](./ui/fullGraphDoc.md)                           | Top-level graph editor, external store, ReactFlow integration                 |
-| 18  | ConfigurableNode       | [configurableNodeDoc.md](./ui/configurableNodeDoc.md)             | Node rendering: header, handles, inputs, panels, header actions               |
-| 19  | ConfigurableEdge       | [configurableEdgeDoc.md](./ui/configurableEdgeDoc.md)             | Edge rendering: gradient colors, bezier curves, viewport optimization         |
-| 20  | Context Menu           | [contextMenuDoc.md](./ui/contextMenuDoc.md)                       | Right-click menu: add node/loop/switch, node groups, import/export            |
-| 21  | Editor Drawers         | [editorsDoc.md](./ui/editorsDoc.md)                               | Loop / switch / node-type edit drawers, data-channel reorder & rename         |
-| 22  | NodeRunnerPanel        | [nodeRunnerPanelDoc.md](./ui/nodeRunnerPanelDoc.md)               | Runner UI drawer: composed of RunControls + Timeline + Inspector              |
-| 23  | RunControls            | [runControlsDoc.md](./ui/runControlsDoc.md)                       | Transport bar: play/pause/step/stop/reset, mode toggle                        |
-| 24  | ExecutionTimeline      | [executionTimelineDoc.md](./ui/executionTimelineDoc.md)           | Multi-track timeline: loops, switches, zoom/pan, scrubber                     |
-| 25  | ExecutionStepInspector | [executionStepInspectorDoc.md](./ui/executionStepInspectorDoc.md) | Step detail panel: input/output values, error display                         |
-| 26  | ColorPicker            | [colorPickerDoc.md](./ui/colorPickerDoc.md)                       | OKLCH-native color picker: PopoverColorPicker, compound parts, useColorPicker |
+| #   | Feature                | Doc                                                               | Description                                                                           |
+| --- | ---------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 17  | FullGraph              | [fullGraphDoc.md](./ui/fullGraphDoc.md)                           | Top-level graph editor, external store, ReactFlow integration                         |
+| 18  | ConfigurableNode       | [configurableNodeDoc.md](./ui/configurableNodeDoc.md)             | Node rendering: header, handles, inputs, panels, header actions                       |
+| 19  | ConfigurableEdge       | [configurableEdgeDoc.md](./ui/configurableEdgeDoc.md)             | Edge rendering: gradient colors, bezier curves, viewport optimization                 |
+| 20  | Context Menu           | [contextMenuDoc.md](./ui/contextMenuDoc.md)                       | Right-click menu: add node/loop/switch, node groups, import/export                    |
+| 21  | Editor Drawers         | [editorsDoc.md](./ui/editorsDoc.md)                               | Loop / switch / node-type edit drawers, data-channel reorder & rename                 |
+| 22  | NodeRunnerPanel        | [nodeRunnerPanelDoc.md](./ui/nodeRunnerPanelDoc.md)               | Runner UI drawer: composed of RunControls + Timeline + Inspector                      |
+| 23  | RunControls            | [runControlsDoc.md](./ui/runControlsDoc.md)                       | Transport bar: play/pause/step/stop/reset, mode toggle                                |
+| 24  | ExecutionTimeline      | [executionTimelineDoc.md](./ui/executionTimelineDoc.md)           | Multi-track timeline: loops, switches, zoom/pan, scrubber                             |
+| 25  | ExecutionStepInspector | [executionStepInspectorDoc.md](./ui/executionStepInspectorDoc.md) | Step detail panel: input/output values, error display                                 |
+| 26  | ColorPicker            | [colorPickerDoc.md](./ui/colorPickerDoc.md)                       | OKLCH-native color picker: PopoverColorPicker, compound parts, useColorPicker         |
+| 27  | Graph Theming          | [themingDoc.md](./ui/themingDoc.md)                               | Optional GraphThemeProvider: per-slot className overrides, presets, ReactFlow section |
 
 ### UI Atoms, Hooks & Utilities
 
 | #   | Feature             | Doc                                                         | Description                                                                                      |
 | --- | ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| 27  | NodeStatusIndicator | [nodeStatusIndicatorDoc.md](./ui/nodeStatusIndicatorDoc.md) | Visual state overlay: running/completed/errored/warning borders                                  |
-| 28  | Input Components    | [inputComponentsDoc.md](./ui/inputComponentsDoc.md)         | Text input, number slider, checkbox, button atoms                                                |
-| 29  | UI Primitives       | [uiPrimitivesDoc.md](./ui/uiPrimitivesDoc.md)               | Accordion, Modal, Tooltip, ErrorBoundary, NodeResizerWithMoreControls, ScrollableButtonContainer |
-| 30  | Custom Hooks        | [hooksDoc.md](./hooks/hooksDoc.md)                          | useDrag, useClickedOutside, useSlideAnimation, useResizeHandle, etc.                             |
+| 28  | NodeStatusIndicator | [nodeStatusIndicatorDoc.md](./ui/nodeStatusIndicatorDoc.md) | Visual state overlay: running/completed/errored/warning borders                                  |
+| 29  | Input Components    | [inputComponentsDoc.md](./ui/inputComponentsDoc.md)         | Text input, number slider, checkbox, button atoms                                                |
+| 30  | UI Primitives       | [uiPrimitivesDoc.md](./ui/uiPrimitivesDoc.md)               | Accordion, Modal, Tooltip, ErrorBoundary, NodeResizerWithMoreControls, ScrollableButtonContainer |
+| 31  | Custom Hooks        | [hooksDoc.md](./hooks/hooksDoc.md)                          | useDrag, useClickedOutside, useSlideAnimation, useResizeHandle, etc.                             |
 
 ### Import/Export
 
 | #   | Feature       | Doc                                                     | Description                                                    |
 | --- | ------------- | ------------------------------------------------------- | -------------------------------------------------------------- |
-| 31  | Import/Export | [importExportDoc.md](./importExport/importExportDoc.md) | State & recording serialization, validation, repair strategies |
+| 32  | Import/Export | [importExportDoc.md](./importExport/importExportDoc.md) | State & recording serialization, validation, repair strategies |
 
 ### External Systems
 
 | #   | Feature      | Doc                                           | Description                                                    |
 | --- | ------------ | --------------------------------------------- | -------------------------------------------------------------- |
-| 32  | ReactFlow    | [reactFlowDoc.md](./external/reactFlowDoc.md) | Core graph rendering engine: nodes, edges, viewport, minimap   |
-| 33  | Immer        | [immerDoc.md](./external/immerDoc.md)         | Immutable updates via produce + produceWithPatches (undo/redo) |
-| 34  | Zod          | [zodDoc.md](./external/zodDoc.md)             | Schema validation for complex data types                       |
-| 35  | Tailwind CSS | [tailwindDoc.md](./external/tailwindDoc.md)   | Utility CSS, custom dark theme, cn() helper, color tokens      |
-| 36  | Radix UI     | [radixUIDoc.md](./external/radixUIDoc.md)     | UI primitives: checkbox component                              |
-| 37  | Storybook    | [storybookDoc.md](./external/storybookDoc.md) | Component development, stories, visual testing                 |
+| 33  | ReactFlow    | [reactFlowDoc.md](./external/reactFlowDoc.md) | Core graph rendering engine: nodes, edges, viewport, minimap   |
+| 34  | Immer        | [immerDoc.md](./external/immerDoc.md)         | Immutable updates via produce + produceWithPatches (undo/redo) |
+| 35  | Zod          | [zodDoc.md](./external/zodDoc.md)             | Schema validation for complex data types                       |
+| 36  | Tailwind CSS | [tailwindDoc.md](./external/tailwindDoc.md)   | Utility CSS, custom dark theme, cn() helper, color tokens      |
+| 37  | Radix UI     | [radixUIDoc.md](./external/radixUIDoc.md)     | UI primitives: checkbox component                              |
+| 38  | Storybook    | [storybookDoc.md](./external/storybookDoc.md) | Component development, stories, visual testing                 |
 
 ---
 

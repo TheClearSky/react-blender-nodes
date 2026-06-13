@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Toaster, toast } from 'sonner';
 
-import { FullGraph, useFullGraph } from './';
+import { FullGraph, useFullGraph, GraphThemeProvider } from './';
+import type { GraphTheme, GraphThemePresetName } from '@/utils/theme';
 import { Position } from '@xyflow/react';
 import { type Nodes, type Edges } from './types';
 import {
@@ -425,6 +426,45 @@ const exampleTypeOfNodes = {
   ...standardNodeTypes,
 };
 
+// Placeholder implementations for the abstract demo graph. They make the
+// ThemedPlayground graph genuinely runnable (so the runner/timeline/inspector
+// theming has real data to show) and, crucially, silence the per-node
+// "missing function implementation" compile warnings that an empty
+// `functionImplementations={{}}` would surface on every node. Output keys are
+// handle NAMES; values are type-appropriate placeholders.
+const exampleImplementations = makeFunctionImplementationsWithAutoInfer<
+  keyof typeof exampleTypeOfNodes
+>({
+  inputValidator: () =>
+    new Map<string, unknown>([
+      ['Validated Data', 'validated'],
+      ['Validation Status', 'ok'],
+      ['Error Messages', ''],
+    ]),
+  dataSource: () =>
+    new Map<string, unknown>([
+      ['Primary Output', 42],
+      ['Secondary Output', 7],
+      ['Metadata Output', 'meta'],
+    ]),
+  dataTransformer: () =>
+    new Map<string, unknown>([
+      ['Transformed String', 'transformed'],
+      ['Transformed Number', 100],
+      ['Status Output', 'done'],
+    ]),
+  advancedProcessor: () =>
+    new Map<string, unknown>([
+      ['Final Result', 'result'],
+      ['Debug Output', 'debug'],
+    ]),
+  dataSink: () =>
+    new Map<string, unknown>([
+      ['Final Output', 'final'],
+      ['Result Output', 0],
+    ]),
+});
+
 export const Playground: StoryObj<typeof FullGraph> = {
   args: {},
   render: () => {
@@ -440,6 +480,1330 @@ export const Playground: StoryObj<typeof FullGraph> = {
     });
 
     return <FullGraph state={state} dispatch={dispatch} />;
+  },
+};
+
+// ─────────────────────────────────────────────────────
+// ThemedPlayground — a gallery of wildly different GraphThemes
+// ─────────────────────────────────────────────────────
+
+// Per-theme descendant text recolors (mechanism 3 in themingDoc.md). A theme
+// that replaces a container slot must re-supply these, because slot strings
+// REPLACE the preset's slot string wholesale.
+const NEON_TEXT =
+  '[&_.text-primary-white]:text-fuchsia-100 [&_.text-secondary-light-gray]:text-fuchsia-300/80 [&_.text-secondary-dark-gray]:text-fuchsia-400/60';
+const TERMINAL_TEXT =
+  '[&_.text-primary-white]:text-green-300 [&_.text-secondary-light-gray]:text-green-500/80 [&_.text-secondary-dark-gray]:text-green-700 [&_*]:font-mono';
+const PAPER_TEXT =
+  '[&_.text-primary-white]:text-stone-800 [&_.text-secondary-light-gray]:text-stone-500 [&_.text-secondary-dark-gray]:text-stone-400';
+const OCEAN_TEXT =
+  '[&_.text-primary-white]:text-sky-100 [&_.text-secondary-light-gray]:text-sky-300/80 [&_.text-secondary-dark-gray]:text-sky-500/60';
+const BLUEPRINT_TEXT =
+  '[&_.text-primary-white]:text-sky-50 [&_.text-secondary-light-gray]:text-sky-200/80 [&_.text-secondary-dark-gray]:text-sky-300/50';
+const POP_TEXT =
+  '[&_.text-primary-white]:text-black [&_.text-secondary-light-gray]:text-stone-600 [&_.text-secondary-dark-gray]:text-stone-400';
+const STAR_TEXT =
+  '[&_.text-primary-white]:text-violet-100 [&_.text-secondary-light-gray]:text-violet-300/80 [&_.text-secondary-dark-gray]:text-violet-400/60';
+const NOTEBOOK_TEXT =
+  '[&_.text-primary-white]:text-slate-800 [&_.text-secondary-light-gray]:text-slate-500 [&_.text-secondary-dark-gray]:text-slate-400';
+const LOGO_TEXT =
+  '[&_.text-primary-white]:text-[#dce9fb] [&_.text-secondary-light-gray]:text-[#a1ccf7] [&_.text-secondary-dark-gray]:text-[#5a76b8]';
+
+/** Cyberpunk magenta/cyan on near-black violet. */
+const neonHeistTheme: GraphTheme = {
+  root: [
+    'bg-[#0b0014]',
+    '[--color-graph-menu-bg:#150022]',
+    '[--color-graph-menu-item-hover-bg:#3b0a5e]',
+    '[--color-graph-elevated-surface-bg:#10001d]',
+    '[--color-graph-node-panel-content-bg:#1d0033]',
+    '[--color-timeline-loop-accent:#ff2bd6]',
+    '[--color-timeline-switch-accent:#00ffd5]',
+    '[--color-timeline-scrubber-active:#ff2bd6]',
+    '[--color-timeline-scrubber-line:rgba(255,43,214,0.55)]',
+    '[--color-timeline-scrubber-line-active:rgba(255,43,214,0.85)]',
+    '[--color-runner-muted-text:#b07ad1]',
+    '[--color-timeline-hover-text:#ffd6f7]',
+    '[--color-edge-value-pill-bg:#1a0030]',
+    '[--color-edge-value-pill-border:#ff2bd6]',
+    '[--color-edge-value-pill-text:#ffd6f7]',
+    '[--color-graph-scrollbar-thumb:#5b2a86]',
+    '[--color-timeline-scrollbar-thumb:#5b2a86]',
+    '[--color-timeline-scrollbar-track:#150022]',
+    '[--color-timeline-scrollbar-track-webkit:#1a0030]',
+    '[--color-runner-resize-handle-bg:#1a0030]',
+    '[--color-runner-resize-handle-hover-bg:#2a0845]',
+    '[--color-graph-toggle-track-bg:#1a0030]',
+    '[--color-drag-list-item-hover-bg:#3b0a5e]',
+    '[--color-running-glow-strong:rgba(255,43,214,0.5)]',
+    '[--color-running-glow-soft:rgba(255,43,214,0.3)]',
+  ].join(' '),
+  reactFlow: {
+    colorMode: 'dark',
+    background: {
+      variant: 'lines',
+      color: '#21063a',
+      bgColor: '#0b0014',
+      gap: 36,
+    },
+    miniMap: {
+      bgColor: '#150022',
+      maskColor: 'rgba(21, 0, 34, 0.72)',
+      nodeColor: '#3a1463',
+      nodeStrokeColor: '#ff2bd6',
+    },
+  },
+  node: {
+    container:
+      'in-[.selected]:border-fuchsia-400 focus:border-fuchsia-400 shadow-[0_0_24px_rgba(255,43,214,0.18)]',
+    header: 'uppercase tracking-[0.12em] text-[20px]',
+    body: 'bg-[#1e0238] border-x border-b border-fuchsia-500/50',
+    inputField: 'bg-[#1d0033] border-fuchsia-500/40 text-fuchsia-100',
+  },
+  statusIndicator: {
+    tooltip: 'bg-[#150022] border-fuchsia-400/60 text-fuchsia-100',
+  },
+  contextMenu: {
+    list: 'bg-[#150022] border border-fuchsia-500/30 shadow-[0_0_30px_rgba(255,43,214,0.25)]',
+    item: 'hover:bg-fuchsia-500/20',
+    itemLabel: 'text-fuchsia-100',
+    shortcut: 'text-fuchsia-400/70',
+    separator: 'border-fuchsia-500/30',
+    submenuPanel:
+      'bg-[#150022] border border-fuchsia-500/30 shadow-[0_0_30px_rgba(255,43,214,0.25)]',
+  },
+  breadcrumbs: {
+    backButton: 'bg-[#150022] border-fuchsia-500/40 text-fuchsia-100',
+    selectTrigger:
+      'bg-[#150022] border-fuchsia-500/40 text-fuchsia-100 hover:bg-fuchsia-500/20',
+    list: 'text-fuchsia-100',
+    editButton: 'text-fuchsia-100 hover:bg-fuchsia-500/20',
+  },
+  runnerToggleButton:
+    'bg-[#150022]/90 border-fuchsia-500/40 text-fuchsia-100 hover:bg-fuchsia-500/20',
+  runnerPanel: {
+    container: `bg-[#10001d] border-fuchsia-500/30 ${NEON_TEXT}`,
+  },
+  runControls: {
+    container: 'bg-[#150022] border-fuchsia-500/20',
+    playButton: 'bg-fuchsia-600 shadow-[0_0_16px_rgba(255,43,214,0.6)]',
+    divider: 'bg-fuchsia-500/30',
+  },
+  timeline: {
+    container: `bg-[#10001d] ${NEON_TEXT}`,
+    toolbar: 'bg-[#10001d]',
+    trackArea: 'bg-[#0b0014] border-fuchsia-500/20',
+    ruler: 'bg-[#1a0030]',
+    navButton: 'border-fuchsia-500/30',
+  },
+  inspector: {
+    container: `bg-[#10001d] ${NEON_TEXT}`,
+    sectionHeader: 'bg-[#1a0030] text-fuchsia-100 border-fuchsia-500/20',
+    valueBox: 'bg-[#150022] border-fuchsia-500/30 text-fuchsia-100',
+    timelineBox: 'bg-[#150022] border-fuchsia-500/30',
+  },
+  drawer: {
+    container: `bg-[#10001d] border-fuchsia-500/30 ${NEON_TEXT}`,
+    title: 'text-fuchsia-100',
+    label: 'text-fuchsia-200',
+    footerButton: 'border-fuchsia-500/40',
+  },
+  modal: {
+    content: `bg-[#150022] border-fuchsia-500/30 ${NEON_TEXT}`,
+    title: 'text-fuchsia-100',
+  },
+  connectionMiniMap: { container: 'border-fuchsia-500/30' },
+  dragList: {
+    row: 'bg-[#1d0033] text-fuchsia-100 hover:bg-fuchsia-500/20',
+    preview: 'bg-[#1d0033] border-fuchsia-500/40',
+  },
+  select: {
+    trigger: 'bg-[#1d0033] text-fuchsia-100 border-fuchsia-500/30',
+    content: `bg-[#150022] border-fuchsia-500/30 text-fuchsia-100 ${NEON_TEXT}`,
+    item: 'hover:bg-fuchsia-500/20',
+  },
+  tooltip: {
+    content: `bg-[#150022] border-fuchsia-400/60 text-fuchsia-100 ${NEON_TEXT}`,
+  },
+};
+
+/** Phosphor-green CRT: pure black, monospace, grayscale node headers. */
+const terminalGreenTheme: GraphTheme = {
+  root: [
+    'bg-black',
+    '[--color-graph-menu-bg:#000000]',
+    '[--color-graph-menu-item-hover-bg:#052e16]',
+    '[--color-graph-elevated-surface-bg:#020a04]',
+    '[--color-graph-node-panel-content-bg:#01140a]',
+    '[--color-timeline-loop-accent:#22c55e]',
+    '[--color-timeline-switch-accent:#a3e635]',
+    '[--color-timeline-scrubber-active:#22c55e]',
+    '[--color-timeline-scrubber-line:rgba(34,197,94,0.55)]',
+    '[--color-timeline-scrubber-line-active:rgba(34,197,94,0.85)]',
+    '[--color-runner-muted-text:#16a34a]',
+    '[--color-timeline-hover-text:#bbf7d0]',
+    '[--color-edge-value-pill-bg:#000000]',
+    '[--color-edge-value-pill-border:#22c55e]',
+    '[--color-edge-value-pill-text:#86efac]',
+    '[--color-graph-scrollbar-thumb:#14532d]',
+    '[--color-timeline-scrollbar-thumb:#14532d]',
+    '[--color-timeline-scrollbar-track:#020a04]',
+    '[--color-timeline-scrollbar-track-webkit:#01140a]',
+    '[--color-runner-resize-handle-bg:#01140a]',
+    '[--color-runner-resize-handle-hover-bg:#052e16]',
+    '[--color-graph-toggle-track-bg:#01140a]',
+    '[--color-drag-list-item-hover-bg:#052e16]',
+  ].join(' '),
+  reactFlow: {
+    colorMode: 'dark',
+    background: {
+      variant: 'cross',
+      color: '#0b3a1d',
+      bgColor: '#000000',
+      gap: 28,
+      size: 6,
+    },
+    miniMap: {
+      bgColor: '#000000',
+      maskColor: 'rgba(0, 0, 0, 0.78)',
+      nodeColor: '#052e16',
+      nodeStrokeColor: '#22c55e',
+    },
+  },
+  node: {
+    container:
+      'rounded-none in-[.selected]:border-green-400 focus:border-green-400',
+    header: 'saturate-0 brightness-110 rounded-none font-mono text-[20px]',
+    headerTitle: 'font-mono',
+    body: 'rounded-none bg-[#06160d] border border-green-500/60',
+    outputRow: 'text-green-300 font-mono',
+    inputRow: 'text-green-300 font-mono',
+    panelHeader: 'text-green-300 font-mono hover:bg-green-500/10',
+    inputField:
+      'rounded-none bg-black border-green-500/40 text-green-200 font-mono',
+  },
+  statusIndicator: {
+    tooltip: 'bg-black border-green-500/60 text-green-200 font-mono',
+  },
+  contextMenu: {
+    list: 'rounded-none bg-black border border-green-500/40',
+    item: 'hover:bg-green-500/10',
+    itemLabel: 'text-green-300 font-mono',
+    shortcut: 'text-green-700 font-mono',
+    separator: 'border-green-500/40',
+    submenuPanel: 'rounded-none bg-black border border-green-500/40',
+  },
+  breadcrumbs: {
+    backButton: 'rounded-none bg-black border-green-500/40 text-green-300',
+    selectTrigger:
+      'rounded-none bg-black border-green-500/40 text-green-300 hover:bg-green-500/10',
+    list: 'text-green-300 font-mono',
+    editButton: 'text-green-300 hover:bg-green-500/10',
+  },
+  runnerToggleButton:
+    'rounded-none bg-black/90 border-green-500/40 text-green-300 font-mono hover:bg-green-500/10',
+  runnerPanel: {
+    container: `rounded-none bg-[#020a04] border-green-500/30 ${TERMINAL_TEXT}`,
+  },
+  runControls: {
+    container: 'bg-black border-green-500/30',
+    playButton:
+      'rounded-none bg-green-700 shadow-[0_0_12px_rgba(34,197,94,0.5)]',
+    actionButton: 'rounded-none hover:bg-green-500/10',
+    divider: 'bg-green-500/30',
+  },
+  timeline: {
+    container: `bg-[#020a04] ${TERMINAL_TEXT}`,
+    toolbar: 'bg-[#020a04]',
+    trackArea: 'rounded-none bg-black border-green-500/30',
+    ruler: 'bg-[#01140a]',
+    navButton: 'rounded-none border-green-500/30',
+  },
+  inspector: {
+    container: `bg-[#020a04] ${TERMINAL_TEXT}`,
+    sectionHeader: 'bg-[#01140a] text-green-300 border-green-500/30',
+    valueBox: 'rounded-none bg-black border-green-500/40 text-green-200',
+    timelineBox: 'rounded-none bg-black border-green-500/40',
+  },
+  drawer: {
+    container: `bg-[#020a04] border-green-500/30 ${TERMINAL_TEXT}`,
+    title: 'text-green-300 font-mono',
+    label: 'text-green-300 font-mono',
+    footerButton: 'rounded-none border-green-500/40',
+  },
+  modal: {
+    content: `rounded-none bg-black border-green-500/40 ${TERMINAL_TEXT}`,
+    title: 'text-green-300 font-mono',
+  },
+  connectionMiniMap: { container: 'rounded-none border-green-500/40' },
+  dragList: {
+    row: 'rounded-none bg-[#01140a] text-green-300 hover:bg-green-500/10',
+    preview: 'rounded-none bg-[#01140a] border-green-500/40',
+  },
+  select: {
+    trigger: 'rounded-none bg-black text-green-300 border-green-500/40',
+    content: `rounded-none bg-black border-green-500/40 text-green-300 ${TERMINAL_TEXT}`,
+    item: 'hover:bg-green-500/10',
+  },
+  tooltip: {
+    content: `rounded-none bg-black border-green-500/60 text-green-200 ${TERMINAL_TEXT}`,
+  },
+};
+
+/** Warm sepia daylight: built on the light preset, amber accents, soft radii. */
+const sunsetPaperTheme: GraphTheme = {
+  root: [
+    'bg-[#fdf4e3]',
+    '[--color-graph-menu-bg:#fff8ec]',
+    '[--color-graph-menu-item-hover-bg:#fde8c8]',
+    '[--color-graph-elevated-surface-bg:#fffbf2]',
+    '[--color-graph-node-panel-content-bg:#f8ecd9]',
+    '[--color-timeline-loop-accent:#ea580c]',
+    '[--color-timeline-switch-accent:#0d9488]',
+    '[--color-runner-muted-text:#a8825f]',
+    '[--color-timeline-hover-text:#431407]',
+    '[--color-edge-value-pill-bg:#fff8ec]',
+    '[--color-edge-value-pill-border:#ddb892]',
+    '[--color-edge-value-pill-text:#431407]',
+    '[--color-graph-scrollbar-thumb:#d9b991]',
+    '[--color-timeline-scrollbar-thumb:#d9b991]',
+    '[--color-timeline-scrollbar-track:#f4e4cb]',
+    '[--color-timeline-scrollbar-track-webkit:#f0ddc0]',
+    '[--color-runner-resize-handle-bg:#f4e4cb]',
+    '[--color-runner-resize-handle-hover-bg:#ecd5b3]',
+    '[--color-graph-toggle-track-bg:#f4e4cb]',
+    '[--color-drag-list-item-hover-bg:#f0ddc0]',
+    '[--color-primary-gray:#e3cba4]',
+    '[--color-inspector-progress-track:#ecd5b3]',
+  ].join(' '),
+  reactFlow: {
+    colorMode: 'light',
+    background: {
+      variant: 'dots',
+      color: '#dcb88a',
+      bgColor: '#fdf4e3',
+      gap: 24,
+    },
+    miniMap: {
+      bgColor: '#fff8ec',
+      maskColor: 'rgba(244, 228, 203, 0.65)',
+      nodeColor: '#ecd5b3',
+      nodeStrokeColor: '#b97c3c',
+    },
+  },
+  node: {
+    container: 'focus:border-amber-700 in-[.selected]:border-amber-700',
+    header: 'rounded-t-xl',
+    body: 'bg-[#fffaf0] rounded-b-xl border-x border-b border-amber-200',
+    outputRow: 'text-stone-800',
+    inputRow: 'text-stone-800',
+    panelHeader: 'text-stone-800 hover:bg-amber-100',
+    inputField:
+      'bg-white text-stone-800 border-amber-300 placeholder:text-stone-400',
+  },
+  statusIndicator: {
+    tooltip: 'bg-[#fff8ec] border-amber-300 text-stone-800',
+  },
+  contextMenu: {
+    list: 'bg-[#fff8ec] border-amber-200 shadow-amber-900/10',
+    item: 'hover:bg-amber-100',
+    itemLabel: 'text-stone-800',
+    shortcut: 'text-stone-500',
+    separator: 'border-amber-200',
+    submenuPanel: 'bg-[#fff8ec] shadow-amber-900/10',
+  },
+  breadcrumbs: {
+    backButton: 'bg-[#fff8ec] border-amber-300 text-stone-800',
+    selectTrigger:
+      'bg-[#fff8ec] border-amber-300 text-stone-800 hover:bg-amber-100',
+    list: 'text-stone-800',
+    editButton: 'text-stone-800 hover:bg-amber-100',
+  },
+  errorBoundary: {
+    container: 'bg-[#fdf4e3] text-stone-700',
+    retryButton: 'border-amber-300 bg-white text-stone-700 hover:bg-amber-100',
+  },
+  runnerToggleButton:
+    'border-amber-300 bg-[#fff8ec]/90 text-stone-800 hover:bg-amber-100',
+  runnerPanel: {
+    container: `bg-[#faf0de] border-amber-300 ${PAPER_TEXT}`,
+    closeButton: 'text-stone-500 hover:bg-amber-100 hover:text-stone-800',
+  },
+  runControls: {
+    container: 'bg-[#f6ead2] border-amber-200',
+    statusLabel: 'text-stone-800',
+    divider: 'bg-amber-200',
+    actionButton: 'text-stone-700 hover:bg-amber-100 hover:text-stone-900',
+    playButton: 'bg-orange-600 shadow-[0_0_12px_rgba(234,88,12,0.4)]',
+  },
+  timeline: {
+    container: `bg-[#f6ead2] ${PAPER_TEXT}`,
+    toolbar: 'bg-[#f6ead2]',
+    toolbarButton: 'text-stone-800 hover:bg-amber-100',
+    navButton: 'border-amber-300 bg-white text-stone-700 hover:bg-amber-200',
+    ruler: 'bg-[#f0ddc0]',
+    trackArea: 'bg-[#fffaf0] border-amber-200',
+    loopHeader: 'bg-[#f6ead2]',
+    switchHeader: 'bg-[#f6ead2]',
+  },
+  inspector: {
+    container: `bg-[#faf0de] ${PAPER_TEXT}`,
+    header: 'border-amber-200',
+    sectionHeader: 'bg-[#f0ddc0] text-stone-800 border-amber-200',
+    valueBox: 'bg-white border-amber-300 text-stone-800',
+    timelineBox: 'bg-[#f6ead2] border-amber-300',
+    contextBox: 'border-amber-300',
+  },
+  drawer: {
+    container: `bg-[#faf0de] border-amber-300 ${PAPER_TEXT}`,
+    header: 'border-amber-200',
+    title: 'text-stone-800',
+    closeButton: 'hover:bg-amber-100',
+    footer: 'border-amber-200',
+    label: 'text-stone-800',
+    emptyState: 'text-stone-500',
+    footerButton:
+      'bg-amber-100 text-stone-800 border-amber-300 hover:bg-amber-200',
+  },
+  modal: {
+    content: `bg-[#faf0de] border-amber-300 ${PAPER_TEXT}`,
+    title: 'text-stone-800',
+  },
+  connectionMiniMap: { container: 'border-amber-300' },
+  dragList: {
+    row: 'bg-[#f0ddc0] text-stone-800 hover:bg-amber-200',
+    preview: 'bg-[#f0ddc0] border-amber-300',
+  },
+  select: {
+    trigger: 'bg-white text-stone-800 border-amber-300 hover:bg-amber-50',
+    content: `bg-[#fff8ec] border-amber-300 text-stone-800 ${PAPER_TEXT}`,
+    item: 'hover:bg-amber-100',
+  },
+  tooltip: {
+    content: `bg-[#fff8ec] border-amber-400/70 text-stone-800 ${PAPER_TEXT}`,
+  },
+};
+
+/** Abyssal navy with cyan instrumentation. */
+const deepOceanTheme: GraphTheme = {
+  root: [
+    'bg-[#04111f]',
+    '[--color-graph-menu-bg:#081c30]',
+    '[--color-graph-menu-item-hover-bg:#0e3a5c]',
+    '[--color-graph-elevated-surface-bg:#061827]',
+    '[--color-graph-node-panel-content-bg:#0a2238]',
+    '[--color-timeline-loop-accent:#22d3ee]',
+    '[--color-timeline-switch-accent:#818cf8]',
+    '[--color-timeline-scrubber-active:#22d3ee]',
+    '[--color-timeline-scrubber-line:rgba(34,211,238,0.5)]',
+    '[--color-timeline-scrubber-line-active:rgba(34,211,238,0.8)]',
+    '[--color-runner-muted-text:#5e88a6]',
+    '[--color-timeline-hover-text:#cffafe]',
+    '[--color-edge-value-pill-bg:#081c30]',
+    '[--color-edge-value-pill-border:#155e75]',
+    '[--color-edge-value-pill-text:#cffafe]',
+    '[--color-graph-scrollbar-thumb:#155e75]',
+    '[--color-timeline-scrollbar-thumb:#155e75]',
+    '[--color-timeline-scrollbar-track:#061827]',
+    '[--color-timeline-scrollbar-track-webkit:#0a2238]',
+    '[--color-runner-resize-handle-bg:#0a2238]',
+    '[--color-runner-resize-handle-hover-bg:#0e3a5c]',
+    '[--color-graph-toggle-track-bg:#0a2238]',
+    '[--color-drag-list-item-hover-bg:#0e3a5c]',
+  ].join(' '),
+  reactFlow: {
+    colorMode: 'dark',
+    background: {
+      variant: 'dots',
+      color: '#10456b',
+      bgColor: '#04111f',
+      gap: 22,
+    },
+    miniMap: {
+      bgColor: '#081c30',
+      maskColor: 'rgba(4, 17, 31, 0.72)',
+      nodeColor: '#0e3a5c',
+      nodeStrokeColor: '#22d3ee',
+    },
+  },
+  node: {
+    container: 'in-[.selected]:border-cyan-300 focus:border-cyan-300',
+    body: 'bg-[#0e2c47] border-x border-b border-cyan-500/50',
+    inputField: 'bg-[#081c30] border-cyan-500/40 text-sky-100',
+  },
+  statusIndicator: {
+    tooltip: 'bg-[#081c30] border-cyan-400/60 text-sky-100',
+  },
+  contextMenu: {
+    list: 'bg-[#081c30] border border-cyan-500/30',
+    item: 'hover:bg-cyan-500/15',
+    itemLabel: 'text-sky-100',
+    shortcut: 'text-sky-400/70',
+    separator: 'border-cyan-500/30',
+    submenuPanel: 'bg-[#081c30] border border-cyan-500/30',
+  },
+  breadcrumbs: {
+    backButton: 'bg-[#081c30] border-cyan-500/40 text-sky-100',
+    selectTrigger:
+      'bg-[#081c30] border-cyan-500/40 text-sky-100 hover:bg-cyan-500/15',
+    list: 'text-sky-100',
+    editButton: 'text-sky-100 hover:bg-cyan-500/15',
+  },
+  runnerToggleButton:
+    'bg-[#081c30]/90 border-cyan-500/40 text-sky-100 hover:bg-cyan-500/15',
+  runnerPanel: {
+    container: `bg-[#061827] border-cyan-500/30 ${OCEAN_TEXT}`,
+  },
+  runControls: {
+    container: 'bg-[#081c30] border-cyan-500/20',
+    playButton: 'bg-cyan-600 shadow-[0_0_14px_rgba(34,211,238,0.5)]',
+    divider: 'bg-cyan-500/30',
+  },
+  timeline: {
+    container: `bg-[#061827] ${OCEAN_TEXT}`,
+    toolbar: 'bg-[#061827]',
+    trackArea: 'bg-[#04111f] border-cyan-500/20',
+    ruler: 'bg-[#0a2238]',
+    navButton: 'border-cyan-500/30',
+  },
+  inspector: {
+    container: `bg-[#061827] ${OCEAN_TEXT}`,
+    sectionHeader: 'bg-[#0a2238] text-sky-100 border-cyan-500/20',
+    valueBox: 'bg-[#081c30] border-cyan-500/30 text-sky-100',
+    timelineBox: 'bg-[#081c30] border-cyan-500/30',
+  },
+  drawer: {
+    container: `bg-[#061827] border-cyan-500/30 ${OCEAN_TEXT}`,
+    title: 'text-sky-100',
+    label: 'text-sky-200',
+    footerButton: 'border-cyan-500/40',
+  },
+  modal: {
+    content: `bg-[#081c30] border-cyan-500/30 ${OCEAN_TEXT}`,
+    title: 'text-sky-100',
+  },
+  connectionMiniMap: { container: 'border-cyan-500/30' },
+  dragList: {
+    row: 'bg-[#0a2238] text-sky-100 hover:bg-cyan-500/15',
+    preview: 'bg-[#0a2238] border-cyan-500/40',
+  },
+  select: {
+    trigger: 'bg-[#081c30] text-sky-100 border-cyan-500/30',
+    content: `bg-[#081c30] border-cyan-500/30 text-sky-100 ${OCEAN_TEXT}`,
+    item: 'hover:bg-cyan-500/15',
+  },
+  tooltip: {
+    content: `bg-[#081c30] border-cyan-400/60 text-sky-100 ${OCEAN_TEXT}`,
+  },
+};
+
+/** Cobalt engineering blueprint: fine white line grid, drafting-table chrome. */
+const blueprintTheme: GraphTheme = {
+  root: [
+    'bg-[#0b3a82]',
+    '[--color-graph-menu-bg:#0b2f66]',
+    '[--color-graph-menu-item-hover-bg:#1d4d9e]',
+    '[--color-graph-elevated-surface-bg:#0a2c5e]',
+    '[--color-graph-node-panel-content-bg:#0c3578]',
+    '[--color-timeline-loop-accent:#7dd3fc]',
+    '[--color-timeline-switch-accent:#fef08a]',
+    '[--color-timeline-scrubber-active:#e0f2fe]',
+    '[--color-timeline-scrubber-line:rgba(224,242,254,0.5)]',
+    '[--color-timeline-scrubber-line-active:rgba(224,242,254,0.85)]',
+    '[--color-runner-muted-text:#93c5fd]',
+    '[--color-timeline-hover-text:#f0f9ff]',
+    '[--color-edge-value-pill-bg:#0b2f66]',
+    '[--color-edge-value-pill-border:#7dd3fc]',
+    '[--color-edge-value-pill-text:#e0f2fe]',
+    '[--color-graph-scrollbar-thumb:#2563eb]',
+    '[--color-timeline-scrollbar-thumb:#2563eb]',
+    '[--color-timeline-scrollbar-track:#0a2c5e]',
+    '[--color-timeline-scrollbar-track-webkit:#0c3578]',
+    '[--color-runner-resize-handle-bg:#0c3578]',
+    '[--color-runner-resize-handle-hover-bg:#1d4d9e]',
+    '[--color-graph-toggle-track-bg:#0c3578]',
+    '[--color-drag-list-item-hover-bg:#1d4d9e]',
+  ].join(' '),
+  reactFlow: {
+    colorMode: 'dark',
+    background: {
+      variant: 'lines',
+      color: 'rgba(224, 242, 254, 0.16)',
+      bgColor: '#0b3a82',
+      gap: 24,
+      lineWidth: 1,
+    },
+    miniMap: {
+      bgColor: '#0b2f66',
+      maskColor: 'rgba(11, 47, 102, 0.72)',
+      nodeColor: '#1d4d9e',
+      nodeStrokeColor: '#7dd3fc',
+    },
+  },
+  node: {
+    container: 'in-[.selected]:border-sky-200 focus:border-sky-200',
+    header:
+      'font-mono uppercase tracking-wider text-[18px] border-b border-white/30',
+    body: 'bg-[#0c3a86] border-x border-b border-sky-200/50',
+    inputField: 'bg-[#0b2f66] border-sky-300/40 text-sky-50',
+  },
+  statusIndicator: {
+    tooltip: 'bg-[#0b2f66] border-sky-300/60 text-sky-50',
+  },
+  contextMenu: {
+    list: 'bg-[#0b2f66] border border-sky-300/30',
+    item: 'hover:bg-sky-400/20',
+    itemLabel: 'text-sky-50',
+    shortcut: 'text-sky-300/70',
+    separator: 'border-sky-300/30',
+    submenuPanel: 'bg-[#0b2f66] border border-sky-300/30',
+  },
+  breadcrumbs: {
+    backButton: 'bg-[#0b2f66] border-sky-300/40 text-sky-50',
+    selectTrigger:
+      'bg-[#0b2f66] border-sky-300/40 text-sky-50 hover:bg-sky-400/20',
+    list: 'text-sky-50',
+    editButton: 'text-sky-50 hover:bg-sky-400/20',
+  },
+  runnerToggleButton:
+    'bg-[#0b2f66]/90 border-sky-300/40 text-sky-50 hover:bg-sky-400/20',
+  runnerPanel: {
+    container: `bg-[#0a2c5e] border-sky-300/30 ${BLUEPRINT_TEXT}`,
+  },
+  runControls: {
+    container: 'bg-[#0b2f66] border-sky-300/20',
+    playButton: 'bg-sky-500 shadow-[0_0_14px_rgba(125,211,252,0.5)]',
+    divider: 'bg-sky-300/30',
+  },
+  timeline: {
+    container: `bg-[#0a2c5e] ${BLUEPRINT_TEXT}`,
+    toolbar: 'bg-[#0a2c5e]',
+    trackArea: 'bg-[#0b3a82] border-sky-300/20',
+    ruler: 'bg-[#0c3578]',
+    navButton: 'border-sky-300/30',
+  },
+  inspector: {
+    container: `bg-[#0a2c5e] ${BLUEPRINT_TEXT}`,
+    sectionHeader: 'bg-[#0c3578] text-sky-50 border-sky-300/20',
+    valueBox: 'bg-[#0b2f66] border-sky-300/30 text-sky-50',
+    timelineBox: 'bg-[#0b2f66] border-sky-300/30',
+  },
+  drawer: {
+    container: `bg-[#0a2c5e] border-sky-300/30 ${BLUEPRINT_TEXT}`,
+    title: 'text-sky-50',
+    label: 'text-sky-100',
+    footerButton: 'border-sky-300/40',
+  },
+  modal: {
+    content: `bg-[#0b2f66] border-sky-300/30 ${BLUEPRINT_TEXT}`,
+    title: 'text-sky-50',
+  },
+  connectionMiniMap: { container: 'border-sky-300/30' },
+  dragList: {
+    row: 'bg-[#0c3578] text-sky-50 hover:bg-sky-400/20',
+    preview: 'bg-[#0c3578] border-sky-300/40',
+  },
+  select: {
+    trigger: 'bg-[#0b2f66] text-sky-50 border-sky-300/30',
+    content: `bg-[#0b2f66] border-sky-300/30 text-sky-50 ${BLUEPRINT_TEXT}`,
+    item: 'hover:bg-sky-400/20',
+  },
+  tooltip: {
+    content: `bg-[#0b2f66] border-sky-300/60 text-sky-50 ${BLUEPRINT_TEXT}`,
+  },
+};
+
+/** Comic pop-art: halftone dot screen on yellow, hard black borders & shadows. */
+const halftonePopTheme: GraphTheme = {
+  root: [
+    'bg-[#fde047]',
+    '[--color-graph-menu-bg:#ffffff]',
+    '[--color-graph-menu-item-hover-bg:#fde047]',
+    '[--color-graph-elevated-surface-bg:#fffbeb]',
+    '[--color-graph-node-panel-content-bg:#fef3c7]',
+    '[--color-timeline-loop-accent:#ef4444]',
+    '[--color-timeline-switch-accent:#3b82f6]',
+    '[--color-timeline-scrubber-active:#ef4444]',
+    '[--color-timeline-scrubber-line:rgba(239,68,68,0.6)]',
+    '[--color-timeline-scrubber-line-active:rgba(239,68,68,0.9)]',
+    '[--color-runner-muted-text:#78716c]',
+    '[--color-timeline-hover-text:#000000]',
+    '[--color-edge-value-pill-bg:#ffffff]',
+    '[--color-edge-value-pill-border:#000000]',
+    '[--color-edge-value-pill-text:#000000]',
+    '[--color-graph-scrollbar-thumb:#a8a29e]',
+    '[--color-timeline-scrollbar-thumb:#a8a29e]',
+    '[--color-timeline-scrollbar-track:#fef3c7]',
+    '[--color-timeline-scrollbar-track-webkit:#fde68a]',
+    '[--color-runner-resize-handle-bg:#fde68a]',
+    '[--color-runner-resize-handle-hover-bg:#fcd34d]',
+    '[--color-graph-toggle-track-bg:#fef3c7]',
+    '[--color-drag-list-item-hover-bg:#fde68a]',
+    '[--color-primary-gray:#fcd34d]',
+    '[--color-inspector-progress-track:#fde68a]',
+  ].join(' '),
+  reactFlow: {
+    colorMode: 'light',
+    background: {
+      variant: 'dots',
+      color: 'rgba(0, 0, 0, 0.16)',
+      bgColor: '#fde047',
+      gap: 14,
+      size: 2.5,
+    },
+    miniMap: {
+      bgColor: '#ffffff',
+      maskColor: 'rgba(253, 224, 71, 0.55)',
+      nodeColor: '#fde68a',
+      nodeStrokeColor: '#000000',
+    },
+  },
+  node: {
+    container:
+      'rounded-none border-[3px] border-black shadow-[6px_6px_0_rgba(0,0,0,0.85)] in-[.selected]:border-blue-600 focus:border-blue-600',
+    header:
+      'rounded-none border-b-[3px] border-black font-extrabold uppercase tracking-tight',
+    body: 'rounded-none bg-white',
+    outputRow: 'text-black font-semibold',
+    inputRow: 'text-black font-semibold',
+    panelHeader: 'text-black font-semibold hover:bg-yellow-200',
+    inputField:
+      'rounded-none bg-white text-black border-2 border-black placeholder:text-stone-400',
+  },
+  statusIndicator: {
+    tooltip: 'rounded-none bg-white border-2 border-black text-black',
+  },
+  contextMenu: {
+    list: 'rounded-none bg-white border-2 border-black shadow-[5px_5px_0_rgba(0,0,0,0.85)]',
+    item: 'hover:bg-yellow-200',
+    itemLabel: 'text-black font-semibold',
+    shortcut: 'text-stone-500',
+    separator: 'border-black',
+    submenuPanel:
+      'rounded-none bg-white border-2 border-black shadow-[5px_5px_0_rgba(0,0,0,0.85)]',
+  },
+  breadcrumbs: {
+    backButton: 'rounded-none bg-white border-2 border-black text-black',
+    selectTrigger:
+      'rounded-none bg-white border-2 border-black text-black hover:bg-yellow-200',
+    list: 'text-black',
+    editButton: 'text-black hover:bg-yellow-200',
+  },
+  runnerToggleButton:
+    'rounded-none bg-white border-2 border-black text-black font-bold shadow-[4px_4px_0_rgba(0,0,0,0.85)] hover:bg-yellow-200',
+  runnerPanel: {
+    container: `rounded-none bg-[#fffbeb] border-2 border-black ${POP_TEXT}`,
+  },
+  runControls: {
+    container: 'bg-[#fde68a] border-black',
+    statusLabel: 'text-black font-bold',
+    divider: 'bg-black',
+    actionButton: 'rounded-none text-black hover:bg-yellow-200',
+    playButton:
+      'rounded-none bg-red-500 border-2 border-black shadow-[3px_3px_0_rgba(0,0,0,0.85)]',
+  },
+  timeline: {
+    container: `bg-[#fde68a] ${POP_TEXT}`,
+    toolbar: 'bg-[#fde68a]',
+    toolbarButton: 'text-black hover:bg-yellow-200',
+    navButton:
+      'rounded-none border-black bg-white text-black hover:bg-yellow-200',
+    ruler: 'bg-[#fef3c7]',
+    trackArea: 'rounded-none bg-white border-2 border-black',
+    loopHeader: 'bg-[#fde68a]',
+    switchHeader: 'bg-[#fde68a]',
+  },
+  inspector: {
+    container: `bg-[#fffbeb] ${POP_TEXT}`,
+    header: 'border-black',
+    sectionHeader: 'bg-[#fde68a] text-black border-black',
+    valueBox: 'rounded-none bg-white border-2 border-black text-black',
+    timelineBox: 'rounded-none bg-[#fef3c7] border-2 border-black',
+    contextBox: 'rounded-none border-2 border-black',
+  },
+  drawer: {
+    container: `bg-[#fffbeb] border-l-2 border-black ${POP_TEXT}`,
+    header: 'border-black',
+    title: 'text-black font-extrabold uppercase',
+    closeButton: 'hover:bg-yellow-200',
+    footer: 'border-black',
+    label: 'text-black font-semibold',
+    emptyState: 'text-stone-500',
+    footerButton:
+      'rounded-none bg-white text-black border-2 border-black hover:bg-yellow-200',
+  },
+  modal: {
+    content: `rounded-none bg-[#fffbeb] border-[3px] border-black shadow-[8px_8px_0_rgba(0,0,0,0.85)] ${POP_TEXT}`,
+    title: 'text-black font-extrabold uppercase',
+  },
+  connectionMiniMap: { container: 'rounded-none border-2 border-black' },
+  dragList: {
+    row: 'rounded-none bg-white text-black border border-black hover:bg-yellow-200',
+    preview: 'rounded-none bg-white border-2 border-black',
+  },
+  select: {
+    trigger: 'rounded-none bg-white text-black border-2 border-black',
+    content: `rounded-none bg-white border-2 border-black text-black ${POP_TEXT}`,
+    item: 'hover:bg-yellow-200',
+  },
+  tooltip: {
+    content: `rounded-none bg-white border-2 border-black text-black ${POP_TEXT}`,
+  },
+};
+
+/** Night-sky observatory: sparse white star-dots on space black, violet chrome. */
+const observatoryTheme: GraphTheme = {
+  root: [
+    'bg-[#02010a]',
+    '[--color-graph-menu-bg:#14102b]',
+    '[--color-graph-menu-item-hover-bg:#2e2659]',
+    '[--color-graph-elevated-surface-bg:#0d0a1f]',
+    '[--color-graph-node-panel-content-bg:#161130]',
+    '[--color-timeline-loop-accent:#a78bfa]',
+    '[--color-timeline-switch-accent:#fbbf24]',
+    '[--color-timeline-scrubber-active:#fbbf24]',
+    '[--color-timeline-scrubber-line:rgba(251,191,36,0.5)]',
+    '[--color-timeline-scrubber-line-active:rgba(251,191,36,0.85)]',
+    '[--color-runner-muted-text:#8b7fc7]',
+    '[--color-timeline-hover-text:#ede9fe]',
+    '[--color-edge-value-pill-bg:#14102b]',
+    '[--color-edge-value-pill-border:#a78bfa]',
+    '[--color-edge-value-pill-text:#ede9fe]',
+    '[--color-graph-scrollbar-thumb:#4c3d8f]',
+    '[--color-timeline-scrollbar-thumb:#4c3d8f]',
+    '[--color-timeline-scrollbar-track:#0d0a1f]',
+    '[--color-timeline-scrollbar-track-webkit:#14102b]',
+    '[--color-runner-resize-handle-bg:#14102b]',
+    '[--color-runner-resize-handle-hover-bg:#2e2659]',
+    '[--color-graph-toggle-track-bg:#14102b]',
+    '[--color-drag-list-item-hover-bg:#2e2659]',
+    '[--color-running-glow-strong:rgba(167,139,250,0.5)]',
+    '[--color-running-glow-soft:rgba(167,139,250,0.3)]',
+  ].join(' '),
+  reactFlow: {
+    colorMode: 'dark',
+    background: {
+      variant: 'dots',
+      color: 'rgba(255, 255, 255, 0.45)',
+      bgColor: '#02010a',
+      gap: 64,
+      size: 1.5,
+    },
+    miniMap: {
+      bgColor: '#0d0a1f',
+      maskColor: 'rgba(2, 1, 10, 0.75)',
+      nodeColor: '#2e2659',
+      nodeStrokeColor: '#a78bfa',
+    },
+  },
+  node: {
+    container:
+      'in-[.selected]:border-violet-300 focus:border-violet-300 shadow-[0_0_30px_rgba(167,139,250,0.12)]',
+    body: 'bg-[#191338] border-x border-b border-violet-500/50',
+    inputField: 'bg-[#14102b] border-violet-500/40 text-violet-100',
+  },
+  statusIndicator: {
+    tooltip: 'bg-[#14102b] border-violet-400/60 text-violet-100',
+  },
+  contextMenu: {
+    list: 'bg-[#14102b] border border-violet-500/30',
+    item: 'hover:bg-violet-500/20',
+    itemLabel: 'text-violet-100',
+    shortcut: 'text-violet-400/70',
+    separator: 'border-violet-500/30',
+    submenuPanel: 'bg-[#14102b] border border-violet-500/30',
+  },
+  breadcrumbs: {
+    backButton: 'bg-[#14102b] border-violet-500/40 text-violet-100',
+    selectTrigger:
+      'bg-[#14102b] border-violet-500/40 text-violet-100 hover:bg-violet-500/20',
+    list: 'text-violet-100',
+    editButton: 'text-violet-100 hover:bg-violet-500/20',
+  },
+  runnerToggleButton:
+    'bg-[#14102b]/90 border-violet-500/40 text-violet-100 hover:bg-violet-500/20',
+  runnerPanel: {
+    container: `bg-[#0d0a1f] border-violet-500/30 ${STAR_TEXT}`,
+  },
+  runControls: {
+    container: 'bg-[#14102b] border-violet-500/20',
+    playButton: 'bg-violet-600 shadow-[0_0_16px_rgba(167,139,250,0.55)]',
+    divider: 'bg-violet-500/30',
+  },
+  timeline: {
+    container: `bg-[#0d0a1f] ${STAR_TEXT}`,
+    toolbar: 'bg-[#0d0a1f]',
+    trackArea: 'bg-[#02010a] border-violet-500/20',
+    ruler: 'bg-[#14102b]',
+    navButton: 'border-violet-500/30',
+  },
+  inspector: {
+    container: `bg-[#0d0a1f] ${STAR_TEXT}`,
+    sectionHeader: 'bg-[#14102b] text-violet-100 border-violet-500/20',
+    valueBox: 'bg-[#14102b] border-violet-500/30 text-violet-100',
+    timelineBox: 'bg-[#14102b] border-violet-500/30',
+  },
+  drawer: {
+    container: `bg-[#0d0a1f] border-violet-500/30 ${STAR_TEXT}`,
+    title: 'text-violet-100',
+    label: 'text-violet-200',
+    footerButton: 'border-violet-500/40',
+  },
+  modal: {
+    content: `bg-[#14102b] border-violet-500/30 ${STAR_TEXT}`,
+    title: 'text-violet-100',
+  },
+  connectionMiniMap: { container: 'border-violet-500/30' },
+  dragList: {
+    row: 'bg-[#161130] text-violet-100 hover:bg-violet-500/20',
+    preview: 'bg-[#161130] border-violet-500/40',
+  },
+  select: {
+    trigger: 'bg-[#14102b] text-violet-100 border-violet-500/30',
+    content: `bg-[#14102b] border-violet-500/30 text-violet-100 ${STAR_TEXT}`,
+    item: 'hover:bg-violet-500/20',
+  },
+  tooltip: {
+    content: `bg-[#14102b] border-violet-400/60 text-violet-100 ${STAR_TEXT}`,
+  },
+};
+
+/**
+ * Ruled notebook: the Lines background with an asymmetric `gap` tuple
+ * ([10000, 36]) so only the horizontal ruling shows — also a live demo that
+ * tuples REPLACE (not merge index-wise) through mergeGraphThemes.
+ */
+const ruledNotebookTheme: GraphTheme = {
+  root: [
+    'bg-[#fbfaf4]',
+    '[--color-graph-menu-bg:#ffffff]',
+    '[--color-graph-menu-item-hover-bg:#dbeafe]',
+    '[--color-graph-elevated-surface-bg:#fdfcf7]',
+    '[--color-graph-node-panel-content-bg:#f1f5f9]',
+    '[--color-timeline-loop-accent:#f87171]',
+    '[--color-timeline-switch-accent:#60a5fa]',
+    '[--color-timeline-scrubber-active:#f87171]',
+    '[--color-timeline-scrubber-line:rgba(248,113,113,0.5)]',
+    '[--color-timeline-scrubber-line-active:rgba(248,113,113,0.85)]',
+    '[--color-runner-muted-text:#64748b]',
+    '[--color-timeline-hover-text:#0f172a]',
+    '[--color-edge-value-pill-bg:#ffffff]',
+    '[--color-edge-value-pill-border:#93c5fd]',
+    '[--color-edge-value-pill-text:#1e293b]',
+    '[--color-graph-scrollbar-thumb:#cbd5e1]',
+    '[--color-timeline-scrollbar-thumb:#cbd5e1]',
+    '[--color-timeline-scrollbar-track:#f1f5f9]',
+    '[--color-timeline-scrollbar-track-webkit:#e2e8f0]',
+    '[--color-runner-resize-handle-bg:#eef2f6]',
+    '[--color-runner-resize-handle-hover-bg:#e2e8f0]',
+    '[--color-graph-toggle-track-bg:#eef2f6]',
+    '[--color-drag-list-item-hover-bg:#e2e8f0]',
+    '[--color-primary-gray:#dbe3ec]',
+    '[--color-inspector-progress-track:#e2e8f0]',
+  ].join(' '),
+  reactFlow: {
+    colorMode: 'light',
+    background: {
+      variant: 'lines',
+      color: 'rgba(147, 197, 253, 0.55)',
+      bgColor: '#fbfaf4',
+      gap: [10000, 36],
+      lineWidth: 1,
+    },
+    miniMap: {
+      bgColor: '#ffffff',
+      maskColor: 'rgba(241, 245, 249, 0.65)',
+      nodeColor: '#e2e8f0',
+      nodeStrokeColor: '#94a3b8',
+    },
+  },
+  node: {
+    container: 'focus:border-red-400 in-[.selected]:border-red-400',
+    header: 'rounded-t-sm',
+    headerTitle: 'font-serif italic',
+    body: 'bg-white/95 rounded-b-sm border-x border-b border-blue-200 shadow-sm',
+    outputRow: 'text-slate-800',
+    inputRow: 'text-slate-800',
+    panelHeader: 'text-slate-800 hover:bg-blue-100',
+    inputField:
+      'bg-white text-slate-800 border-blue-200 placeholder:text-slate-400',
+  },
+  statusIndicator: {
+    tooltip: 'bg-white border-blue-200 text-slate-800',
+  },
+  contextMenu: {
+    list: 'bg-white border-blue-100 shadow-slate-400/20',
+    item: 'hover:bg-blue-100',
+    itemLabel: 'text-slate-800',
+    shortcut: 'text-slate-500',
+    separator: 'border-blue-200',
+    submenuPanel: 'bg-white shadow-slate-400/20',
+  },
+  breadcrumbs: {
+    backButton: 'bg-white border-blue-200 text-slate-800',
+    selectTrigger: 'bg-white border-blue-200 text-slate-800 hover:bg-blue-50',
+    list: 'text-slate-800 font-serif italic',
+    editButton: 'text-slate-800 hover:bg-blue-100',
+  },
+  runnerToggleButton:
+    'border-blue-200 bg-white/90 text-slate-800 hover:bg-blue-50',
+  runnerPanel: {
+    container: `bg-[#fdfcf7] border-blue-200 ${NOTEBOOK_TEXT}`,
+    closeButton: 'text-slate-500 hover:bg-blue-100 hover:text-slate-800',
+  },
+  runControls: {
+    container: 'bg-[#f4f1e8] border-blue-200',
+    statusLabel: 'text-slate-800',
+    divider: 'bg-blue-200',
+    actionButton: 'text-slate-700 hover:bg-blue-100 hover:text-slate-900',
+    playButton: 'bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.4)]',
+  },
+  timeline: {
+    container: `bg-[#f4f1e8] ${NOTEBOOK_TEXT}`,
+    toolbar: 'bg-[#f4f1e8]',
+    toolbarButton: 'text-slate-800 hover:bg-blue-100',
+    navButton: 'border-blue-200 bg-white text-slate-700 hover:bg-blue-100',
+    ruler: 'bg-[#eef2f6]',
+    trackArea: 'bg-white border-blue-200',
+    loopHeader: 'bg-[#f4f1e8]',
+    switchHeader: 'bg-[#f4f1e8]',
+  },
+  inspector: {
+    container: `bg-[#fdfcf7] ${NOTEBOOK_TEXT}`,
+    header: 'border-blue-200',
+    sectionHeader: 'bg-[#eef2f6] text-slate-800 border-blue-200',
+    valueBox: 'bg-white border-blue-200 text-slate-800',
+    timelineBox: 'bg-[#f4f1e8] border-blue-200',
+    contextBox: 'border-blue-200',
+  },
+  drawer: {
+    container: `bg-[#fdfcf7] border-blue-200 ${NOTEBOOK_TEXT}`,
+    header: 'border-blue-200',
+    title: 'text-slate-800 font-serif italic',
+    closeButton: 'hover:bg-blue-100',
+    footer: 'border-blue-200',
+    label: 'text-slate-800',
+    emptyState: 'text-slate-500',
+    footerButton: 'bg-blue-50 text-slate-800 border-blue-200 hover:bg-blue-100',
+  },
+  modal: {
+    content: `bg-[#fdfcf7] border-blue-200 ${NOTEBOOK_TEXT}`,
+    title: 'text-slate-800 font-serif italic',
+  },
+  connectionMiniMap: { container: 'border-blue-200' },
+  dragList: {
+    row: 'bg-[#eef2f6] text-slate-800 hover:bg-blue-100',
+    preview: 'bg-[#eef2f6] border-blue-200',
+  },
+  select: {
+    trigger: 'bg-white text-slate-800 border-blue-200 hover:bg-blue-50',
+    content: `bg-white border-blue-200 text-slate-800 ${NOTEBOOK_TEXT}`,
+    item: 'hover:bg-blue-100',
+  },
+  tooltip: {
+    content: `bg-white border-blue-300/70 text-slate-800 ${NOTEBOOK_TEXT}`,
+  },
+};
+
+/**
+ * The README logo (docs/logo.svg), recreated as a theme with its EXACT
+ * palette: background #0e1939, grid/cables #a1ccf7 (shadow cable #3d579e),
+ * strokes #3170a0, brackets #97ccf7, coral box #ee7678 / #d05a5d, gold box
+ * #f2db68 / #d1b747, sparkles #ffffff / #f6e16a. The isometric box side-faces
+ * become hard offset shadows; the stroked logo circles become #3170a0 handle
+ * rings.
+ */
+const logoTheme: GraphTheme = {
+  root: [
+    'bg-[#0e1939]',
+    '[--color-graph-menu-bg:#101c42]',
+    '[--color-graph-menu-item-hover-bg:#1d2c5e]',
+    '[--color-graph-elevated-surface-bg:#0b1430]',
+    '[--color-graph-node-panel-content-bg:#13204a]',
+    '[--color-timeline-loop-accent:#ee7678]',
+    '[--color-timeline-switch-accent:#f2db68]',
+    '[--color-timeline-scrubber-active:#a1ccf7]',
+    '[--color-timeline-scrubber-line:rgba(161,204,247,0.55)]',
+    '[--color-timeline-scrubber-line-active:rgba(161,204,247,0.9)]',
+    '[--color-runner-muted-text:#5a76b8]',
+    '[--color-timeline-hover-text:#dce9fb]',
+    '[--color-edge-value-pill-bg:#0e1939]',
+    '[--color-edge-value-pill-border:#3170a0]',
+    '[--color-edge-value-pill-text:#a1ccf7]',
+    '[--color-graph-scrollbar-thumb:#3170a0]',
+    '[--color-timeline-scrollbar-thumb:#3170a0]',
+    '[--color-timeline-scrollbar-track:#0b1430]',
+    '[--color-timeline-scrollbar-track-webkit:#101c42]',
+    '[--color-runner-resize-handle-bg:#101c42]',
+    '[--color-runner-resize-handle-hover-bg:#1d2c5e]',
+    '[--color-graph-toggle-track-bg:#101c42]',
+    '[--color-drag-list-item-hover-bg:#1d2c5e]',
+    '[--color-running-glow-strong:rgba(246,225,106,0.5)]',
+    '[--color-running-glow-soft:rgba(246,225,106,0.3)]',
+  ].join(' '),
+  reactFlow: {
+    colorMode: 'dark',
+    background: {
+      variant: 'lines',
+      color: '#a1ccf7',
+      bgColor: '#0e1939',
+      gap: 80,
+      lineWidth: 1.5,
+    },
+    miniMap: {
+      bgColor: '#0b1430',
+      maskColor: 'rgba(14, 25, 57, 0.75)',
+      nodeColor: '#1d2c5e',
+      nodeStrokeColor: '#3170a0',
+    },
+    connectionLine: { fallbackStrokeColor: '#a1ccf7' },
+  },
+  node: {
+    container:
+      'border-[3px] border-[#3170a0] rounded-none shadow-[-10px_10px_0_rgba(10,18,48,0.9)] in-[.selected]:border-[#97ccf7] focus:border-[#97ccf7]',
+    header: 'rounded-none',
+    body: 'rounded-none bg-[#101c42]',
+    handleShape: 'border-[#3170a0]',
+    inputField: 'bg-[#0e1939] border-[#3170a0] text-[#dce9fb]',
+  },
+  statusIndicator: {
+    tooltip: 'bg-[#101c42] border-[#3170a0] text-[#dce9fb]',
+  },
+  contextMenu: {
+    list: 'rounded-none bg-[#101c42] border-2 border-[#3170a0]',
+    item: 'hover:bg-[#1d2c5e]',
+    itemLabel: 'text-[#dce9fb]',
+    shortcut: 'text-[#5a76b8]',
+    separator: 'border-[#3170a0]/60',
+    submenuPanel: 'rounded-none bg-[#101c42] border-2 border-[#3170a0]',
+  },
+  breadcrumbs: {
+    backButton: 'rounded-none bg-[#101c42] border-[#3170a0] text-[#dce9fb]',
+    selectTrigger:
+      'rounded-none bg-[#101c42] border-[#3170a0] text-[#dce9fb] hover:bg-[#1d2c5e]',
+    list: 'text-[#dce9fb]',
+    editButton: 'text-[#dce9fb] hover:bg-[#1d2c5e]',
+  },
+  runnerToggleButton:
+    'rounded-none bg-[#101c42]/90 border-[#3170a0] text-[#dce9fb] hover:bg-[#1d2c5e]',
+  runnerPanel: {
+    container: `rounded-none bg-[#0b1430] border-[#3170a0] ${LOGO_TEXT}`,
+  },
+  runControls: {
+    container: 'bg-[#101c42] border-[#3170a0]/60',
+    playButton:
+      'rounded-none bg-[#f2db68] text-[#0e1939] shadow-[0_0_14px_rgba(246,225,106,0.55)]',
+    actionButton: 'rounded-none hover:bg-[#1d2c5e]',
+    divider: 'bg-[#3170a0]/60',
+  },
+  timeline: {
+    container: `bg-[#0b1430] ${LOGO_TEXT}`,
+    toolbar: 'bg-[#0b1430]',
+    trackArea: 'rounded-none bg-[#0e1939] border-[#3170a0]/60',
+    ruler: 'bg-[#101c42]',
+    navButton: 'rounded-none border-[#3170a0]/60',
+  },
+  inspector: {
+    container: `bg-[#0b1430] ${LOGO_TEXT}`,
+    sectionHeader: 'bg-[#101c42] text-[#dce9fb] border-[#3170a0]/60',
+    valueBox: 'rounded-none bg-[#101c42] border-[#3170a0] text-[#dce9fb]',
+    timelineBox: 'rounded-none bg-[#101c42] border-[#3170a0]',
+  },
+  drawer: {
+    container: `bg-[#0b1430] border-[#3170a0] ${LOGO_TEXT}`,
+    title: 'text-[#dce9fb]',
+    label: 'text-[#a1ccf7]',
+    footerButton: 'rounded-none border-[#3170a0]',
+  },
+  modal: {
+    content: `rounded-none bg-[#101c42] border-2 border-[#3170a0] ${LOGO_TEXT}`,
+    title: 'text-[#dce9fb]',
+  },
+  connectionMiniMap: { container: 'rounded-none border-[#3170a0]' },
+  dragList: {
+    row: 'rounded-none bg-[#13204a] text-[#dce9fb] hover:bg-[#1d2c5e]',
+    preview: 'rounded-none bg-[#13204a] border-[#3170a0]',
+  },
+  select: {
+    trigger: 'rounded-none bg-[#101c42] text-[#dce9fb] border-[#3170a0]',
+    content: `rounded-none bg-[#101c42] border-2 border-[#3170a0] text-[#dce9fb] ${LOGO_TEXT}`,
+    item: 'hover:bg-[#1d2c5e]',
+  },
+  tooltip: {
+    content: `rounded-none bg-[#101c42] border-[#97ccf7]/70 text-[#dce9fb] ${LOGO_TEXT}`,
+  },
+};
+
+type StoryThemeDefinition = {
+  label: string;
+  description: string;
+  preset: GraphThemePresetName;
+  theme?: GraphTheme;
+};
+
+const storyThemesMap = {
+  blenderDark: {
+    label: 'Blender Dark',
+    description:
+      'The built-in default. An empty preset — the components’ own classes are the theme.',
+    preset: 'blenderDark',
+  },
+  daylight: {
+    label: 'Daylight',
+    description:
+      'The built-in light preset: slot classes + root var overrides + descendant text recolors.',
+    preset: 'light',
+  },
+  neonHeist: {
+    label: 'Neon Heist',
+    description:
+      'Cyberpunk magenta/cyan: glowing nodes, recolored loop/switch accents and scrubber via root vars, line-grid canvas.',
+    preset: 'blenderDark',
+    theme: neonHeistTheme,
+  },
+  terminalGreen: {
+    label: 'Terminal Green',
+    description:
+      'Phosphor CRT: pure black, monospace everywhere, square corners, grayscale node headers via a saturate-0 header slot.',
+    preset: 'blenderDark',
+    theme: terminalGreenTheme,
+  },
+  sunsetPaper: {
+    label: 'Sunset Paper',
+    description:
+      'Warm sepia daylight built ON TOP of the light preset (deep-merge demo): amber chrome, dotted paper canvas, soft radii.',
+    preset: 'light',
+    theme: sunsetPaperTheme,
+  },
+  deepOcean: {
+    label: 'Deep Ocean',
+    description:
+      'Abyssal navy with cyan instrumentation and indigo switch accents on a fine dot grid.',
+    preset: 'blenderDark',
+    theme: deepOceanTheme,
+  },
+  blueprint: {
+    label: 'Blueprint',
+    description:
+      'Cobalt drafting table: a fine white Lines grid (the classic blueprint look) with mono uppercase node headers.',
+    preset: 'blenderDark',
+    theme: blueprintTheme,
+  },
+  halftonePop: {
+    label: 'Halftone Pop',
+    description:
+      'Comic pop-art: a dense Dots background as a halftone screen on yellow, hard black borders and offset shadows.',
+    preset: 'light',
+    theme: halftonePopTheme,
+  },
+  observatory: {
+    label: 'Observatory',
+    description:
+      'Night sky: sparse bright Dots (gap 64, size 1.5) become a starfield over space black, with violet chrome and an amber scrubber.',
+    preset: 'blenderDark',
+    theme: observatoryTheme,
+  },
+  ruledNotebook: {
+    label: 'Ruled Notebook',
+    description:
+      'Lines background with an asymmetric gap tuple ([10000, 36]) so only horizontal ruling shows — handwriting-style serif titles on paper.',
+    preset: 'light',
+    theme: ruledNotebookTheme,
+  },
+  logo: {
+    label: 'Logo',
+    description:
+      'The README logo (docs/logo.svg) come to life: its exact navy #0e1939 + periwinkle #a1ccf7 grid, steel-blue #3170a0 strokes and handle rings, isometric hard-shadow boxes, coral/gold loop-switch accents, gold play button.',
+    preset: 'blenderDark',
+    theme: logoTheme,
+  },
+} as const satisfies Record<string, StoryThemeDefinition>;
+
+type StoryThemeId = keyof typeof storyThemesMap;
+
+const storyThemeIds = Object.keys(storyThemesMap) as StoryThemeId[];
+
+/**
+ * Gallery of wildly different GraphThemes driven by one selector. Each entry
+ * is a preset plus (optionally) a custom GraphTheme deep-merged on top —
+ * exercising slot classes, root CSS-variable overrides, descendant text
+ * recolors, and the reactFlow section (colorMode, Background variants,
+ * MiniMap colors).
+ */
+export const ThemedPlayground: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    const [activeThemeId, setActiveThemeId] =
+      useState<StoryThemeId>('neonHeist');
+    const activeTheme = storyThemesMap[activeThemeId];
+    const { state, dispatch } = useFullGraph({
+      dataTypes: exampleDataTypes,
+      typeOfNodes: exampleTypeOfNodes,
+      enableTypeInference: true,
+      enableCycleChecking: true,
+      enableRecursionChecking: true,
+      nodeCountConstraints: standardNodeCountConstraints,
+      nodes: state1.nodes as Nodes,
+      edges: state1.edges as Edges,
+    });
+
+    return (
+      <GraphThemeProvider
+        preset={activeTheme.preset}
+        theme={'theme' in activeTheme ? activeTheme.theme : undefined}
+      >
+        <div
+          style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '8px 12px',
+              background: '#27272a',
+              color: '#e4e4e7',
+              fontFamily: 'sans-serif',
+              fontSize: 13,
+            }}
+          >
+            <label htmlFor='story-theme-selector' style={{ fontWeight: 600 }}>
+              Theme
+            </label>
+            <select
+              id='story-theme-selector'
+              data-testid='story-theme-selector'
+              value={activeThemeId}
+              onChange={(event) =>
+                setActiveThemeId(event.target.value as StoryThemeId)
+              }
+              style={{
+                padding: '4px 10px',
+                borderRadius: 6,
+                border: '1px solid #71717a',
+                background: '#18181b',
+                color: '#e4e4e7',
+                cursor: 'pointer',
+              }}
+            >
+              {storyThemeIds.map((themeId) => (
+                <option key={themeId} value={themeId}>
+                  {storyThemesMap[themeId].label}
+                </option>
+              ))}
+            </select>
+            <span style={{ opacity: 0.75 }}>{activeTheme.description}</span>
+          </div>
+          <div style={{ minHeight: 0, flex: 1 }}>
+            <FullGraph
+              state={state}
+              dispatch={dispatch}
+              functionImplementations={exampleImplementations}
+            />
+          </div>
+        </div>
+      </GraphThemeProvider>
+    );
   },
 };
 

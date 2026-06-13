@@ -17,6 +17,8 @@ import {
 } from './HandleSummaryModal';
 import { buildConsolidatedViews } from './consolidatedViews';
 import { ExpandableConnectionMiniMap } from '@/components/molecules/ConnectionMiniMap';
+import { cn } from '@/utils';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import type {
   HandleBlastRadius,
   HandleDeletionTarget,
@@ -55,6 +57,7 @@ function DeletionReviewModal({
 }: DeletionReviewModalProps) {
   const [page, setPage] = useState(0);
   const [included, setIncluded] = useState<boolean[]>([]);
+  const theme = useGraphTheme();
 
   useEffect(() => {
     if (isOpen) {
@@ -104,16 +107,22 @@ function DeletionReviewModal({
           if (!open) onClose();
         }}
       >
-        <ModalContent size='lg'>
-          <ModalHeader>
-            <ModalTitle>Review channel deletions</ModalTitle>
+        <ModalContent
+          size='lg'
+          className={theme?.modal?.content}
+          overlayClassName={theme?.modal?.overlay}
+        >
+          <ModalHeader className={theme?.modal?.header}>
+            <ModalTitle className={theme?.modal?.title}>
+              Review channel deletions
+            </ModalTitle>
             <ModalDescription>
               {includedCount} of {total} channel{total === 1 ? '' : 's'}{' '}
               selected to delete
             </ModalDescription>
           </ModalHeader>
           <ModalCloseButton />
-          <ModalBody className='flex flex-col gap-3'>
+          <ModalBody className={cn('flex flex-col gap-3', theme?.modal?.body)}>
             <div className='flex flex-col gap-1'>
               {blastRadii.map((blastRadius, index) => (
                 <label
@@ -154,7 +163,7 @@ function DeletionReviewModal({
               </div>
             )}
           </ModalBody>
-          <ModalFooter align='right'>
+          <ModalFooter align='right' className={theme?.modal?.footer}>
             <Button
               size='small'
               color='lightNonPriority'
@@ -176,16 +185,18 @@ function DeletionReviewModal({
         if (!open) onClose();
       }}
     >
-      <ModalContent size='lg'>
-        <ModalHeader>
-          <ModalTitle>Review handle deletions</ModalTitle>
+      <ModalContent size='lg' className={theme?.modal?.content}>
+        <ModalHeader className={theme?.modal?.header}>
+          <ModalTitle className={theme?.modal?.title}>
+            Review handle deletions
+          </ModalTitle>
           <ModalDescription>
             Handle {safePage + 1} of {total} · {includedCount} selected to
             delete
           </ModalDescription>
         </ModalHeader>
         <ModalCloseButton />
-        <ModalBody>
+        <ModalBody className={theme?.modal?.body}>
           <label className='flex items-center gap-2 mb-3 cursor-pointer select-none'>
             <Checkbox
               checked={included[safePage] ?? true}
@@ -211,7 +222,7 @@ function DeletionReviewModal({
             />
           </div>
         </ModalBody>
-        <ModalFooter align='right'>
+        <ModalFooter align='right' className={theme?.modal?.footer}>
           <Button
             size='small'
             color='dark'

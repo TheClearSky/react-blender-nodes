@@ -15,6 +15,7 @@ import type {
 import { useRecordingViewState } from '@/components/organisms/FullGraph/RecordingViewStateContext';
 import { useSlideAnimation } from '@/hooks/useSlideAnimation';
 import { useResizeHandle } from '@/hooks/useResizeHandle';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 // ─────────────────────────────────────────────────────
 // Constants
@@ -91,6 +92,7 @@ function NodeRunnerPanel({
   hideComplexValues = false,
   className,
 }: NodeRunnerPanelProps) {
+  const theme = useGraphTheme();
   const {
     selectedStepIndex,
     setSelectedStepIndex,
@@ -172,13 +174,17 @@ function NodeRunnerPanel({
         className={cn(
           'pointer-events-auto',
           'flex flex-col overflow-hidden rounded-t-lg border border-b-0 border-secondary-dark-gray/60 bg-runner-panel-bg shadow-xl',
+          theme?.runnerPanel?.container,
           className,
         )}
         style={style}
       >
         {/* Window handle — three dots, also serves as resize handle */}
         <div
-          className='group/resizer flex shrink-0 cursor-ns-resize items-center justify-center border-b border-runner-timeline-box-border bg-[#2b2b2b] py-2 transition-colors hover:bg-[#353535]'
+          className={cn(
+            'group/resizer flex shrink-0 cursor-ns-resize items-center justify-center border-b border-runner-timeline-box-border bg-runner-resize-handle-bg py-2 transition-colors hover:bg-runner-resize-handle-hover-bg',
+            theme?.runnerPanel?.resizeHandle,
+          )}
           onMouseDown={handleResizeStart}
         >
           <div className='flex gap-1.5'>
@@ -207,7 +213,10 @@ function NodeRunnerPanel({
           <button
             type='button'
             onClick={() => setIsRunnerPanelOpen(false)}
-            className='btn-press mr-3 shrink-0 rounded p-1.5 text-secondary-light-gray transition-colors hover:bg-primary-dark-gray hover:text-primary-white'
+            className={cn(
+              'btn-press mr-3 shrink-0 rounded p-1.5 text-secondary-light-gray transition-colors hover:bg-primary-dark-gray hover:text-primary-white',
+              theme?.runnerPanel?.closeButton,
+            )}
             title='Close panel'
           >
             <X className='h-4 w-4' />

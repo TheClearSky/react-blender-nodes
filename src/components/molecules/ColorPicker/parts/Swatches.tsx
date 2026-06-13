@@ -66,7 +66,7 @@ function ColorPickerSwatches({
         <button
           type='button'
           onClick={() => onAdd(color, formatColor(color, 'hex'))}
-          className='inline-flex w-6 h-6 cursor-pointer items-center justify-center rounded-sm border border-dashed border-secondary-dark-gray text-[#6B6B6B] outline-none transition-colors hover:border-white hover:text-white'
+          className='inline-flex w-6 h-6 cursor-pointer items-center justify-center rounded-sm border border-dashed border-secondary-dark-gray text-graph-input-placeholder outline-none transition-colors hover:border-white hover:text-white'
         >
           <Plus className='w-3 h-3' />
         </button>

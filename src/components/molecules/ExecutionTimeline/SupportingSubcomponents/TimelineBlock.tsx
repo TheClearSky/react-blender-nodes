@@ -8,6 +8,7 @@ import {
   LABEL_MIN_HEIGHT,
 } from './types';
 import { BlockTooltipContent } from './BlockTooltipContent';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 function TimelineBlock({
   step,
@@ -32,6 +33,7 @@ function TimelineBlock({
   subRowTop: number;
   subRowHeight: number;
 }) {
+  const theme = useGraphTheme();
   const left = (step.startTime - timeOffset) * timeScale;
   const width = Math.max(step.duration * timeScale, MIN_BLOCK_WIDTH);
   const showLabel = width > LABEL_MIN_WIDTH && subRowHeight >= LABEL_MIN_HEIGHT;
@@ -48,10 +50,11 @@ function TimelineBlock({
         !isSelected &&
           isSnapped &&
           !isNearestDragTarget &&
-          'z-10 ring-2 ring-primary-blue ring-offset-0 shadow-[0_0_12px_rgba(71,114,179,0.4)]',
+          'z-10 ring-2 ring-primary-blue ring-offset-0 shadow-[0_0_12px_var(--color-timeline-snap-glow)]',
         !isSelected &&
           isNearestDragTarget &&
-          'z-10 ring-1 ring-white/70 ring-offset-0 brightness-125 shadow-[0_0_20px_rgba(71,114,179,0.7)]',
+          'z-10 ring-1 ring-white/70 ring-offset-0 brightness-125 shadow-[0_0_20px_var(--color-timeline-drag-target-glow)]',
+        theme?.timeline?.block,
       )}
       style={{
         left: `${left}px`,
@@ -76,7 +79,7 @@ function TimelineBlock({
     >
       {showLabel && (
         <span
-          className='block truncate px-2 text-[12px] font-normal text-[#eee] drop-shadow-sm select-none'
+          className='block truncate px-2 text-[12px] font-normal text-timeline-hover-text drop-shadow-sm select-none'
           style={{ lineHeight: `${subRowHeight}px` }}
         >
           {step.nodeTypeName}

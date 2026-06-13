@@ -13,6 +13,7 @@ import {
   type Placement,
 } from '@floating-ui/react';
 import { cn } from '@/utils/cnHelper';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { ColorPickerRoot } from './parts/Root';
 import { ColorPickerArea } from './parts/Area';
 import { ColorPickerHue } from './parts/Hue';
@@ -51,6 +52,9 @@ function PopoverColorPicker({
   size = 'small',
 }: PopoverColorPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  // Context-fallback consumer (like Tooltip/DragList): the popover is
+  // portaled, so root var overrides can't reach it — the slot can.
+  const theme = useGraphTheme();
 
   // Internal OklchColor state avoids hex round-trip precision loss.
   // Only re-sync from the external `value` prop when the change is truly
@@ -120,7 +124,8 @@ function PopoverColorPicker({
         style={transitionStyles}
         className={cn(
           pickerWidth,
-          'rounded-lg border border-secondary-dark-gray bg-[#222222] p-2 shadow-lg',
+          'rounded-lg border border-secondary-dark-gray bg-graph-elevated-surface-bg p-2 shadow-lg',
+          theme?.colorPicker?.popover,
         )}
       >
         <ColorPickerRoot

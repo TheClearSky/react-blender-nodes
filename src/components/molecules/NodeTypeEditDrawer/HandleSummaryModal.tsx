@@ -12,6 +12,7 @@ import {
   ModalCloseButton,
 } from '@/components/atoms/Modal/Modal';
 import { ExpandableConnectionMiniMap } from '@/components/molecules/ConnectionMiniMap';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import type {
   HandleBlastRadius,
   ScopeConnections,
@@ -235,6 +236,7 @@ function HandleSummaryModal({
   getNeighborhood,
   consolidatedMap = false,
 }: HandleSummaryModalProps) {
+  const theme = useGraphTheme();
   return (
     <Modal
       open={isOpen}
@@ -242,9 +244,13 @@ function HandleSummaryModal({
         if (!open) onClose();
       }}
     >
-      <ModalContent size='lg'>
-        <ModalHeader>
-          <ModalTitle>
+      <ModalContent
+        size='lg'
+        className={theme?.modal?.content}
+        overlayClassName={theme?.modal?.overlay}
+      >
+        <ModalHeader className={theme?.modal?.header}>
+          <ModalTitle className={theme?.modal?.title}>
             Connections for "{blastRadius?.target.handleName ?? ''}"
           </ModalTitle>
           <ModalDescription>
@@ -252,7 +258,7 @@ function HandleSummaryModal({
           </ModalDescription>
         </ModalHeader>
         <ModalCloseButton />
-        <ModalBody>
+        <ModalBody className={theme?.modal?.body}>
           {blastRadius && (
             <HandleSummaryContent
               blastRadius={blastRadius}

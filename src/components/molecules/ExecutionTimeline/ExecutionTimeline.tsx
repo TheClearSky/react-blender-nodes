@@ -41,6 +41,7 @@ import {
   TimelineGrid,
 } from './SupportingSubcomponents/TimelineGrid';
 import { ScrubberHead } from './SupportingSubcomponents/ScrubberHead';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 // ─────────────────────────────────────────────────────
 // Props
@@ -218,19 +219,36 @@ function ExecutionTimeline({
     onNavigateToNode,
   });
 
+  const theme = useGraphTheme();
+
   // ── Empty state ──
   if (!record) {
     return (
-      <div className='flex h-full flex-col bg-runner-toolbar-bg'>
+      <div
+        className={cn(
+          'flex h-full flex-col bg-runner-toolbar-bg',
+          theme?.timeline?.container,
+        )}
+      >
         {/* Header */}
-        <div className='flex h-12 items-center justify-between bg-runner-toolbar-bg px-4'>
+        <div
+          className={cn(
+            'flex h-12 items-center justify-between bg-runner-toolbar-bg px-4',
+            theme?.timeline?.toolbar,
+          )}
+        >
           <div className='flex items-center gap-2 text-[14px] text-primary-white'>
             <ChevronRight className='h-3 w-3 text-secondary-light-gray' />
             Timeline
           </div>
         </div>
         <div className='flex-1 p-4 pt-0'>
-          <div className='flex h-full flex-col items-center justify-center gap-2 rounded-md border border-runner-timeline-box-border bg-runner-timeline-box-bg'>
+          <div
+            className={cn(
+              'flex h-full flex-col items-center justify-center gap-2 rounded-md border border-runner-timeline-box-border bg-runner-timeline-box-bg',
+              theme?.timeline?.trackArea,
+            )}
+          >
             <div className='flex items-center gap-1.5'>
               <div className='h-1.5 w-6 rounded-full bg-secondary-dark-gray' />
               <div className='h-1.5 w-10 rounded-full bg-secondary-dark-gray' />
@@ -246,14 +264,27 @@ function ExecutionTimeline({
   }
 
   return (
-    <div className='flex h-full flex-col bg-runner-toolbar-bg'>
+    <div
+      className={cn(
+        'flex h-full flex-col bg-runner-toolbar-bg',
+        theme?.timeline?.container,
+      )}
+    >
       {/* Header — toolbar-middle */}
-      <div className='flex h-12 items-center justify-between px-4'>
+      <div
+        className={cn(
+          'flex h-12 items-center justify-between px-4',
+          theme?.timeline?.toolbar,
+        )}
+      >
         <div className='flex items-center gap-3'>
           <button
             type='button'
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className='btn-press flex items-center gap-2 rounded px-1.5 py-1 text-[14px] text-primary-white transition-colors hover:bg-primary-dark-gray/50'
+            className={cn(
+              'btn-press flex items-center gap-2 rounded px-1.5 py-1 text-[14px] text-primary-white transition-colors hover:bg-primary-dark-gray/50',
+              theme?.timeline?.toolbarButton,
+            )}
           >
             <span
               className={cn(
@@ -279,6 +310,7 @@ function ExecutionTimeline({
                   canGoPrev
                     ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
                     : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                  theme?.timeline?.navButton,
                 )}
                 title='Go to first step'
               >
@@ -294,6 +326,7 @@ function ExecutionTimeline({
                   canGoPrev
                     ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
                     : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                  theme?.timeline?.navButton,
                 )}
                 title='Previous step'
               >
@@ -311,6 +344,7 @@ function ExecutionTimeline({
                     : record && record.steps.length > 0
                       ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
                       : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                  theme?.timeline?.navButton,
                 )}
                 title={isAutoplaying ? 'Stop autoplay' : 'Autoplay'}
               >
@@ -330,6 +364,7 @@ function ExecutionTimeline({
                   canGoNext
                     ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
                     : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                  theme?.timeline?.navButton,
                 )}
                 title='Next step'
               >
@@ -345,6 +380,7 @@ function ExecutionTimeline({
                   canGoNext
                     ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
                     : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                  theme?.timeline?.navButton,
                 )}
                 title='Go to last step'
               >
@@ -361,6 +397,7 @@ function ExecutionTimeline({
                 min={0.5}
                 max={30}
                 size='small'
+                className={theme?.node?.inputField}
               />
             </Tooltip>
 
@@ -440,7 +477,10 @@ function ExecutionTimeline({
           <button
             type='button'
             onClick={() => zoomBy(1.5)}
-            className='btn-press text-primary-white transition-colors hover:text-primary-blue'
+            className={cn(
+              'btn-press text-primary-white transition-colors hover:text-primary-blue',
+              theme?.timeline?.toolbarButton,
+            )}
             title='Zoom In'
           >
             <ZoomIn className='h-4 w-4' />
@@ -448,7 +488,10 @@ function ExecutionTimeline({
           <button
             type='button'
             onClick={() => zoomBy(1 / 1.5)}
-            className='btn-press text-primary-white transition-colors hover:text-primary-blue'
+            className={cn(
+              'btn-press text-primary-white transition-colors hover:text-primary-blue',
+              theme?.timeline?.toolbarButton,
+            )}
             title='Zoom Out'
           >
             <ZoomOut className='h-4 w-4' />
@@ -456,7 +499,10 @@ function ExecutionTimeline({
           <button
             type='button'
             onClick={fitToView}
-            className='btn-press text-primary-white transition-colors hover:text-primary-blue'
+            className={cn(
+              'btn-press text-primary-white transition-colors hover:text-primary-blue',
+              theme?.timeline?.toolbarButton,
+            )}
             title='Fit to View'
           >
             <Maximize2 className='h-4 w-4' />
@@ -467,7 +513,12 @@ function ExecutionTimeline({
       {/* Accordion body — padded container for the timeline box */}
       {!isCollapsed && (
         <div className='min-h-0 flex-1 px-4 pb-4'>
-          <div className='flex h-full flex-col overflow-hidden rounded-md border border-runner-timeline-box-border bg-runner-timeline-box-bg'>
+          <div
+            className={cn(
+              'flex h-full flex-col overflow-hidden rounded-md border border-runner-timeline-box-border bg-runner-timeline-box-bg',
+              theme?.timeline?.trackArea,
+            )}
+          >
             {/* Scrollable timeline content */}
             <div
               ref={scrollContainerRef}
@@ -638,8 +689,8 @@ function ExecutionTimeline({
                     className='pointer-events-none absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2'
                     style={{
                       backgroundColor: isDraggingScrubber
-                        ? 'rgba(74, 133, 255, 0.7)'
-                        : 'rgba(74, 133, 255, 0.5)',
+                        ? 'var(--color-timeline-scrubber-line-active)'
+                        : 'var(--color-timeline-scrubber-line)',
                     }}
                   />
                 </div>

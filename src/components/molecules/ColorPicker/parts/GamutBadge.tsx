@@ -25,7 +25,7 @@ function ColorPickerGamutBadge({
         className,
       )}
     >
-      {showLabel && <span className='text-[#6B6B6B]'>Gamut</span>}
+      {showLabel && <span className='text-graph-input-placeholder'>Gamut</span>}
       <span className='font-mono font-medium text-primary-white'>{label}</span>
     </div>
   );

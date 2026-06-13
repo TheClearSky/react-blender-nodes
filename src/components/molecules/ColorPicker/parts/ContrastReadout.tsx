@@ -51,7 +51,7 @@ function PopoverContent({
   return (
     <div className='flex flex-col gap-1.5 text-left max-w-[220px]'>
       <div className='flex items-center justify-between gap-2'>
-        <div className='text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]'>
+        <div className='text-[11px] font-semibold uppercase tracking-wider text-graph-input-placeholder'>
           {title}
         </div>
         <div className='flex shrink-0 overflow-hidden rounded border border-secondary-dark-gray'>
@@ -86,7 +86,7 @@ function PopoverContent({
               <span className='text-[11px] font-medium leading-tight'>
                 {row.label}
               </span>
-              <span className='text-[10px] leading-snug text-[#6B6B6B]'>
+              <span className='text-[10px] leading-snug text-graph-input-placeholder'>
                 {row.detail}
               </span>
             </div>
@@ -163,7 +163,7 @@ function ColorPickerContrastReadout({
       {(showLabel || showValue) && (
         <div className='flex items-center gap-1'>
           {showLabel && (
-            <span className='text-[#6B6B6B]'>
+            <span className='text-graph-input-placeholder'>
               {active === 'wcag' ? 'WCAG' : 'APCA'}
             </span>
           )}
@@ -189,7 +189,9 @@ function ColorPickerContrastReadout({
           </Badge>
         </div>
       )}
-      {togglable && <span className='ml-auto text-[#6B6B6B]'>⇅</span>}
+      {togglable && (
+        <span className='ml-auto text-graph-input-placeholder'>⇅</span>
+      )}
     </>
   );
 

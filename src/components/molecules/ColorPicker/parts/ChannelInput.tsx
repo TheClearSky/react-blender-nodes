@@ -155,7 +155,7 @@ function ChannelField({
         )}
       />
       {channel.suffix && (
-        <span className='pointer-events-none pr-1 text-[#6B6B6B] text-[12px]'>
+        <span className='pointer-events-none pr-1 text-graph-input-placeholder text-[12px]'>
           {channel.suffix}
         </span>
       )}

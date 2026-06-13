@@ -30,7 +30,7 @@ const sizeConfig = {
     divider: 'border-l border-secondary-dark-gray/50',
     activeBg: 'bg-primary-blue text-white',
     inactiveBg:
-      'bg-[#1a1a1a] text-secondary-light-gray hover:bg-primary-dark-gray hover:text-primary-white',
+      'bg-graph-toggle-track-bg text-secondary-light-gray hover:bg-primary-dark-gray hover:text-primary-white',
   },
   normal: {
     wrapper:
@@ -38,7 +38,7 @@ const sizeConfig = {
     button: 'rounded px-3.5 py-1 text-[13px]',
     divider: '',
     activeBg: 'bg-primary-blue text-white',
-    inactiveBg: 'bg-[#1a1a1a] text-secondary-light-gray',
+    inactiveBg: 'bg-graph-toggle-track-bg text-secondary-light-gray',
   },
 } as const;
 

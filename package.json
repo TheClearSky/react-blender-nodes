@@ -32,7 +32,7 @@
     "./style.css": "./dist/react-blender-nodes.css"
   },
   "scripts": {
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node --experimental-strip-types scripts/check-dist-types.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",

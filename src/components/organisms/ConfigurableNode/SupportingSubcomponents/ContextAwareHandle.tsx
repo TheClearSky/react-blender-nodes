@@ -7,7 +7,7 @@ import {
 } from '@xyflow/react';
 import { forwardRef, type HTMLAttributes } from 'react';
 import { handleShapesMap, type HandleShape } from './ContextAwareHandleShapes';
-import { useGraphTheme } from '../../FullGraph/GraphThemeContext';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 /**
  * Props for the ContextAwareHandle component
@@ -329,7 +329,7 @@ const ConnectableHandle = forwardRef<HTMLDivElement, ConnectableHandleProps>(
           {renderHandleShape(
             shape,
             color || '#A1A1A1',
-            cn(className, theme?.node?.handleShape),
+            cn(theme?.node?.handleShape, className),
           )}
         </div>
       </Handle>
@@ -345,7 +345,8 @@ type StaticHandleProps = {
   className?: string;
 } & HTMLAttributes<HTMLDivElement>;
 
-// Variant rendered OUTSIDE ReactFlow (e.g. node-type preview): never calls hooks.
+// Variant rendered OUTSIDE ReactFlow (e.g. node-type preview): never calls
+// ReactFlow hooks (useNodeConnections throws without the provider).
 const StaticHandle = forwardRef<HTMLDivElement, StaticHandleProps>(
   ({ position, color, shape, className, ...props }, ref) => {
     const theme = useGraphTheme();
@@ -364,7 +365,7 @@ const StaticHandle = forwardRef<HTMLDivElement, StaticHandleProps>(
         {renderHandleShape(
           shape,
           color || '#A1A1A1',
-          cn(className, theme?.node?.handleShape),
+          cn(theme?.node?.handleShape, className),
         )}
       </div>
     );

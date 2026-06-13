@@ -171,7 +171,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         className={cn(
           'rounded-md text-primary-white bg-primary-black font-main \
         outline-none focus-visible:outline-none! \
-        border-secondary-dark-gray border w-max min-w-0 placeholder:text-input-placeholder',
+        border-secondary-dark-gray border w-max min-w-0 placeholder:text-graph-input-placeholder',
           isSmall
             ? 'h-[28px] px-3 text-[16px] leading-[16px]'
             : 'h-[44px] px-4 text-[27px] leading-[27px]',

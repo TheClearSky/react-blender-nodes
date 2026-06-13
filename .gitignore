@@ -29,3 +29,6 @@ test-results/
 .playwright-mcp/
 .claude/
 playwright-report/
+
+# Multi-agent review / bugbook working artifacts (not shipped)
+review/

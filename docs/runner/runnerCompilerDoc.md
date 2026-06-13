@@ -606,8 +606,8 @@ Delegated to `compileLoopStructures()` in `src/utils/nodeRunner/loopCompiler.ts`
 Delegated to `compileSwitchStructures()` in
 `src/utils/nodeRunner/switchCompiler.ts` › `compileSwitchStructures`.
 
-**Input:** `state`, `nodes[]`, `edges[]`, `functionImplementations`, `compile`,
-`depth`
+**Input:** `state`, `nodes[]`, `edges[]`, `maxIterations`,
+`functionImplementations`, `compile`, `depth`
 
 **Algorithm:**
 
@@ -936,9 +936,10 @@ or a body behind a false loop condition) won't trigger errors.
    `src/utils/nodeRunner/compiler.ts` › `DEFAULT_MAX_LOOP_ITERATIONS`,
    configurable via `options.maxLoopIterations`. The executor enforces this
    limit at runtime; the compiler just records it on each `LoopExecutionBlock`.
-   (The switch compiler hands a hard-coded `100` to its internal
-   `compileGroupScopes` call for group nesting inside branches, since switches
-   have no iteration limit.)
+   (Switches themselves have no iteration limit, but the switch compiler threads
+   its received `maxIterations` through to its internal `compileGroupScopes`
+   call, so loops inside groups inside switch branches honor
+   `options.maxLoopIterations` too.)
 
 4. **Bind edges are structural only.** `bindLoopNodes` / `bindSwitchNodes` edges
    (underlying type `'noEquivalent'`) are excluded from resolution maps and

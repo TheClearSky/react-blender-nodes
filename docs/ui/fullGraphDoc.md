@@ -390,17 +390,16 @@ Pass the **same** handler to both for a single subscription point.
 
 ## Contexts
 
-FullGraph defines and consumes four contexts. They are intentionally split so
+FullGraph defines and consumes five contexts. They are intentionally split so
 that runner state and controlled-record state do not force every node to
 re-render when only one of them changes.
 
-A fifth, optional context lives OUTSIDE FullGraph: the consumer can wrap
+A sixth, optional context lives OUTSIDE FullGraph: the consumer can wrap
 `<FullGraph>` in `GraphThemeProvider` (from
 `src/components/organisms/FullGraph/GraphThemeProvider.tsx` ›
 `GraphThemeProvider`) to retheme the whole tree; components read it via
-`src/components/organisms/FullGraph/GraphThemeContext.ts` › `useGraphTheme`
-(non-throwing — `undefined` keeps the default dark look). See
-[themingDoc.md](./themingDoc.md).
+`src/utils/theme/GraphThemeContext.ts` › `useGraphTheme` (non-throwing —
+`undefined` keeps the default dark look). See [themingDoc.md](./themingDoc.md).
 
 ### FullGraphContext
 

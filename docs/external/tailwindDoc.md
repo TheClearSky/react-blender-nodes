@@ -143,6 +143,28 @@ primary  secondary primary  secondary primary  secondary primary  primary
                    -gray    -gray              -gray     -gray
 ```
 
+### Themeable component tokens (plain `@theme static` block)
+
+A second, plain (non-`inline`) `@theme static` block in `src/index.css` declares
+the themeable component tokens (`--color-graph-menu-bg`,
+`--color-graph-elevated-surface-bg`, `--color-timeline-loop-accent`,
+`--color-graph-scrollbar-thumb`, the `--color-edge-value-pill-*` family, and
+friends — generic surface tokens carry the `graph-` namespace so they cannot
+collide with a consumer app's own `--color-*` theme tokens, since the block
+compiles into `:root` of the shipped stylesheet). Because the block is not
+`inline`, its generated utilities reference `var()` at runtime, so a
+`GraphTheme` root slot can recolor them with arbitrary-property classes like
+`[--color-graph-menu-bg:#f5f5f5]`. `static` forces every variable to be emitted
+even when it is referenced only from JS string literals (inline styles, SVG
+attributes) — never rely on the source scanner to keep a token alive.
+
+For the `@theme inline` block above, the distinction is finer: the generated
+UTILITIES inline the hex and are therefore not var-driven, but the VARIABLES are
+still emitted at `:root` — so `var()`-consuming sites (inline-style gradients,
+SVG attributes) do respond to overrides of inline tokens. Themes restyle
+inline-token utilities via appended slot classes instead. See
+[themingDoc.md](../ui/themingDoc.md).
+
 ## cn() Helper (clsx + tailwind-merge)
 
 Defined in `src/utils/cnHelper.ts`, the `cn()` function is the primary way
@@ -404,7 +426,6 @@ CSS classes in `index.css`:
 | ------------------------ | ------------------------------------------ |
 | `.btn-press`             | `transform: scale(0.95)` on `:active`      |
 | `.timeline-block`        | `filter: brightness(1.15)` on `:hover`     |
-| `.scrubber-glow`         | Blue drop-shadow glow                      |
 | `.node-runner-scrollbar` | Thin custom scrollbar (4px, #444444 thumb) |
 | `.timeline-scrollbar`    | Thin custom scrollbar (6px, #555 thumb)    |
 | `.no-scrollbar`          | Hides scrollbar completely (utility)       |
@@ -506,8 +527,7 @@ The runner UI introduces status-specific colors and custom animations:
   execution step indicators
 - `@keyframes running-glow` animates the active-step indicator
 - `@keyframes slide-in-right` animates panel entry
-- `.timeline-block`, `.scrubber-glow`, `.node-runner-scrollbar` style the
-  execution timeline
+- `.timeline-block`, `.node-runner-scrollbar` style the execution timeline
 
 ### [Context Menu](../ui/contextMenuDoc.md)
 

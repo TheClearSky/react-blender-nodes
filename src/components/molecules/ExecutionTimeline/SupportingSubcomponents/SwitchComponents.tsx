@@ -18,6 +18,7 @@ import {
 } from './types';
 import { FlatSection } from './FlatSection';
 import { LoopSection } from './LoopComponents';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 function SwitchTooltipContent({
   switchRecord,
@@ -89,9 +90,9 @@ function SwitchTrack({
         placement='top'
         content={<SwitchTooltipContent switchRecord={switchRecord} />}
         className={cn(
-          'absolute cursor-pointer rounded-[2px] bg-[#d18c52]/60',
+          'absolute cursor-pointer rounded-[2px] bg-timeline-switch-accent/60',
           isExpanded &&
-            'z-10 ring-1 ring-[#d18c52] ring-offset-0 bg-[#d18c52]/80',
+            'z-10 ring-1 ring-timeline-switch-accent ring-offset-0 bg-timeline-switch-accent/80',
           !isExpanded &&
             hasSelectedStep &&
             'z-10 ring-1 ring-white/50 ring-offset-0',
@@ -111,7 +112,7 @@ function SwitchTrack({
       >
         {showLabel ? (
           <span
-            className='flex items-center gap-1 truncate px-2 text-[11px] font-normal text-[#eee] drop-shadow-sm select-none'
+            className='flex items-center gap-1 truncate px-2 text-[11px] font-normal text-timeline-hover-text drop-shadow-sm select-none'
             style={{ lineHeight: `${blockHeight}px` }}
           >
             <GitBranch className='h-2.5 w-2.5 flex-shrink-0' />
@@ -119,7 +120,7 @@ function SwitchTrack({
           </span>
         ) : (
           <span
-            className='flex items-center justify-center text-[9px] font-medium text-[#eee] select-none w-full'
+            className='flex items-center justify-center text-[9px] font-medium text-timeline-hover-text select-none w-full'
             style={{ lineHeight: `${blockHeight}px` }}
           >
             {switchRecord.branchTaken ? 'T' : 'F'}
@@ -261,6 +262,7 @@ function SwitchSection({
   selectedIterations: ReadonlyMap<string, number>;
   onSelectIteration: (loopId: string, iteration: number | null) => void;
 }) {
+  const theme = useGraphTheme();
   const { switchRecord } = segment;
 
   return (
@@ -276,8 +278,13 @@ function SwitchSection({
 
       {isExpanded && (
         <div className='mb-1'>
-          <div className='sticky left-0 z-[5] ml-4 flex w-fit items-center gap-2 rounded-t-[3px] border border-b-0 border-[#d18c52]/30 bg-runner-timeline-box-bg px-2 py-1 text-[10px]'>
-            <GitBranch className='h-2.5 w-2.5 text-[#d18c52]' />
+          <div
+            className={cn(
+              'sticky left-0 z-[5] ml-4 flex w-fit items-center gap-2 rounded-t-[3px] border border-b-0 border-timeline-switch-accent/30 bg-runner-timeline-box-bg px-2 py-1 text-[10px]',
+              theme?.timeline?.switchHeader,
+            )}
+          >
+            <GitBranch className='h-2.5 w-2.5 text-timeline-switch-accent' />
             <span className='font-medium text-primary-white'>
               {switchRecord.branchTaken ? 'True Branch' : 'False Branch'}
             </span>
@@ -295,7 +302,12 @@ function SwitchSection({
               </span>
             )}
           </div>
-          <div className='-mt-px rounded-[3px] border border-[#d18c52]/30 bg-runner-timeline-box-bg/50'>
+          <div
+            className={cn(
+              '-mt-px rounded-[3px] border border-timeline-switch-accent/30 bg-runner-timeline-box-bg/50',
+              theme?.timeline?.detailBox,
+            )}
+          >
             <SwitchDetail
               segment={segment}
               adjustForPause={adjustForPause}

@@ -9,7 +9,10 @@ const config: KnipConfig = {
     'src/utils/nodeStateManagement/standardNodes.ts',
   ],
   project: ['src/**/*.{ts,tsx}'],
-  ignoreDependencies: ['tw-animate-css'],
+  // '@xyflow/system' has no source import but IS load-bearing: the
+  // api-extractor declaration rollup attributes types reached through
+  // EdgeProps (e.g. EdgePosition) to it, so dist/index.d.ts imports from it.
+  ignoreDependencies: ['tw-animate-css', '@xyflow/system'],
   storybook: {
     config: ['.storybook/main.ts'],
     entry: ['src/**/*.stories.tsx'],

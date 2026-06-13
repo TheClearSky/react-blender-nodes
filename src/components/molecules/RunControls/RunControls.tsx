@@ -1,5 +1,6 @@
 import { Play, Pause, SkipForward, Square, RotateCcw } from 'lucide-react';
 import { cn } from '@/utils';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { SliderNumberInput } from '@/components/molecules/SliderNumberInput/SliderNumberInput';
 import { Tooltip } from '@/components/atoms/Tooltip';
 import { ButtonToggle } from '@/components/molecules/ButtonToggle';
@@ -82,6 +83,7 @@ function ActionButton({
   title: string;
 }) {
   const isPlay = variant === 'play';
+  const theme = useGraphTheme();
   return (
     <button
       type='button'
@@ -91,7 +93,7 @@ function ActionButton({
       className={cn(
         'btn-press flex items-center justify-center transition-all duration-100',
         isPlay
-          ? 'h-8 w-8 rounded-md bg-primary-blue text-white shadow-[0_0_12px_rgba(74,120,194,0.4)]'
+          ? 'h-8 w-8 rounded-md bg-primary-blue text-white shadow-[0_0_12px_var(--color-runner-play-button-glow)]'
           : 'h-7 w-7 rounded',
         disabled && 'cursor-not-allowed opacity-30',
         !disabled &&
@@ -101,9 +103,12 @@ function ActionButton({
         !disabled && isPlay && 'hover:brightness-110',
         active &&
           !isPlay &&
-          'bg-primary-blue shadow-[0_0_8px_rgba(71,114,179,0.5)]',
+          'bg-primary-blue shadow-[0_0_8px_var(--color-runner-active-button-glow)]',
         !disabled &&
           'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-blue',
+        isPlay
+          ? theme?.runControls?.playButton
+          : theme?.runControls?.actionButton,
       )}
     >
       {icon}
@@ -136,6 +141,7 @@ function RunControls({
   onMaxLoopIterationsChange,
 }: RunControlsProps) {
   const statusConfig = STATUS_CONFIG[runnerState];
+  const theme = useGraphTheme();
   const canEdit =
     runnerState === 'idle' ||
     runnerState === 'completed' ||
@@ -151,7 +157,12 @@ function RunControls({
   const canReset = runnerState === 'completed' || runnerState === 'errored';
 
   return (
-    <div className='flex h-11 w-full items-center gap-2 border-b border-secondary-dark-gray bg-runner-toolbar-bg px-3'>
+    <div
+      className={cn(
+        'flex h-11 w-full items-center gap-2 border-b border-secondary-dark-gray bg-runner-toolbar-bg px-3',
+        theme?.runControls?.container,
+      )}
+    >
       {/* Status indicator */}
       <div className='flex w-[140px] items-center gap-2.5'>
         <div className='relative flex items-center justify-center'>
@@ -161,6 +172,7 @@ function RunControls({
               statusConfig.color,
               statusConfig.pulse && 'animate-pulse',
               statusConfig.pulse && 'shadow-[0_0_8px_currentColor]',
+              theme?.runControls?.statusDot,
             )}
           />
           {statusConfig.pulse && (
@@ -168,16 +180,27 @@ function RunControls({
               className={cn(
                 'absolute h-2.5 w-2.5 animate-ping rounded-full opacity-50',
                 statusConfig.color,
+                theme?.runControls?.statusDot,
               )}
             />
           )}
         </div>
-        <span className='text-[14px] text-primary-white'>
+        <span
+          className={cn(
+            'text-[14px] text-primary-white',
+            theme?.runControls?.statusLabel,
+          )}
+        >
           {statusConfig.label}
         </span>
       </div>
 
-      <div className='mx-3 h-6 w-px bg-secondary-dark-gray' />
+      <div
+        className={cn(
+          'mx-3 h-6 w-px bg-secondary-dark-gray',
+          theme?.runControls?.divider,
+        )}
+      />
 
       {/* Action buttons */}
       <div className='flex items-center gap-3'>
@@ -215,7 +238,12 @@ function RunControls({
         />
       </div>
 
-      <div className='mx-3 h-6 w-px bg-secondary-dark-gray' />
+      <div
+        className={cn(
+          'mx-3 h-6 w-px bg-secondary-dark-gray',
+          theme?.runControls?.divider,
+        )}
+      />
 
       {/* Mode toggle — inset pill */}
       <Tooltip content='Instant runs the entire graph at once, then enables replay. Step-by-Step pauses after each node so you can inspect intermediate values.'>
@@ -241,6 +269,7 @@ function RunControls({
             }
             size='small'
             decimals={0}
+            className={theme?.node?.inputField}
           />
         </div>
       </Tooltip>

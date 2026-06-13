@@ -1,6 +1,8 @@
 import {
   makeDataTypeWithAutoInfer,
   makeTypeOfNodeWithAutoInfer,
+  type DataType,
+  type TypeOfNode,
   type NodeCountConstraints,
 } from './types';
 
@@ -52,7 +54,19 @@ const standardNodeTypeNamesMap = {
   [standardNodeTypeNames[6]]: standardNodeTypeNames[6],
 } as const;
 
-const standardDataTypes = {
+// Explicit annotation so declaration emit references `DataType` through this
+// file's own import — without it, tsc synthesizes a relative module specifier
+// that escapes the rolled-up dist/index.d.ts (guarded by
+// scripts/check-dist-types.mjs). The per-key types equal what inference
+// produced before, so consumer-facing types are unchanged.
+const standardDataTypes: {
+  readonly groupInfer: DataType<'inferFromConnection'>;
+  readonly loopInfer: DataType<'inferFromConnection'>;
+  readonly condition: DataType<'boolean'>;
+  readonly bindLoopNodes: DataType<'noEquivalent'>;
+  readonly switchInfer: DataType<'inferFromConnection'>;
+  readonly bindSwitchNodes: DataType<'noEquivalent'>;
+} = {
   [standardDataTypeNamesMap.groupInfer]: makeDataTypeWithAutoInfer({
     name: 'Group Infer',
     underlyingType: 'inferFromConnection',
@@ -86,9 +100,22 @@ const standardDataTypes = {
     color: '#8c52d1',
     maxConnections: 1,
   }),
-} as const;
+};
 
-const standardNodeTypes = {
+type StandardDataTypeName = keyof typeof standardDataTypes;
+
+// Explicit annotation for the same reason as standardDataTypes above: the
+// inferred type would make declaration emit synthesize import('./types')
+// qualifiers that escape the rolled-up dist/index.d.ts.
+const standardNodeTypes: {
+  groupInput: TypeOfNode<StandardDataTypeName, 'groupInput'>;
+  groupOutput: TypeOfNode<StandardDataTypeName, 'groupOutput'>;
+  loopStart: TypeOfNode<StandardDataTypeName, 'loopStart'>;
+  loopStop: TypeOfNode<StandardDataTypeName, 'loopStop'>;
+  loopEnd: TypeOfNode<StandardDataTypeName, 'loopEnd'>;
+  switchStart: TypeOfNode<StandardDataTypeName, 'switchStart'>;
+  switchEnd: TypeOfNode<StandardDataTypeName, 'switchEnd'>;
+} = {
   [standardNodeTypeNamesMap.groupInput]: makeTypeOfNodeWithAutoInfer<
     keyof typeof standardDataTypes,
     typeof standardNodeTypeNamesMap.groupInput

@@ -8,7 +8,7 @@ import {
   type NodeRunnerState,
 } from './FullGraphState';
 import { useRecordingViewState } from './RecordingViewStateContext';
-import { useGraphTheme } from './GraphThemeContext';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { cn } from '@/utils';
 import type { ExecutionRecord } from '@/utils/nodeRunner/types';
 import {

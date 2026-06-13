@@ -13,7 +13,9 @@ function ScrubberHead({
       <div
         className={cn(
           'rounded px-1.5 py-0.5 font-mono text-[11px] text-white whitespace-nowrap',
-          isDragging ? 'bg-[#6a9be0]' : 'bg-runner-scrubber-blue',
+          isDragging
+            ? 'bg-timeline-scrubber-active'
+            : 'bg-runner-scrubber-blue',
         )}
       >
         {formatTime(timeMs)}

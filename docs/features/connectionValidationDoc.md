@@ -571,7 +571,7 @@ it:
 4. De-duplicates handle names, then runs handle duplication on the draft via the
    still-mutating helpers: `addDuplicateHandlesToLoopNodesAfterInference`,
    `addDuplicateHandlesToSwitchNodesAfterInference` (plus switch zone-prefix and
-   re-dedup passes), and `addDuplicateHandleToNodeGroupAfterInference`.
+   re-dedup passes), and `growSpareAndPropagateBoundaryHandle`.
 5. Pushes the new edge.
 6. Recomputes zone memberships for all structures via
    `recomputeAllZoneMemberships`.
@@ -865,9 +865,9 @@ Delete validation keeps the switch pair and its bind edge atomic.
 When a group is open, step 3 scopes validation to the subtree's
 nodes/edges/zones. Group input/output boundary nodes get special handling in the
 inference plan (`overrideDataType`/`overrideName`), and `applyPlan` propagates
-inferred handles onto boundary nodes via
-`addDuplicateHandleToNodeGroupAfterInference`. Loop/switch validators also treat
-group input/output nodes specially when deciding region placement.
+inferred handles onto boundary nodes via `growSpareAndPropagateBoundaryHandle`.
+Loop/switch validators also treat group input/output nodes specially when
+deciding region placement.
 
 ### -> [Zones](zonesDoc.md)
 

@@ -232,6 +232,16 @@ type InputResolutionEntry = {
   edgeId: string;
   sourceNodeId: string;
   sourceHandleId: string;
+  /**
+   * Position of this edge in `state.edges` at compile time — the deterministic
+   * tiebreak when two connections in the same fan-in group share (or both lack) a
+   * `data.order`. Mirrors the reorder popover's `reactFlow.getEdges()` index (both
+   * derive from the same edges array), so on-screen order ≡ compiled order without
+   * relying on `Array.prototype.sort` stability. Also surfaced (additive) in the
+   * `json-ir` run target. `compile()` ALWAYS sets it; optional in the type only so
+   * hand-built test fixtures (codegen tests that never read it) needn't supply it.
+   */
+  edgesArrayIndex?: number;
 };
 
 /**
@@ -364,6 +374,14 @@ type ExecutionPlan = {
   nodeCount: number;
   /** Warnings generated during compilation (e.g., missing implementations) */
   warnings: ReadonlyArray<string>;
+  /** Root-level Graph Input node id, when the graph declares its own inputs. Its
+   *  output handles are the program's parameters (fed by the executor's
+   *  `rootInputs` / codegen's `runGraph` params). Absent ⇒ no declared inputs. */
+  rootInputNodeId?: string;
+  /** Root-level Graph Output node id, when the graph declares its own outputs. Its
+   *  input handles are the program's return (collected as `rootOutputs` / codegen's
+   *  `runGraph` return). Absent ⇒ the whole value store is returned (compat). */
+  rootOutputNodeId?: string;
 };
 
 // ─────────────────────────────────────────────────────
@@ -656,6 +674,10 @@ type ExecutionRecord = {
   switchRecords: ReadonlyMap<string, SwitchRecord>;
   /** Complete ValueStore snapshot at end of execution ("nodeId:handleId" -> value) */
   finalValues: ReadonlyMap<string, unknown>;
+  /** The graph's declared outputs, keyed by Graph Output handle NAME, when the graph
+   *  has a root Graph Output node. Mirrors codegen's `runGraph` return. Absent
+   *  otherwise. Additive — `finalValues` is unchanged. */
+  rootOutputs?: Record<string, unknown>;
   /** UI preferences captured when the recording was saved */
   viewState?: RecordingViewState;
 };

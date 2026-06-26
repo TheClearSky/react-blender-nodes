@@ -155,6 +155,7 @@ function useGraphImportExport<
           removeDuplicateEdgeIds: true,
           fillMissingDefaults: true,
           rehydrateDataTypeObjects: true,
+          normalizeConnectionOrder: true,
         },
       });
       if (result.success) {

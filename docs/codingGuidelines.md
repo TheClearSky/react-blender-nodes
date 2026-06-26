@@ -788,6 +788,14 @@ export { useResizeHandle };
 export type { UseResizeHandleOptions, UseResizeHandleReturn };
 ```
 
+**Exception — `useState`-shaped primitives.** A hook that exists purely as a
+`useState` drop-in returns a `[value, setValue]` tuple instead of an object, to
+match the shape consumers already destructure from `useState`. The one such
+primitive is `src/hooks/useControllableState.ts` › `useControllableState` (a
+controlled-when-`value`-supplied, uncontrolled-otherwise `useState`). This is
+the only sanctioned tuple return; every other custom hook returns a typed
+object.
+
 ### useCallback for Event Handlers
 
 All event handlers passed as props are wrapped in `useCallback`:

@@ -951,6 +951,7 @@ const result = importGraphState(json, {
     removeDuplicateNodeIds: true,
     removeDuplicateEdgeIds: true,
     fillMissingDefaults: true,
+    normalizeConnectionOrder: true, // repack imported fan-in connection orders to 0..n-1
   },
 });
 

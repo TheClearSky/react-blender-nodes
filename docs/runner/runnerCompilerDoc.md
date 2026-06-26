@@ -505,6 +505,13 @@ recursion from circular group references.
    (`isBindLoopNodesEdge()`) and `bindSwitchNodes` edges
    (`isBindSwitchNodesEdge()`). These connect loop/switch boundary nodes and
    carry no data.
+6. Stable-sort each fan-in handle's `InputResolutionEntry[]` by its edge's
+   `data.order` (the per-edge connection rank written by
+   `REORDER_INPUT_CONNECTIONS`). Edges without an `order` keep their existing
+   `state.edges` position, so un-reordered handles are unchanged. This is the
+   single point that fixes fan-in `connections[]` order for BOTH the executor
+   and every codegen target (both lower this same `inputResolutionMap`). See
+   [Edges › Connection ordering](../core/edgesDoc.md#connection-ordering-fan-in).
 
 **Output:** `inputResolutionMap`, `outputDistributionMap`, `nodes[]`, `edges[]`
 

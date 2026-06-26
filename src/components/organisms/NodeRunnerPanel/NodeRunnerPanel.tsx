@@ -4,6 +4,7 @@ import { cn } from '@/utils';
 import {
   RunControls,
   type RunMode,
+  type RunControlsRunTarget,
 } from '@/components/molecules/RunControls/RunControls';
 import { ExecutionTimeline } from '@/components/molecules/ExecutionTimeline/ExecutionTimeline';
 import { ExecutionStepInspector } from '@/components/molecules/ExecutionStepInspector/ExecutionStepInspector';
@@ -50,6 +51,12 @@ type NodeRunnerPanelProps = {
   maxLoopIterations: number;
   onMaxLoopIterationsChange: (max: number) => void;
 
+  // ── Run targets ────────────────────────────────────
+  runTargets?: ReadonlyArray<RunControlsRunTarget>;
+  activeRunTargetId?: string;
+  onRunTargetChange?: (id: string) => void;
+  steppingAvailable?: boolean;
+
   // ── Replay / scrub ────────────────────────────────
   onScrubTo: (stepIndex: number) => void;
 
@@ -85,6 +92,10 @@ function NodeRunnerPanel({
   onModeChange,
   maxLoopIterations,
   onMaxLoopIterationsChange,
+  runTargets,
+  activeRunTargetId,
+  onRunTargetChange,
+  steppingAvailable,
   onScrubTo,
   onNavigateToNode,
   panelRef,
@@ -171,9 +182,10 @@ function NodeRunnerPanel({
     <div className='absolute inset-x-0 bottom-0 z-10 overflow-hidden pointer-events-none'>
       <div
         ref={combinedRef}
+        data-slot='runner-panel'
         className={cn(
           'pointer-events-auto',
-          'flex flex-col overflow-hidden rounded-t-lg border border-b-0 border-secondary-dark-gray/60 bg-runner-panel-bg shadow-xl',
+          '@container/runnerpanel flex flex-col overflow-hidden rounded-t-lg border border-b-0 border-secondary-dark-gray/60 bg-runner-panel-bg shadow-xl',
           theme?.runnerPanel?.container,
           className,
         )}
@@ -208,6 +220,10 @@ function NodeRunnerPanel({
               onModeChange={onModeChange}
               maxLoopIterations={maxLoopIterations}
               onMaxLoopIterationsChange={onMaxLoopIterationsChange}
+              runTargets={runTargets}
+              activeRunTargetId={activeRunTargetId}
+              onRunTargetChange={onRunTargetChange}
+              steppingAvailable={steppingAvailable}
             />
           </div>
           <button
@@ -225,7 +241,7 @@ function NodeRunnerPanel({
 
         {/* Timeline + Inspector */}
         <div
-          className='flex min-h-0 overflow-hidden'
+          className='relative flex min-h-0 overflow-hidden'
           style={{ height: `${contentHeight}px` }}
         >
           {/* Timeline (flexible width) */}
@@ -240,11 +256,19 @@ function NodeRunnerPanel({
             />
           </div>
 
-          {/* Inspector (fixed width, slides in from right) */}
+          {/* Inspector — fixed-width column ≥832px, full-body slide-over overlay below */}
           {inspectorAnim.mounted && displayedStepRecord && (
             <div
               ref={inspectorAnim.ref}
-              className='node-runner-scrollbar shrink-0 overflow-y-auto border-l border-secondary-dark-gray'
+              // Below @max-[832px] (container < 832px) the inspector becomes a
+              // full-body overlay (slide-over) instead of squeezing the timeline;
+              // at/above 832px it stays the in-flow fixed-width column. The
+              // translateX slide (inspectorAnim) is preserved in both modes.
+              // z-30 puts the overlay strictly above everything inside the
+              // timeline body (ruler z-20, scrubber line z-[15], selected/active
+              // blocks z-10, loop labels z-[5]) so it covers by layer, not by DOM
+              // source order — still well below the ⋯ popover portal's z-50.
+              className='node-runner-scrollbar shrink-0 overflow-y-auto border-l border-secondary-dark-gray @max-[832px]/runnerpanel:absolute @max-[832px]/runnerpanel:inset-0 @max-[832px]/runnerpanel:z-30 @max-[832px]/runnerpanel:border-l-0'
               style={inspectorAnim.style}
             >
               <ExecutionStepInspector

@@ -4,6 +4,7 @@ import type { Connection } from '@xyflow/react';
 import type {
   AddEdgePlan,
   InferencePlan,
+  InferenceScope,
   Result,
   ValidationError,
 } from './types';
@@ -11,6 +12,7 @@ import { ok, err } from './types';
 import { addEdge } from '@xyflow/react';
 import { willAddingEdgeCreateCycle } from '../constructAndModifyHandles';
 import { getCurrentNodesAndEdgesFromState } from '../nodes/constructAndModifyNodes';
+import { standardNodeTypeNamesMap } from '../standardNodes';
 import { getHandleFromNodeDataMatchingHandleId } from '../handles/handleGetters';
 import { isLoopConnectionValid } from '../nodes/loops';
 import { isSwitchConnectionValid } from '../nodes/switches';
@@ -35,7 +37,13 @@ function validateAddEdge<
   state: Readonly<
     State<DataTypeUniqueId, NodeTypeUniqueId, UnderlyingType, ComplexSchemaType>
   >,
-  action: { payload: { edge: Connection } },
+  action: {
+    payload: {
+      edge: Connection;
+      allowRootIORename?: boolean;
+      allowRootIOStructureEdit?: boolean;
+    };
+  },
 ): Result<AddEdgePlan, ValidationError> {
   const { source, target, sourceHandle, targetHandle } = action.payload.edge;
 
@@ -89,6 +97,34 @@ function validateAddEdge<
 
   // 3. Get current view
   const view = getCurrentNodesAndEdgesFromState(state);
+
+  // 3b. Resolve the inference scope and the boundary node ids the inference
+  // plan grows on. In an open group the view already provides the subtree
+  // boundary ids; at root the view omits them, so resolve them as the
+  // FIRST-match groupInput/groupOutput node — the SAME first-match the
+  // compiler/executor use (`rootIo.ts`, `lower.ts`) — and carry the root edit
+  // policy from the action. `inferenceScope` rides the plan to `applyPlan`'s
+  // grow step, which only sees the Plan.
+  let groupInputNodeId = view.inputNodeId;
+  let groupOutputNodeId = view.outputNodeId;
+  let inferenceScope: InferenceScope;
+  if (groupInputNodeId === undefined && groupOutputNodeId === undefined) {
+    groupInputNodeId = view.nodes.find(
+      (node) =>
+        node.data.nodeTypeUniqueId === standardNodeTypeNamesMap.groupInput,
+    )?.id;
+    groupOutputNodeId = view.nodes.find(
+      (node) =>
+        node.data.nodeTypeUniqueId === standardNodeTypeNamesMap.groupOutput,
+    )?.id;
+    inferenceScope = {
+      kind: 'root',
+      allowNameOverride: action.payload.allowRootIORename ?? true,
+      allowStructureGrow: action.payload.allowRootIOStructureEdit ?? true,
+    };
+  } else {
+    inferenceScope = { kind: 'group' };
+  }
 
   // 4. Duplicate check
   const candidateEdge = {
@@ -225,6 +261,7 @@ function validateAddEdge<
       connection: { source, target, sourceHandle, targetHandle },
       inference: { nodeDataReplacements: [] },
       handleInsertions: [],
+      inferenceScope,
     });
   }
 
@@ -247,9 +284,10 @@ function validateAddEdge<
       sourceHandleIndex,
       targetHandleIndex,
       newEdge,
-      view.inputNodeId,
-      view.outputNodeId,
+      groupInputNodeId,
+      groupOutputNodeId,
       state,
+      inferenceScope,
     );
 
     if (!inferenceResult.ok) {
@@ -325,6 +363,7 @@ function validateAddEdge<
     connection: { source, target, sourceHandle, targetHandle },
     inference: inferencePlan,
     handleInsertions: [],
+    inferenceScope,
   });
 }
 

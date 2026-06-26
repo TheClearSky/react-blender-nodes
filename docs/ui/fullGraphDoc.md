@@ -345,25 +345,50 @@ Defined at `src/components/organisms/FullGraph/RunnerOverlay.tsx` ›
 Defined at `src/components/organisms/FullGraph/FullGraph.tsx` ›
 `FullGraphProps`.
 
-| Prop                      | Type                                           | Required | Description                                                                                                |
-| ------------------------- | ---------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
-| `state`                   | `State<D, N, U, C>`                            | Yes      | Complete graph state: nodes, edges, dataTypes, typeOfNodes, openedNodeGroupStack, viewport, zones, history |
-| `dispatch`                | `ActionDispatch<[action: Action<D, N, U, C>]>` | Yes      | Dispatch from `useFullGraph` (or raw `useReducer`)                                                         |
-| `functionImplementations` | `FunctionImplementations<N>`                   | No       | Map of nodeTypeId → execution function. When provided, mounts the runner overlay                           |
-| `onStateImported`         | `(importedState: State<D,N,U,C>) => void`      | No       | Called after a successful state import with the merged state                                               |
-| `onRecordingImported`     | `(record: ExecutionRecord) => void`            | No       | Called after a successful recording import                                                                 |
-| `onImportError`           | `(errors: string[]) => void`                   | No       | Called when import validation (state or recording) fails                                                   |
-| `executionRecord`         | `ExecutionRecord \| null`                      | No       | Controlled execution record. When provided, the runner uses it instead of internal state                   |
-| `onExecutionRecordChange` | `(record: ExecutionRecord \| null) => void`    | No       | Called whenever the record changes (run completes, reset, load, etc.)                                      |
-| `onGraphEvent`            | `(event: GraphEvent<D,N,U,C>) => void`         | No       | Unified observability stream for UI-layer lifecycle events (see below)                                     |
-| `inputComponents`         | `InputComponentRegistry<D>`                    | No       | Registry of custom input components keyed by `DataTypeUniqueId` (for `unsupportedDirectly` types)          |
-| `enableUndoRedoShortcuts` | `boolean`                                      | No       | Listen for Ctrl/⌘+Z, Ctrl/⌘+Shift+Z, Ctrl/⌘+Y. **Defaults to `true`**                                      |
+| Prop                       | Type                                           | Required | Description                                                                                                                                                        |
+| -------------------------- | ---------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `state`                    | `State<D, N, U, C>`                            | Yes      | Complete graph state: nodes, edges, dataTypes, typeOfNodes, openedNodeGroupStack, viewport, zones, history                                                         |
+| `dispatch`                 | `ActionDispatch<[action: Action<D, N, U, C>]>` | Yes      | Dispatch from `useFullGraph` (or raw `useReducer`)                                                                                                                 |
+| `functionImplementations`  | `FunctionImplementations<N>`                   | No       | Map of nodeTypeId → execution function. When provided, mounts the runner overlay                                                                                   |
+| `onStateImported`          | `(importedState: State<D,N,U,C>) => void`      | No       | Called after a successful state import with the merged state                                                                                                       |
+| `onRecordingImported`      | `(record: ExecutionRecord) => void`            | No       | Called after a successful recording import                                                                                                                         |
+| `onImportError`            | `(errors: string[]) => void`                   | No       | Called when import validation (state or recording) fails                                                                                                           |
+| `executionRecord`          | `ExecutionRecord \| null`                      | No       | Controlled execution record. When provided, the runner uses it instead of internal state                                                                           |
+| `onExecutionRecordChange`  | `(record: ExecutionRecord \| null) => void`    | No       | Called whenever the record changes (run completes, reset, load, etc.)                                                                                              |
+| `onGraphEvent`             | `(event: GraphEvent<D,N,U,C>) => void`         | No       | Unified observability stream for UI-layer lifecycle events (see below)                                                                                             |
+| `inputComponents`          | `InputComponentRegistry<D>`                    | No       | Registry of custom input components keyed by `DataTypeUniqueId` (for `unsupportedDirectly` types)                                                                  |
+| `enableUndoRedoShortcuts`  | `boolean`                                      | No       | Listen for Ctrl/⌘+Z, Ctrl/⌘+Shift+Z, Ctrl/⌘+Y. **Defaults to `true`**                                                                                              |
+| `rootInputs`               | `Record<string, unknown>`                      | No       | Values seeded into the root Graph Input on run, keyed by handle **name** OR stable handle **id** (id is rename-proof). Mirrors codegen's `runGraph` params         |
+| `allowRootIORename`        | `boolean`                                      | No       | Root I/O renames on connect (group parity) + editor rename. **Defaults to `true`** (behavior change — see Root I/O contract stability). `false` keeps names stable |
+| `allowRootIOStructureEdit` | `boolean`                                      | No       | Root I/O grows a blank spare on connect + editor add/delete. **Defaults to `true`**. `false` freezes the root handle count                                         |
 
 The four generic type parameters default to: `DataTypeUniqueId = string`,
 `NodeTypeUniqueId = string`, `UnderlyingType = SupportedUnderlyingTypes`, and
 `ComplexSchemaType = never` (it is only a `z.ZodType` when `UnderlyingType`
 extends `'complex'`). Consumers only supply them for stricter type safety;
 `useFullGraph<MyDataTypeId, MyNodeTypeId>(…)` is the common form.
+
+### Root I/O contract stability
+
+A root Graph Input/Output handle's **name is its public contract**: it is the
+`runGraph(a, b)` parameter / return identifier and the key of the `rootInputs`
+prop. By default (`allowRootIORename` and `allowRootIOStructureEdit` both
+`true`), connecting a wire to a root boundary handle renames it to the connected
+source's name and grows a fresh blank spare — full parity with group boundaries.
+This means **an interactive connect can move a `rootInputs` key.** These three
+concepts are a unit; documenting them apart is the trap.
+
+If you depend on a stable `runGraph(a, b)` signature, choose one:
+
+- **Lock it:** set `allowRootIORename={false}` (and usually
+  `allowRootIOStructureEdit={false}`). The Graph I/O editor's rename / add /
+  delete affordances disable in lockstep with the inference path — one prop,
+  both layers.
+- **Or key by id:** pass `rootInputs` keyed by the stable handle **id** instead
+  of the name. `seedRootInputs` (`src/utils/nodeRunner/executor/rootIo.ts` ›
+  `seedRootInputs`) honors id keys as a fallback, so id-keyed inputs survive
+  renames. `record.rootOutputs` stays name-keyed — byte-for-byte the object
+  codegen's `runGraph` returns.
 
 ### `onGraphEvent` and `useFullGraph`'s `onGraphEvent` are two halves of one stream
 

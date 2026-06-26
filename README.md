@@ -39,11 +39,12 @@ connection validation to ensure your node graphs are always type-safe and
 error-free.
 
 Beyond editing, the library can **execute** your graphs with a built-in runner
-and timeline debugger, compose reusable **node groups**, build control flow with
-first-class **loops** and **switches** (rendered as visual zones), edit those
-structures and node types through in-canvas **drawers**, and step backward and
-forward through every change with full **undo/redo** history. Graph state and
-execution recordings can be exported to and imported from JSON.
+and timeline debugger — or **compile them to standalone JavaScript/TypeScript**
+through pluggable run targets — compose reusable **node groups**, build control
+flow with first-class **loops** and **switches** (rendered as visual zones),
+edit those structures and node types through in-canvas **drawers**, and step
+backward and forward through every change with full **undo/redo** history. Graph
+state and execution recordings can be exported to and imported from JSON.
 
 ## Quick Start
 
@@ -240,6 +241,55 @@ your graph into an execution plan and runs it — with full debugging support.
 
 ![Loop Execution Timeline](./docs/screenshots/execution-timeline-loop-iterations.png)
 
+### ⚡ Codegen & Pluggable Run Targets — Export Your Graph as Code
+
+![Codegen — generate a standalone runGraph() live from the graph](./docs/screenshots/codegen-export.png)
+
+The in-process runner is just the default **run target**. The Run button is a
+split control: register your own named targets, or use the built-ins to compile
+a graph into a **standalone, dependency-free function** — `runGraph(...)` — in
+JavaScript or typed TypeScript, or export it as a JSON intermediate
+representation.
+
+- **Export as code**: `codegenJsRunTarget` / `codegenTsRunTarget` emit a
+  self-contained `runGraph()` (TS adds typed parameters, a return type, and
+  value casts); `jsonIrRunTarget` exports the execution plan as JSON. The
+  default `inProcessRunTarget` runs the graph live and feeds the timeline.
+- **Clean signature from Graph I/O**: declare root **Graph Input** / **Graph
+  Output** nodes and their handle names become the function's parameters and
+  returned-object keys — an all-inlined graph compiles to a tidy
+  `function runGraph(a, b) { … return { out, flag }; }` with no plumbing
+  arguments.
+- **Opt-in optimization passes**: by default the codegen targets emit a
+  faithful, threaded `runGraph`. Enable the codegen-v2 passes per target to get
+  the clean output — `assumePureImplementations` runs dead-code elimination
+  (drops branches no output depends on); unconnected inputs always inline their
+  current value; and `analyzeImplementations` makes value-API nodes whose
+  implementation reads inputs through the exported `readInput` intrinsic
+  **auto-emit inline as expressions** instead of threading through an
+  implementations argument.
+- **Pluggable contract**: a `RunTarget` is either an `execute` target (produces
+  an `ExecutionRecord`, drives the timeline, and may support stepping) or an
+  `artifact` target (produces a string/download). Register them via the
+  `runTargets` prop and pick the default with `defaultRunTargetId`.
+
+```tsx
+import {
+  FullGraph,
+  codegenJsRunTarget,
+  codegenTsRunTarget,
+  jsonIrRunTarget,
+} from '@theclearsky/react-blender-nodes';
+
+// The Run button becomes a split control listing every registered target.
+<FullGraph
+  state={state}
+  dispatch={dispatch}
+  functionImplementations={functionImplementations}
+  runTargets={[codegenJsRunTarget, codegenTsRunTarget, jsonIrRunTarget]}
+/>;
+```
+
 ### 🔁 Loops, 🔀 Switches & Zones
 
 Build control flow directly on the canvas. Loops and switches are first-class
@@ -270,6 +320,25 @@ the graph state and tracked on `state.activeDrawer`:
   triplet, organized into levels.
 - **Switch editor** (`editSwitch`): configure the handles carried through the
   switch pair across its true/false branches.
+- **Graph I/O editor** (`editGraphInput` / `editGraphOutput`): rename, reorder,
+  add, or delete the handles of a root **Graph Input / Output** node — the
+  graph's I/O boundary, whose handle names define the `runGraph(...)` signature
+  used by codegen.
+
+![Graph I/O editor — rename, reorder, and add graph input/output handles](./docs/screenshots/graph-io-editor.png)
+
+The Node Type / Node Group editor (`editNodeType`) edits a type's name, header
+color, and its full input/output list — including grouping handles into
+collapsible **panels** and drag-reordering them:
+
+![Node type editor — name, header color, panelled inputs (Transform, Color Settings), outputs, drag-reorder](./docs/screenshots/editor-nodetype.png)
+
+Deleting a handle or channel that carries connections opens a **deletion
+review** — it previews exactly which connections would break (with an expandable
+mini-map highlighting them) and lets you include or exclude each deletion before
+committing:
+
+![Deletion review — preview of the connections each handle deletion will break](./docs/screenshots/editor-deletion-review.png)
 
 ### ↩️ Undo / Redo History
 
@@ -414,6 +483,7 @@ const result = importGraphState(json, {
     removeDuplicateEdgeIds: true, // Deduplicate edges with the same ID (keep first)
     fillMissingDefaults: true, // Fill missing optional fields (viewport, etc.) with defaults
     rehydrateDataTypeObjects: true, // Effectively always-on — the importer always rebuilds handle dataType objects from provided dataTypes (this flag is not read)
+    normalizeConnectionOrder: true, // Repack imported fan-in connection orders to contiguous 0..n-1
   },
 });
 
@@ -586,6 +656,16 @@ const handleShapes = [
 ```
 
 ## 🎨 Styling & Theming
+
+The whole graph — canvas, nodes, handles, menus, runner panel, timeline, and the
+in-canvas editor drawers — is retheme-able from a single typed theme object.
+Below: the same graph under the built-in path plus two custom presets (a
+cyberpunk "Neon Heist" and a comic "Halftone Pop") — nodes, edges, run button,
+background grid, and accents all follow the active theme.
+
+![Neon Heist theme — cyberpunk magenta/cyan, glowing nodes and run button](./docs/screenshots/theme-neonheist.png)
+
+![Halftone Pop theme — comic pop-art, yellow halftone background and red accents](./docs/screenshots/theme-halftonepop.png)
 
 Import the stylesheet once; the graph ships with the default Blender-style dark
 look:

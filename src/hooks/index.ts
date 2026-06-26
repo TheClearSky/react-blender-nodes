@@ -4,3 +4,4 @@ export * from './useSlideAnimation';
 export * from './useResizeHandle';
 export * from './useFloatingTooltip';
 export * from './useAutoScroll';
+export * from './useControllableState';

@@ -166,6 +166,21 @@ type DeleteSwitchChannelsDetail = {
   removedEdgeCount: number;
 };
 
+type UpdateGraphIoHandlesDetail = {
+  kind: 'UPDATE_GRAPH_IO_HANDLES';
+  nodeId: string;
+  direction: 'input' | 'output';
+  handleCount: number;
+  removedHandleCount: number;
+};
+
+type ReorderInputConnectionsDetail = {
+  kind: 'REORDER_INPUT_CONNECTIONS';
+  nodeId: string;
+  handleId: string;
+  connectionCount: number;
+};
+
 /**
  * Discriminated union of all per-action detail payloads. The kind here
  * matches the action type 1:1 so consumers can switch on either.
@@ -190,7 +205,9 @@ type ActionDetail<NodeTypeUniqueId extends string = string> =
   | CloseDrawerDetail
   | DeleteNodeTypeHandlesDetail
   | DeleteLoopChannelsDetail
-  | DeleteSwitchChannelsDetail;
+  | DeleteSwitchChannelsDetail
+  | UpdateGraphIoHandlesDetail
+  | ReorderInputConnectionsDetail;
 
 type ActionType = keyof typeof actionTypesMap;
 
@@ -384,6 +401,22 @@ function planToDetail<NodeTypeUniqueId extends string = string>(
         kind: 'DELETE_SWITCH_CHANNELS',
         removedChannelCount: plan.cascades.length,
         removedEdgeCount: new Set(plan.cascades.flatMap((c) => c.edgeIds)).size,
+      };
+    case 'UPDATE_GRAPH_IO_HANDLES':
+      return {
+        kind: 'UPDATE_GRAPH_IO_HANDLES',
+        nodeId: plan.nodeId,
+        direction: plan.direction,
+        handleCount: plan.handles.length,
+        removedHandleCount: plan.removedHandleIds.length,
+      };
+    case 'REORDER_INPUT_CONNECTIONS':
+      // No minted ids — the detail is fully extractable from the plan.
+      return {
+        kind: 'REORDER_INPUT_CONNECTIONS',
+        nodeId: plan.nodeId,
+        handleId: plan.handleId,
+        connectionCount: plan.orderedEdgeIds.length,
       };
     default: {
       const _exhaustive: never = plan;

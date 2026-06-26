@@ -69,6 +69,11 @@ const lightGraphTheme: GraphTheme = {
     panelHeader: 'text-zinc-900 hover:bg-zinc-300',
     inputField:
       'bg-white text-zinc-900 border-zinc-300 placeholder:text-zinc-400',
+    // The fan-in reorder popover is PORTALED, so root var overrides + the node
+    // subtree's text recolors can't reach it — set the surface's light bg/border
+    // + text overrides here (mirrors select.content / tooltip.content), plus
+    // re-anchor the drag-list vars the portaled DragList can't otherwise see.
+    inputOrderPopover: `bg-white border-zinc-300 ${LIGHT_TEXT_OVERRIDES} [&_.border-secondary-dark-gray]:border-zinc-300 [--color-drag-list-item-hover-bg:#d4d4d8] [--color-drag-list-ghost-accent:#71717a]`,
   },
   statusIndicator: {
     // The arrow SVG reads vars; re-anchoring them on the slot keeps the
@@ -100,6 +105,15 @@ const lightGraphTheme: GraphTheme = {
   runnerPanel: {
     container: `bg-zinc-50 border-zinc-300 ${LIGHT_TEXT_OVERRIDES}`,
     closeButton: 'text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900',
+    // Portaled ⋯ menu: explicit light bg/border + text overrides, plus
+    // re-anchored control vars (toggle track, slider gradient) — none of which
+    // the root var overrides can reach inside the portal. The interactive
+    // hover/selected states are themed per-element via the `overflowMenuItem`
+    // slots below (a surface descendant override can't reach an inlined
+    // `hover:` variant).
+    overflowMenu: `bg-white border-zinc-300 ${LIGHT_TEXT_OVERRIDES} [--color-graph-toggle-track-bg:#e4e4e7] [--color-primary-gray:#d4d4d8] [&_.border-secondary-dark-gray]:border-zinc-300`,
+    overflowMenuItem: 'hover:bg-zinc-200 hover:text-zinc-900',
+    overflowMenuItemActive: 'bg-blue-100 text-zinc-900',
   },
   runControls: {
     container: 'bg-zinc-100 border-zinc-300',

@@ -12,6 +12,7 @@ import type {
   StandardExecutionStep,
 } from './types';
 import { getCurrentNodesAndEdgesFromState } from '../nodeStateManagement/nodes/constructAndModifyNodes';
+import { standardNodeTypeNamesMap } from '../nodeStateManagement/standardNodes';
 import { isLoopNode } from '../nodeStateManagement/nodes/loops';
 import { isSwitchNode } from '../nodeStateManagement/nodes/switches';
 import { topologicalSortWithLevels } from './topologicalSort';
@@ -24,6 +25,7 @@ import {
   isGroupBoundaryNode,
   hasKey,
 } from './groupCompiler';
+import { compareFanIn } from '../connectionOrder';
 
 const DEFAULT_MAX_LOOP_ITERATIONS = 100;
 
@@ -65,6 +67,40 @@ function compile<
 
   const { nodes, edges } = getCurrentNodesAndEdgesFromState(state);
 
+  // Root-level Graph I/O: ONLY at the true root scope (not inside an opened group,
+  // not a nested compile). The single Graph Input / Graph Output node lets the
+  // executor + codegen treat its handles as the program's parameters / return.
+  // Inside groups these are the group's boundary nodes (handled via group scopes).
+  const isRootScope = !depth && !state.openedNodeGroupStack?.length;
+
+  // G2: a top-level Run while a node group is open compiles the open SUBTREE, not
+  // the root program, and silently ignores root Graph I/O (isRootScope is false).
+  // Surface that scope substitution as a plan warning so the UI / consumer can tell
+  // the user. (A nested compile — `depth` set — is the group sub-compile itself and
+  // legitimately has no root I/O, so it is excluded.)
+  if (!depth && state.openedNodeGroupStack?.length) {
+    const openGroup =
+      state.openedNodeGroupStack[state.openedNodeGroupStack.length - 1];
+    const groupLabel =
+      state.typeOfNodes[openGroup.nodeType]?.name ?? openGroup.nodeType;
+    warnings.push(
+      `Running inside an open node group ("${groupLabel}"); root Graph I/O is ignored.`,
+    );
+  }
+
+  const rootInputNodeId = isRootScope
+    ? nodes.find(
+        (node) =>
+          node.data.nodeTypeUniqueId === standardNodeTypeNamesMap.groupInput,
+      )?.id
+    : undefined;
+  const rootOutputNodeId = isRootScope
+    ? nodes.find(
+        (node) =>
+          node.data.nodeTypeUniqueId === standardNodeTypeNamesMap.groupOutput,
+      )?.id
+    : undefined;
+
   if (nodes.length === 0) {
     return {
       levels: [],
@@ -75,11 +111,17 @@ function compile<
     };
   }
 
-  // Build input resolution map and output distribution map
+  // Build the input-resolution and output-distribution maps in ONE pass over
+  // `edges`. Each fan-in entry captures its edges-array index (the deterministic
+  // tiebreak, stored ON the entry) plus a finite-only `data.order` map
+  // (`edgeOrderById`; one `Number.isFinite` predicate is the single authority —
+  // NaN/±Infinity/non-numbers are left absent and fall through to
+  // `connectionOrderValue`'s `+∞` sentinel).
   const inputResolutionMap = new Map<string, InputResolutionEntry[]>();
   const outputDistributionMap = new Map<string, OutputDistributionEntry[]>();
+  const edgeOrderById = new Map<string, number>();
 
-  for (const edge of edges) {
+  for (const [edgesArrayIndex, edge] of edges.entries()) {
     const sourceHandle = edge.sourceHandle;
     const targetHandle = edge.targetHandle;
 
@@ -104,6 +146,7 @@ function compile<
       edgeId: edge.id,
       sourceNodeId: edge.source,
       sourceHandleId: sourceHandle,
+      edgesArrayIndex,
     });
 
     // Add to output distribution map
@@ -118,6 +161,40 @@ function compile<
       targetNodeId: edge.target,
       targetHandleId: targetHandle,
     });
+
+    // Finite order only (real data edges that became an entry above; one
+    // `Number.isFinite` authority — the tiebreak index already rode onto the entry).
+    const order = edge.data?.order;
+    if (Number.isFinite(order)) edgeOrderById.set(edge.id, order as number);
+  }
+
+  // Honor user-defined connection order for fan-in inputs. Each edge may carry
+  // `data.order` — its rank within the target handle's fan-in group, written by
+  // REORDER_INPUT_CONNECTIONS. Sort each fan-in handle's resolution entries by
+  // that order; edges without one tie on the `+∞` sentinel and fall back to their
+  // `edgesArrayIndex` (edges-array position), so un-reordered handles and newly
+  // added connections keep their existing order. The EXPLICIT index tiebreak
+  // makes this independent of `Array.prototype.sort` stability and byte-identical
+  // to the reorder popover (which tiebreaks on the same getEdges() index), so the
+  // on-screen preview equals the executed/compiled order. This is the SINGLE
+  // point that fixes fan-in order for BOTH the executor (valueStore builds
+  // `connections[]` from these entries) and every codegen target.
+  // STRUCTURE INVARIANT (load-bearing — do not break without re-applying this
+  // sort, pinned by reorderedFanInInStructures.test.ts): loop/switch bodies live
+  // at the ROOT scope, so their fan-in edges are in `edges` and are sorted HERE,
+  // read back at runtime/codegen through the root `env.plan`; group subtrees get
+  // their own sort via the recursive `compile()` over `subtree.edges`. Do NOT
+  // give loop/switch bodies a scoped resolution map without re-running this sort.
+  for (const inputEntries of inputResolutionMap.values()) {
+    if (inputEntries.length < 2) continue;
+    inputEntries.sort((first, second) =>
+      compareFanIn(
+        edgeOrderById.get(first.edgeId),
+        first.edgesArrayIndex ?? 0,
+        edgeOrderById.get(second.edgeId),
+        second.edgesArrayIndex ?? 0,
+      ),
+    );
   }
 
   // ─────────────────────────────────────────────────────
@@ -408,6 +485,8 @@ function compile<
     outputDistributionMap,
     nodeCount,
     warnings,
+    rootInputNodeId,
+    rootOutputNodeId,
   };
 }
 

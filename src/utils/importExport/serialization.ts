@@ -478,6 +478,19 @@ function serializeExecutionRecord(
     switchRecords,
     groupRecords,
     finalValues,
+    // Root Graph Output values (mirrors codegen's `runGraph` return). Sanitized
+    // per-value like `finalValues` since they originate from node impls and may
+    // be non-JSON. Omitted when absent (graph has no root Graph Output).
+    ...(record.rootOutputs
+      ? {
+          rootOutputs: Object.fromEntries(
+            Object.entries(record.rootOutputs).map(([key, value]) => [
+              key,
+              safeSerializeValue(value),
+            ]),
+          ),
+        }
+      : {}),
     ...(record.viewState ? { viewState: record.viewState } : {}),
   };
 }
@@ -540,6 +553,7 @@ function deserializeExecutionRecord(
     switchRecords,
     groupRecords,
     finalValues,
+    ...(obj.rootOutputs ? { rootOutputs: obj.rootOutputs } : {}),
     ...(obj.viewState ? { viewState: obj.viewState } : {}),
   };
 }

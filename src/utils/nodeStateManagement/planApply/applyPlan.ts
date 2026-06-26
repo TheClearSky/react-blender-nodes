@@ -106,12 +106,13 @@ function applySwitchZonePrefixesOnDraft<
     }
   }
 }
-import { addDuplicateHandleToNodeGroupAfterInference } from '../nodes/nodeGroups';
+import { growSpareAndPropagateBoundaryHandle } from '../nodes/nodeGroups';
 import { generateRandomString } from '@/utils/randomGeneration';
 import { lengthOfIds } from '../constants';
 import { typedKeys } from '@/utils/typedKeys';
 import {
   standardNodeTypeNamesMap,
+  standardDataTypeNamesMap,
   groupNodeContextMenu,
 } from '../standardNodes';
 import { getHandleFromNodeDataMatchingHandleId } from '../handles/handleGetters';
@@ -818,10 +819,14 @@ function applyPlan<
             }
           }
 
-          // 4c. Group handle duplication
+          // 4c. Boundary handle grow + (group-only) propagation. Runs for an
+          // open group OR at root (root grows a spare on the Graph I/O boundary
+          // node; `plan.inferenceScope` carries the root edit policy since
+          // applyPlan only sees the Plan, not the action). At root `nodeGroup`
+          // is undefined and the helper skips the cross-instance propagation.
           const nodeGroup =
             draft.openedNodeGroupStack?.[draft.openedNodeGroupStack.length - 1];
-          if (nodeGroup) {
+          if (nodeGroup || plan.inferenceScope.kind === 'root') {
             const groupView = getCurrentNodesAndEdgesFromState(draft);
             const groupSourceNodeIndex = groupView.nodes.findIndex(
               (n) => n.id === sourceNode.id,
@@ -859,7 +864,7 @@ function applyPlan<
                 preInferenceTargetHandle?.dataType?.dataTypeObject
                   .underlyingType === 'inferFromConnection';
 
-              addDuplicateHandleToNodeGroupAfterInference(
+              growSpareAndPropagateBoundaryHandle(
                 {
                   ...draft,
                   nodes: groupView.nodes,
@@ -885,6 +890,7 @@ function applyPlan<
                 isSourceNodeGroupInput,
                 isTargetNodeGroupOutput,
                 nodeGroup,
+                plan.inferenceScope,
               );
             }
           }
@@ -1595,6 +1601,96 @@ function applyPlan<
       return;
     }
 
+    case 'UPDATE_GRAPH_IO_HANDLES': {
+      // Root Graph Input/Output handle editing. The root graph is the top-level
+      // node group and its boundary nodes are root groupInput/groupOutput — so
+      // this only ever operates on the root scope (`draft.nodes`/`draft.edges`),
+      // never on an open group's subtree (the validator confirmed the node lives
+      // in the root node list).
+      const guardNode = draft.nodes.find((node) => node.id === plan.nodeId);
+      if (!guardNode) return;
+
+      // 1. Cascade-remove the root edges touching the deleted handles through the
+      //    SAME routine the disconnect action uses (removeEdgeWithTypeChecking),
+      //    so the opposite endpoint's inferred type reverts. Done BEFORE the
+      //    handles are dropped, while both endpoints are still intact.
+      if (plan.removedHandleIds.length > 0) {
+        const removedHandleIdSet = new Set(plan.removedHandleIds);
+        const edgeIdsToRemove = draft.edges
+          .filter(
+            (edge) =>
+              (edge.source === plan.nodeId &&
+                removedHandleIdSet.has(edge.sourceHandle ?? '')) ||
+              (edge.target === plan.nodeId &&
+                removedHandleIdSet.has(edge.targetHandle ?? '')),
+          )
+          .map((edge) => edge.id);
+
+        let nodes = draft.nodes;
+        let edges = draft.edges;
+        for (const edgeId of edgeIdsToRemove) {
+          const edge = edges.find((candidate) => candidate.id === edgeId);
+          if (!edge) continue;
+          const result = removeEdgeWithTypeChecking(
+            edge,
+            { ...draft, nodes, edges },
+            { type: 'remove' as const, id: edgeId },
+          );
+          nodes = result.updatedNodes as typeof draft.nodes;
+          edges = result.updatedEdges;
+        }
+        draft.nodes = nodes;
+        draft.edges = edges;
+
+        // Removed edges can change loop/switch membership at the root scope.
+        if (draft.zones && Object.keys(draft.zones).length > 0) {
+          const zoneRecompute = recomputeAllZoneMemberships(draft);
+          draft.zones = zoneRecompute.zones;
+          draft.zoneIndex = zoneRecompute.zoneIndex;
+        }
+      }
+
+      // 2. Rebuild the handle list. Existing handles are reused by id (preserving
+      //    any concretized inferred type) with only their name updated; entries
+      //    without an id are NEW and minted as `groupInfer` handles so they infer
+      //    their concrete type when first connected (mirrors the default handle a
+      //    fresh group boundary node carries).
+      const editedNode = draft.nodes.find((node) => node.id === plan.nodeId);
+      if (!editedNode) return;
+      const previousHandleList =
+        plan.direction === 'output'
+          ? (editedNode.data.outputs ?? [])
+          : (editedNode.data.inputs ?? []);
+      const previousHandleById = new Map(
+        previousHandleList.map((handle) => [handle.id, handle] as const),
+      );
+
+      const rebuiltHandleList = plan.handles.map((handleSpec) => {
+        const existingHandle = handleSpec.id
+          ? previousHandleById.get(handleSpec.id)
+          : undefined;
+        if (existingHandle) {
+          return { ...existingHandle, name: handleSpec.name };
+        }
+        return constructInputOrOutputOfType(
+          {
+            name: handleSpec.name,
+            dataType: standardDataTypeNamesMap.groupInfer as DataTypeUniqueId,
+          },
+          draft.dataTypes,
+        );
+      });
+
+      if (plan.direction === 'output') {
+        editedNode.data.outputs =
+          rebuiltHandleList as typeof editedNode.data.outputs;
+      } else {
+        editedNode.data.inputs =
+          rebuiltHandleList as typeof editedNode.data.inputs;
+      }
+      return;
+    }
+
     case 'DELETE_LOOP_CHANNELS':
     case 'DELETE_SWITCH_CHANNELS': {
       // Loop and switch channel deletion are identical at apply time: remove the
@@ -1693,6 +1789,29 @@ function applyPlan<
           subtree!.zoneIndex = zr.zoneIndex;
         }
       }
+      return;
+    }
+
+    case 'REORDER_INPUT_CONNECTIONS': {
+      // Write each edge's rank within the target handle's fan-in group as
+      // `data.order` (contiguous 0..n-1). Replace edge OBJECTS rather than
+      // mutating `edge.data` in place — edges read from previously committed
+      // (immer-frozen) state are not extensible. Scope-aware via the view, so a
+      // reorder inside an open node group writes to the subtree's edges.
+      const view = getCurrentNodesAndEdgesFromState(draft);
+      const orderByEdgeId = new Map(
+        plan.orderedEdgeIds.map((edgeId, index) => [edgeId, index] as const),
+      );
+      const updatedEdges = view.edges.map((edge) => {
+        const order = orderByEdgeId.get(edge.id);
+        if (order === undefined) return edge;
+        return { ...edge, data: { ...edge.data, order } };
+      });
+      setCurrentNodesAndEdgesToStateWithMutatingState(
+        draft,
+        undefined,
+        updatedEdges,
+      );
       return;
     }
 

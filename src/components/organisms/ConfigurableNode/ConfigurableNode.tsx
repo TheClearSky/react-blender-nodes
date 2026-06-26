@@ -12,12 +12,15 @@ import {
   type HandleShape,
 } from './SupportingSubcomponents/ContextAwareHandle';
 import { ContextAwareInput } from './SupportingSubcomponents/ContextAwareInput';
+import { InputConnectionOrderControl } from './SupportingSubcomponents/InputConnectionOrderControl';
 import {
   ContextAwareNodeHeaderActions,
   type NodeHeaderActionDefinition,
 } from './SupportingSubcomponents/ContextAwareNodeHeaderActions';
 import { isLoopNode } from '@/utils/nodeStateManagement/nodes/loops/loopIdentification';
 import { isSwitchNode } from '@/utils/nodeStateManagement/nodes/switches/switchIdentification';
+import { isGroupInputOrOutputNode } from '@/utils/nodeStateManagement/nodes/nodeGroups';
+import { standardNodeTypeNamesMap } from '@/utils/nodeStateManagement/standardNodes';
 import { actionTypesMap } from '@/utils/nodeStateManagement/mainReducer';
 import { Pencil, SquareMousePointerIcon } from 'lucide-react';
 import { z } from 'zod';
@@ -269,6 +272,10 @@ const RenderInputView = forwardRef<
         isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
       />
       <div className='flex-1 flex items-center gap-3 w-full'>
+        {/* Fan-in reorder badges (self-hides for <2 connections; RF-only). */}
+        {isCurrentlyInsideReactFlow && (
+          <InputConnectionOrderControl handleId={input.id} />
+        )}
         {!shouldShowInput && (
           <div className='truncate'>{input.name || '\u200B'}</div>
         )}
@@ -532,6 +539,43 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
 
     const headerActions: NodeHeaderActionDefinition[] = [];
 
+    // Root Graph Input / Output nodes (the graph's I/O boundary) get an edit
+    // button that opens the Graph I/O editor. The SAME node types inside a
+    // group are the group's boundary — edited via the group's node-type editor
+    // — so the button is gated on root scope.
+    if (
+      nodeTypeUniqueId &&
+      isGroupInputOrOutputNode(nodeTypeUniqueId) &&
+      fullGraphContext?.allProps?.isAtRootScope
+    ) {
+      const isGraphInput =
+        nodeTypeUniqueId === standardNodeTypeNamesMap.groupInput;
+      headerActions.push({
+        id: 'edit-graph-io',
+        icon: Pencil,
+        action: {
+          type: actionTypesMap.OPEN_DRAWER,
+          payload: {
+            activeDrawer: {
+              type: isGraphInput ? 'editGraphInput' : 'editGraphOutput',
+              nodeId: id ?? '',
+            },
+          },
+        },
+      });
+    }
+
+    // At root, the boundary nodes ARE the graph's I/O — display them as
+    // "Graph Input"/"Graph Output" rather than their type name ("Group Input").
+    const displayName =
+      nodeTypeUniqueId &&
+      isGroupInputOrOutputNode(nodeTypeUniqueId) &&
+      fullGraphContext?.allProps?.isAtRootScope
+        ? nodeTypeUniqueId === standardNodeTypeNamesMap.groupInput
+          ? 'Graph Input'
+          : 'Graph Output'
+        : name;
+
     if (nodeTypeUniqueId && isLoopNode(nodeTypeUniqueId)) {
       headerActions.push({
         id: 'edit-loop',
@@ -614,7 +658,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
           }}
         >
           <p className={cn('truncate py-2', theme?.node?.headerTitle)}>
-            {name}
+            {displayName}
           </p>
           {fullGraphContext?.allProps?.state?.enableDebugMode && (
             <p className='shrink-0 py-2'>{id}</p>

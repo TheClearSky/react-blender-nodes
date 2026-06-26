@@ -34,7 +34,11 @@ function getRunnerStateLabel(page: Page): Locator {
 // ─────────────────────────────────────────────────────
 
 function getRunButton(page: Page): Locator {
-  return getRunnerToolbar(page).locator('button[title="Run"]');
+  // The run button carries title="Run" (no active target) or
+  // title="Run: <target label>" once the pluggable run-targets feature mounts a
+  // default target (e.g. "Run: In-process"). Prefix-match covers both; it does
+  // not collide with Reset/Pause/Step/Stop (none start with "Run").
+  return getRunnerToolbar(page).locator('button[title^="Run"]');
 }
 
 function getPauseButton(page: Page): Locator {

@@ -60,6 +60,19 @@ type GraphThemeNodeSlots = {
   panelContent?: string;
   inputField?: string;
   handleShape?: string;
+  /**
+   * The fan-in connection-reorder trigger — the accent-colored count badge shown
+   * on a multi-connection input handle. Merged onto the popover trigger button.
+   */
+  inputOrderBadge?: string;
+  /**
+   * Reorder-popover-SPECIFIC overrides, layered ON TOP of the shared
+   * `popover.surface` slot. Prefer `popover.surface` for the surface bg/border/
+   * text (it themes every portaled popover at once — see the `neonHeist` demo);
+   * use this slot only for tweaks unique to the connection-reorder popover.
+   * Portaled, so root var overrides can't reach it.
+   */
+  inputOrderPopover?: string;
 };
 
 type GraphThemeEdgeSlots = {
@@ -98,7 +111,38 @@ type GraphThemeErrorBoundarySlots = {
 type GraphThemeRunnerPanelSlots = {
   container?: string;
   resizeHandle?: string;
+  /**
+   * The panel's `X` close button — AND the `⋯` overflow-menu triggers
+   * (RunControls + Timeline), which share its default hover styling (they differ
+   * only in layout utilities). Styling this slot themes all three.
+   */
   closeButton?: string;
+  /**
+   * The `⋯` overflow-menu popover surface (shared by the RunControls and
+   * Timeline toolbars when they collapse on a narrow container). It is PORTALED
+   * (`FloatingPortal` → `document.body`), so the `root` slot's CSS-var overrides
+   * cannot reach it. Set EVERYTHING the menu needs in this one string: bg/border,
+   * resting text (via descendant `[&_.text-*]` re-anchors), and control vars
+   * (`--color-graph-toggle-track-bg`, slider `--color-primary-gray`) — see the
+   * light preset. Per-state hover/selected use the two slots below.
+   */
+  overflowMenu?: string;
+  /**
+   * Hover state of an interactive row inside the `⋯` menu. Applied directly to
+   * the run-target rows / zoom buttons and forwarded as `ButtonToggle`'s
+   * `inactiveClassName`, so it themes the inlined `hover:` state a container-slot
+   * descendant override cannot reach. Provide a hover class, e.g.
+   * `hover:bg-zinc-200`.
+   */
+  overflowMenuItem?: string;
+  /**
+   * The SELECTED state inside the `⋯` menu (active run-target row, active
+   * `ButtonToggle` segment). Provide bg AND text — the active segment's default
+   * `text-white` is intentionally NOT reachable by descendant text overrides, so
+   * you MUST set a text color here for light backgrounds, e.g.
+   * `bg-blue-100 text-zinc-900`.
+   */
+  overflowMenuItemActive?: string;
 };
 
 type GraphThemeRunControlsSlots = {
@@ -182,6 +226,19 @@ type GraphThemeColorPickerSlots = {
 };
 
 /**
+ * The shared `atoms/Popover` surface (portaled — root vars don't reach it). Read
+ * by EVERY internal popover built on that atom: the runner toolbars' `⋯` overflow
+ * menus and the node connection-order badge. A theme can re-anchor the surface
+ * bg/border/text ONCE here instead of per consumer; the per-consumer slots
+ * (`runnerPanel.overflowMenu`, `node.inputOrderPopover`) still layer ON TOP for
+ * popover-specific extras. Set this whenever you theme any portaled popover so a
+ * forgotten consumer doesn't stay default-dark while the rest of the theme changes.
+ */
+type GraphThemePopoverSlots = {
+  surface?: string;
+};
+
+/**
  * A theme is a map of per-component/per-slot Tailwind className overrides.
  * Every slot is appended LAST at its consumption site via `cn()`, so
  * tailwind-merge resolves conflicts in the theme's favor while non-conflicting
@@ -217,6 +274,7 @@ type GraphTheme = {
   select?: GraphThemeSelectSlots;
   tooltip?: GraphThemeTooltipSlots;
   colorPicker?: GraphThemeColorPickerSlots;
+  popover?: GraphThemePopoverSlots;
 };
 
 export type {
@@ -245,4 +303,5 @@ export type {
   GraphThemeSelectSlots,
   GraphThemeTooltipSlots,
   GraphThemeColorPickerSlots,
+  GraphThemePopoverSlots,
 };

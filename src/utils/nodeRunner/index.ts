@@ -20,6 +20,10 @@ export { execute, executeStepByStep } from './executor';
 export { ValueStore, qualifiedId } from './valueStore';
 export { ExecutionRecorder } from './executionRecorder';
 
+// Recommended input reader for node implementations (enables codegen auto-emit).
+export { readInput } from './readInput';
+export type { ReadableInputHandle } from './readInput';
+
 // React hook
 export { useNodeRunner, computeVisualStatesAtStep } from './useNodeRunner';
 export type {

@@ -385,6 +385,37 @@ clamping the computed size. During the drag it sets `user-select: none` and
 - A `useEffect` clears `selectedStepIndex` (closes the inspector) whenever the
   panel closes.
 
+### Responsive layout (container queries)
+
+The panel reflows to its OWN width (not the browser viewport) via Tailwind v4
+container queries. The panel root is a named container
+(`@container/runnerpanel`, also carrying `data-slot="runner-panel"`);
+descendants use `@max-[832px]/runnerpanel:` (which compiles to
+`not (min-width: 832px)`, i.e. container width `< 832px`; at exactly 832px the
+wide layout applies — the breakpoint was measured so the wide row, which needs
+~672px, switches with margin before it crowds) to collapse into a single
+"narrow" regime:
+
+- **RunControls** (`RunControlsOverflowMenu`): below `@max-[832px]` the status
+  label, dividers, run-target `Select`, mode toggle, and max-loops slider hide;
+  a `⋯` popover (the internal `atoms/Popover`) holds the run target (rendered as
+  plain menu rows, NOT a nested portal), mode, and max-loops. The status dot +
+  Run / Pause / Step / Stop / Reset stay inline.
+- **ExecutionTimeline** (`TimelineToolbarOverflowMenu`): below `@max-[832px]`
+  the autoplay interval, auto-scroll, time-mode, zoom, and run stats move into a
+  `⋯` popover; the collapse caret + step navigation stay inline. The timeline
+  track canvas was already width-responsive (`useTimelineZoomPan` refits the
+  time scale via `ResizeObserver`).
+- **ExecutionStepInspector**: below `@max-[832px]` the fixed 340px side column
+  becomes a full-body-height **slide-over overlay** (`absolute inset-0`)
+  covering the timeline instead of squeezing it; long handle names and the
+  node-type title truncate. Above `@max-[832px]` it is the in-flow column again.
+  The `useSlideAnimation` translateX is preserved in both modes.
+
+No JavaScript or media queries are involved — pure CSS container variants.
+Verified by `e2e/tests/loops/runnerUI/responsive.spec.ts` (G8/G9) and the
+`WithRunnerNarrow` story.
+
 ## Selected Step Flow
 
 ```

@@ -12,7 +12,7 @@ import {
   getHandleFromNodeDataFromIndices,
 } from './handles/handleGetters';
 import { inferTypeAcrossTheNodeForHandleOfDataType } from './edges/typeInference';
-import { addDuplicateHandleToNodeGroupAfterInference } from './nodes/nodeGroups';
+import { growSpareAndPropagateBoundaryHandle } from './nodes/nodeGroups';
 import {
   addDuplicateHandlesToLoopNodesAfterInference,
   isLoopNode,
@@ -249,8 +249,12 @@ function inferTypesAfterEdgeAddition<
     overrideName: overrideName,
   });
 
-  // Handle duplicate handle addition for node groups
-  const duplicateHandleValidation = addDuplicateHandleToNodeGroupAfterInference<
+  // Handle duplicate handle addition for node groups. This legacy mutating path
+  // passes a `group` scope unconditionally: combined with the helper's
+  // `nodeGroup || scope.kind === 'root'` entry guard and `nodeGroup` being
+  // undefined at root here, it preserves the original behavior exactly (grow +
+  // propagate only inside an open group; no root grow, no auto-name).
+  const duplicateHandleValidation = growSpareAndPropagateBoundaryHandle<
     DataTypeUniqueId,
     NodeTypeUniqueId,
     UnderlyingType,
@@ -267,6 +271,7 @@ function inferTypesAfterEdgeAddition<
     isSourceNodeGroupInput,
     isTargetNodeGroupOutput,
     nodeGroup,
+    { kind: 'group' },
   );
 
   if (!duplicateHandleValidation.validation.isValid) {

@@ -457,6 +457,23 @@ editor is shown only when `input.allowInput && !isConnected`
 (`shouldShowInput`). When `shouldShowInput` is true the row uses tighter
 vertical padding (`py-1`).
 
+Fan-in reorder control: when an input handle has 2+ incoming connections, the
+row also renders
+`src/components/organisms/ConfigurableNode/SupportingSubcomponents/InputConnectionOrderControl.tsx`
+› `InputConnectionOrderControl` — a compact trigger (an ordered-list icon + the
+connection count) that opens an `atoms/Popover` containing a drag-to-reorder
+`DragList` of the connections. Reordering dispatches
+`REORDER_INPUT_CONNECTIONS`, persisting each edge's `data.order` so the runner /
+codegen consume the fan-in in that order (see
+[Edges › Connection ordering](../core/edgesDoc.md#connection-ordering-fan-in)).
+The control is themeable via the `node.inputOrderBadge` slot, self-hides for
+single-connection handles, and renders only inside ReactFlow.
+
+The popover itself shows: a **1-based position number** per row (the live order
+index, recomputed as items are dragged), the **target input handle's name** in
+the header (`Order connections into "<name>"`), and a per-row **color chip** —
+the source handle's `handleColor` — beside each connection label.
+
 ### Input Panels (collapsible groups)
 
 Panels are detected by `'inputs' in input`. Each panel (`RenderInputPanel`)

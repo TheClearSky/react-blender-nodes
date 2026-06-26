@@ -185,7 +185,7 @@ function InputHandleDisplay({
   const theme = useGraphTheme();
   return (
     <div className='flex flex-col gap-1.5'>
-      <div className='text-[14px] text-primary-white'>
+      <div className='truncate text-[14px] text-primary-white'>
         {handleName}{' '}
         <span className='text-secondary-light-gray'>
           ({handleValue.dataTypeId})
@@ -235,7 +235,7 @@ function OutputHandleDisplay({
   const theme = useGraphTheme();
   return (
     <div className='flex flex-col gap-1.5'>
-      <div className='text-[14px] text-primary-white'>
+      <div className='truncate text-[14px] text-primary-white'>
         {handleName}{' '}
         <span className='text-secondary-light-gray'>
           ({handleValue.dataTypeId})
@@ -277,7 +277,7 @@ function ExecutionStepInspector({
   return (
     <div
       className={cn(
-        'flex w-[340px] animate-slide-in-right flex-col bg-runner-panel-bg',
+        'flex w-full @min-[832px]/runnerpanel:w-[340px] animate-slide-in-right flex-col bg-runner-panel-bg',
         theme?.inspector?.container,
       )}
     >
@@ -288,13 +288,13 @@ function ExecutionStepInspector({
           theme?.inspector?.header,
         )}
       >
-        <div className='flex items-center gap-2.5'>
-          <Package className='h-5 w-5 text-primary-white' />
-          <span className='text-[15px] tracking-wide text-primary-white'>
+        <div className='flex min-w-0 items-center gap-2.5'>
+          <Package className='h-5 w-5 shrink-0 text-primary-white' />
+          <span className='truncate text-[15px] tracking-wide text-primary-white'>
             {stepRecord.nodeTypeName}
           </span>
         </div>
-        <div className='flex items-center gap-3'>
+        <div className='flex shrink-0 items-center gap-3'>
           {onEdgeValuesAnimatedChange && (
             <Tooltip content='Animate edge value badges along the connection path instead of showing them statically'>
               <label className='flex cursor-pointer items-center gap-1.5 text-[12px] text-secondary-light-gray select-none'>

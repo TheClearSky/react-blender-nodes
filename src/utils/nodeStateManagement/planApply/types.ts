@@ -81,6 +81,24 @@ export type InferencePlan = {
 };
 
 // ---------------------------------------------------------------------------
+// Inference scope — discriminates a root-graph boundary from an open-group
+// boundary, and carries the root-only edit policy resolved from the
+// `<FullGraph>` props. Threaded from `validateAddEdge` onto the `AddEdgePlan`
+// so `applyPlan`'s grow step (which only sees the Plan) can honor the policy.
+//
+// The `group` variant carries NO node group — `applyPlan` reads the open group
+// from `draft.openedNodeGroupStack` as before; the scope only needs to say
+// "this is a group boundary" so the grow/propagate path runs unconditionally
+// (groups are id-keyed via their outer instance, so renaming is always safe).
+// The `root` variant has no outer instance, so it carries the two opt-out
+// flags instead.
+// ---------------------------------------------------------------------------
+
+export type InferenceScope =
+  | { kind: 'root'; allowNameOverride: boolean; allowStructureGrow: boolean }
+  | { kind: 'group' };
+
+// ---------------------------------------------------------------------------
 // Handle insertion — describes a handle to add to a node
 // ---------------------------------------------------------------------------
 
@@ -184,6 +202,14 @@ export type AddEdgePlan = {
   };
   inference: InferencePlan;
   handleInsertions: HandleInsertion[];
+  /**
+   * The boundary scope resolved during validation. `applyPlan`'s grow step
+   * (4c) reads the root edit policy from here, since it only receives the
+   * `Plan`, not the original action. Lives on the transient Plan ONLY — never
+   * written to node/handle `data` or the draft, so it cannot round-trip
+   * through export.
+   */
+  inferenceScope: InferenceScope;
 };
 
 export type EdgeChangeStep =
@@ -316,6 +342,32 @@ export type DeleteSwitchChannelsPlan = {
   cascades: ChannelDeletionPlanData[];
 };
 
+export type UpdateGraphIoHandlesPlan = {
+  kind: 'UPDATE_GRAPH_IO_HANDLES';
+  nodeId: string;
+  /** A Graph Input edits its `outputs`; a Graph Output edits its `inputs`. */
+  direction: 'input' | 'output';
+  /** Final kept handle list; entries without `id` are NEW (id minted in applyPlan,
+   *  defaulting to a `groupInfer` handle so they infer on connect). */
+  handles: { id?: string; name: string }[];
+  /** Old handle ids absent from `handles` — their root edges cascade-remove. */
+  removedHandleIds: string[];
+};
+
+export type ReorderInputConnectionsPlan = {
+  kind: 'REORDER_INPUT_CONNECTIONS';
+  nodeId: string;
+  handleId: string;
+  /**
+   * Every edge currently entering the target handle, in the desired order.
+   * `applyPlan` writes each edge's `data.order` as its contiguous index here,
+   * so the compiler (and thus the executor + every codegen target) resolves the
+   * fan-in `connections[]` in this order. Validated as a strict permutation of
+   * the handle's current fan-in set, so the indices are always dense.
+   */
+  orderedEdgeIds: string[];
+};
+
 // ---------------------------------------------------------------------------
 // The union of all Plan types
 // ---------------------------------------------------------------------------
@@ -345,4 +397,6 @@ export type Plan =
   | ClearHistoryPlan
   | DeleteNodeTypeHandlesPlan
   | DeleteLoopChannelsPlan
-  | DeleteSwitchChannelsPlan;
+  | DeleteSwitchChannelsPlan
+  | UpdateGraphIoHandlesPlan
+  | ReorderInputConnectionsPlan;

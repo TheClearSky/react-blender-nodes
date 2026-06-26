@@ -4,18 +4,17 @@ import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { SliderNumberInput } from '@/components/molecules/SliderNumberInput/SliderNumberInput';
 import { Tooltip } from '@/components/atoms/Tooltip';
 import { ButtonToggle } from '@/components/molecules/ButtonToggle';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/molecules/Select/Select';
 import type { RunnerState } from '@/utils/nodeRunner/types';
-
-const RUN_MODE_OPTIONS = [
-  { value: 'instant' as const, label: 'Instant' },
-  { value: 'stepByStep' as const, label: 'Step-by-Step' },
-];
-
-/**
- * Execution mode: instant runs the whole graph then enables replay,
- * stepByStep pauses between each execution step.
- */
-type RunMode = 'instant' | 'stepByStep';
+import { RunControlsOverflowMenu } from './RunControlsOverflowMenu';
+import { RUN_MODE_OPTIONS } from './runControlsShared';
+import type { RunControlsRunTarget, RunMode } from './runControlsShared';
 
 /**
  * Props for the RunControls component.
@@ -41,6 +40,15 @@ type RunControlsProps = {
   maxLoopIterations: number;
   /** Update max loop iterations */
   onMaxLoopIterationsChange: (max: number) => void;
+  /** Registered run targets (incl. the built-in default). When more than one, a
+   *  compact target picker renders next to the Run button. */
+  runTargets?: ReadonlyArray<RunControlsRunTarget>;
+  /** The active run target id. */
+  activeRunTargetId?: string;
+  /** Change the active run target. */
+  onRunTargetChange?: (id: string) => void;
+  /** Whether the active target supports stepping (pause / step). Default true. */
+  steppingAvailable?: boolean;
 };
 
 // ─────────────────────────────────────────────────────
@@ -139,9 +147,17 @@ function RunControls({
   onModeChange,
   maxLoopIterations,
   onMaxLoopIterationsChange,
+  runTargets,
+  activeRunTargetId,
+  onRunTargetChange,
+  steppingAvailable = true,
 }: RunControlsProps) {
   const statusConfig = STATUS_CONFIG[runnerState];
   const theme = useGraphTheme();
+  const showTargetPicker = !!runTargets && runTargets.length > 1;
+  const activeTarget = runTargets?.find(
+    (target) => target.id === activeRunTargetId,
+  );
   const canEdit =
     runnerState === 'idle' ||
     runnerState === 'completed' ||
@@ -163,8 +179,8 @@ function RunControls({
         theme?.runControls?.container,
       )}
     >
-      {/* Status indicator */}
-      <div className='flex w-[140px] items-center gap-2.5'>
+      {/* Status indicator — label hides below `@max-[832px]`, leaving just the dot */}
+      <div className='flex w-[140px] @max-[832px]/runnerpanel:w-auto items-center gap-2.5'>
         <div className='relative flex items-center justify-center'>
           <div
             className={cn(
@@ -187,7 +203,7 @@ function RunControls({
         </div>
         <span
           className={cn(
-            'text-[14px] text-primary-white',
+            'text-[14px] text-primary-white @max-[832px]/runnerpanel:hidden',
             theme?.runControls?.statusLabel,
           )}
         >
@@ -197,7 +213,7 @@ function RunControls({
 
       <div
         className={cn(
-          'mx-3 h-6 w-px bg-secondary-dark-gray',
+          'mx-3 h-6 w-px bg-secondary-dark-gray @max-[832px]/runnerpanel:hidden',
           theme?.runControls?.divider,
         )}
       />
@@ -210,8 +226,30 @@ function RunControls({
           disabled={!canRun}
           active={runnerState === 'running'}
           variant='play'
-          title='Run'
+          title={activeTarget ? `Run: ${activeTarget.label}` : 'Run'}
         />
+        {showTargetPicker && (
+          <Select
+            value={activeRunTargetId}
+            onValueChange={(value) => value && onRunTargetChange?.(value)}
+            disabled={!canRun}
+            size='compact'
+          >
+            <SelectTrigger
+              className='w-[160px] @max-[832px]/runnerpanel:hidden'
+              title='Choose run target'
+            >
+              <SelectValue placeholder='Run target' />
+            </SelectTrigger>
+            <SelectContent>
+              {runTargets!.map((target) => (
+                <SelectItem key={target.id} value={target.id}>
+                  {target.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <ActionButton
           icon={<Pause className='h-4 w-4 text-primary-white' />}
           onClick={onPause}
@@ -221,7 +259,7 @@ function RunControls({
         <ActionButton
           icon={<SkipForward className='h-4 w-4 text-primary-white' />}
           onClick={onStep}
-          disabled={!canStep}
+          disabled={!canStep || !steppingAvailable}
           title='Step'
         />
         <ActionButton
@@ -240,24 +278,30 @@ function RunControls({
 
       <div
         className={cn(
-          'mx-3 h-6 w-px bg-secondary-dark-gray',
+          'mx-3 h-6 w-px bg-secondary-dark-gray @max-[832px]/runnerpanel:hidden',
           theme?.runControls?.divider,
         )}
       />
 
-      {/* Mode toggle — inset pill */}
-      <Tooltip content='Instant runs the entire graph at once, then enables replay. Step-by-Step pauses after each node so you can inspect intermediate values.'>
+      {/* Mode toggle — inset pill (moves into the ⋯ menu below `@max-[832px]`) */}
+      <Tooltip
+        className='@max-[832px]/runnerpanel:hidden'
+        content='Instant runs the entire graph at once, then enables replay. Step-by-Step pauses after each node so you can inspect intermediate values.'
+      >
         <ButtonToggle
           options={RUN_MODE_OPTIONS}
           value={mode}
           onChange={onModeChange}
-          disabled={!canEdit}
+          disabled={!canEdit || !steppingAvailable}
           size='small'
         />
       </Tooltip>
 
-      {/* Max iterations — slider */}
-      <Tooltip content='Maximum loop iterations before the runner throws an error. Protects against infinite loops.'>
+      {/* Max iterations — slider (moves into the ⋯ menu below `@max-[832px]`) */}
+      <Tooltip
+        className='@max-[832px]/runnerpanel:hidden'
+        content='Maximum loop iterations before the runner throws an error. Protects against infinite loops.'
+      >
         <div
           className={cn('ml-4', !canEdit && 'pointer-events-none opacity-50')}
         >
@@ -273,10 +317,26 @@ function RunControls({
           />
         </div>
       </Tooltip>
+
+      {/* Secondary controls collapse here below `@max-[832px]` (one narrow regime). */}
+      <RunControlsOverflowMenu
+        mode={mode}
+        onModeChange={onModeChange}
+        maxLoopIterations={maxLoopIterations}
+        onMaxLoopIterationsChange={onMaxLoopIterationsChange}
+        runTargets={runTargets}
+        activeRunTargetId={activeRunTargetId}
+        onRunTargetChange={onRunTargetChange}
+        showTargetPicker={showTargetPicker}
+        canEdit={canEdit}
+        canRun={canRun}
+        steppingAvailable={steppingAvailable}
+        triggerClassName='@min-[832px]/runnerpanel:hidden @max-[832px]/runnerpanel:ml-auto'
+      />
     </div>
   );
 }
 
 export { RunControls };
 
-export type { RunControlsProps, RunMode };
+export type { RunControlsProps, RunMode, RunControlsRunTarget };

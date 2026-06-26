@@ -117,7 +117,7 @@ Relationships:
 |    |-- addDuplicateHandlesToLoopNodesAfterInference()                 |
 |    |-- addDuplicateHandlesToSwitchNodesAfterInference()               |
 |    |-- applySwitchZonePrefixesOnDraft()                              |
-|    |-- addDuplicateHandleToNodeGroupAfterInference()                  |
+|    |-- growSpareAndPropagateBoundaryHandle()                          |
 |    |-- finalView.edges.push(newEdge)                                  |
 |    '-- recomputeAllZoneMemberships()                                  |
 |                                                                       |
@@ -204,7 +204,7 @@ applyValidatedAction() -> produceWithPatches(state, draft => applyPlan(draft, pl
             +-----> addDuplicateHandlesToLoopNodesAfterInference()
             +-----> addDuplicateHandlesToSwitchNodesAfterInference()
             +-----> applySwitchZonePrefixesOnDraft() (True:/False: prefixes)
-            +-----> addDuplicateHandleToNodeGroupAfterInference() (if in group)
+            +-----> growSpareAndPropagateBoundaryHandle() (if in group)
             +-----> finalView.edges.push(newEdge)
             '-----> recomputeAllZoneMemberships() (if any zones exist)
             |
@@ -313,25 +313,32 @@ type Edges = ConfigurableEdgeState[];
 
 All edges in the graph are stored as an array of `ConfigurableEdgeState`.
 
-### ConfigurableEdgeState
+### ConfigurableEdgeState / ConfigurableEdgeData
 
 ```typescript
+// `src/components/atoms/ConfigurableEdge/ConfigurableEdge.tsx` › `ConfigurableEdgeData`
+type ConfigurableEdgeData = { order?: number } & Record<string, unknown>;
+
 // `src/components/atoms/ConfigurableEdge/ConfigurableEdge.tsx` › `ConfigurableEdgeState`
-type ConfigurableEdgeState = Edge<Record<string, unknown>, 'configurableEdge'>;
+type ConfigurableEdgeState = Edge<ConfigurableEdgeData, 'configurableEdge'>;
 ```
 
-A ReactFlow `Edge` whose `data` is typed `Record<string, unknown>` (the library
-reads none of it) and the type discriminator `'configurableEdge'`. Every edge in
-the system uses this type. The key fields inherited from ReactFlow's `Edge`:
+A ReactFlow `Edge` whose `data` is `ConfigurableEdgeData` and whose type
+discriminator is `'configurableEdge'`. Every edge in the system uses this type.
+`data.order` is the **only** field the library persists on an edge — a
+connection's rank within its target input handle's fan-in group (see
+[Connection ordering](#connection-ordering-fan-in)); it is absent on edges that
+have never been reordered. The key fields inherited from ReactFlow's `Edge`:
 
-| Field          | Type     | Description                             |
-| -------------- | -------- | --------------------------------------- |
-| `id`           | `string` | Unique edge identifier (20-char random) |
-| `source`       | `string` | Source node ID                          |
-| `target`       | `string` | Target node ID                          |
-| `sourceHandle` | `string` | Source handle ID                        |
-| `targetHandle` | `string` | Target handle ID                        |
-| `type`         | `string` | Always `'configurableEdge'`             |
+| Field          | Type      | Description                                |
+| -------------- | --------- | ------------------------------------------ |
+| `id`           | `string`  | Unique edge identifier (20-char random)    |
+| `source`       | `string`  | Source node ID                             |
+| `target`       | `string`  | Target node ID                             |
+| `sourceHandle` | `string`  | Source handle ID                           |
+| `targetHandle` | `string`  | Target handle ID                           |
+| `type`         | `string`  | Always `'configurableEdge'`                |
+| `data.order`   | `number?` | Fan-in rank within the target input handle |
 
 ### EdgeChanges
 
@@ -643,9 +650,9 @@ Runs inside Immer's draft. In order:
      `"True: "` / `"False: "` (split at `Math.ceil(dataCount/2)`), then
      re-dedups switch handle names so only true cross-level duplicates get
      suffixed.
-   - `addDuplicateHandleToNodeGroupAfterInference` — when inside a node group,
-     adds a new infer handle to the group input/output node and propagates the
-     handle across the node type tree.
+   - `growSpareAndPropagateBoundaryHandle` — when inside a node group, adds a
+     new infer handle to the group input/output node and propagates the handle
+     across the node type tree.
 7. **Push the edge** onto the scoped `edges` array.
 8. **Recompute zones**: if any zones exist, `recomputeAllZoneMemberships`
    refreshes zone node memberships and `zoneIndex.handleToZone`.
@@ -822,7 +829,10 @@ Map<"targetNodeId:targetHandleId", InputResolutionEntry[]>
 
 For each (non-bind) edge, an entry is added keyed by
 `"{targetNodeId}:{targetHandleId}"`: "to resolve this input handle's value, read
-from this source handle". Multiple entries indicate **fan-in**.
+from this source handle". Multiple entries indicate **fan-in**, and those
+entries are stable-sorted by each edge's `data.order` (see
+[Connection ordering](#connection-ordering-fan-in)) so `connections[]` follows
+the user-defined order.
 
 ### outputDistributionMap
 
@@ -847,12 +857,52 @@ The executor uses these maps at runtime to resolve input values from the
 build `OutputHandleInfo` objects so implementations know their downstream
 consumers.
 
+## Connection ordering (fan-in)
+
+An input handle may receive multiple edges (**fan-in**). The order of those
+connections is meaningful: it is the order the runner and codegen present them
+to a `FunctionImplementations` (`readInput(inputs, name)` yields the connection
+values in this order). By default the order is the order the edges appear in
+`state.edges`; the user can override it per handle.
+
+- **Persistence.** The order is stored per edge as `data.order` — the
+  connection's contiguous `0..n-1` rank within its target handle's fan-in group
+  (`src/components/atoms/ConfigurableEdge/ConfigurableEdge.tsx` ›
+  `ConfigurableEdgeData`). It is additive and back-compatible: edges that have
+  never been reordered carry no `order`, and the compiler then falls back to the
+  `state.edges` array order. Because the serializer does not strip edges,
+  `data.order` round-trips through export/import for free.
+- **Action.** Reordering dispatches `REORDER_INPUT_CONNECTIONS`
+  (`src/utils/nodeStateManagement/mainReducer.ts` › `actionTypesMap`) with
+  `{ nodeId, handleId, orderedEdgeIds }`. The pure validator
+  (`src/utils/nodeStateManagement/planApply/validators.ts` › `validateAction`)
+  accepts it only when `orderedEdgeIds` is a strict permutation of the handle's
+  current (2+) fan-in edges, otherwise it is a `NOOP`. `applyPlan`
+  (`src/utils/nodeStateManagement/planApply/applyPlan.ts` › `applyPlan`) writes
+  the contiguous `data.order` onto each edge — replacing edge objects so frozen
+  committed state is never mutated — scope-aware via
+  `getCurrentNodesAndEdgesFromState`. It is a single undoable step (the plan is
+  `src/utils/nodeStateManagement/planApply/types.ts` ›
+  `ReorderInputConnectionsPlan`).
+- **Resolution.** The compiler (`src/utils/nodeRunner/compiler.ts` › `compile`)
+  stable-sorts each fan-in handle's `InputResolutionEntry[]` by `data.order`
+  right after building the `inputResolutionMap`. This single point fixes the
+  order for BOTH the executor (which builds `connections[]` from these entries)
+  and every codegen target (which lowers the same `ExecutionPlan`).
+- **UI.** See [ConfigurableNode](../ui/configurableNodeDoc.md) — a compact
+  reorder control (an ordered-list icon + the connection count) appears on any
+  input handle with 2+ connections and opens a drag-to-reorder popover
+  (`src/components/organisms/ConfigurableNode/SupportingSubcomponents/InputConnectionOrderControl.tsx`
+  › `InputConnectionOrderControl`).
+
 ## Limitations and Deprecated Patterns
 
-- **No library-read edge data**: `ConfigurableEdgeState` is
-  `Edge<Record<string, unknown>, 'configurableEdge'>`; the library persists and
-  reads no edge `data` (consumers may attach their own, which it ignores). All
-  edge metadata is derived from the connected handles at render time.
+- **Minimal library-read edge data**: `ConfigurableEdgeState` is
+  `Edge<ConfigurableEdgeData, 'configurableEdge'>`, where `ConfigurableEdgeData`
+  is `{ order?: number } & Record<string, unknown>`. The library persists and
+  reads exactly one edge field — `data.order`, the fan-in connection rank (see
+  [Connection ordering](#connection-ordering-fan-in)). All other edge metadata
+  is derived from the connected handles at render time.
 - **Single edge type**: All edges use `'configurableEdge'`. There is no
   mechanism for custom edge types.
 - **`addEdgeWithTypeChecking` is legacy/test-only**: the mutating

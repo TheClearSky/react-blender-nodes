@@ -13,6 +13,7 @@ import {
 } from '@/utils/nodeStateManagement/mainReducer';
 import { z } from 'zod';
 import { getAllDependentsOfNodeTypeRecursively } from '@/utils/nodeStateManagement/nodes/constructAndModifyNodes';
+import { standardNodeTypeNamesMap } from '@/utils/nodeStateManagement/standardNodes';
 
 type CreateNodeContextMenuProps<
   DataTypeUniqueId extends string = string,
@@ -51,6 +52,14 @@ type CreateNodeContextMenuProps<
    */
   isRecursionAllowed?: boolean;
   currentNodeType?: NodeTypeUniqueId;
+  /** True only on the ROOT canvas. The graph's I/O boundary nodes
+   *  (groupInput/groupOutput) are otherwise hidden, but at root they surface as
+   *  "Add Graph Input" / "Add Graph Output" entries (one of each, max). */
+  isAtRootScope?: boolean;
+  /** Whether a root Graph Input / Output already exists (so the single-instance
+   *  add entry is hidden once placed). */
+  rootGraphInputExists?: boolean;
+  rootGraphOutputExists?: boolean;
 };
 
 // ── Internal tree-building types ──
@@ -137,6 +146,9 @@ function createNodeContextMenu<
   isRecursionAllowed = true,
   currentNodeType,
   hiddenNodeTypesInContextMenu,
+  isAtRootScope = false,
+  rootGraphInputExists = false,
+  rootGraphOutputExists = false,
 }: CreateNodeContextMenuProps<
   DataTypeUniqueId,
   NodeTypeUniqueId,
@@ -232,12 +244,47 @@ function createNodeContextMenu<
   // Convert tree to ContextMenuItem[]
   const nodeSubItems = treeToMenuItems(root);
 
+  // Root-only Graph I/O placement. The boundary node types are hidden from the
+  // normal listing (above), so surface them here as single-instance entries.
+  const graphIoSubItems: ContextMenuItem[] = [];
+  if (isAtRootScope) {
+    const addGraphIoEntry = (
+      nodeTypeId: NodeTypeUniqueId,
+      label: string,
+      alreadyExists: boolean,
+    ) => {
+      if (alreadyExists) return;
+      if (!(nodeTypeId in typeOfNodes)) return;
+      graphIoSubItems.push({
+        id: `add-graph-io-${String(nodeTypeId)}`,
+        label,
+        onClick: () => {
+          dispatch({
+            type: actionTypesMap.ADD_NODE_AND_SELECT,
+            payload: { type: nodeTypeId, position: contextMenuPosition },
+          });
+          setContextMenu({ isOpen: false, position: { x: 0, y: 0 } });
+        },
+      });
+    };
+    addGraphIoEntry(
+      standardNodeTypeNamesMap.groupInput as NodeTypeUniqueId,
+      'Graph Input',
+      rootGraphInputExists,
+    );
+    addGraphIoEntry(
+      standardNodeTypeNamesMap.groupOutput as NodeTypeUniqueId,
+      'Graph Output',
+      rootGraphOutputExists,
+    );
+  }
+
   return [
     {
       id: 'add-node',
       label: 'Add Node',
       icon: createElement(PlusIcon, { className: 'w-4 h-4' }),
-      subItems: nodeSubItems,
+      subItems: [...graphIoSubItems, ...nodeSubItems],
     },
   ];
 }

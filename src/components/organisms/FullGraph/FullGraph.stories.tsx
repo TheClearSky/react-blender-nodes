@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Toaster, toast } from 'sonner';
 
@@ -9,6 +9,7 @@ import { type Nodes, type Edges } from './types';
 import {
   makeDataTypeWithAutoInfer,
   makeTypeOfNodeWithAutoInfer,
+  makeStateWithAutoInfer,
 } from '@/utils/nodeStateManagement/types';
 import { handleShapesMap } from '@/components/organisms/ConfigurableNode';
 import state1 from './PlaygroundState1.json';
@@ -18,7 +19,17 @@ import {
   standardNodeTypes,
   standardNodeCountConstraints,
   standardHiddenNodeTypesInContextMenu,
+  mainReducer,
+  actionTypesMap,
+  loopStartInputInferHandleIndex,
+  loopStartOutputInferHandleIndex,
+  loopStopInputInferHandleIndex,
+  loopStopOutputInferHandleIndex,
+  loopEndInputInferHandleIndex,
+  loopEndOutputInferHandleIndex,
   type SupportedUnderlyingTypes,
+  type State,
+  type Action,
 } from '@/utils';
 import { makeFunctionImplementationsWithAutoInfer } from '@/utils/nodeRunner/types';
 import { constructNodeOfType } from '@/utils/nodeStateManagement/nodes/constructAndModifyNodes';
@@ -31,6 +42,17 @@ import { ColorPicker } from '@/components/molecules/ColorPicker/ColorPicker';
 import type { OklchColor } from '@/components/molecules/ColorPicker/lib/types';
 import adderLoopState from '../../../../.storybook/static/graphStates/adder-state-with-inner-noop-loop.json';
 import adderLoopRecordingJson from '../../../../.storybook/static/graphStates/adder-state-with-inner-noop-loop-instant.json';
+import Editor from '@monaco-editor/react';
+import { compile } from '@/utils/nodeRunner';
+import { emitJs } from '@/utils/nodeRunner/runTargets/codegen/emitJs';
+import { emitGraph } from '@/utils/nodeRunner/runTargets/codegen/emitGraph';
+import { readInput } from '@/utils/nodeRunner/readInput';
+import { serializeExecutionPlan } from '@/utils/nodeRunner/runTargets/serializeExecutionPlan';
+import {
+  makeCodegenRunTarget,
+  jsonIrRunTarget,
+} from '@/utils/nodeRunner/runTargets';
+import type { CodegenMetadata } from '@/utils/nodeRunner/runTargets';
 
 // Parse the recording JSON at module level (runs once)
 const adderLoopRecordingResult = importExecutionRecord(
@@ -560,6 +582,11 @@ const neonHeistTheme: GraphTheme = {
     body: 'bg-[#1e0238] border-x border-b border-fuchsia-500/50',
     inputField: 'bg-[#1d0033] border-fuchsia-500/40 text-fuchsia-100',
   },
+  // The shared portaled-popover surface — themes BOTH the runner overflow menus
+  // and the connection-order reorder badge at once (root vars can't reach a portal).
+  popover: {
+    surface: `[--color-graph-elevated-surface-bg:#10001d] border-fuchsia-500/30 ${NEON_TEXT}`,
+  },
   statusIndicator: {
     tooltip: 'bg-[#150022] border-fuchsia-400/60 text-fuchsia-100',
   },
@@ -583,6 +610,9 @@ const neonHeistTheme: GraphTheme = {
     'bg-[#150022]/90 border-fuchsia-500/40 text-fuchsia-100 hover:bg-fuchsia-500/20',
   runnerPanel: {
     container: `bg-[#10001d] border-fuchsia-500/30 ${NEON_TEXT}`,
+    overflowMenu: `[--color-graph-elevated-surface-bg:#10001d] [--color-graph-toggle-track-bg:#1a0030] border-fuchsia-500/30 ${NEON_TEXT}`,
+    overflowMenuItem: 'hover:bg-fuchsia-500/20',
+    overflowMenuItemActive: 'bg-fuchsia-500/30 text-fuchsia-50',
   },
   runControls: {
     container: 'bg-[#150022] border-fuchsia-500/20',
@@ -629,6 +659,10 @@ const neonHeistTheme: GraphTheme = {
 
 /** Phosphor-green CRT: pure black, monospace, grayscale node headers. */
 const terminalGreenTheme: GraphTheme = {
+  // Shared portaled-popover surface — overflow menus AND the reorder badge.
+  popover: {
+    surface: `rounded-none [--color-graph-elevated-surface-bg:#020a04] [--color-graph-toggle-track-bg:#01140a] border-green-500/30 ${TERMINAL_TEXT}`,
+  },
   root: [
     'bg-black',
     '[--color-graph-menu-bg:#000000]',
@@ -704,6 +738,9 @@ const terminalGreenTheme: GraphTheme = {
     'rounded-none bg-black/90 border-green-500/40 text-green-300 font-mono hover:bg-green-500/10',
   runnerPanel: {
     container: `rounded-none bg-[#020a04] border-green-500/30 ${TERMINAL_TEXT}`,
+    overflowMenu: `rounded-none [--color-graph-elevated-surface-bg:#020a04] [--color-graph-toggle-track-bg:#01140a] border-green-500/30 ${TERMINAL_TEXT}`,
+    overflowMenuItem: 'hover:bg-green-500/20',
+    overflowMenuItemActive: 'bg-green-500/30 text-green-100',
   },
   runControls: {
     container: 'bg-black border-green-500/30',
@@ -752,6 +789,10 @@ const terminalGreenTheme: GraphTheme = {
 
 /** Warm sepia daylight: built on the light preset, amber accents, soft radii. */
 const sunsetPaperTheme: GraphTheme = {
+  // Shared portaled-popover surface — overflow menus AND the reorder badge.
+  popover: {
+    surface: `bg-[#fff8ec] border-amber-300 ${PAPER_TEXT} [--color-graph-toggle-track-bg:#f3e3c6] [--color-primary-gray:#e0cda8] [&_.border-secondary-dark-gray]:border-amber-300`,
+  },
   root: [
     'bg-[#fdf4e3]',
     '[--color-graph-menu-bg:#fff8ec]',
@@ -828,6 +869,9 @@ const sunsetPaperTheme: GraphTheme = {
   runnerPanel: {
     container: `bg-[#faf0de] border-amber-300 ${PAPER_TEXT}`,
     closeButton: 'text-stone-500 hover:bg-amber-100 hover:text-stone-800',
+    overflowMenu: `bg-[#fff8ec] border-amber-300 ${PAPER_TEXT} [--color-graph-toggle-track-bg:#f3e3c6] [--color-primary-gray:#e0cda8] [&_.border-secondary-dark-gray]:border-amber-300`,
+    overflowMenuItem: 'hover:bg-amber-100 hover:text-stone-900',
+    overflowMenuItemActive: 'bg-amber-200 text-stone-900',
   },
   runControls: {
     container: 'bg-[#f6ead2] border-amber-200',
@@ -886,6 +930,10 @@ const sunsetPaperTheme: GraphTheme = {
 
 /** Abyssal navy with cyan instrumentation. */
 const deepOceanTheme: GraphTheme = {
+  // Shared portaled-popover surface — overflow menus AND the reorder badge.
+  popover: {
+    surface: `[--color-graph-elevated-surface-bg:#061827] [--color-graph-toggle-track-bg:#0a2238] border-cyan-500/30 ${OCEAN_TEXT}`,
+  },
   root: [
     'bg-[#04111f]',
     '[--color-graph-menu-bg:#081c30]',
@@ -953,6 +1001,9 @@ const deepOceanTheme: GraphTheme = {
     'bg-[#081c30]/90 border-cyan-500/40 text-sky-100 hover:bg-cyan-500/15',
   runnerPanel: {
     container: `bg-[#061827] border-cyan-500/30 ${OCEAN_TEXT}`,
+    overflowMenu: `[--color-graph-elevated-surface-bg:#061827] [--color-graph-toggle-track-bg:#0a2238] border-cyan-500/30 ${OCEAN_TEXT}`,
+    overflowMenuItem: 'hover:bg-cyan-500/20',
+    overflowMenuItemActive: 'bg-cyan-500/30 text-cyan-50',
   },
   runControls: {
     container: 'bg-[#081c30] border-cyan-500/20',
@@ -999,6 +1050,10 @@ const deepOceanTheme: GraphTheme = {
 
 /** Cobalt engineering blueprint: fine white line grid, drafting-table chrome. */
 const blueprintTheme: GraphTheme = {
+  // Shared portaled-popover surface — overflow menus AND the reorder badge.
+  popover: {
+    surface: `[--color-graph-elevated-surface-bg:#0a2c5e] [--color-graph-toggle-track-bg:#0c3578] border-sky-300/30 ${BLUEPRINT_TEXT}`,
+  },
   root: [
     'bg-[#0b3a82]',
     '[--color-graph-menu-bg:#0b2f66]',
@@ -1069,6 +1124,9 @@ const blueprintTheme: GraphTheme = {
     'bg-[#0b2f66]/90 border-sky-300/40 text-sky-50 hover:bg-sky-400/20',
   runnerPanel: {
     container: `bg-[#0a2c5e] border-sky-300/30 ${BLUEPRINT_TEXT}`,
+    overflowMenu: `[--color-graph-elevated-surface-bg:#0a2c5e] [--color-graph-toggle-track-bg:#0c3578] border-sky-300/30 ${BLUEPRINT_TEXT}`,
+    overflowMenuItem: 'hover:bg-sky-400/20',
+    overflowMenuItemActive: 'bg-sky-400/30 text-sky-50',
   },
   runControls: {
     container: 'bg-[#0b2f66] border-sky-300/20',
@@ -1115,6 +1173,10 @@ const blueprintTheme: GraphTheme = {
 
 /** Comic pop-art: halftone dot screen on yellow, hard black borders & shadows. */
 const halftonePopTheme: GraphTheme = {
+  // Shared portaled-popover surface — overflow menus AND the reorder badge.
+  popover: {
+    surface: `rounded-none bg-white border-2 border-black ${POP_TEXT} [--color-graph-toggle-track-bg:#fef3c7] [--color-primary-gray:#fde047] [&_.border-secondary-dark-gray]:border-black`,
+  },
   root: [
     'bg-[#fde047]',
     '[--color-graph-menu-bg:#ffffff]',
@@ -1193,6 +1255,10 @@ const halftonePopTheme: GraphTheme = {
     'rounded-none bg-white border-2 border-black text-black font-bold shadow-[4px_4px_0_rgba(0,0,0,0.85)] hover:bg-yellow-200',
   runnerPanel: {
     container: `rounded-none bg-[#fffbeb] border-2 border-black ${POP_TEXT}`,
+    closeButton: 'rounded-none text-black hover:bg-yellow-200',
+    overflowMenu: `rounded-none bg-white border-2 border-black ${POP_TEXT} [--color-graph-toggle-track-bg:#fef3c7] [--color-primary-gray:#fde047] [&_.border-secondary-dark-gray]:border-black`,
+    overflowMenuItem: 'hover:bg-yellow-200 hover:text-black',
+    overflowMenuItemActive: 'bg-yellow-400 text-black',
   },
   runControls: {
     container: 'bg-[#fde68a] border-black',
@@ -1253,6 +1319,10 @@ const halftonePopTheme: GraphTheme = {
 
 /** Night-sky observatory: sparse white star-dots on space black, violet chrome. */
 const observatoryTheme: GraphTheme = {
+  // Shared portaled-popover surface — overflow menus AND the reorder badge.
+  popover: {
+    surface: `[--color-graph-elevated-surface-bg:#0d0a1f] [--color-graph-toggle-track-bg:#14102b] border-violet-500/30 ${STAR_TEXT}`,
+  },
   root: [
     'bg-[#02010a]',
     '[--color-graph-menu-bg:#14102b]',
@@ -1324,6 +1394,9 @@ const observatoryTheme: GraphTheme = {
     'bg-[#14102b]/90 border-violet-500/40 text-violet-100 hover:bg-violet-500/20',
   runnerPanel: {
     container: `bg-[#0d0a1f] border-violet-500/30 ${STAR_TEXT}`,
+    overflowMenu: `[--color-graph-elevated-surface-bg:#0d0a1f] [--color-graph-toggle-track-bg:#14102b] border-violet-500/30 ${STAR_TEXT}`,
+    overflowMenuItem: 'hover:bg-violet-500/20',
+    overflowMenuItemActive: 'bg-violet-500/30 text-violet-50',
   },
   runControls: {
     container: 'bg-[#14102b] border-violet-500/20',
@@ -1374,6 +1447,10 @@ const observatoryTheme: GraphTheme = {
  * tuples REPLACE (not merge index-wise) through mergeGraphThemes.
  */
 const ruledNotebookTheme: GraphTheme = {
+  // Shared portaled-popover surface — overflow menus AND the reorder badge.
+  popover: {
+    surface: `bg-white border-blue-200 ${NOTEBOOK_TEXT} [--color-graph-toggle-track-bg:#e7eef6] [--color-primary-gray:#c7d6e6] [&_.border-secondary-dark-gray]:border-blue-200`,
+  },
   root: [
     'bg-[#fbfaf4]',
     '[--color-graph-menu-bg:#ffffff]',
@@ -1450,6 +1527,9 @@ const ruledNotebookTheme: GraphTheme = {
   runnerPanel: {
     container: `bg-[#fdfcf7] border-blue-200 ${NOTEBOOK_TEXT}`,
     closeButton: 'text-slate-500 hover:bg-blue-100 hover:text-slate-800',
+    overflowMenu: `bg-white border-blue-200 ${NOTEBOOK_TEXT} [--color-graph-toggle-track-bg:#e7eef6] [--color-primary-gray:#c7d6e6] [&_.border-secondary-dark-gray]:border-blue-200`,
+    overflowMenuItem: 'hover:bg-blue-100 hover:text-slate-900',
+    overflowMenuItemActive: 'bg-blue-200 text-slate-900',
   },
   runControls: {
     container: 'bg-[#f4f1e8] border-blue-200',
@@ -1514,6 +1594,10 @@ const ruledNotebookTheme: GraphTheme = {
  * rings.
  */
 const logoTheme: GraphTheme = {
+  // Shared portaled-popover surface — overflow menus AND the reorder badge.
+  popover: {
+    surface: `rounded-none [--color-graph-elevated-surface-bg:#0b1430] [--color-graph-toggle-track-bg:#101c42] border-[#3170a0] ${LOGO_TEXT}`,
+  },
   root: [
     'bg-[#0e1939]',
     '[--color-graph-menu-bg:#101c42]',
@@ -1588,6 +1672,9 @@ const logoTheme: GraphTheme = {
     'rounded-none bg-[#101c42]/90 border-[#3170a0] text-[#dce9fb] hover:bg-[#1d2c5e]',
   runnerPanel: {
     container: `rounded-none bg-[#0b1430] border-[#3170a0] ${LOGO_TEXT}`,
+    overflowMenu: `rounded-none [--color-graph-elevated-surface-bg:#0b1430] [--color-graph-toggle-track-bg:#101c42] border-[#3170a0] ${LOGO_TEXT}`,
+    overflowMenuItem: 'hover:bg-[#3170a0]/25',
+    overflowMenuItemActive: 'bg-[#3170a0]/40 text-[#dce9fb]',
   },
   runControls: {
     container: 'bg-[#101c42] border-[#3170a0]/60',
@@ -1807,6 +1894,698 @@ export const ThemedPlayground: StoryObj<typeof FullGraph> = {
   },
 };
 
+/**
+ * Side-by-side studio: build a logic-circuit graph on the left (it starts
+ * empty — right-click the canvas to add Bit Inputs and gates), and watch the
+ * `codegen-js` run target emit a standalone, dependency-free JavaScript
+ * `runGraph` on the right, live, in a Monaco editor with full JS syntax
+ * highlighting. Bit Input defaults (and unconnected gate inputs) are baked into
+ * the generated code; press Run to evaluate it and see the output. Switch to
+ * `json-ir` to view the compiled plan as JSON instead.
+ */
+// Derive the exact node/edge types `useFullGraph<Circuit…>` expects for its
+// initial state (the `Nodes` generic's parameter ORDER differs from the usual
+// convention, so deriving avoids getting it wrong).
+type CircuitInitialState = Parameters<
+  typeof useFullGraph<CircuitDataTypeId, CircuitNodeTypeId>
+>[0];
+
+type CodegenStudioViewProps = {
+  initialNodes: CircuitInitialState['nodes'];
+  initialEdges: CircuitInitialState['edges'];
+};
+
+/**
+ * The shared CodegenStudio canvas + live-codegen panel. Driven by an initial
+ * node/edge set so it can start either empty (build from scratch) or with a
+ * declared Graph Input → … → Graph Output pipeline that emits `runGraph(a, b)`.
+ * Toolbar toggles: output format, `optimize` (dead-code elimination), and `lock
+ * root I/O` (freezes the `runGraph` signature — `allowRootIORename` /
+ * `allowRootIOStructureEdit` off, so connecting concretizes the TYPE only and the
+ * Graph I/O editor's rename/add/delete affordances disable in lockstep).
+ */
+function CodegenStudioView({
+  initialNodes,
+  initialEdges,
+}: CodegenStudioViewProps) {
+  const { state, dispatch } = useFullGraph<
+    CircuitDataTypeId,
+    CircuitNodeTypeId
+  >({
+    dataTypes: circuitExampleDataTypes,
+    typeOfNodes: circuitExampleTypeOfNodes,
+    nodes: initialNodes,
+    edges: initialEdges,
+    allowedConversionsBetweenDataTypes: {
+      bit: { condition: true },
+      condition: { bit: true },
+    },
+    allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking: true,
+    enableComplexTypeChecking: true,
+    enableTypeInference: true,
+    enableCycleChecking: true,
+    enableRecursionChecking: true,
+    nodeCountConstraints: standardNodeCountConstraints,
+  });
+
+  const [format, setFormat] = useState<'codegen-js' | 'codegen-ts' | 'json-ir'>(
+    'codegen-js',
+  );
+  // Opt-in optimization passes (codegen v2 Stage 4). Dead-code elimination drops
+  // graph branches no Graph Output depends on; needs the pure-impl assumption to
+  // prune threaded impl-call nodes.
+  const [optimize, setOptimize] = useState(true);
+  // Freeze the root I/O contract — connecting concretizes the type but does NOT
+  // rename the handle or grow a spare, and the Graph I/O editor locks in step.
+  const [lockRootIO, setLockRootIO] = useState(false);
+  const [code, setCode] = useState('');
+  const [output, setOutput] = useState('');
+
+  // Live-regenerate whenever the graph (or chosen format) changes. Codegen is
+  // Prettier-formatted (async) for a presentable preview.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        // Concrete matching generics (state and impls share N) — no widening
+        // needed; U/C take their defaults.
+        const plan = compile<CircuitDataTypeId, CircuitNodeTypeId>(
+          state,
+          circuitImplementations,
+          { maxLoopIterations: 100 },
+        );
+        let next: string;
+        if (format === 'json-ir') {
+          next = JSON.stringify(serializeExecutionPlan(plan), null, 2);
+        } else {
+          const language =
+            format === 'codegen-ts' ? 'typescript' : 'javascript';
+          next = await emitGraph<CircuitDataTypeId, CircuitNodeTypeId>(
+            plan,
+            state,
+            {
+              metadata: circuitCodegenMetadata,
+              target: language,
+              optimize: { deadCode: optimize },
+              assumePureImplementations: optimize,
+              analyzeImplementations: optimize,
+              impls: circuitImplementations as Readonly<
+                Record<string, (...args: never[]) => unknown>
+              >,
+            },
+          );
+        }
+        if (!cancelled) setCode(next);
+      } catch (error) {
+        if (!cancelled)
+          setCode(
+            `// Could not generate code from the current graph:\n// ${String(error)}`,
+          );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [state, format, optimize]);
+
+  const runGeneratedCode = () => {
+    if (format !== 'codegen-js') {
+      setOutput('Switch to "codegen-js" to run the generated function.');
+      return;
+    }
+    void (async () => {
+      try {
+        const runnable = code.replace(/export\s*\{[^}]*\};?\s*$/, '');
+        const runGraph = new Function(`${runnable}\nreturn runGraph;`)() as (
+          ...args: unknown[]
+        ) => unknown | Promise<unknown>;
+        // The signature varies — root Graph I/O ⇒ `runGraph(a, b)`; threaded ⇒
+        // `runGraph(functionImplementations, …)`. Map each parameter by name:
+        // impls/options get the real values; declared graph inputs get a sample
+        // boolean (`true`) so the demo Run shows a concrete result.
+        const source = runGraph.toString();
+        const params = source
+          .slice(source.indexOf('(') + 1, source.indexOf(')'))
+          .split(',')
+          .map((p) => p.trim().split('=')[0].trim())
+          .filter(Boolean);
+        const args = params.map((name) =>
+          name === 'functionImplementations'
+            ? circuitImplementations
+            : name === 'options'
+              ? {}
+              : true,
+        );
+        const values = (await runGraph(...args)) as Record<string, unknown>;
+        setOutput(
+          Object.keys(values).length === 0
+            ? '{}\n// Build a circuit on the left, then Run.'
+            : JSON.stringify(values, null, 2),
+        );
+      } catch (error) {
+        setOutput(`Error: ${String(error)}`);
+      }
+    })();
+  };
+
+  return (
+    <div style={{ height: '100vh', display: 'flex' }}>
+      <div style={{ flex: 1, minWidth: 0, borderRight: '1px solid #3f3f46' }}>
+        <FullGraph<CircuitDataTypeId, CircuitNodeTypeId>
+          state={state}
+          dispatch={dispatch}
+          functionImplementations={circuitImplementations}
+          runTargets={[
+            circuitCodegenJsRunTarget,
+            circuitCodegenTsRunTarget,
+            jsonIrRunTarget,
+          ]}
+          allowRootIORename={!lockRootIO}
+          allowRootIOStructureEdit={!lockRootIO}
+        />
+      </div>
+      <div
+        style={{
+          width: '46%',
+          display: 'flex',
+          flexDirection: 'column',
+          background: '#1e1e1e',
+          fontFamily: 'sans-serif',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '8px 12px',
+            background: '#27272a',
+            color: '#e4e4e7',
+            fontSize: 13,
+          }}
+        >
+          <strong style={{ marginRight: 'auto' }}>
+            Generated live from the graph →
+          </strong>
+          <select
+            value={format}
+            onChange={(event) =>
+              setFormat(
+                event.target.value as 'codegen-js' | 'codegen-ts' | 'json-ir',
+              )
+            }
+            style={{
+              padding: '4px 10px',
+              borderRadius: 6,
+              border: '1px solid #71717a',
+              background: '#18181b',
+              color: '#e4e4e7',
+              cursor: 'pointer',
+            }}
+          >
+            <option value='codegen-js'>codegen-js (standalone JS)</option>
+            <option value='codegen-ts'>codegen-ts (typed TS)</option>
+            <option value='json-ir'>json-ir (plan JSON)</option>
+          </select>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              fontSize: 12,
+              cursor: format === 'json-ir' ? 'not-allowed' : 'pointer',
+              opacity: format === 'json-ir' ? 0.5 : 1,
+            }}
+            title='Dead-code elimination: drop branches no Graph Output depends on (assumes pure impls)'
+          >
+            <input
+              type='checkbox'
+              checked={optimize}
+              disabled={format === 'json-ir'}
+              onChange={(event) => setOptimize(event.target.checked)}
+            />
+            optimize
+          </label>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              fontSize: 12,
+              cursor: 'pointer',
+            }}
+            title='Lock the root I/O contract: connecting concretizes the type but does NOT rename the handle or grow a spare, and the Graph I/O editor rename/add/delete disable in lockstep (allowRootIORename / allowRootIOStructureEdit off).'
+          >
+            <input
+              type='checkbox'
+              checked={lockRootIO}
+              onChange={(event) => setLockRootIO(event.target.checked)}
+            />
+            lock root I/O
+          </label>
+          <button
+            type='button'
+            onClick={runGeneratedCode}
+            disabled={format !== 'codegen-js'}
+            style={{
+              padding: '4px 14px',
+              borderRadius: 6,
+              border: 'none',
+              background: format === 'codegen-js' ? '#2563eb' : '#3f3f46',
+              color: 'white',
+              cursor: format === 'codegen-js' ? 'pointer' : 'not-allowed',
+              fontWeight: 600,
+            }}
+          >
+            ▶ Run
+          </button>
+        </div>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <Editor
+            height='100%'
+            language={
+              format === 'codegen-js'
+                ? 'javascript'
+                : format === 'codegen-ts'
+                  ? 'typescript'
+                  : 'json'
+            }
+            theme='vs-dark'
+            value={code}
+            onChange={(value) => setCode(value ?? '')}
+            options={{
+              fontSize: 13,
+              minimap: { enabled: false },
+              scrollBeyondLastLine: false,
+              wordWrap: 'on',
+            }}
+          />
+        </div>
+        {output && (
+          <div
+            style={{
+              maxHeight: '30%',
+              overflow: 'auto',
+              borderTop: '1px solid #3f3f46',
+              padding: '8px 12px',
+              color: '#a7f3d0',
+              background: '#0b0b0b',
+              fontFamily: 'monospace',
+              fontSize: 12,
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            <strong style={{ color: '#e4e4e7' }}>
+              Output (runGraph result):
+            </strong>
+            {`\n${output}`}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Declared root Graph I/O — the graph's I/O boundary is pre-built so the
+// codegen panel shows `function runGraph(a, b)` out of the box (E5 demo).
+//   Graph Input (a, b) → AND Gate → Graph Output (out)   [live]
+//   Bit Input → OR Gate → (nothing)                       [dead]
+// The dead branch lets the `optimize` toggle (dead-code elimination) show its
+// effect: ON drops it (clean sync `runGraph(a, b)`), OFF keeps it (the threaded
+// Bit Input forces `async`/`functionImplementations`). Edit the boundary handles
+// via the Graph Input/Output node's pencil, or add a new one at root via the
+// canvas context menu ("Add Graph Input/Output").
+// ────────────────────────────────────────────────────────────────────────
+
+function buildGraphIoCircuit() {
+  // Build the demo graph the way a USER would — by dispatching reducer actions
+  // onto an EMPTY graph — instead of hand-constructing nodes / handles / edges.
+  let state = makeStateWithAutoInfer<CircuitDataTypeId, CircuitNodeTypeId>({
+    dataTypes: circuitExampleDataTypes,
+    typeOfNodes: circuitExampleTypeOfNodes,
+    nodes: [],
+    edges: [],
+    // Inference concretizes the named Graph I/O handles to `bit` when wired.
+    enableTypeInference: true,
+  });
+  const dispatch = (
+    action: Action<CircuitDataTypeId, CircuitNodeTypeId>,
+  ): void => {
+    state = mainReducer<CircuitDataTypeId, CircuitNodeTypeId>(state, action);
+  };
+
+  // ADD_NODE mints a random id — recover it as the node not present beforehand.
+  const addNode = (
+    type: CircuitNodeTypeId,
+    position: { x: number; y: number },
+  ): string => {
+    const before = new Set(state.nodes.map((node) => node.id));
+    dispatch({ type: actionTypesMap.ADD_NODE, payload: { type, position } });
+    const added = state.nodes.find((node) => !before.has(node.id));
+    if (!added) throw new Error(`ADD_NODE(${type}) added no node`);
+    return added.id;
+  };
+
+  // Look up a leaf handle id by NAME on a node (defensively unwrapping panels).
+  const handleId = (
+    nodeId: string,
+    side: 'inputs' | 'outputs',
+    name: string,
+  ): string => {
+    const node = state.nodes.find((candidate) => candidate.id === nodeId);
+    const leaves = (node?.data[side] ?? []).flatMap((handle) =>
+      'inputs' in handle ? handle.inputs : [handle],
+    );
+    const handle = leaves.find((leaf) => leaf.name === name);
+    if (!handle) {
+      throw new Error(`handle "${name}" not found on ${nodeId}.${side}`);
+    }
+    return handle.id;
+  };
+
+  // The current blank "+ slot" infer template (the unnamed `groupInfer` handle a
+  // boundary node carries / regrows). Auto-grow consumes it and grows a new one,
+  // so re-query before every connect.
+  const blankHandleId = (
+    nodeId: string,
+    side: 'inputs' | 'outputs',
+  ): string => {
+    const node = state.nodes.find((candidate) => candidate.id === nodeId);
+    const leaves = (node?.data[side] ?? []).flatMap((handle) =>
+      'inputs' in handle ? handle.inputs : [handle],
+    );
+    const blank = leaves.find((leaf) => leaf.name === '');
+    if (!blank) throw new Error(`no blank "+ slot" on ${nodeId}.${side}`);
+    return blank.id;
+  };
+
+  // 1. Place the five nodes (positions mirror the original layout). A LIVE Bit
+  //    Input feeds a second Graph Output; a DEAD OR gate (output wired to
+  //    nothing) gives dead-code elimination something to drop.
+  const graphInputId = addNode('groupInput', { x: 0, y: 120 });
+  const andGateId = addNode('andGate', { x: 480, y: 140 });
+  const graphOutputId = addNode('groupOutput', { x: 960, y: 180 });
+  const bitInputId = addNode('bitConstant', { x: 0, y: 430 });
+  const deadOrId = addNode('orGate', { x: 480, y: 430 });
+
+  // 2. Bake the Bit Input's value so it inlines as the constant `true`. A boolean
+  //    input carries its value through the `string | number` payload via the same
+  //    cast `ContextAwareInput` uses for its checkbox.
+  dispatch({
+    type: actionTypesMap.UPDATE_INPUT_VALUE,
+    payload: {
+      nodeId: bitInputId,
+      inputId: handleId(bitInputId, 'inputs', 'Value'),
+      value: true as unknown as number,
+    },
+  });
+
+  // 3. Wire it up exactly the way the canvas does — by connecting to the blank
+  //    "+ slot" infer template each boundary node carries. Every such connect
+  //    auto-NAMES the new root handle after the gate handle it meets, concretizes
+  //    it to `bit`, and grows a FRESH blank for the next one. Auto-grow keeps a
+  //    single infer handle live at a time, which is what preserves the "+ slot" as
+  //    a real `groupInfer` template: naming every handle up front (via
+  //    UPDATE_GRAPH_IO_HANDLES) would leave several `groupInfer` handles
+  //    coexisting, and connecting one would concretize them ALL — inference
+  //    matches by dataType — corrupting the blank into a `bit`-typed `''` handle.
+  const connect = (
+    source: string,
+    sourceHandle: string,
+    target: string,
+    targetHandle: string,
+  ): void => {
+    dispatch({
+      type: actionTypesMap.ADD_EDGE_BY_REACT_FLOW,
+      payload: { edge: { source, sourceHandle, target, targetHandle } },
+    });
+  };
+  // Graph Input → AND Gate: connect the blank "+ slot" twice → root inputs A, B.
+  connect(
+    graphInputId,
+    blankHandleId(graphInputId, 'outputs'),
+    andGateId,
+    handleId(andGateId, 'inputs', 'A'),
+  );
+  connect(
+    graphInputId,
+    blankHandleId(graphInputId, 'outputs'),
+    andGateId,
+    handleId(andGateId, 'inputs', 'B'),
+  );
+  // AND Gate → Graph Output: the live result becomes root output `Out`.
+  connect(
+    andGateId,
+    handleId(andGateId, 'outputs', 'Out'),
+    graphOutputId,
+    blankHandleId(graphOutputId, 'inputs'),
+  );
+  // LIVE: Bit Input → Graph Output: a second root output that auto-emits the
+  // constant `Boolean(true)` inline when optimized.
+  connect(
+    bitInputId,
+    handleId(bitInputId, 'outputs', 'Out'),
+    graphOutputId,
+    blankHandleId(graphOutputId, 'inputs'),
+  );
+  // DEAD: Bit Input → OR gate.A; the OR gate's output goes nowhere → DCE drops it.
+  connect(
+    bitInputId,
+    handleId(bitInputId, 'outputs', 'Out'),
+    deadOrId,
+    handleId(deadOrId, 'inputs', 'A'),
+  );
+
+  return {
+    nodes: state.nodes as CircuitInitialState['nodes'],
+    edges: state.edges as CircuitInitialState['edges'],
+  };
+}
+
+/**
+ * The codegen studio: build a circuit on the left, watch the standalone `runGraph`
+ * regenerate live on the right. Seeded with root Graph I/O — auto-grown by
+ * connecting to each boundary node's blank "+ slot", exactly as the canvas does,
+ * so the handles take the gate-derived names `A` / `B` / `Out` — plus a DEAD
+ * branch so the toolbar toggles each have something to show:
+ * - **format** — `codegen-js` / `codegen-ts` / `json-ir`.
+ * - **optimize** (default ON) — dead-code elimination drops the dead
+ *   `Bit Input → OR` branch, leaving a clean `function runGraph(A, B)`; OFF keeps
+ *   it (the threaded Bit Input drags in `async` + `functionImplementations`).
+ * - **lock root I/O** — freezes the `runGraph` signature: connecting concretizes
+ *   the TYPE only (no rename, no grown spare), and the Graph I/O editor's
+ *   rename/add/delete disable in lockstep (`allowRootIORename` /
+ *   `allowRootIOStructureEdit` off). Off (default) = full group-like parity.
+ *
+ * Rename/add/reorder the boundary handles via the Graph Input/Output pencil to
+ * watch the signature change live. Gate logic AUTO-EMITS inline from the
+ * `readInput`-based implementations — there are no authored `emit` hooks.
+ */
+export const CodegenStudio: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    // Built lazily (not at module load) so it runs after the circuit
+    // definitions further down the file have initialized.
+    const graphIoCircuit = useMemo(() => buildGraphIoCircuit(), []);
+    return (
+      <CodegenStudioView
+        initialNodes={graphIoCircuit.nodes}
+        initialEdges={graphIoCircuit.edges}
+      />
+    );
+  },
+};
+
+/**
+ * Showcases the opt-in dead-code elimination pass. Build a circuit, then pick a
+ * single output to "Return only:" — the exported `runGraph` is recompiled with
+ * `returnValues` + `assumePureImplementations`, dropping every pure node that the
+ * chosen result does not depend on (transitively). Selecting "(everything)"
+ * returns the full value map and keeps every node.
+ */
+export const CodegenOptimizer: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    const { state, dispatch } = useFullGraph<
+      CircuitDataTypeId,
+      CircuitNodeTypeId
+    >({
+      dataTypes: circuitExampleDataTypes,
+      typeOfNodes: circuitExampleTypeOfNodes,
+      nodes: [],
+      edges: [],
+      allowedConversionsBetweenDataTypes: {
+        bit: { condition: true },
+        condition: { bit: true },
+      },
+      allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking: true,
+      enableComplexTypeChecking: true,
+      enableTypeInference: true,
+      enableCycleChecking: true,
+      enableRecursionChecking: true,
+      nodeCountConstraints: standardNodeCountConstraints,
+    });
+
+    const [returnKey, setReturnKey] = useState('');
+    const [code, setCode] = useState('');
+    const [stats, setStats] = useState('');
+
+    // Every node output handle, as a pickable `nodeId:handleId` return value.
+    const outputOptions = useMemo(() => {
+      const options: { key: string; label: string }[] = [];
+      for (const graphNode of state.nodes) {
+        const outputs =
+          (
+            graphNode.data as unknown as {
+              outputs?: Array<{ id: string; name: string }>;
+            }
+          ).outputs ?? [];
+        for (const output of outputs) {
+          options.push({
+            key: `${graphNode.id}:${output.id}`,
+            label: `${graphNode.id.slice(0, 8)} · ${output.name}`,
+          });
+        }
+      }
+      return options;
+    }, [state.nodes]);
+
+    // Reset the picker if the chosen node is deleted.
+    useEffect(() => {
+      if (
+        returnKey &&
+        !outputOptions.some((option) => option.key === returnKey)
+      ) {
+        setReturnKey('');
+      }
+    }, [outputOptions, returnKey]);
+
+    useEffect(() => {
+      try {
+        const plan = compile<CircuitDataTypeId, CircuitNodeTypeId>(
+          state,
+          circuitImplementations,
+          { maxLoopIterations: 100 },
+        );
+        const optimize = returnKey !== '';
+        const full = emitJs<CircuitDataTypeId, CircuitNodeTypeId>(plan, state, {
+          metadata: circuitCodegenMetadata,
+        });
+        const optimized = optimize
+          ? emitJs<CircuitDataTypeId, CircuitNodeTypeId>(plan, state, {
+              metadata: circuitCodegenMetadata,
+              returnValues: [returnKey],
+              assumePureImplementations: true,
+            })
+          : full;
+        setCode(optimized);
+        const countNodes = (source: string) =>
+          (source.match(/^\s*\/\/ node /gm) ?? []).length;
+        setStats(
+          optimize
+            ? `Dead-code elimination: ${countNodes(full)} → ${countNodes(optimized)} node calls (returning only ${returnKey})`
+            : `No optimization — returning all values (${countNodes(full)} node calls)`,
+        );
+      } catch (error) {
+        setCode(
+          `// Could not generate code from the current graph:\n// ${String(error)}`,
+        );
+        setStats('');
+      }
+    }, [state, returnKey]);
+
+    return (
+      <div style={{ height: '100vh', display: 'flex' }}>
+        <div style={{ flex: 1, minWidth: 0, borderRight: '1px solid #3f3f46' }}>
+          <FullGraph<CircuitDataTypeId, CircuitNodeTypeId>
+            state={state}
+            dispatch={dispatch}
+            functionImplementations={circuitImplementations}
+            runTargets={[
+              circuitCodegenJsRunTarget,
+              circuitCodegenTsRunTarget,
+              jsonIrRunTarget,
+            ]}
+          />
+        </div>
+        <div
+          style={{
+            width: '46%',
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#1e1e1e',
+            fontFamily: 'sans-serif',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '8px 12px',
+              background: '#27272a',
+              color: '#e4e4e7',
+              fontSize: 13,
+            }}
+          >
+            <strong style={{ marginRight: 'auto' }}>Optimized export →</strong>
+            <label style={{ fontSize: 12, color: '#a1a1aa' }}>
+              Return only:
+            </label>
+            <select
+              value={returnKey}
+              onChange={(event) => setReturnKey(event.target.value)}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 6,
+                border: '1px solid #71717a',
+                background: '#18181b',
+                color: '#e4e4e7',
+                cursor: 'pointer',
+                maxWidth: 240,
+              }}
+            >
+              <option value=''>(everything — no DCE)</option>
+              {outputOptions.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div
+            style={{
+              padding: '6px 12px',
+              background: '#0f0f12',
+              color: '#a7f3d0',
+              fontSize: 12,
+              fontFamily: 'monospace',
+            }}
+          >
+            {stats}
+          </div>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <Editor
+              height='100%'
+              language='javascript'
+              theme='vs-dark'
+              value={code}
+              options={{
+                fontSize: 13,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                readOnly: true,
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  },
+};
+
 export const WithControlledInputs: StoryObj<typeof FullGraph> = {
   args: {},
   render: () => {
@@ -1921,6 +2700,381 @@ export const WithControlledInputs: StoryObj<typeof FullGraph> = {
     });
 
     return <FullGraph state={state} dispatch={dispatch} />;
+  },
+};
+
+/**
+ * Fan-in: three Source nodes all wire into the Combiner's single `Inputs` handle.
+ * Because the handle has 2+ connections, a compact reorder control (an
+ * ordered-list icon + the connection count) appears at it — click it to open a
+ * drag-to-reorder list of the incoming connections. The order
+ * is persisted per-edge and is the order the runner / codegen consume the fan-in.
+ */
+export const WithFanInConnectionOrder: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    const { state, dispatch } = useFullGraph({
+      dataTypes: exampleDataTypes,
+      typeOfNodes: exampleTypeOfNodes,
+      nodes: [
+        {
+          id: 'srcA',
+          position: { x: 0, y: 0 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          type: 'configurableNode',
+          width: 320,
+          data: {
+            name: 'Source A',
+            headerColor: '#C44536',
+            inputs: [],
+            outputs: [
+              {
+                name: 'Value',
+                id: 'srcA_out',
+                type: 'string',
+                handleColor: '#FF6B6B',
+              },
+            ],
+          },
+        },
+        {
+          id: 'srcB',
+          position: { x: 0, y: 220 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          type: 'configurableNode',
+          width: 320,
+          data: {
+            name: 'Source B',
+            headerColor: '#C4783D',
+            inputs: [],
+            outputs: [
+              {
+                name: 'Value',
+                id: 'srcB_out',
+                type: 'string',
+                handleColor: '#FFA94D',
+              },
+            ],
+          },
+        },
+        {
+          id: 'srcC',
+          position: { x: 0, y: 440 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          type: 'configurableNode',
+          width: 320,
+          data: {
+            name: 'Source C',
+            headerColor: '#2D5A87',
+            inputs: [],
+            outputs: [
+              {
+                name: 'Value',
+                id: 'srcC_out',
+                type: 'string',
+                handleColor: '#4DA3FF',
+              },
+            ],
+          },
+        },
+        {
+          id: 'sink',
+          position: { x: 560, y: 220 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          type: 'configurableNode',
+          width: 360,
+          data: {
+            name: 'Combiner',
+            headerColor: '#344621',
+            inputs: [
+              {
+                name: 'Inputs',
+                id: 'sink_in',
+                type: 'string',
+                handleColor: '#00BFFF',
+              },
+            ],
+            outputs: [
+              {
+                name: 'Result',
+                id: 'sink_out',
+                type: 'string',
+                handleColor: '#FECA57',
+              },
+            ],
+          },
+        },
+      ],
+      edges: [
+        {
+          id: 'eA',
+          source: 'srcA',
+          sourceHandle: 'srcA_out',
+          target: 'sink',
+          targetHandle: 'sink_in',
+          type: 'configurableEdge',
+        },
+        {
+          id: 'eB',
+          source: 'srcB',
+          sourceHandle: 'srcB_out',
+          target: 'sink',
+          targetHandle: 'sink_in',
+          type: 'configurableEdge',
+        },
+        {
+          id: 'eC',
+          source: 'srcC',
+          sourceHandle: 'srcC_out',
+          target: 'sink',
+          targetHandle: 'sink_in',
+          type: 'configurableEdge',
+        },
+      ],
+      enableCycleChecking: true,
+      enableRecursionChecking: true,
+      nodeCountConstraints: standardNodeCountConstraints,
+      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
+    });
+
+    return <FullGraph state={state} dispatch={dispatch} />;
+  },
+};
+
+/**
+ * The fan-in reorder control + its popover under the LIGHT preset. Verifies the
+ * PORTALED popover themes correctly — its surface/text follow the theme via the
+ * `node.inputOrderPopover` slot instead of staying the default dark (root CSS-var
+ * overrides can't reach a portal). Open the blue count badge on the Combiner.
+ */
+export const WithFanInConnectionOrderThemed: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    const { state, dispatch } = useFullGraph({
+      dataTypes: exampleDataTypes,
+      typeOfNodes: exampleTypeOfNodes,
+      nodes: [
+        {
+          id: 'tsrcA',
+          position: { x: 0, y: 0 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          type: 'configurableNode',
+          width: 300,
+          data: {
+            name: 'Source A',
+            headerColor: '#C44536',
+            inputs: [],
+            outputs: [
+              {
+                name: 'Value',
+                id: 'tsrcA_out',
+                type: 'string',
+                handleColor: '#FF6B6B',
+              },
+            ],
+          },
+        },
+        {
+          id: 'tsrcB',
+          position: { x: 0, y: 180 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          type: 'configurableNode',
+          width: 300,
+          data: {
+            name: 'Source B',
+            headerColor: '#C4783D',
+            inputs: [],
+            outputs: [
+              {
+                name: 'Value',
+                id: 'tsrcB_out',
+                type: 'string',
+                handleColor: '#FFA94D',
+              },
+            ],
+          },
+        },
+        {
+          id: 'tsink',
+          position: { x: 460, y: 90 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          type: 'configurableNode',
+          width: 340,
+          data: {
+            name: 'Combiner',
+            headerColor: '#344621',
+            inputs: [
+              {
+                name: 'Inputs',
+                id: 'tsink_in',
+                type: 'string',
+                handleColor: '#00BFFF',
+              },
+            ],
+            outputs: [
+              {
+                name: 'Result',
+                id: 'tsink_out',
+                type: 'string',
+                handleColor: '#FECA57',
+              },
+            ],
+          },
+        },
+      ],
+      edges: [
+        {
+          id: 'te1',
+          source: 'tsrcA',
+          sourceHandle: 'tsrcA_out',
+          target: 'tsink',
+          targetHandle: 'tsink_in',
+          type: 'configurableEdge',
+        },
+        {
+          id: 'te2',
+          source: 'tsrcB',
+          sourceHandle: 'tsrcB_out',
+          target: 'tsink',
+          targetHandle: 'tsink_in',
+          type: 'configurableEdge',
+        },
+      ],
+      enableCycleChecking: true,
+      enableRecursionChecking: true,
+      nodeCountConstraints: standardNodeCountConstraints,
+      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
+    });
+
+    return (
+      <GraphThemeProvider preset='light'>
+        <FullGraph state={state} dispatch={dispatch} />
+      </GraphThemeProvider>
+    );
+  },
+};
+
+/**
+ * The same fan-in reorder popover under a DARK custom theme (Neon Heist) — proves
+ * the portaled popover follows a non-preset theme too: its surface/border/text
+ * come from the theme's shared `popover.surface` slot (which also themes the
+ * runner overflow menus), not the default dark. Open the count badge on the
+ * Combiner. Companion to `WithFanInConnectionOrderThemed` (light preset).
+ */
+export const WithFanInConnectionOrderThemedDark: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    const { state, dispatch } = useFullGraph({
+      dataTypes: exampleDataTypes,
+      typeOfNodes: exampleTypeOfNodes,
+      nodes: [
+        {
+          id: 'dsrcA',
+          position: { x: 0, y: 0 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          type: 'configurableNode',
+          width: 280,
+          data: {
+            name: 'Source A',
+            headerColor: '#7a1f6b',
+            inputs: [],
+            outputs: [
+              {
+                name: 'Value',
+                id: 'dsrcA_out',
+                type: 'string',
+                handleColor: '#ff2bd6',
+              },
+            ],
+          },
+        },
+        {
+          id: 'dsrcB',
+          position: { x: 0, y: 170 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          type: 'configurableNode',
+          width: 280,
+          data: {
+            name: 'Source B',
+            headerColor: '#1f5f7a',
+            inputs: [],
+            outputs: [
+              {
+                name: 'Value',
+                id: 'dsrcB_out',
+                type: 'string',
+                handleColor: '#2bd6ff',
+              },
+            ],
+          },
+        },
+        {
+          id: 'dsink',
+          position: { x: 440, y: 85 },
+          sourcePosition: Position.Right,
+          targetPosition: Position.Left,
+          type: 'configurableNode',
+          width: 320,
+          data: {
+            name: 'Combiner',
+            headerColor: '#3a1f5f',
+            inputs: [
+              {
+                name: 'Inputs',
+                id: 'dsink_in',
+                type: 'string',
+                handleColor: '#ff2bd6',
+              },
+            ],
+            outputs: [
+              {
+                name: 'Result',
+                id: 'dsink_out',
+                type: 'string',
+                handleColor: '#2bd6ff',
+              },
+            ],
+          },
+        },
+      ],
+      edges: [
+        {
+          id: 'de1',
+          source: 'dsrcA',
+          sourceHandle: 'dsrcA_out',
+          target: 'dsink',
+          targetHandle: 'dsink_in',
+          type: 'configurableEdge',
+        },
+        {
+          id: 'de2',
+          source: 'dsrcB',
+          sourceHandle: 'dsrcB_out',
+          target: 'dsink',
+          targetHandle: 'dsink_in',
+          type: 'configurableEdge',
+        },
+      ],
+      enableCycleChecking: true,
+      enableRecursionChecking: true,
+      nodeCountConstraints: standardNodeCountConstraints,
+      hiddenNodeTypesInContextMenu: standardHiddenNodeTypesInContextMenu,
+    });
+
+    return (
+      <GraphThemeProvider preset='blenderDark' theme={neonHeistTheme}>
+        <FullGraph state={state} dispatch={dispatch} />
+      </GraphThemeProvider>
+    );
   },
 };
 
@@ -2323,6 +3477,17 @@ const circuitExampleTypeOfNodes = {
     inputs: [{ name: 'In', dataType: 'bit' }],
     outputs: [{ name: 'Out', dataType: 'bit' }],
   }),
+  // A genuine fan-in consumer: a SINGLE `In` handle (left unbounded so it accepts
+  // multiple edges) that ORs together every connected bit. Its impl reads the
+  // WHOLE `readInput(inputs, 'In')` array, so under fan-in codegen renders it as
+  // the array form `[a, b, …].some(…)` instead of dropping all but the first.
+  anyOf: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'anyOf'>({
+    name: 'Any Of (bus OR)',
+    headerColor: '#8B5CC8',
+    locationInContextMenu: ['Logic Gates'],
+    inputs: [{ name: 'In', dataType: 'bit' }],
+    outputs: [{ name: 'Out', dataType: 'bit' }],
+  }),
   bitConstant: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'bitConstant'>({
     name: 'Bit Input',
     headerColor: '#C75B8E',
@@ -2335,6 +3500,29 @@ const circuitExampleTypeOfNodes = {
     headerColor: '#4A96BA',
     locationInContextMenu: ['I/O'],
     inputs: [{ name: 'In', dataType: 'bit' }],
+    outputs: [],
+  }),
+  // Numeric graph I/O — needed by the loop-counter demo: a loop's carry channel
+  // is strictly single-typed, so a NUMERIC count must be seeded/displayed by
+  // number nodes (a bit source/sink would make the carry type-inconsistent).
+  numberConstant: makeTypeOfNodeWithAutoInfer<
+    CircuitDataTypeId,
+    'numberConstant'
+  >({
+    name: 'Number Input',
+    headerColor: '#C75B8E',
+    locationInContextMenu: ['I/O'],
+    inputs: [{ name: 'Value', dataType: 'number', allowInput: true }],
+    outputs: [{ name: 'Out', dataType: 'number' }],
+  }),
+  numberDisplay: makeTypeOfNodeWithAutoInfer<
+    CircuitDataTypeId,
+    'numberDisplay'
+  >({
+    name: 'Number Output',
+    headerColor: '#4A96BA',
+    locationInContextMenu: ['I/O'],
+    inputs: [{ name: 'In', dataType: 'number' }],
     outputs: [],
   }),
   counter: makeTypeOfNodeWithAutoInfer<CircuitDataTypeId, 'counter'>({
@@ -2369,6 +3557,20 @@ const circuitExampleTypeOfNodes = {
 
 type CircuitNodeTypeId = keyof typeof circuitExampleTypeOfNodes;
 
+// Codegen metadata (Decision 6) — dataType→TS types live HERE, passed to the
+// codegen factory / emitJs, not on the core TypeOfNode / DataType. No authored
+// `emit` hooks: every inlinable node reads its inputs via the recognized
+// `readInput` intrinsic and is AUTO-EMITTED from its implementation
+// (`analyzeImplementations`), so the impl is the single source of truth. Nodes
+// that can't be auto-derived (e.g. `configurableGate`, the displays) thread.
+const circuitCodegenMetadata: CodegenMetadata = {
+  dataTypeToTsType: {
+    bit: 'boolean',
+    number: 'number',
+    gateMode: "'AND' | 'OR' | 'XOR' | 'NAND' | 'NOR' | 'XNOR'",
+  },
+};
+
 /**
  * Extract the first connection value from an input handle,
  * falling back to the user-entered default, then to a provided fallback.
@@ -2385,44 +3587,78 @@ function getFirstInputVal(
 
 const circuitImplementations =
   makeFunctionImplementationsWithAutoInfer<CircuitNodeTypeId>({
-    andGate: (inputs) => {
-      const a = Boolean(getFirstInputVal(inputs.get('A'), false));
-      const b = Boolean(getFirstInputVal(inputs.get('B'), false));
-      return new Map([['Out', a && b]]);
-    },
-    orGate: (inputs) => {
-      const a = Boolean(getFirstInputVal(inputs.get('A'), false));
-      const b = Boolean(getFirstInputVal(inputs.get('B'), false));
-      return new Map([['Out', a || b]]);
-    },
-    notGate: (inputs) => {
-      const val = Boolean(getFirstInputVal(inputs.get('In'), false));
-      return new Map([['Out', !val]]);
-    },
-    xorGate: (inputs) => {
-      const a = Boolean(getFirstInputVal(inputs.get('A'), false));
-      const b = Boolean(getFirstInputVal(inputs.get('B'), false));
-      return new Map([['Out', a !== b]]);
-    },
-    nandGate: (inputs) => {
-      const a = Boolean(getFirstInputVal(inputs.get('A'), false));
-      const b = Boolean(getFirstInputVal(inputs.get('B'), false));
-      return new Map([['Out', !(a && b)]]);
-    },
-    norGate: (inputs) => {
-      const a = Boolean(getFirstInputVal(inputs.get('A'), false));
-      const b = Boolean(getFirstInputVal(inputs.get('B'), false));
-      return new Map([['Out', !(a || b)]]);
-    },
-    buffer: (inputs) => {
-      const val = Boolean(getFirstInputVal(inputs.get('In'), false));
-      return new Map([['Out', val]]);
-    },
-    bitConstant: (inputs) => {
-      const val = Boolean(getFirstInputVal(inputs.get('Value'), false));
-      return new Map([['Out', val]]);
-    },
+    // Every gate reads its inputs via the recognized `readInput(...)[0]` intrinsic
+    // and returns a SINGLE pure expression, so `analyzeImplementations` AUTO-EMITS
+    // them inline — no authored `emit` hook needed (the impl is the single source
+    // of truth). A fan-in input renders as its first connection (value-identical to
+    // this `[0]` read); see `anyOf` for the whole-array form.
+    andGate: (inputs) =>
+      new Map([
+        [
+          'Out',
+          Boolean(readInput(inputs, 'A')[0]) &&
+            Boolean(readInput(inputs, 'B')[0]),
+        ],
+      ]),
+    orGate: (inputs) =>
+      new Map([
+        [
+          'Out',
+          Boolean(readInput(inputs, 'A')[0]) ||
+            Boolean(readInput(inputs, 'B')[0]),
+        ],
+      ]),
+    // `!` already coerces to boolean, so no `Boolean(...)` wrapper (which would
+    // be a redundant cast lint flags); codegen renders `!In`.
+    notGate: (inputs) => new Map([['Out', !readInput(inputs, 'In')[0]]]),
+    xorGate: (inputs) =>
+      new Map([
+        [
+          'Out',
+          Boolean(readInput(inputs, 'A')[0]) !==
+            Boolean(readInput(inputs, 'B')[0]),
+        ],
+      ]),
+    nandGate: (inputs) =>
+      new Map([
+        [
+          'Out',
+          !(
+            Boolean(readInput(inputs, 'A')[0]) &&
+            Boolean(readInput(inputs, 'B')[0])
+          ),
+        ],
+      ]),
+    norGate: (inputs) =>
+      new Map([
+        [
+          'Out',
+          !(
+            Boolean(readInput(inputs, 'A')[0]) ||
+            Boolean(readInput(inputs, 'B')[0])
+          ),
+        ],
+      ]),
+    buffer: (inputs) => new Map([['Out', Boolean(readInput(inputs, 'In')[0])]]),
+    // Reads the WHOLE `In` fan-in array (no `[0]`) and ORs every connection. No
+    // authored `emit` hook, so `analyzeImplementations` AUTO-DERIVES it; under a
+    // fan-in codegen renders the input as the array `[a, b, …].some(…)` (the
+    // "uses both" form) instead of dropping all but the first connection.
+    anyOf: (inputs) =>
+      new Map([
+        ['Out', readInput(inputs, 'In').some((value) => Boolean(value))],
+      ]),
+    // Reads its input through the `readInput` intrinsic + only the `Boolean`
+    // global ⇒ self-contained ⇒ AUTO-EMITS inline (no `emit` hook) when
+    // `analyzeImplementations` is on, instead of threading.
+    bitConstant: (inputs) =>
+      new Map([['Out', Boolean(readInput(inputs, 'Value')[0])]]),
     bitDisplay: () => {
+      return new Map();
+    },
+    numberConstant: (inputs) =>
+      new Map([['Out', Number(readInput(inputs, 'Value')[0])]]),
+    numberDisplay: () => {
       return new Map();
     },
     counter: (inputs) => {
@@ -2449,6 +3685,26 @@ const circuitImplementations =
       return new Map([['Out', operation(a, b)]]);
     },
   });
+
+// Codegen run targets carrying the circuit's metadata + impls (shared by the
+// codegen stories). `analyzeImplementations` derives inline `emit` hooks from the
+// `readInput`-based implementations above, so the gates inline without authored
+// hooks. Defined AFTER `circuitImplementations` so they can reference it.
+const circuitCodegenJsRunTarget = makeCodegenRunTarget({
+  metadata: circuitCodegenMetadata,
+  analyzeImplementations: true,
+  impls: circuitImplementations as Readonly<
+    Record<string, (...args: never[]) => unknown>
+  >,
+});
+const circuitCodegenTsRunTarget = makeCodegenRunTarget({
+  target: 'typescript',
+  metadata: circuitCodegenMetadata,
+  analyzeImplementations: true,
+  impls: circuitImplementations as Readonly<
+    Record<string, (...args: never[]) => unknown>
+  >,
+});
 
 // ─────────────────────────────────────────────────────
 // Pre-built Half-Adder Circuit
@@ -2578,77 +3834,127 @@ const circuitImplementations =
 // WithRunner Story
 // ─────────────────────────────────────────────────────
 
-export const WithRunner: StoryObj<typeof FullGraph> = {
-  args: {},
-  render: () => {
-    const { state, dispatch } = useFullGraph<
-      CircuitDataTypeId,
-      CircuitNodeTypeId
-    >({
-      dataTypes: circuitExampleDataTypes,
-      typeOfNodes: circuitExampleTypeOfNodes,
-      nodes: [],
-      edges: [],
-      allowedConversionsBetweenDataTypes: {
-        bit: {
-          condition: true,
-        },
-        condition: {
-          bit: true,
+/**
+ * Shared body for the runner stories: the circuit editor pre-loaded with the
+ * adder-loop state + recording so the timeline/inspector populate. When `frame`
+ * is given the editor renders inside a fixed-size box, which exercises the
+ * container-query responsive layout — the runner panel reflows to its OWN width,
+ * not the browser viewport's.
+ */
+function RunnerStoryView({
+  frame,
+}: {
+  frame?: { width: number; height: number };
+}) {
+  const { state, dispatch } = useFullGraph<
+    CircuitDataTypeId,
+    CircuitNodeTypeId
+  >({
+    dataTypes: circuitExampleDataTypes,
+    typeOfNodes: circuitExampleTypeOfNodes,
+    nodes: [],
+    edges: [],
+    allowedConversionsBetweenDataTypes: {
+      bit: {
+        condition: true,
+      },
+      condition: {
+        bit: true,
+      },
+    },
+    allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking: true,
+    enableComplexTypeChecking: true,
+    enableTypeInference: true,
+    enableCycleChecking: true,
+    enableRecursionChecking: true,
+    nodeCountConstraints: standardNodeCountConstraints,
+  });
+
+  // Load the pre-built state via REPLACE_STATE so zones are rehydrated
+  const hasLoaded = useRef(false);
+  useEffect(() => {
+    if (hasLoaded.current) return;
+    hasLoaded.current = true;
+    dispatch({
+      type: 'REPLACE_STATE',
+      payload: {
+        state: {
+          ...state,
+          // adderLoopState is built with default generics; force it into this
+          // story's concrete state shape (deliberate cross-fixture injection).
+          nodes: adderLoopState.state.nodes as unknown as typeof state.nodes,
+          edges: adderLoopState.state.edges as unknown as typeof state.edges,
         },
       },
-      allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking: true,
-      enableComplexTypeChecking: true,
-      enableTypeInference: true,
-      enableCycleChecking: true,
-      enableRecursionChecking: true,
-      nodeCountConstraints: standardNodeCountConstraints,
     });
+  }, []);
 
-    // Load the pre-built state via REPLACE_STATE so zones are rehydrated
-    const hasLoaded = useRef(false);
-    useEffect(() => {
-      if (hasLoaded.current) return;
-      hasLoaded.current = true;
-      dispatch({
-        type: 'REPLACE_STATE',
-        payload: {
-          state: {
-            ...state,
-            // adderLoopState is built with default generics; force it into this
-            // story's concrete state shape (deliberate cross-fixture injection).
-            nodes: adderLoopState.state.nodes as unknown as typeof state.nodes,
-            edges: adderLoopState.state.edges as unknown as typeof state.edges,
-          },
-        },
-      });
-    }, []);
+  const [record, setRecord] = useState(adderLoopRecording ?? null);
 
-    const [record, setRecord] = useState(adderLoopRecording ?? null);
+  const editor = (
+    <FullGraph<CircuitDataTypeId, CircuitNodeTypeId>
+      state={state}
+      dispatch={dispatch}
+      functionImplementations={circuitImplementations}
+      executionRecord={record}
+      onExecutionRecordChange={setRecord}
+      onStateImported={(imported) => console.log('State imported:', imported)}
+      onRecordingImported={(record) =>
+        console.log('Recording imported:', record)
+      }
+      onImportError={(errors) => console.error('Import errors:', errors)}
+    />
+  );
 
+  if (frame) {
     return (
       <div
-        style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}
+        style={{
+          height: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#0a0a0a',
+        }}
       >
-        <div style={{ flex: 1 }}>
-          <FullGraph<CircuitDataTypeId, CircuitNodeTypeId>
-            state={state}
-            dispatch={dispatch}
-            functionImplementations={circuitImplementations}
-            executionRecord={record}
-            onExecutionRecordChange={setRecord}
-            onStateImported={(imported) =>
-              console.log('State imported:', imported)
-            }
-            onRecordingImported={(record) =>
-              console.log('Recording imported:', record)
-            }
-            onImportError={(errors) => console.error('Import errors:', errors)}
-          />
+        <div
+          style={{
+            width: frame.width,
+            height: frame.height,
+            position: 'relative',
+            overflow: 'hidden',
+            border: '1px solid #333',
+            borderRadius: 8,
+          }}
+        >
+          {editor}
         </div>
       </div>
     );
-  },
+  }
+
+  return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1 }}>{editor}</div>
+    </div>
+  );
+}
+
+export const WithRunner: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => <RunnerStoryView />,
+};
+
+/**
+ * The runner panel inside a ~390px phone-width frame — the canonical proof of the
+ * container-query responsive layout: RunControls + the timeline toolbar collapse
+ * their secondary controls into ⋯ menus, and selecting a step opens the inspector
+ * as a full-body slide-over instead of squeezing the timeline. Drag the Storybook
+ * viewport / resize the frame to watch it reflow at the 832px breakpoint.
+ */
+export const WithRunnerNarrow: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => <RunnerStoryView frame={{ width: 390, height: 760 }} />,
 };
 
 export const EmptyRunnerPlayground: StoryObj<typeof FullGraph> = {
@@ -3327,158 +4633,181 @@ export const RippleCarryAdder: StoryObj<typeof FullGraph> = {
 // Demonstrates: loop nodes, condition handling, iterative computation
 // ─────────────────────────────────────────────────────
 
+// Build the loop-counter graph THROUGH THE REDUCER (ADD_NODE + ADD_EDGE), so the
+// loop's data-carry channel handles materialize via type inference exactly as a
+// user's clicks would. A hand-placed graph (constructNodeOfType + index-wired
+// edges) bypasses inference, leaving the loop nodes with zero data handles — the
+// executor then rejects it with "mismatched data handle counts". The carry is
+// numeric (counting 0→5), so it is seeded/displayed by Number Input/Output (a
+// `bit` source would make the single-typed carry channel type-inconsistent).
 function buildLoopCounterGraph() {
-  const dt = circuitExampleDataTypes;
-  const nt = circuitExampleTypeOfNodes;
+  // Explicit type arguments pin UnderlyingType/ComplexSchemaType to their
+  // defaults — inference through State's conditional types otherwise widens
+  // ComplexSchemaType to ZodType and the annotation no longer matches.
+  let state: State<CircuitDataTypeId, CircuitNodeTypeId> =
+    makeStateWithAutoInfer<CircuitDataTypeId, CircuitNodeTypeId>({
+      dataTypes: circuitExampleDataTypes,
+      typeOfNodes: circuitExampleTypeOfNodes,
+      nodes: [],
+      edges: [],
+      allowedConversionsBetweenDataTypes: {
+        bit: { condition: true, number: true, loopInfer: true },
+        number: { loopInfer: true, bit: true },
+        loopInfer: { number: true, bit: true },
+      },
+      allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking: true,
+      enableComplexTypeChecking: true,
+      enableTypeInference: true,
+      enableCycleChecking: true,
+    });
 
-  type N = ReturnType<typeof constructNodeOfType>;
+  function addNode(
+    nodeType: CircuitNodeTypeId,
+    position: { x: number; y: number },
+  ): string {
+    // Explicit type arguments pin UnderlyingType/ComplexSchemaType to their
+    // defaults — inference through State's conditional types widens otherwise.
+    state = mainReducer<CircuitDataTypeId, CircuitNodeTypeId>(state, {
+      type: actionTypesMap.ADD_NODE,
+      payload: { type: nodeType, position },
+    });
+    return state.nodes[state.nodes.length - 1].id;
+  }
 
-  const outId = (node: N, idx: number): string =>
-    node.data.outputs?.[idx]?.id ?? '';
-  const inId = (node: N, idx: number): string =>
-    node.data.inputs?.[idx]?.id ?? '';
-  const setVal = (node: N, idx: number, value: boolean | number) => {
-    const input = node.data.inputs?.[idx];
-    if (!input || !('type' in input)) return;
-    if (input.type === 'boolean' && typeof value === 'boolean')
-      input.value = value;
-    else if (input.type === 'number' && typeof value === 'number')
-      input.value = value;
-  };
-  const e = (
-    id: string,
-    src: string,
-    srcH: string,
-    tgt: string,
-    tgtH: string,
-  ) => ({
-    id,
-    source: src,
-    sourceHandle: srcH,
-    target: tgt,
-    targetHandle: tgtH,
-    type: 'configurableEdge' as const,
-  });
+  function connect(
+    sourceNodeId: string,
+    sourceHandleId: string,
+    targetNodeId: string,
+    targetHandleId: string,
+  ): void {
+    state = mainReducer<CircuitDataTypeId, CircuitNodeTypeId>(state, {
+      type: actionTypesMap.ADD_EDGE_BY_REACT_FLOW,
+      payload: {
+        edge: {
+          source: sourceNodeId,
+          sourceHandle: sourceHandleId,
+          target: targetNodeId,
+          targetHandle: targetHandleId,
+        },
+      },
+    });
+  }
 
-  // Initial value (false = 0 for the counter's starting count)
-  const initConst = constructNodeOfType(dt, 'bitConstant', nt, 'lc-init', {
-    x: 0,
-    y: 150,
-  });
-  setVal(initConst, 0, false);
+  function findNode(nodeId: string) {
+    const node = state.nodes.find((candidate) => candidate.id === nodeId);
+    if (!node) throw new Error(`Node "${nodeId}" not found in state`);
+    return node;
+  }
 
-  // Loop nodes
-  const loopStart = constructNodeOfType(dt, 'loopStart', nt, 'lc-loop-start', {
-    x: 550,
-    y: 150,
-  });
-  const loopStop = constructNodeOfType(dt, 'loopStop', nt, 'lc-loop-stop', {
-    x: 2200,
-    y: 150,
-  });
-  const loopEnd = constructNodeOfType(dt, 'loopEnd', nt, 'lc-loop-end', {
-    x: 2750,
-    y: 150,
-  });
+  // Handle ids are re-read after every reducer step because inference adds
+  // concrete channel handles to the loop nodes as edges are connected.
+  function inputHandleId(nodeId: string, handleIndex: number): string {
+    const handle = findNode(nodeId).data.inputs?.[handleIndex];
+    const handleId = handle && 'id' in handle ? handle.id : undefined;
+    if (!handleId)
+      throw new Error(`Input handle ${handleIndex} missing on "${nodeId}"`);
+    return handleId;
+  }
 
-  // Counter node (body of the loop)
-  const counter = constructNodeOfType(dt, 'counter', nt, 'lc-counter', {
-    x: 1100,
-    y: 150,
-  });
-  setVal(counter, 1, 5); // Max = 5
+  function outputHandleId(nodeId: string, handleIndex: number): string {
+    const handleId = findNode(nodeId).data.outputs?.[handleIndex]?.id;
+    if (!handleId)
+      throw new Error(`Output handle ${handleIndex} missing on "${nodeId}"`);
+    return handleId;
+  }
 
-  // NOT gate to invert "Reached Max" for "continue" condition
-  const notGate = constructNodeOfType(dt, 'notGate', nt, 'lc-not', {
-    x: 1650,
-    y: 400,
-  });
+  function setInputValue(
+    nodeId: string,
+    handleIndex: number,
+    value: number,
+  ): void {
+    state = {
+      ...state,
+      nodes: state.nodes.map((node) => {
+        if (node.id !== nodeId || !node.data.inputs) return node;
+        const inputs = node.data.inputs.map((input, index) => {
+          if (index !== handleIndex || !('type' in input)) return input;
+          if (input.type === 'number') return { ...input, value };
+          return input;
+        });
+        return { ...node, data: { ...node.data, inputs } };
+      }),
+    };
+  }
 
-  // Final display
-  const display = constructNodeOfType(dt, 'bitDisplay', nt, 'lc-display', {
-    x: 3300,
-    y: 150,
-  });
+  // Create the nodes one ADD_NODE at a time, as the user would.
+  const initialCountNodeId = addNode('numberConstant', { x: 0, y: 150 });
+  setInputValue(initialCountNodeId, 0, 0); // initial count = 0
 
-  const nodes = [
-    initConst,
-    loopStart,
-    counter,
-    notGate,
-    loopStop,
-    loopEnd,
-    display,
-  ];
+  const loopStartNodeId = addNode('loopStart', { x: 550, y: 150 });
+  const counterNodeId = addNode('counter', { x: 1100, y: 150 });
+  setInputValue(counterNodeId, 1, 5); // Counter Max = 5
+  const notGateNodeId = addNode('notGate', { x: 1650, y: 400 });
+  const loopStopNodeId = addNode('loopStop', { x: 2200, y: 150 });
+  const loopEndNodeId = addNode('loopEnd', { x: 2750, y: 150 });
+  const countOutputNodeId = addNode('numberDisplay', { x: 3300, y: 150 });
 
-  let eid = 0;
-  const edges = [
-    // Initial value → loopStart (loopInfer input, index 0)
-    e(
-      `lc-e${eid++}`,
-      'lc-init',
-      outId(initConst, 0),
-      'lc-loop-start',
-      inId(loopStart, 0),
-    ),
-    // loopStart (bindLoopNodes, output index 0) → loopStop (bindLoopNodes, input index 0)
-    e(
-      `lc-e${eid++}`,
-      'lc-loop-start',
-      outId(loopStart, 0),
-      'lc-loop-stop',
-      inId(loopStop, 0),
-    ),
-    // loopStop (bindLoopNodes, output index 0) → loopEnd (bindLoopNodes, input index 0)
-    e(
-      `lc-e${eid++}`,
-      'lc-loop-stop',
-      outId(loopStop, 0),
-      'lc-loop-end',
-      inId(loopEnd, 0),
-    ),
-    // loopStart (loopInfer, output index 1) → counter Count input (index 0)
-    e(
-      `lc-e${eid++}`,
-      'lc-loop-start',
-      outId(loopStart, 1),
-      'lc-counter',
-      inId(counter, 0),
-    ),
-    // counter Count+1 (output index 0) → loopStop (loopInfer, input index 2)
-    e(
-      `lc-e${eid++}`,
-      'lc-counter',
-      outId(counter, 0),
-      'lc-loop-stop',
-      inId(loopStop, 2),
-    ),
-    // counter Reached Max (output index 1) → NOT.In
-    e(
-      `lc-e${eid++}`,
-      'lc-counter',
-      outId(counter, 1),
-      'lc-not',
-      inId(notGate, 0),
-    ),
-    // NOT.Out → loopStop condition input (index 1)
-    e(
-      `lc-e${eid++}`,
-      'lc-not',
-      outId(notGate, 0),
-      'lc-loop-stop',
-      inId(loopStop, 1),
-    ),
-    // loopEnd (loopInfer, output index 0) → display
-    e(
-      `lc-e${eid++}`,
-      'lc-loop-end',
-      outId(loopEnd, 0),
-      'lc-display',
-      inId(display, 0),
-    ),
-  ];
+  // Bind the loop triplet BEFORE any body wiring (region rules depend on it).
+  connect(
+    loopStartNodeId,
+    outputHandleId(loopStartNodeId, 0),
+    loopStopNodeId,
+    inputHandleId(loopStopNodeId, 0),
+  );
+  connect(
+    loopStopNodeId,
+    outputHandleId(loopStopNodeId, 0),
+    loopEndNodeId,
+    inputHandleId(loopEndNodeId, 0),
+  );
 
-  return { nodes, edges };
+  // Wire the carry channel — each infer-handle connection grows the channel.
+  connect(
+    initialCountNodeId,
+    outputHandleId(initialCountNodeId, 0),
+    loopStartNodeId,
+    inputHandleId(loopStartNodeId, loopStartInputInferHandleIndex),
+  );
+  connect(
+    loopStartNodeId,
+    outputHandleId(loopStartNodeId, loopStartOutputInferHandleIndex),
+    counterNodeId,
+    inputHandleId(counterNodeId, 0),
+  );
+  connect(
+    counterNodeId,
+    outputHandleId(counterNodeId, 0),
+    loopStopNodeId,
+    inputHandleId(loopStopNodeId, loopStopInputInferHandleIndex),
+  );
+  // Counter "Reached Max" → NOT → loopStop condition (continue while NOT max).
+  connect(
+    counterNodeId,
+    outputHandleId(counterNodeId, 1),
+    notGateNodeId,
+    inputHandleId(notGateNodeId, 0),
+  );
+  connect(
+    notGateNodeId,
+    outputHandleId(notGateNodeId, 0),
+    loopStopNodeId,
+    inputHandleId(loopStopNodeId, 1),
+  );
+  // Post-stop carry → loopEnd → display.
+  connect(
+    loopStopNodeId,
+    outputHandleId(loopStopNodeId, loopStopOutputInferHandleIndex),
+    loopEndNodeId,
+    inputHandleId(loopEndNodeId, loopEndInputInferHandleIndex),
+  );
+  connect(
+    loopEndNodeId,
+    outputHandleId(loopEndNodeId, loopEndOutputInferHandleIndex),
+    countOutputNodeId,
+    inputHandleId(countOutputNodeId, 0),
+  );
+
+  return { nodes: state.nodes, edges: state.edges };
 }
 
 const loopCounterGraph = buildLoopCounterGraph();

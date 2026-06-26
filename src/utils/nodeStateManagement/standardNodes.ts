@@ -299,14 +299,18 @@ const standardHiddenNodeTypesInContextMenu: Partial<Record<string, true>> = {
 };
 
 const standardNodeCountConstraints: NodeCountConstraints = {
+  // A graph may declare its own I/O via ONE root-level Graph Input + ONE Graph
+  // Output (maxInRoot: 1) — these become the compiled program's parameters and
+  // return. Inside a group exactly one of each is still required (the group's
+  // boundary). See `.claude/plans/root-io-editors.md`.
   [standardNodeTypeNamesMap.groupInput]: {
-    maxInRoot: 0,
+    maxInRoot: 1,
     minInRoot: 0,
     minWithinANodeGroup: 1,
     maxWithinANodeGroup: 1,
   },
   [standardNodeTypeNamesMap.groupOutput]: {
-    maxInRoot: 0,
+    maxInRoot: 1,
     minInRoot: 0,
     minWithinANodeGroup: 1,
     maxWithinANodeGroup: 1,

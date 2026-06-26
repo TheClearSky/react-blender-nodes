@@ -49,6 +49,7 @@ import type {
   FunctionImplementations,
   ExecutionRecord,
 } from '@/utils/nodeRunner/types';
+import type { RunTarget } from '@/utils/nodeRunner/runTargets/types';
 import { RunnerOverlay } from './RunnerOverlay';
 import { canRemoveStructuredNodesAndEdges } from '@/utils/nodeStateManagement/nodes/loops';
 import { standardNodeTypeNamesMap } from '@/utils/nodeStateManagement/standardNodes';
@@ -66,7 +67,12 @@ import {
   type SaveUpdates,
 } from '@/components/molecules/NodeTypeEditDrawer/NodeTypeEditDrawer';
 import {
+  GraphIOEditDrawer,
+  type GraphIOHandleSpec,
+} from '@/components/molecules/NodeTypeEditDrawer/GraphIOEditDrawer';
+import {
   computeHandleBlastRadius,
+  computeRootIoHandleBlastRadius,
   getConnectionNeighborhood,
   getConnectionScopeGraph,
   type HandleDeletionTarget,
@@ -121,6 +127,28 @@ type FullGraphProps<
     ]
   >;
   functionImplementations?: FunctionImplementations<NodeTypeUniqueId>;
+  /** Consumer-registered run targets, selectable from the runner's split Run
+   *  button. The built-in in-process executor is always available; these are
+   *  appended (e.g. codegen / export targets). Additive — omitting keeps today's
+   *  single Run button. */
+  runTargets?: ReadonlyArray<
+    RunTarget<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >
+  >;
+  /** Initial active run target id (uncontrolled). */
+  defaultRunTargetId?: string;
+  /**
+   * Values for the graph's declared root inputs, keyed by Graph Input handle
+   * NAME. When the graph has a root Graph Input node, these are seeded into its
+   * output handles on Run (both instant and step-by-step), mirroring codegen's
+   * `runGraph(a, b)` parameters. Omit (or leave a name unset) to run a declared
+   * input as `undefined`.
+   */
+  rootInputs?: Record<string, unknown>;
   /** Called when state is successfully imported. Receives the raw parsed state. */
   onStateImported?: (
     importedState: State<
@@ -171,6 +199,25 @@ type FullGraphProps<
    * keyboard shortcuts for undo/redo. Defaults to `true`.
    */
   enableUndoRedoShortcuts?: boolean;
+  /**
+   * Whether connecting a wire to a ROOT Graph Input/Output renames that handle
+   * to the connected source's name (full parity with group boundaries), and
+   * whether the Graph I/O editor exposes the rename control. Defaults to `true`.
+   *
+   * NOTE (behavior change): with the default `true`, a root handle's name — which
+   * is its `runGraph` parameter and its `rootInputs` key — moves on connect. If
+   * you depend on a stable signature, set this `false`, OR key `rootInputs` /
+   * read `rootOutputs` by handle **id** (honored alongside the name). See
+   * `docs/ui/fullGraphDoc.md` › "Root I/O contract stability".
+   */
+  allowRootIORename?: boolean;
+  /**
+   * Whether connecting a wire to a ROOT Graph Input/Output grows a fresh blank
+   * spare handle (so "keep connecting, handles appear" works, like group
+   * boundaries), and whether the Graph I/O editor can add/delete root handles.
+   * Defaults to `true`. Set `false` to freeze the root I/O cardinality.
+   */
+  allowRootIOStructureEdit?: boolean;
 };
 
 // ─────────────────────────────────────────────────────
@@ -194,12 +241,17 @@ function FullGraphWithReactFlowProvider<
   state,
   dispatch,
   functionImplementations,
+  runTargets,
+  defaultRunTargetId,
+  rootInputs,
   onStateImported,
   onRecordingImported,
   onImportError,
   onGraphEvent,
   inputComponents,
   enableUndoRedoShortcuts = true,
+  allowRootIORename = true,
+  allowRootIOStructureEdit = true,
 }: Omit<
   FullGraphProps<
     DataTypeUniqueId,
@@ -255,6 +307,42 @@ function FullGraphWithReactFlowProvider<
     state.activeDrawer?.type === 'editSwitch'
       ? state.activeDrawer.nodeId
       : null;
+
+  const editGraphInputNodeId =
+    state.activeDrawer?.type === 'editGraphInput'
+      ? state.activeDrawer.nodeId
+      : null;
+
+  const editGraphOutputNodeId =
+    state.activeDrawer?.type === 'editGraphOutput'
+      ? state.activeDrawer.nodeId
+      : null;
+
+  // Root Graph I/O nodes live in the ROOT node list (the editor is only opened
+  // at root scope). A Graph Input edits its outputs; a Graph Output its inputs.
+  const editGraphIoHandles = useMemo<{ id: string; name: string }[]>(() => {
+    const nodeId = editGraphInputNodeId ?? editGraphOutputNodeId;
+    if (!nodeId) return [];
+    const node = state.nodes.find((candidate) => candidate.id === nodeId);
+    if (!node) return [];
+    const list = editGraphInputNodeId
+      ? (node.data.outputs ?? [])
+      : (node.data.inputs ?? []);
+    // A fresh Graph Input/Output carries one blank `inferFromConnection` template
+    // handle (`name === ''`) that materializes a real handle on connect. Drop it
+    // (E2) so the editor opens with an empty list + the "Add Input" affordance,
+    // not a blank row the save then rejects as an empty name.
+    const isInferTemplate = (handle: {
+      name: string;
+      dataType?: { dataTypeObject?: { underlyingType?: string } };
+    }): boolean =>
+      handle.name === '' &&
+      handle.dataType?.dataTypeObject?.underlyingType === 'inferFromConnection';
+    return list
+      .flatMap((handle) => ('inputs' in handle ? handle.inputs : [handle]))
+      .filter((handle) => !isInferTemplate(handle))
+      .map((handle) => ({ id: handle.id, name: handle.name }));
+  }, [editGraphInputNodeId, editGraphOutputNodeId, state.nodes]);
 
   const editLoopTriplet = useMemo(() => {
     if (!editLoopNodeId) return null;
@@ -424,6 +512,21 @@ function FullGraphWithReactFlowProvider<
     [editSwitchPair, dispatch, updateNodeInternals],
   );
 
+  const handleSaveGraphIoHandles = useCallback(
+    (nodeId: string, handles: GraphIOHandleSpec[]) => {
+      // Single undoable step: the validator derives which handles were removed
+      // and applyPlan cascades their root edges + remints/reorders the rest.
+      dispatch({
+        type: actionTypesMap.UPDATE_GRAPH_IO_HANDLES,
+        payload: { nodeId, handles },
+      });
+      requestAnimationFrame(() => {
+        updateNodeInternals([nodeId]);
+      });
+    },
+    [dispatch, updateNodeInternals],
+  );
+
   const getSwitchChannelBlastRadius = useCallback(
     (level: SwitchHandleLevel) => {
       const ids = editSwitchPair
@@ -542,6 +645,14 @@ function FullGraphWithReactFlowProvider<
     [state],
   );
 
+  const getGraphIoHandleBlastRadius = useCallback(
+    (
+      boundaryNodeId: string,
+      handle: { id: string; name: string; direction: 'input' | 'output' },
+    ) => computeRootIoHandleBlastRadius(state, boundaryNodeId, handle),
+    [state],
+  );
+
   const getConnectionNeighborhoodForScope = useCallback(
     (
       scopeId: string,
@@ -558,6 +669,20 @@ function FullGraphWithReactFlowProvider<
   const closeMenu = useCallback(() => {
     setContextMenu({ isOpen: false, position: { x: 0, y: 0 } });
   }, []);
+
+  // Root Graph I/O placement is single-instance: scan the root node list so the
+  // "Add Graph Input/Output" menu entries hide once one of each is present.
+  const rootGraphIoPresence = useMemo(() => {
+    let input = false;
+    let output = false;
+    for (const node of state.nodes) {
+      const typeId = node.data.nodeTypeUniqueId;
+      if (typeId === standardNodeTypeNamesMap.groupInput) input = true;
+      else if (typeId === standardNodeTypeNamesMap.groupOutput) output = true;
+    }
+    return { input, output };
+  }, [state.nodes]);
+  const isAtRootScopeForMenu = !currentNodeGroup;
 
   const contextMenuItems = useMemo(
     () => [
@@ -579,6 +704,9 @@ function FullGraphWithReactFlowProvider<
         currentNodeType: currentNodeGroup?.nodeType,
         isRecursionAllowed: !state.enableRecursionChecking,
         hiddenNodeTypesInContextMenu: state.hiddenNodeTypesInContextMenu,
+        isAtRootScope: isAtRootScopeForMenu,
+        rootGraphInputExists: rootGraphIoPresence.input,
+        rootGraphOutputExists: rootGraphIoPresence.output,
       }),
       ...createImportExportMenuItems({
         onExportState: handleExportState,
@@ -600,6 +728,9 @@ function FullGraphWithReactFlowProvider<
       handleExportRecording,
       closeMenu,
       screenToFlowPosition,
+      isAtRootScopeForMenu,
+      rootGraphIoPresence.input,
+      rootGraphIoPresence.output,
     ],
   );
 
@@ -695,7 +826,11 @@ function FullGraphWithReactFlowProvider<
         onConnect={(newConnection) =>
           dispatch({
             type: actionTypesMap.ADD_EDGE_BY_REACT_FLOW,
-            payload: { edge: newConnection },
+            payload: {
+              edge: newConnection,
+              allowRootIORename,
+              allowRootIOStructureEdit,
+            },
           })
         }
         onConnectEnd={(_event, connectionState) =>
@@ -905,6 +1040,9 @@ function FullGraphWithReactFlowProvider<
                 <RunnerOverlay
                   state={state}
                   functionImplementations={functionImplementations}
+                  runTargets={runTargets}
+                  defaultRunTargetId={defaultRunTargetId}
+                  rootInputs={rootInputs}
                   onExecutionRecordRef={executionRecordRef}
                   loadRecordRef={loadRecordRef}
                 >
@@ -951,6 +1089,21 @@ function FullGraphWithReactFlowProvider<
             onSave={handleSaveSwitch}
             getChannelBlastRadius={getSwitchChannelBlastRadius}
             getNeighborhood={getConnectionNeighborhoodForScope}
+          />
+
+          <GraphIOEditDrawer
+            isOpen={
+              editGraphInputNodeId !== null || editGraphOutputNodeId !== null
+            }
+            onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
+            variant={editGraphInputNodeId ? 'graphInput' : 'graphOutput'}
+            nodeId={editGraphInputNodeId ?? editGraphOutputNodeId}
+            handles={editGraphIoHandles}
+            onSave={handleSaveGraphIoHandles}
+            getHandleBlastRadius={getGraphIoHandleBlastRadius}
+            getNeighborhood={getConnectionNeighborhoodForScope}
+            allowRename={allowRootIORename}
+            allowStructureEdit={allowRootIOStructureEdit}
           />
         </div>
       </InputComponentRegistryContext.Provider>
@@ -1055,6 +1208,9 @@ function FullGraph<
   state,
   dispatch,
   functionImplementations,
+  runTargets,
+  defaultRunTargetId,
+  rootInputs,
   onStateImported,
   onRecordingImported,
   onImportError,
@@ -1063,6 +1219,8 @@ function FullGraph<
   onGraphEvent,
   inputComponents,
   enableUndoRedoShortcuts,
+  allowRootIORename,
+  allowRootIOStructureEdit,
 }: FullGraphProps<
   DataTypeUniqueId,
   NodeTypeUniqueId,
@@ -1081,14 +1239,16 @@ function FullGraph<
   // R1: memoize the context value on only the slices consumers read. immer keeps
   // identity for untouched slices, so this stays stable across drags / viewport /
   // unrelated dispatches, and nodes stop re-rendering on every state change.
+  const isAtRootScope = !(state.openedNodeGroupStack?.length ?? 0);
   const fullGraphContextValue = useMemo(
     () =>
       createContextValue({
         typeOfNodes: state.typeOfNodes,
         enableDebugMode: state.enableDebugMode,
         dispatch,
+        isAtRootScope,
       }),
-    [state.typeOfNodes, state.enableDebugMode, dispatch],
+    [state.typeOfNodes, state.enableDebugMode, dispatch, isAtRootScope],
   );
 
   return (
@@ -1099,12 +1259,17 @@ function FullGraph<
             state={state}
             dispatch={dispatch}
             functionImplementations={functionImplementations}
+            runTargets={runTargets}
+            defaultRunTargetId={defaultRunTargetId}
+            rootInputs={rootInputs}
             onStateImported={onStateImported}
             onRecordingImported={onRecordingImported}
             onImportError={onImportError}
             onGraphEvent={onGraphEvent}
             inputComponents={inputComponents}
             enableUndoRedoShortcuts={enableUndoRedoShortcuts}
+            allowRootIORename={allowRootIORename}
+            allowRootIOStructureEdit={allowRootIOStructureEdit}
           />
         </RecordContext.Provider>
       </FullGraphContext.Provider>

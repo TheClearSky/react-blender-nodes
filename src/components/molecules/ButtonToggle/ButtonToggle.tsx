@@ -16,6 +16,12 @@ type ButtonToggleProps<T extends string> = {
   disabled?: boolean;
   /** @default 'normal' */
   size?: 'small' | 'normal';
+  /** Stretch to fill the container, with equal-width segments. @default false */
+  fullWidth?: boolean;
+  /** Classes for the SELECTED segment, applied LAST so they win per-property. */
+  activeClassName?: string;
+  /** Classes for the NON-selected segments, applied LAST so they win per-property. */
+  inactiveClassName?: string;
   className?: string;
 };
 
@@ -52,12 +58,22 @@ function ButtonToggle<T extends string>({
   onChange,
   disabled = false,
   size = 'normal',
+  fullWidth = false,
+  activeClassName,
+  inactiveClassName,
   className,
 }: ButtonToggleProps<T>) {
   const cfg = sizeConfig[size];
 
   return (
-    <div className={cn('flex overflow-hidden', cfg.wrapper, className)}>
+    <div
+      className={cn(
+        'flex overflow-hidden',
+        fullWidth && 'w-full',
+        cfg.wrapper,
+        className,
+      )}
+    >
       {options.map((option, idx) => (
         <button
           key={option.value}
@@ -67,6 +83,10 @@ function ButtonToggle<T extends string>({
           className={cn(
             'btn-press font-medium transition-all duration-100',
             cfg.button,
+            // fullWidth: equal segments, single-line labels (tighter padding so a
+            // long label like "Step-by-Step" doesn't wrap). After cfg.button so
+            // the px override wins.
+            fullWidth && 'flex-1 whitespace-nowrap px-1 text-center',
             idx > 0 && cfg.divider,
             value === option.value ? cfg.activeBg : cfg.inactiveBg,
             disabled &&
@@ -76,6 +96,9 @@ function ButtonToggle<T extends string>({
               value !== option.value &&
               size === 'normal' &&
               'hover:text-primary-white',
+            // Theme overrides LAST so they win per-property over EVERY default
+            // above (incl. the size==='normal' hover:text-primary-white).
+            value === option.value ? activeClassName : inactiveClassName,
           )}
         >
           {option.label}

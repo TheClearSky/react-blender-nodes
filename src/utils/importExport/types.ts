@@ -74,6 +74,23 @@ type StateRepairStrategies = {
   fillMissingDefaults: boolean;
   /** Rebuild handle dataType.dataTypeObject from provided dataTypes */
   rehydrateDataTypeObjects: boolean;
+  /**
+   * Repair root Graph I/O invariants: keep the first root Graph Input / Graph
+   * Output (drop extras), and de-duplicate / fill empty handle names on them.
+   * The runtime keys root I/O by name, so without this duplicates collapse and
+   * extra boundary nodes are silently ignored.
+   */
+  repairRootGraphIo: boolean;
+  /**
+   * Repack each fan-in input handle's `edge.data.order` to contiguous `0..n-1`
+   * (the invariant the connection-reorder editor guarantees but a raw import
+   * bypasses). Canonicalizes sparse / duplicate / negative / fractional /
+   * non-finite / out-of-range imported orders; leaves already-canonical and
+   * entirely un-reordered groups untouched. Crash-safety does not require it (the
+   * compiler tolerates any order) — this restores the on-screen ≡ runtime ≡
+   * codegen contract and warns when it had to.
+   */
+  normalizeConnectionOrder: boolean;
 };
 
 /**

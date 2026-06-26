@@ -1,3 +1,5 @@
+import { createGraphError } from './errors';
+
 /**
  * Topological sort with concurrency levels using Kahn's algorithm.
  *
@@ -8,6 +10,10 @@
  * @param adjacencyList - Forward edges: nodeId -> set of dependent nodeIds
  * @param reverseAdjacencyList - Backward edges: nodeId -> set of dependency nodeIds
  * @returns Array of levels, each level is an array of nodeIds that can run concurrently
+ * @throws a structured {@link GraphError} (via {@link createGraphError}) when a
+ *   cycle is detected — attributed to the first unprocessed node, with every
+ *   unprocessed node id carried in `path`, so the engine boundary stays uniformly
+ *   structured (the convention every runtime engine error follows).
  */
 function topologicalSortWithLevels(
   nodeIds: ReadonlyArray<string>,
@@ -74,10 +80,26 @@ function topologicalSortWithLevels(
       }
     }
     const unprocessedNodeIds = nodeIds.filter((id) => !processedSet.has(id));
-    throw new Error(
+    const cycleMessage =
       'Topological sort detected cycle among nodes: ' +
-        [...unprocessedNodeIds].join(', '),
-    );
+      unprocessedNodeIds.join(', ');
+    throw createGraphError({
+      error: new Error(cycleMessage),
+      nodeId: unprocessedNodeIds[0],
+      // The sort works on bare node ids only; concrete type info is not
+      // available here, so use cycle placeholders. The caught GraphError still
+      // carries truthful node attribution + the full cycle in `path`.
+      nodeTypeId: 'cycle',
+      nodeTypeName: 'Cycle',
+      path: unprocessedNodeIds.map((id) => ({
+        nodeId: id,
+        nodeTypeId: 'cycle',
+        nodeTypeName: 'Cycle',
+        concurrencyLevel: levels.length,
+      })),
+      timestamp: Date.now(),
+      duration: 0,
+    });
   }
 
   return levels;

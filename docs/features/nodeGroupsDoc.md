@@ -93,8 +93,8 @@ internals.
                           applyPlan ADD_EDGE case (step 4c)
                                           |
                                           v
-              addDuplicateHandleToNodeGroupAfterInference()
-   (src/utils/nodeStateManagement/nodes/nodeGroups.ts › addDuplicateHandleToNodeGroupAfterInference)
+              growSpareAndPropagateBoundaryHandle()
+   (src/utils/nodeStateManagement/nodes/nodeGroups.ts › growSpareAndPropagateBoundaryHandle)
                                           |
                     +---------------------+---------------------+
                     |                                           |
@@ -159,7 +159,7 @@ internals.
    |  validateAddEdge: planInferenceForEdgeAddition(..., inputNodeId, |
    |     outputNodeId, ...) computes the concrete type                |
    |  applyPlan ADD_EDGE: applies overrideDataType to the boundary,   |
-   |     then calls addDuplicateHandleToNodeGroupAfterInference:      |
+   |     then calls growSpareAndPropagateBoundaryHandle:      |
    |    1. Appends a new empty-name groupInfer template handle to the |
    |       boundary node (for the next connection)                    |
    |    2. Adds the inferred input/output to the group TypeOfNode     |
@@ -381,7 +381,7 @@ GroupOutput Node          Outer Group Node
 This alignment is maintained because whenever a handle is added to a boundary
 node (via inference), the corresponding input or output is simultaneously added
 to the outer group's `TypeOfNode` definition — and to every instance — by
-`addDuplicateHandleToNodeGroupAfterInference`.
+`growSpareAndPropagateBoundaryHandle`.
 
 ## Group Lifecycle
 
@@ -455,7 +455,7 @@ When an edge connects a typed handle to a `groupInfer` template handle on
    scope's `inputNodeId`/`outputNodeId`, to compute the concrete type.
 2. `applyPlan`'s `ADD_EDGE` case applies the inference (via `overrideDataType`,
    deep-cloned with `structuredClone`), then in step 4c calls
-   `addDuplicateHandleToNodeGroupAfterInference` (see
+   `growSpareAndPropagateBoundaryHandle` (see
    [Handle Synchronization](#handle-synchronization)).
 3. A fresh empty-name `groupInfer` template handle is appended to the boundary
    node for the next connection.
@@ -514,15 +514,17 @@ made available to inner nodes.
 index position. After inner execution completes, the value at each groupOutput
 input is copied to the outer node's matching output for downstream consumption.
 
-### Dynamic handle addition after inference (`addDuplicateHandleToNodeGroupAfterInference`)
+### Dynamic handle addition after inference (`growSpareAndPropagateBoundaryHandle`)
 
 This function in `src/utils/nodeStateManagement/nodes/nodeGroups.ts` ›
-`addDuplicateHandleToNodeGroupAfterInference` is the core of handle
-synchronization. It is called from `applyPlan`'s `ADD_EDGE` case (step 4c)
-**after** inference has been applied. Its full signature is:
+`growSpareAndPropagateBoundaryHandle` is the core of handle synchronization. It
+is called from `applyPlan`'s `ADD_EDGE` case (step 4c) **after** inference has
+been applied, for an open group OR at root (the trailing `scope` discriminant
+selects the behavior; at root it grows a spare on the Graph I/O boundary node
+and skips cross-instance propagation). Its full signature is:
 
 ```typescript
-addDuplicateHandleToNodeGroupAfterInference(
+growSpareAndPropagateBoundaryHandle(
   state,                                 // scoped state (current subtree's nodes/edges)
   sourceNodeIndex, targetNodeIndex,      // indices within the scoped node list
   sourceHandle, targetHandle,            // POST-inference handle objects (carry inferred name/type)
@@ -531,7 +533,8 @@ addDuplicateHandleToNodeGroupAfterInference(
   isTargetHandleInferredFromConnection,  // PRE-inference: was target a groupInfer?
   isSourceNodeGroupInput,                // is the source node groupInput?
   isTargetNodeGroupOutput,               // is the target node groupOutput?
-  nodeGroup,                             // top entry of openedNodeGroupStack (or undefined)
+  nodeGroup,                             // top entry of openedNodeGroupStack (undefined at root)
+  scope,                                 // { kind: 'group' } | { kind: 'root'; allowNameOverride; allowStructureGrow }
 ): { validation: ConnectionValidationResult }
 ```
 
@@ -541,7 +544,7 @@ Step-by-step process:
 1. TRIGGER: an edge connects a typed handle to a groupInfer template handle on
    groupInput (output side) or groupOutput (input side).
 
-2. XOR GATE (nodeGroups.ts › addDuplicateHandleToNodeGroupAfterInference): act only when a node group is open AND
+2. XOR GATE (nodeGroups.ts › growSpareAndPropagateBoundaryHandle): act only when a node group is open OR at root, AND
      (isSourceHandleInferredFromConnection && isSourceNodeGroupInput)
        !== (isTargetHandleInferredFromConnection && isTargetNodeGroupOutput)
    The PRE-inference infer flags are used because overrideDataType rewrites the
@@ -558,10 +561,13 @@ Step-by-step process:
    constructTypeOfHandleFromIndices, then append it to the boundary node at
    index1: -1 with insertOrDeleteHandleInNodeDataUsingHandleIndices.
 
-5. PROPAGATE: call addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees
-   with the inferred handle's name, dataType, allowInput, and maxConnections.
-   This (a) adds the input/output to the group's TypeOfNode, (b) updates every
+5. PROPAGATE (GROUP SCOPE ONLY): call
+   addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees with the
+   inferred handle's name, dataType, allowInput, and maxConnections. This
+   (a) adds the input/output to the group's TypeOfNode, (b) updates every
    instance in each dependent subtree, and (c) updates every instance in root.
+   At ROOT scope there is no node type to propagate to (the root graph is a
+   single instance — the runtime caller), so this step is skipped.
 ```
 
 > `isGroupInputOrOutputNode(nodeTypeUniqueId)`
@@ -832,10 +838,10 @@ timeline/inspector UI. The `ExecutionRecord` carries
   handles grows only through boundary inference (connecting to a `groupInfer`
   template handle inside the group).
 - **No direct groupInput → groupOutput connections.** The XOR gate in
-  `addDuplicateHandleToNodeGroupAfterInference`
+  `growSpareAndPropagateBoundaryHandle`
   (`src/utils/nodeStateManagement/nodes/nodeGroups.ts` ›
-  `addDuplicateHandleToNodeGroupAfterInference`) requires exactly one side to be
-  an inferred boundary handle, so a wire straight from groupInput to groupOutput
+  `growSpareAndPropagateBoundaryHandle`) requires exactly one side to be an
+  inferred boundary handle, so a wire straight from groupInput to groupOutput
   carries no type information and is not propagated.
 - **Fan-in at group boundaries uses only the first source.** Both the input and
   output mapping in `executeGroupScope` read `entries[0]` from the resolution
@@ -943,7 +949,7 @@ When `enableTypeInference` is active, `validateAddEdge` calls
 `planInferenceForEdgeAddition` (passing the scope's
 `inputNodeId`/`outputNodeId`) to resolve the concrete type; `applyPlan` applies
 it via `overrideDataType`. This inference is a prerequisite for
-`addDuplicateHandleToNodeGroupAfterInference`.
+`growSpareAndPropagateBoundaryHandle`.
 
 ### → [Nodes (group is a special node type)](../core/nodesDoc.md)
 

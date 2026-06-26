@@ -129,7 +129,7 @@ applyPlan (planApply/applyPlan.ts) — ADD_EDGE case
   +-- addDuplicateHandlesToLoopNodesAfterInference   (loops/loopHandleSync.ts)
   +-- addDuplicateHandlesToSwitchNodesAfterInference (switches/switchHandleSync.ts)
   +-- applySwitchZonePrefixesOnDraft + ensureAllHandleNamesUnique (switches)
-  +-- addDuplicateHandleToNodeGroupAfterInference    (nodes/nodeGroups.ts)
+  +-- growSpareAndPropagateBoundaryHandle    (nodes/nodeGroups.ts)
   +-- push edge
   '-- recomputeAllZoneMemberships
 ```
@@ -350,8 +350,7 @@ actual mutation on the Immer draft:
    `addDuplicateHandlesToLoopNodesAfterInference`,
    `addDuplicateHandlesToSwitchNodesAfterInference`, switch zone-prefix renaming
    (`applySwitchZonePrefixesOnDraft`) plus a switch-specific dedup, and
-   `addDuplicateHandleToNodeGroupAfterInference` (only when inside an open node
-   group).
+   `growSpareAndPropagateBoundaryHandle` (only when inside an open node group).
 7. **Pushes the edge** into the current scope's edges.
 8. **Recomputes zone memberships** (`recomputeAllZoneMemberships`) when zones
    exist.
@@ -401,9 +400,9 @@ side through to the output side of the same node.
 After inference is applied (in `applyPlan`), new empty infer handles are added
 so that additional connections can be made:
 
-- **For node groups**: `addDuplicateHandleToNodeGroupAfterInference` adds a new
-  infer handle at the end of the group input's outputs or group output's inputs,
-  and propagates it across the entire node type tree (node-type definition + all
+- **For node groups**: `growSpareAndPropagateBoundaryHandle` adds a new infer
+  handle at the end of the group input's outputs or group output's inputs, and
+  propagates it across the entire node type tree (node-type definition + all
   subtrees + all instances) via
   `addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees`.
 - **For loop nodes**: `addDuplicateHandlesToLoopNodesAfterInference` adds a new
@@ -477,7 +476,7 @@ The original mutating orchestrator. Determines which node/data type to infer,
 handles the four cases, sets `overrideDataType`/`overrideName` (group/loop only
 — this legacy function does NOT branch on switch nodes), mutates the node in
 place via `inferTypeAcrossTheNodeForHandleOfDataType`, then calls
-`addDuplicateHandleToNodeGroupAfterInference` and
+`growSpareAndPropagateBoundaryHandle` and
 `addDuplicateHandlesToLoopNodesAfterInference`. Reached only through
 `addEdgeWithTypeChecking` (test-only).
 
@@ -563,28 +562,35 @@ gets inferred. Because `overrideDataType`/`overrideName` are `true` for group
 boundary nodes, the `dataType` field itself is overwritten (not just
 `inferredDataType`), and the handle takes the connected handle's name.
 
-### addDuplicateHandleToNodeGroupAfterInference
+### growSpareAndPropagateBoundaryHandle
 
 **File**: `src/utils/nodeStateManagement/nodes/nodeGroups.ts` ›
-`addDuplicateHandleToNodeGroupAfterInference`
+`growSpareAndPropagateBoundaryHandle`
 
-Called from `applyPlan` (with the open `nodeGroup` from the stack). It uses an
-**XOR gate**: it only fires when exactly one side is (originally
-`inferFromConnection` AND a group boundary). It then:
+Called from `applyPlan` for an open group OR at root (it takes an
+`InferenceScope` discriminant — `{ kind: 'group' }` or
+`{ kind: 'root'; allowNameOverride; allowStructureGrow }`). It uses an **XOR
+gate**: it only fires when exactly one side is (originally `inferFromConnection`
+AND a group/root boundary). Its body is three independent steps:
 
-1. Constructs a new blank infer handle from the node-type template via
-   `constructTypeOfHandleFromIndices` (output for groupInput, input for
-   groupOutput)
-2. Inserts it at the end of the handle list (`index1: -1`, `'after'`) via
-   `insertOrDeleteHandleInNodeDataUsingHandleIndices`
-3. Propagates the handle across the whole node-type tree via
-   `addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees`, which
-   updates the node-type definition, all dependent subtrees, and all root
-   instances
+1. **Name the consumed handle.** Group / root-with-rename already carry the
+   source name (via `overrideName`); root-with-rename-OFF auto-names the blank
+   template `input{n}`/`output{n}` (shared `nextDefaultHandleName`) so a
+   concrete handle is never left empty-named. Bound to template consumption, not
+   to grow.
+2. **Grow a blank spare** from the node-type template via
+   `constructTypeOfHandleFromIndices` +
+   `insertOrDeleteHandleInNodeDataUsingHandleIndices` (output for groupInput,
+   input for groupOutput) — for a group always, for root only when
+   `allowStructureGrow`.
+3. **Propagate across the node-type tree** via
+   `addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees` —
+   **GROUP ONLY**. Root is a single instance with no node type, so this step is
+   unrepresentable there by construction.
 
-`applyPlan` passes POST-inference handle objects (so the propagated handle
-carries the inferred name/type) but PRE-inference flags to determine which side
-was `inferFromConnection` (because `overrideDataType` already changed it).
+`applyPlan` passes POST-inference handle objects (so the named handle carries
+the inferred name/type) but PRE-inference flags to determine which side was
+`inferFromConnection` (because `overrideDataType` already changed it).
 
 ## Inference for Loop Nodes
 
@@ -686,9 +692,9 @@ suffix.
    after inference reset.
 
 5. **Group propagation reads the draft node-type tree**: `applyPlan` passes the
-   draft as `unmodifiedState` to `addDuplicateHandleToNodeGroupAfterInference`;
-   the propagation step reuses the pre-inference flags so it can identify the
-   infer side after `overrideDataType` has changed it.
+   draft as `unmodifiedState` to `growSpareAndPropagateBoundaryHandle`; the
+   propagation step reuses the pre-inference flags so it can identify the infer
+   side after `overrideDataType` has changed it.
 
 6. **`addEdgeWithTypeChecking` is legacy/test-only**: the mutating addition
    entry point and `inferTypesAfterEdgeAddition` are retained for tests; the
@@ -808,8 +814,8 @@ machine-readable `ValidationError` codes (`CYCLE_DETECTED`, `LOOP_PATH_INVALID`,
 ### -> [Node Groups](../features/nodeGroupsDoc.md)
 
 Group boundary nodes use `groupInfer`. On inference,
-`addDuplicateHandleToNodeGroupAfterInference` adds a duplicate handle and
-propagates it across the node-type tree (definition + subtrees + instances). The
+`growSpareAndPropagateBoundaryHandle` adds a duplicate handle and propagates it
+across the node-type tree (definition + subtrees + instances). The
 `overrideDataType`/`overrideName` flags are set, so the handle's `dataType`
 itself is replaced.
 

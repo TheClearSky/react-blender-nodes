@@ -29,6 +29,26 @@ function removeItemById(
   return result;
 }
 
+/** Rename an item by id at the top level or nested inside any panel's subTrees. */
+function renameItemById(
+  items: DragListItem<InputAdditionalProps>[],
+  id: string,
+  name: string,
+): DragListItem<InputAdditionalProps>[] {
+  return items.map((item) => {
+    if (item.id === id) return { ...item, name };
+    if (isDragListNonLeaf(item)) {
+      return {
+        ...item,
+        subTrees: item.subTrees.map((sub) =>
+          sub.id === id ? { ...sub, name } : sub,
+        ),
+      };
+    }
+    return item;
+  });
+}
+
 type InputOutputReorderSectionProps = {
   items: DragListItem<InputAdditionalProps>[];
   onChange: (items: DragListItem<InputAdditionalProps>[]) => void;
@@ -40,6 +60,15 @@ type InputOutputReorderSectionProps = {
    *  drawer moves the handle into its "Deleted" section) instead of dropping
    *  it outright. */
   onDeleteHandle?: (item: DragListItem<InputAdditionalProps>) => void;
+  /** When true, leaf handles get a rename (pencil) button that opens the same
+   *  rename modal panels use. Off by default so the node-type editor (whose
+   *  handle names are type-derived and read-only) is unaffected. */
+  allowLeafRename?: boolean;
+  /** When provided, the section header shows an add button (e.g. "+ Input")
+   *  that calls this — the owner appends a new leaf handle. */
+  onAddItem?: () => void;
+  /** Label for the add button (defaults to "Item"). */
+  addItemLabel?: string;
 };
 
 function InputOutputReorderSection({
@@ -50,20 +79,29 @@ function InputOutputReorderSection({
   maxDepth,
   hasEmptyPanelError,
   onDeleteHandle,
+  allowLeafRename = false,
+  onAddItem,
+  addItemLabel = 'Item',
 }: InputOutputReorderSectionProps) {
   const [panelModalOpen, setPanelModalOpen] = useState(false);
   const [panelModalName, setPanelModalName] = useState('');
-  const [renamingPanelId, setRenamingPanelId] = useState<string | null>(null);
+  // The id of the item being renamed (leaf or panel), or null when the modal
+  // is being used to add a new panel.
+  const [renamingItemId, setRenamingItemId] = useState<string | null>(null);
+
+  const renamingItemIsPanel =
+    renamingItemId !== null &&
+    items.some((item) => item.id === renamingItemId && isDragListNonLeaf(item));
 
   const handleAddPanel = () => {
     setPanelModalName('');
-    setRenamingPanelId(null);
+    setRenamingItemId(null);
     setPanelModalOpen(true);
   };
 
-  const handleRenamePanel = (panelId: string, currentName: string) => {
+  const handleStartRename = (itemId: string, currentName: string) => {
     setPanelModalName(currentName);
-    setRenamingPanelId(panelId);
+    setRenamingItemId(itemId);
     setPanelModalOpen(true);
   };
 
@@ -71,14 +109,8 @@ function InputOutputReorderSection({
     const trimmedName = panelModalName.trim();
     if (trimmedName === '') return;
 
-    if (renamingPanelId !== null) {
-      const updatedItems = items.map((item) => {
-        if (item.id === renamingPanelId && isDragListNonLeaf(item)) {
-          return { ...item, name: trimmedName };
-        }
-        return item;
-      });
-      onChange(updatedItems);
+    if (renamingItemId !== null) {
+      onChange(renameItemById(items, renamingItemId, trimmedName));
     } else {
       const newPanel: DragListItem<InputAdditionalProps> = {
         id: generateRandomString(20),
@@ -145,12 +177,12 @@ function InputOutputReorderSection({
             {item.additionalProperties.dataType}
           </span>
         )}
-        {isPanel && (
+        {(isPanel || (!isPanel && allowLeafRename)) && (
           <button
             className='shrink-0 p-1 rounded hover:bg-primary-gray text-secondary-light-gray hover:text-primary-white transition-colors'
             onClick={(event) => {
               event.stopPropagation();
-              handleRenamePanel(item.id, item.name);
+              handleStartRename(item.id, item.name);
             }}
             onPointerDown={(event) => event.stopPropagation()}
           >
@@ -167,16 +199,28 @@ function InputOutputReorderSection({
         <label className='text-primary-white text-sm font-main'>
           {sectionLabel}
         </label>
-        {allowPanels && (
-          <Button
-            size='small'
-            onClick={handleAddPanel}
-            className='bg-transparent border-none hover:bg-primary-gray p-1 h-auto text-[13px] leading-[13px] gap-1'
-          >
-            <Plus className='w-3.5 h-3.5' />
-            Panel
-          </Button>
-        )}
+        <div className='flex items-center gap-1'>
+          {onAddItem && (
+            <Button
+              size='small'
+              onClick={onAddItem}
+              className='bg-transparent border-none hover:bg-primary-gray p-1 h-auto text-[13px] leading-[13px] gap-1'
+            >
+              <Plus className='w-3.5 h-3.5' />
+              {addItemLabel}
+            </Button>
+          )}
+          {allowPanels && (
+            <Button
+              size='small'
+              onClick={handleAddPanel}
+              className='bg-transparent border-none hover:bg-primary-gray p-1 h-auto text-[13px] leading-[13px] gap-1'
+            >
+              <Plus className='w-3.5 h-3.5' />
+              Panel
+            </Button>
+          )}
+        </div>
       </div>
 
       {items.length > 0 ? (
@@ -202,11 +246,19 @@ function InputOutputReorderSection({
       <PresetModal
         open={panelModalOpen}
         onOpenChange={setPanelModalOpen}
-        title={renamingPanelId !== null ? 'Rename Panel' : 'Add Panel'}
+        title={
+          renamingItemId === null
+            ? 'Add Panel'
+            : renamingItemIsPanel
+              ? 'Rename Panel'
+              : 'Rename'
+        }
         description={
-          renamingPanelId !== null
-            ? 'Enter a new name for this panel.'
-            : 'Enter a name for the new input panel.'
+          renamingItemId === null
+            ? 'Enter a name for the new input panel.'
+            : renamingItemIsPanel
+              ? 'Enter a new name for this panel.'
+              : 'Enter a new name for this handle.'
         }
         size='sm'
         buttonProps={[
@@ -216,7 +268,7 @@ function InputOutputReorderSection({
             onClick: () => setPanelModalOpen(false),
           },
           {
-            children: renamingPanelId !== null ? 'Rename' : 'Create',
+            children: renamingItemId !== null ? 'Rename' : 'Create',
             color: 'lightNonPriority' as const,
             onClick: handlePanelModalConfirm,
             disabled: panelModalName.trim() === '',

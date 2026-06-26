@@ -38,14 +38,18 @@ export default defineConfig({
       formats: ['es', 'umd'],
     },
     rollupOptions: {
-      // externalize react and react-dom to avoid bundling them with the library, check peerDependencies in package.json
-      external: ['react', 'react-dom'],
+      // externalize react and react-dom to avoid bundling them with the library, check peerDependencies in package.json.
+      // `typescript` is a runtime dependency used ONLY by the opt-in codegen run
+      // target (lazy `import('typescript')`); externalize it so the ~8MB compiler
+      // is never bundled into the library — consumers get it via the dependency.
+      external: ['react', 'react-dom', 'typescript'],
       output: {
         // Provide global variables to use in the UMD build
         // for externalized deps
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
+          typescript: 'ts',
         },
       },
     },

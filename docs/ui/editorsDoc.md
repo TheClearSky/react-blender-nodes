@@ -6,11 +6,12 @@ The editor drawers are the right-hand slide-in panels that edit the structural
 shape of three special node kinds in the graph editor. They are built from three
 sibling drawer components plus their per-kind conversion/row helpers:
 
-| Drawer               | File                                                                                        | Edits                                                                                                         |
-| -------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `LoopEditDrawer`     | `src/components/molecules/LoopEditDrawer/LoopEditDrawer.tsx` › `LoopEditDrawer`             | The **data channels** of a loop triplet (`loopStart` + `loopStop` + `loopEnd`): reorder + rename              |
-| `SwitchEditDrawer`   | `src/components/molecules/SwitchEditDrawer/SwitchEditDrawer.tsx` › `SwitchEditDrawer`       | The **data channels** of a switch pair (`switchStart` + `switchEnd`): reorder + rename                        |
-| `NodeTypeEditDrawer` | `src/components/molecules/NodeTypeEditDrawer/NodeTypeEditDrawer.tsx` › `NodeTypeEditDrawer` | A **node-type definition** (node group): name, header color, and the inputs/outputs (reorder, rename, panels) |
+| Drawer               | File                                                                                        | Edits                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `LoopEditDrawer`     | `src/components/molecules/LoopEditDrawer/LoopEditDrawer.tsx` › `LoopEditDrawer`             | The **data channels** of a loop triplet (`loopStart` + `loopStop` + `loopEnd`): reorder + rename                          |
+| `SwitchEditDrawer`   | `src/components/molecules/SwitchEditDrawer/SwitchEditDrawer.tsx` › `SwitchEditDrawer`       | The **data channels** of a switch pair (`switchStart` + `switchEnd`): reorder + rename                                    |
+| `NodeTypeEditDrawer` | `src/components/molecules/NodeTypeEditDrawer/NodeTypeEditDrawer.tsx` › `NodeTypeEditDrawer` | A **node-type definition** (node group): name, header color, and the inputs/outputs (reorder, rename, panels)             |
+| `GraphIOEditDrawer`  | `src/components/molecules/NodeTypeEditDrawer/GraphIOEditDrawer.tsx` › `GraphIOEditDrawer`   | The **handles of a root Graph Input / Output node** (the graph's I/O boundary): add, rename, reorder, delete — names only |
 
 All three drawers share the same skeleton: a 320px-wide panel pinned to the
 right edge, slid in/out by `useSlideAnimation`, with a title bar (label + X
@@ -54,16 +55,20 @@ type ActiveDrawer =
   | { type: 'editLoop'; nodeId: string }
   | { type: 'editNodeType'; nodeTypeId: string }
   | { type: 'editSwitch'; nodeId: string }
+  | { type: 'editGraphInput'; nodeId: string }
+  | { type: 'editGraphOutput'; nodeId: string }
   | null;
 ```
 
 Key facts (all verified in source):
 
-- The three drawers are **mutually exclusive** — only one `activeDrawer` exists,
-  so at most one drawer is open at a time.
-- `editLoop` / `editSwitch` carry a **`nodeId`** (the id of _any_ node in the
-  triplet/pair that the user clicked); `editNodeType` carries a **`nodeTypeId`**
-  (a key into `state.typeOfNodes`), not a node instance id.
+- The drawers are **mutually exclusive** — only one `activeDrawer` exists, so at
+  most one drawer is open at a time.
+- `editLoop` / `editSwitch` / `editGraphInput` / `editGraphOutput` carry a
+  **`nodeId`** (the clicked node instance); `editNodeType` carries a
+  **`nodeTypeId`** (a key into `state.typeOfNodes`), not a node instance id.
+  `editGraphInput` / `editGraphOutput` target a **root** `groupInput` /
+  `groupOutput` instance (the graph's I/O boundary).
 - `activeDrawer` is **UI-only** and is explicitly stripped on export:
   `src/utils/importExport/stateSerializer.ts` › `StateSerializer` does
   `delete cloned.activeDrawer;` (alongside `zones`, `zoneIndex`, `history`). So
@@ -145,6 +150,13 @@ and called at `src/utils/nodeStateManagement/mainReducer.ts` › `mainReducer`
      to navigate into the subtree
      (`src/components/organisms/ConfigurableNode/ConfigurableNode.tsx` ›
      `ConfigurableNode`).
+   - `isGroupInputOrOutputNode(nodeTypeUniqueId)` **at root scope** (the context
+     `isAtRootScope` flag is true) → pushes an `edit-graph-io` action (Pencil)
+     dispatching `OPEN_DRAWER` with
+     `{ type: 'editGraphInput' | 'editGraphOutput', nodeId: id ?? '' }`
+     (`src/components/organisms/ConfigurableNode/ConfigurableNode.tsx` ›
+     `ConfigurableNode`). The same node types inside a group get no such button
+     (they are the group boundary, edited via `editNodeType`).
 
    These icons only dispatch in ReactFlow mode — `ContextAwareNodeHeaderActions`
    wires `onClick` to `dispatch` only when `isCurrentlyInsideReactFlow` is true
@@ -678,10 +690,15 @@ This is the inputs/outputs analogue of the loop/switch level list. It wraps a
 - **Reorder / re-nest**: handled by `DragList`. Inputs allow `maxDepth={1}`
   (leaves can be dragged into/out of one level of panel); outputs use
   `maxDepth={0}` (flat).
-- **Rename a socket**: there is **no inline rename for leaf inputs/outputs in
-  this section** — the row only displays the socket name + its `dataType`
-  string. (Leaf renaming is a DragList feature; this section's `renderContent`
-  shows name + dataType and a Pencil **only on panels**.)
+- **Rename a socket**: by default there is **no inline rename for leaf
+  inputs/outputs** — the row shows the socket name + its `dataType` string, with
+  a rename Pencil **only on panels**. The `NodeTypeEditDrawer` uses this default
+  (handle names there are type-derived). Two **optional, additive** props extend
+  the section into a full handle-list editor (used by `GraphIOEditDrawer`):
+  `allowLeafRename` puts a rename Pencil on leaf rows too (same `PresetModal`
+  flow as panels, via `renameItemById`), and `onAddItem` + `addItemLabel` add a
+  `+ <label>` button to the section header so the owner can append new leaves.
+  When neither prop is passed the section behaves exactly as before.
 - **Panels (inputs only, `allowPanels=true`)**:
   - **Add Panel** — the section header shows a `+ Panel` button → opens a
     `PresetModal` ("Add Panel"); confirming appends a new empty non-leaf item
@@ -739,6 +756,107 @@ In `FullGraph`, `handleSaveNodeType`
    `groupInput` / `groupOutput` standard node — and calls
    `updateNodeInternals(affectedNodeIds)` so all instances re-measure handles.
 
+## GraphIOEditDrawer
+
+**File:** `src/components/molecules/NodeTypeEditDrawer/GraphIOEditDrawer.tsx` ›
+`GraphIOEditDrawer`
+
+Edits the **handles of a root Graph Input / Output node** — the graph's I/O
+boundary. The root graph IS the top-level node group: its `groupInput` /
+`groupOutput` instances are the parameters and return of the generated
+`runGraph(...)` (see [runTargetsDoc](../runner/runTargetsDoc.md)) and the
+executor's `rootInputs` / `rootOutputs`. The drawer manages **names only** — a
+Graph Input edits its node's **outputs**, a Graph Output edits its **inputs**;
+new handles default to a `groupInfer` type that concretizes on connect, so the
+editor never asks the user to pick a type.
+
+### Props
+
+```ts
+type GraphIOVariant = 'graphInput' | 'graphOutput';
+type GraphIOHandleSpec = { id?: string; name: string };
+
+type GraphIOEditDrawerProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  variant: GraphIOVariant;
+  nodeId: string | null;
+  handles: { id: string; name: string }[];
+  onSave: (nodeId: string, handles: GraphIOHandleSpec[]) => void;
+  // When omitted, the deletion-review surface is disabled (plain Save + Undo).
+  getHandleBlastRadius?: (
+    nodeId: string,
+    handle: { id: string; name: string; direction: 'input' | 'output' },
+  ) => HandleBlastRadius;
+  getNeighborhood?: GetNeighborhood;
+  // Lock switches forwarded from the `<FullGraph>` props of the same name.
+  // Default `true`. `allowStructureEdit` is ONE switch that short-circuits the
+  // add button, per-row delete, staged deletion section, AND the review modal.
+  allowRename?: boolean;
+  allowStructureEdit?: boolean;
+};
+```
+
+`FullGraph` supplies `variant` (`graphInput` when `editGraphInputNodeId` is set,
+else `graphOutput`), `nodeId` (`editGraphInputNodeId ?? editGraphOutputNodeId`),
+and `handles` from `editGraphIoHandles`
+(`src/components/organisms/FullGraph/FullGraph.tsx` › `editGraphIoHandles`), a
+memo that reads the root node's `outputs` (Graph Input) or `inputs` (Graph
+Output) from `state.nodes`. `isOpen` is
+`editGraphInputNodeId !== null || editGraphOutputNodeId !== null`.
+
+### Editing model
+
+The drawer reuses one `InputOutputReorderSection` (`allowPanels={false}`,
+`maxDepth={0}`) with the optional `allowLeafRename` + `onAddItem` props enabled,
+so the user can **add** (`+ Input` / `+ Output`), **rename** (leaf Pencil →
+`PresetModal`), **reorder** (DragList), and **delete** (staged into a "Deleted"
+section with Undo restore). The DragList item id of each existing handle IS its
+real handle id; a freshly added item gets a throwaway id so on Save it is
+recognised as new.
+
+### Save
+
+`handleSave` validates names client-side (non-empty + unique, else an inline
+error) then maps `localItems` to the `GraphIOHandleSpec[]` payload: items whose
+id is among the originals keep that id (reuse); new items omit `id` (minted in
+`applyPlan`). `FullGraph`'s `handleSaveGraphIoHandles`
+(`src/components/organisms/FullGraph/FullGraph.tsx` ›
+`handleSaveGraphIoHandles`) dispatches a single `UPDATE_GRAPH_IO_HANDLES` action
+then `updateNodeInternals([nodeId])` in a `requestAnimationFrame`.
+
+### UPDATE_GRAPH_IO_HANDLES (the action)
+
+Unlike `UPDATE_NODE_TYPE` (which edits a node TYPE and reconstructs every
+instance), this edits a **single root instance**. The pure validator
+(`src/utils/nodeStateManagement/planApply/validators.ts` › `validateAction`)
+confirms the node is a root `groupInput` / `groupOutput`, checks names are
+non-empty + unique, and derives `removedHandleIds` (old ids absent from the new
+list). `applyPlan` (`src/utils/nodeStateManagement/planApply/applyPlan.ts` ›
+`applyPlan`) cascade-removes the **root** edges touching the removed handles
+(via `removeEdgeWithTypeChecking`, reverting inferred types on the opposite
+endpoint), recomputes zones if any edge was removed, then rebuilds the handle
+list — existing handles reused by id (name updated), new handles minted as
+`groupInfer` via `constructInputOrOutputOfType`. The Plan type is
+`src/utils/nodeStateManagement/planApply/types.ts` › `UpdateGraphIoHandlesPlan`.
+
+### Placement and triggers
+
+- **Add** a root Graph Input / Output from the canvas context menu: at root
+  scope the otherwise-hidden boundary types surface as **"Graph Input"** /
+  **"Graph Output"** entries under _Add Node_, each single-instance (hidden once
+  one exists). Built in
+  `src/components/molecules/ContextMenu/createNodeContextMenu.ts` ›
+  `createNodeContextMenu` from the `isAtRootScope` / `rootGraphInputExists` /
+  `rootGraphOutputExists` props that `FullGraph` computes.
+- **Edit** via the Pencil on the root node's header
+  (`src/components/organisms/ConfigurableNode/ConfigurableNode.tsx` ›
+  `ConfigurableNode`), gated on `isAtRootScope`
+  (`src/components/organisms/FullGraph/FullGraphState.ts` ›
+  `FullGraphContextValue`) so the SAME `groupInput` / `groupOutput` types inside
+  a group keep using the group's `NodeTypeEditDrawer` instead. At root the node
+  is also displayed as "Graph Input" / "Graph Output" rather than its type name.
+
 ## Limitations and Deprecated Patterns
 
 - **Channels are created by connections, not by the drawers.** None of the
@@ -753,9 +871,11 @@ In `FullGraph`, `handleSaveNodeType`
 - **Empty node-type name silently no-ops.** `NodeTypeEditDrawer.handleSave`
   returns early (no toast/error) when the trimmed name is empty; the only
   surfaced validation is the empty-panel error.
-- **No leaf rename inside `InputOutputReorderSection`.** Only panel rows expose
-  a rename Pencil; individual input/output socket names are display-only in this
-  section.
+- **Leaf rename inside `InputOutputReorderSection` is opt-in.** By default only
+  panel rows expose a rename Pencil (the `NodeTypeEditDrawer` case); passing
+  `allowLeafRename` (as `GraphIOEditDrawer` does) adds a rename Pencil to leaf
+  rows, and `onAddItem` adds a header `+` button. Without those props the
+  section is display-only for leaves, as before.
 - **`activeDrawer` is non-serializable UI state.** It is stripped on export
   (`src/utils/importExport/stateSerializer.ts` › `StateSerializer`) and never
   restored on import, so reloading a graph always starts with all drawers

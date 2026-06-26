@@ -39,8 +39,25 @@ function formatEdgeValue(value: unknown): string {
   return String(value);
 }
 
+/**
+ * Per-edge data carried on a configurable edge.
+ *
+ * `order` is the connection's rank WITHIN its target input handle's fan-in group
+ * — a contiguous `0..n-1` written across the group's sibling edges when the user
+ * reorders the connections (`REORDER_INPUT_CONNECTIONS`). It is absent on edges
+ * that have never been reordered; the compiler then falls back to the
+ * edges-array order, so existing graphs and the common single-connection case are
+ * unchanged. It is the only field the library itself persists on an edge today.
+ *
+ * The `& Record<string, unknown>` keeps the data bag OPEN — a consumer may still
+ * stash their own arbitrary keys on `edge.data` (as the prior
+ * `Record<string, unknown>` typing allowed), so adding the typed `order` is a
+ * purely additive, non-breaking change to the (internal) `ConfigurableEdgeState`.
+ */
+type ConfigurableEdgeData = { order?: number } & Record<string, unknown>;
+
 /** State type for configurable edges */
-type ConfigurableEdgeState = Edge<Record<string, unknown>, 'configurableEdge'>;
+type ConfigurableEdgeState = Edge<ConfigurableEdgeData, 'configurableEdge'>;
 
 /** Props for the ConfigurableEdge component */
 type ConfigurableEdgeProps = EdgeProps<ConfigurableEdgeState>;
@@ -383,4 +400,8 @@ ConfigurableEdge.displayName = 'ConfigurableEdge';
 
 export { ConfigurableEdge };
 
-export type { ConfigurableEdgeProps, ConfigurableEdgeState };
+export type {
+  ConfigurableEdgeProps,
+  ConfigurableEdgeState,
+  ConfigurableEdgeData,
+};

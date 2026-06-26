@@ -127,6 +127,14 @@ export default defineConfig({
         viewport: { width: 1920, height: 1080 },
       },
     },
+    {
+      name: 'connectionOrder',
+      testDir: './tests/connectionOrder',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1920, height: 1080 },
+      },
+    },
   ],
 
   webServer: {

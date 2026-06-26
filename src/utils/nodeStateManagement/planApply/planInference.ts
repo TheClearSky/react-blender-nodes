@@ -8,6 +8,7 @@ import type { InstantiatedNodeData } from '../nodes/types';
 import type {
   InferencePlan,
   HandleInsertion,
+  InferenceScope,
   Result,
   ValidationError,
 } from './types';
@@ -59,6 +60,7 @@ function planInferenceForEdgeAddition<
   _unmodifiedState: Readonly<
     State<DataTypeUniqueId, NodeTypeUniqueId, UnderlyingType, ComplexSchemaType>
   >,
+  scope: InferenceScope,
 ): Result<
   {
     inference: InferencePlan;
@@ -166,6 +168,13 @@ function planInferenceForEdgeAddition<
   const isSourceNodeSwitchNode = isSwitchNode(sourceNodeData.nodeTypeUniqueId);
   const isTargetNodeSwitchNode = isSwitchNode(targetNodeData.nodeTypeUniqueId);
 
+  // Group boundaries always rename on connect; a root boundary renames only
+  // when `allowRootIORename` is set (default). This gates ONLY the
+  // group-boundary term of `overrideName` below — loop/switch renames are
+  // independent of the root-I/O policy and must keep firing at root scope.
+  const isBoundaryNameOverrideAllowed =
+    scope.kind === 'group' || scope.allowNameOverride;
+
   // ------------------------------------------------------------------
   // 3. No inference needed — neither side is inferFromConnection
   // ------------------------------------------------------------------
@@ -229,7 +238,7 @@ function planInferenceForEdgeAddition<
         isTargetNodeLoopNode ||
         isTargetNodeSwitchNode;
       overrideName =
-        isTargetNodeGroupOutput ||
+        (isTargetNodeGroupOutput && isBoundaryNameOverrideAllowed) ||
         isTargetNodeLoopNode ||
         isTargetNodeSwitchNode;
     } else if (targetHandleInferredDataType) {
@@ -242,7 +251,7 @@ function planInferenceForEdgeAddition<
         isSourceNodeLoopNode ||
         isSourceNodeSwitchNode;
       overrideName =
-        isSourceNodeGroupInput ||
+        (isSourceNodeGroupInput && isBoundaryNameOverrideAllowed) ||
         isSourceNodeLoopNode ||
         isSourceNodeSwitchNode;
     }
@@ -264,7 +273,9 @@ function planInferenceForEdgeAddition<
     overrideDataType =
       isSourceNodeGroupInput || isSourceNodeLoopNode || isSourceNodeSwitchNode;
     overrideName =
-      isSourceNodeGroupInput || isSourceNodeLoopNode || isSourceNodeSwitchNode;
+      (isSourceNodeGroupInput && isBoundaryNameOverrideAllowed) ||
+      isSourceNodeLoopNode ||
+      isSourceNodeSwitchNode;
   }
   // Only target is inferFromConnection
   else if (isTargetHandleInferredFromConnection) {
@@ -283,7 +294,9 @@ function planInferenceForEdgeAddition<
     overrideDataType =
       isTargetNodeGroupOutput || isTargetNodeLoopNode || isTargetNodeSwitchNode;
     overrideName =
-      isTargetNodeGroupOutput || isTargetNodeLoopNode || isTargetNodeSwitchNode;
+      (isTargetNodeGroupOutput && isBoundaryNameOverrideAllowed) ||
+      isTargetNodeLoopNode ||
+      isTargetNodeSwitchNode;
   }
 
   // ------------------------------------------------------------------

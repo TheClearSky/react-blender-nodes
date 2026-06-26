@@ -13,7 +13,12 @@ import type {
   ValidationIssue,
   StateImportOptions,
 } from './types';
-import { validateGraphStateStructure, isObject } from './validation';
+import {
+  validateGraphStateStructure,
+  repairRootGraphIo,
+  normalizeConnectionOrder,
+  isObject,
+} from './validation';
 import { rehydrateHandleDataType } from './serialization';
 
 /**
@@ -245,6 +250,14 @@ function importGraphState<
     // Feature flags default to undefined (disabled) — no action needed
   }
 
+  if (repair.repairRootGraphIo) {
+    repairRootGraphIo(state, warnings);
+  }
+
+  if (repair.normalizeConnectionOrder) {
+    normalizeConnectionOrder(state, warnings);
+  }
+
   // Rehydrate complexSchema on dataTypes from provided dataTypes
   // Widen to Record<string, unknown> to avoid Object.keys returning string[] vs DataTypeUniqueId
   const dataTypesLookup: Record<string, unknown> = options.dataTypes;
@@ -307,6 +320,12 @@ function importGraphState<
     if (repair.removeOrphanEdges && e.message.includes('not found'))
       return false;
     if (repair.fillMissingDefaults && e.path.includes('viewport')) return false;
+    if (
+      repair.repairRootGraphIo &&
+      (e.message.includes('empty handle name') ||
+        e.message.includes('duplicate handle name'))
+    )
+      return false;
     return true;
   });
 

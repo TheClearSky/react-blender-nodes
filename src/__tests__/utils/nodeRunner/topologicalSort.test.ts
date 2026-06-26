@@ -72,6 +72,45 @@ describe('nodeRunner/topologicalSortWithLevels', () => {
     ).toThrow(/cycle/i);
   });
 
+  it('throws a structured GraphError (not a bare Error) listing the cycle nodes', () => {
+    const forward = adjacency([
+      ['a', ['b']],
+      ['b', ['a']],
+    ]);
+    const reverse = adjacency([
+      ['a', ['b']],
+      ['b', ['a']],
+    ]);
+
+    let thrown: unknown;
+    try {
+      topologicalSortWithLevels(['a', 'b'], forward, reverse);
+    } catch (error) {
+      thrown = error;
+    }
+
+    // A structured GraphError is a plain object (not an Error subclass) with
+    // nodeId / message / path / timestamp — the shape the engine boundary
+    // recognizes (see executionHelpers isGraphError check).
+    expect(thrown).not.toBeInstanceOf(Error);
+    expect(thrown).toMatchObject({
+      nodeId: 'a',
+      nodeTypeId: 'cycle',
+      nodeTypeName: 'Cycle',
+    });
+    const graphError = thrown as {
+      message: string;
+      timestamp: number;
+      path: ReadonlyArray<{ nodeId: string }>;
+    };
+    expect(graphError.message).toMatch(/cycle/i);
+    expect(typeof graphError.timestamp).toBe('number');
+    expect(graphError.path.map((entry) => entry.nodeId).sort()).toEqual([
+      'a',
+      'b',
+    ]);
+  });
+
   it('ignores edges that point to nodes outside the provided set', () => {
     // b also points at external 'z' which is not part of nodeIds.
     const forward = adjacency([

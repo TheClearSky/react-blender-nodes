@@ -43,6 +43,8 @@ const actionTypes = [
   'DELETE_NODE_TYPE_HANDLES',
   'DELETE_LOOP_CHANNELS',
   'DELETE_SWITCH_CHANNELS',
+  'UPDATE_GRAPH_IO_HANDLES',
+  'REORDER_INPUT_CONNECTIONS',
 ] as const;
 
 /** Map of action types for type-safe action dispatching */
@@ -73,6 +75,8 @@ const actionTypesMap = {
   [actionTypes[23]]: actionTypes[23],
   [actionTypes[24]]: actionTypes[24],
   [actionTypes[25]]: actionTypes[25],
+  [actionTypes[26]]: actionTypes[26],
+  [actionTypes[27]]: actionTypes[27],
 } as const;
 
 /**
@@ -138,6 +142,14 @@ type Action<
       payload: {
         /** Connection object from ReactFlow */
         edge: Connection;
+        /**
+         * Root Graph I/O edit policy (forwarded from the `<FullGraph>` props of
+         * the same name). Govern ONLY root-boundary inference; ignored when a
+         * node group is open (group boundaries always behave fully). Absent ⇒
+         * permissive (`true`) so programmatic/test dispatch keeps full parity.
+         */
+        allowRootIORename?: boolean;
+        allowRootIOStructureEdit?: boolean;
       };
     }
   | {
@@ -346,6 +358,34 @@ type Action<
           dataTypeUniqueId: string;
           handles: SwitchChannelHandles;
         }>;
+      };
+    }
+  | {
+      /** Edit the handles of a ROOT Graph Input / Graph Output node INSTANCE (the
+       *  program's declared inputs/outputs): add / rename / reorder / delete.
+       *  `handles` is the final kept list; entries without `id` are new (id minted
+       *  in applyPlan, defaulting to `groupInfer` so they infer on connect).
+       *  Deleted handles' root edges cascade. One undoable step. */
+      type: typeof actionTypesMap.UPDATE_GRAPH_IO_HANDLES;
+      payload: {
+        nodeId: string;
+        handles: { id?: string; name: string }[];
+      };
+    }
+  | {
+      /** Reorder the incoming connections of a multi-connection (fan-in) input
+       *  handle. `orderedEdgeIds` is the FULL set of edges currently entering the
+       *  handle, in the new order; applyPlan writes each edge's `data.order`
+       *  (a contiguous `0..n-1`) so the runner and every codegen target consume
+       *  the connections in this order. One undoable step. */
+      type: typeof actionTypesMap.REORDER_INPUT_CONNECTIONS;
+      payload: {
+        /** Node owning the target input handle. */
+        nodeId: string;
+        /** The target input handle id. */
+        handleId: string;
+        /** Every edge currently entering the handle, in the desired order. */
+        orderedEdgeIds: string[];
       };
     };
 

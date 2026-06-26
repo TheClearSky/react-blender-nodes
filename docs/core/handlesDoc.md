@@ -202,7 +202,7 @@ react-blender-nodes
 |   +-- SupportingSubcomponents/ContextAwareHandleShapes.ts  HandleShape type and handleShapesMap
 |
 +-- Dynamic Handle Addition (driven by planApply/applyPlan.ts ADD_EDGE)
-|   +-- nodes/nodeGroups.ts             addDuplicateHandleToNodeGroupAfterInference
+|   +-- nodes/nodeGroups.ts             growSpareAndPropagateBoundaryHandle
 |   +-- nodes/loops/loopHandleSync.ts   addDuplicateHandlesToLoopNodesAfterInference
 |   +-- nodes/switches/switchHandleSync.ts  addDuplicateHandlesToSwitchNodesAfterInference
 |
@@ -715,7 +715,7 @@ connected.
    has an `inferFromConnection` data type
 2. Type inference resolves the handle's `inferredDataType` from the connected
    handle
-3. `addDuplicateHandleToNodeGroupAfterInference` is triggered
+3. `growSpareAndPropagateBoundaryHandle` is triggered
 4. The function: a. Constructs a new infer handle from the node type template
    (using `constructTypeOfHandleFromIndices` with `index1: 0`, the
    first/template handle) b. Inserts the new handle on the
@@ -922,7 +922,7 @@ for (const { value, handleIndices } of inputsAndIndices) {
 2. Type inference runs:
    - GroupInput's infer output gets inferredDataType = numberType
                     |
-3. addDuplicateHandleToNodeGroupAfterInference():
+3. growSpareAndPropagateBoundaryHandle():
    a. Constructs new infer handle from GroupInput type template
    b. Inserts on GroupInput instance: { type:'output', index1:-1 } -> after last
    c. Adds matching input on outer group node type:

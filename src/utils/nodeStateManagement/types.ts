@@ -408,6 +408,8 @@ type ActiveDrawer =
   | { type: 'editLoop'; nodeId: string }
   | { type: 'editNodeType'; nodeTypeId: string }
   | { type: 'editSwitch'; nodeId: string }
+  | { type: 'editGraphInput'; nodeId: string }
+  | { type: 'editGraphOutput'; nodeId: string }
   | null;
 
 /**

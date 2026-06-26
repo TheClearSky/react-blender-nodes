@@ -100,6 +100,8 @@ BitOutput already fed by loopEnd).
 | G5  | Step-by-Step mode (WithRunner + Reset) pauses after each step | `runnerUI/stepByStepMode.spec.ts`    |
 | G6  | Stop from Paused reaches terminal state                       | `runnerUI/stopMidRun.spec.ts`        |
 | G7  | Reset clears timeline + returns to Idle                       | `runnerUI/resetClearsStates.spec.ts` |
+| G8  | Panel reflows with no horizontal overflow 375→1200px          | `runnerUI/responsive.spec.ts`        |
+| G9  | Inspector: side column when wide, slide-over overlay narrow   | `runnerUI/responsive.spec.ts`        |
 
 ## Parked (need more investigation)
 

@@ -19,6 +19,7 @@ import {
   forwardRef,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -113,7 +114,13 @@ function Select({
   const [itemValues, setItemValues] = useState<string[]>([]);
   const [itemLabels, setItemLabels] = useState<Map<string, string>>(new Map());
 
-  const selectedIndex = currentValue ? itemValues.indexOf(currentValue) : null;
+  // Use null (not -1) for "no selection" so floating-ui's useListNavigation
+  // never receives -1 (a real-but-absent index) during the commit before the
+  // SelectContent registry effect populates itemValues.
+  const selectedItemIndex = currentValue
+    ? itemValues.indexOf(currentValue)
+    : -1;
+  const selectedIndex = selectedItemIndex >= 0 ? selectedItemIndex : null;
 
   const listRef = useRef<(HTMLElement | null)[]>([]);
 
@@ -452,8 +459,14 @@ function SelectContent({ children, className }: SelectContentProps) {
     return { itemValues: values, itemLabels: labels };
   }, [children]);
 
-  // Sync item values and labels to parent for selectedIndex and label lookup
-  useMemo(() => {
+  // Sync item values and labels to parent for selectedIndex and label lookup.
+  // This MUST be an effect, not a `useMemo` — calling the parent's setState
+  // during this component's render is a "setState while rendering a different
+  // component" violation (React logs it on every Select). `itemValues`/
+  // `itemLabels` are memoized from `children`, so this fires only when the
+  // option set actually changes (same frequency as before), just one commit
+  // later — imperceptible for the trigger label / selected index.
+  useEffect(() => {
     setItemValues(itemValues);
     setItemLabels(itemLabels);
   }, [itemValues, itemLabels, setItemValues, setItemLabels]);

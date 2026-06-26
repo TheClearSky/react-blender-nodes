@@ -14,7 +14,13 @@ import type {
   ExecutionPlan,
 } from './types';
 import { compile, DEFAULT_MAX_LOOP_ITERATIONS } from './compiler';
-import { execute, executeStepByStep } from './executor';
+import { inProcessRunTarget } from './runTargets/inProcessRunTarget';
+import type {
+  ArtifactRunContext,
+  ArtifactRunTarget,
+  ExecuteRunContext,
+  RunTarget,
+} from './runTargets/types';
 import { isStandardNodeType, hasKey } from './groupCompiler';
 import { isLoopNode } from '../nodeStateManagement/nodes/loops';
 import { isSwitchNode } from '../nodeStateManagement/nodes/switches';
@@ -52,6 +58,22 @@ type UseNodeRunnerParams<
   executionRecord?: ExecutionRecord | null;
   /** Setter called whenever the execution record changes (run completes, reset, load, etc.). */
   onExecutionRecordChange?: (record: ExecutionRecord | null) => void;
+  /** The active run target. Absent → the built-in in-process executor (back-compat).
+   *  An `execute` target feeds the timeline like the default; an `artifact` target
+   *  produces a file/string and skips the timeline. */
+  activeRunTarget?: RunTarget<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >;
+  /** Values for the graph's declared root inputs, keyed by Graph Input handle
+   *  NAME (mirrors codegen's `runGraph(a, b)` parameters) OR by stable handle
+   *  ID — the id is honored as a fallback, so id-keyed inputs are immune to
+   *  rename-on-connect (`allowRootIORename`). Seeded into the root Graph Input
+   *  node's output handles for both instant and step-by-step runs. Absent /
+   *  `undefined` when the graph declares no root inputs. */
+  rootInputs?: Record<string, unknown>;
 };
 
 /** Result of validating an imported record against the current graph. */
@@ -359,6 +381,8 @@ function useNodeRunner<
   options,
   executionRecord: controlledRecord,
   onExecutionRecordChange,
+  activeRunTarget,
+  rootInputs,
 }: UseNodeRunnerParams<
   DataTypeUniqueId,
   NodeTypeUniqueId,
@@ -384,6 +408,15 @@ function useNodeRunner<
   onExecutionRecordChangeRef.current = onExecutionRecordChange;
   const isControlledRef = useRef(isControlled);
   isControlledRef.current = isControlled;
+  // Latest active run target via a ref so the run callbacks always dispatch to
+  // the current selection without re-creating on every target switch (same ref
+  // pattern as onExecutionRecordChangeRef above).
+  const activeRunTargetRef = useRef(activeRunTarget);
+  activeRunTargetRef.current = activeRunTarget;
+  // Latest root-input values via a ref so the run callbacks (deps `[]`-ish) always
+  // seed the current values without re-creating on every value change.
+  const rootInputsRef = useRef(rootInputs);
+  rootInputsRef.current = rootInputs;
   const setExecutionRecord = useCallback((record: ExecutionRecord | null) => {
     lastSetRecordRef.current = record;
     if (!isControlledRef.current) setInternalRecord(record);
@@ -584,12 +617,32 @@ function useNodeRunner<
     if (!isMountedRef.current) return;
     setRunnerState('running');
 
-    // Execute
+    // Execute via the default in-process run target. Building the context here
+    // (instead of calling `execute` directly) is the seam a consumer-selected
+    // run target will later plug into — with no target prop this is identical.
     try {
-      const record = await execute(plan, functionImplementations, state, {
-        onNodeStateChange: handleNodeStateChange,
+      const executeContext: ExecuteRunContext<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      > = {
+        state,
+        executionPlan: plan,
+        functionImplementations,
+        options: { maxLoopIterations },
         abortSignal: controller.signal,
-      });
+        onNodeStateChange: handleNodeStateChange,
+        rootInputs: rootInputsRef.current,
+        runWithInProcessExecutor: () => inProcessRunTarget.run(executeContext),
+      };
+      // Dispatch to the active execute target (or the built-in default). The
+      // `runWithInProcessExecutor` helper above always delegates to the in-process
+      // executor regardless of which target is active.
+      const activeTarget = activeRunTargetRef.current;
+      const executeTarget =
+        activeTarget?.mode === 'execute' ? activeTarget : inProcessRunTarget;
+      const record = await executeTarget.run(executeContext);
 
       if (!isMountedRef.current) return;
       finalizeRun(record);
@@ -632,12 +685,32 @@ function useNodeRunner<
 
     if (!isMountedRef.current) return;
 
-    // Start generator
+    // Start generator via the default in-process run target's stepping path.
     setRunnerState('running');
-    const gen = executeStepByStep(plan, functionImplementations, state, {
-      onNodeStateChange: handleNodeStateChange,
+    const stepwiseContext: ExecuteRunContext<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    > = {
+      state,
+      executionPlan: plan,
+      functionImplementations,
+      options: { maxLoopIterations },
       abortSignal: controller.signal,
-    });
+      onNodeStateChange: handleNodeStateChange,
+      rootInputs: rootInputsRef.current,
+      runWithInProcessExecutor: () => inProcessRunTarget.run(stepwiseContext),
+    };
+    // Step-by-step uses the active target's optional `runStepwise`; run() only
+    // routes here when stepping is available (the default target, or a custom
+    // execute target that provides it), so the fallback preserves the default.
+    const activeTarget = activeRunTargetRef.current;
+    const stepwiseRun =
+      activeTarget?.mode === 'execute' && activeTarget.runStepwise
+        ? activeTarget.runStepwise
+        : inProcessRunTarget.runStepwise;
+    const gen = stepwiseRun(stepwiseContext);
     generatorRef.current = gen;
 
     // Execute first step
@@ -676,14 +749,71 @@ function useNodeRunner<
     finalizeRun,
   ]);
 
+  // ── RUN (artifact targets — no record / timeline) ─────
+  const runArtifact = useCallback(
+    async (
+      target: ArtifactRunTarget<
+        DataTypeUniqueId,
+        NodeTypeUniqueId,
+        UnderlyingType,
+        ComplexSchemaType
+      >,
+    ) => {
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      setRunnerState('compiling');
+      const plan = compileGraph();
+      if (!plan) return;
+      if (!isMountedRef.current) return;
+
+      setRunnerState('running');
+      try {
+        const artifactContext: ArtifactRunContext<
+          DataTypeUniqueId,
+          NodeTypeUniqueId,
+          UnderlyingType,
+          ComplexSchemaType
+        > = {
+          state,
+          executionPlan: plan,
+          options: { maxLoopIterations },
+          abortSignal: controller.signal,
+          rootInputs: rootInputsRef.current,
+        };
+        await target.run(artifactContext);
+        if (!isMountedRef.current) return;
+        // Artifact targets own their delivery and produce no record — settle back
+        // to idle (no timeline, no replay).
+        setRunnerState('idle');
+      } catch (e) {
+        lastErrorRef.current = e;
+        if (process.env.NODE_ENV !== 'production')
+          console.error('react-blender-nodes run target error:', e);
+        if (isMountedRef.current) setRunnerState('errored');
+      }
+    },
+    [state, compileGraph, maxLoopIterations],
+  );
+
   // ── Public: run() ─────────────────────────────────────
   const run = useCallback(() => {
-    if (mode === 'instant') {
-      void runInstant();
-    } else {
-      void runStepByStep();
+    const activeTarget = activeRunTargetRef.current;
+    if (activeTarget?.mode === 'artifact') {
+      void runArtifact(activeTarget);
+      return;
     }
-  }, [mode, runInstant, runStepByStep]);
+    // Execute target (or the default). Mode coercion: step-by-step needs the
+    // target to advertise `runStepwise` (the default always does).
+    const steppingAvailable =
+      activeTarget == null || activeTarget.runStepwise != null;
+    if (mode === 'stepByStep' && steppingAvailable) {
+      void runStepByStep();
+    } else {
+      void runInstant();
+    }
+  }, [mode, runInstant, runStepByStep, runArtifact]);
 
   // ── Public: step() ────────────────────────────────────
   const step = useCallback(() => {

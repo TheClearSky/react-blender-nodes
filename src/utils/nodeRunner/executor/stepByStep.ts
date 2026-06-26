@@ -25,6 +25,7 @@ import {
 } from './executionHelpers';
 import type { ExecutionEnv } from './executionHelpers';
 import { executeOneStep } from './executeOneStep';
+import { seedRootInputs, collectRootOutputs } from './rootIo';
 
 // ─────────────────────────────────────────────────────
 // Step-by-step execute function (debug mode)
@@ -55,6 +56,10 @@ async function* executeStepByStep<
   options: {
     onNodeStateChange: (nodeId: string, state: NodeVisualState) => void;
     abortSignal: AbortSignal;
+    /** Values for the graph's declared inputs, keyed by Graph Input handle NAME.
+     *  Seeded into the root Graph Input node's output handles, identically to
+     *  `execute()` (mirrors codegen's `runGraph` parameters). */
+    rootInputs?: Record<string, unknown>;
   },
 ): AsyncGenerator<
   {
@@ -63,7 +68,7 @@ async function* executeStepByStep<
   },
   ExecutionRecord
 > {
-  const { onNodeStateChange, abortSignal } = options;
+  const { onNodeStateChange, abortSignal, rootInputs } = options;
   const valueStore = new ValueStore();
   const recorder = new ExecutionRecorder();
   const erroredNodes = new Set<string>();
@@ -99,6 +104,9 @@ async function* executeStepByStep<
   recorder.start();
 
   initializeDefaultValues(plan, state, valueStore, nodeInfoMap);
+
+  // Seed the graph's declared inputs (shared with execute, see rootIo.ts).
+  seedRootInputs(plan, state, valueStore, rootInputs);
 
   let hasErrors = false;
 
@@ -236,7 +244,15 @@ async function* executeStepByStep<
       ? 'errored'
       : 'completed';
 
-  return recorder.finalize(status, valueStore.snapshot(), warmupDuration);
+  // Collect the graph's declared outputs (shared with execute, see rootIo.ts).
+  const rootOutputs = collectRootOutputs(plan, state, valueStore, nodeInfoMap);
+
+  const record = recorder.finalize(
+    status,
+    valueStore.snapshot(),
+    warmupDuration,
+  );
+  return rootOutputs ? { ...record, rootOutputs } : record;
 }
 
 export { executeStepByStep };

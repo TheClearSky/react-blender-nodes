@@ -37,6 +37,11 @@ type FullGraphContextValue = {
   allProps: {
     state: Pick<FullGraphProps['state'], 'typeOfNodes' | 'enableDebugMode'>;
     dispatch: FullGraphProps['dispatch'];
+    /** True when the canvas is showing the ROOT graph (no node group opened).
+     *  Root groupInput/groupOutput nodes are the graph's I/O boundary and get
+     *  an edit button; the same node types INSIDE a group are edited via the
+     *  group's node-type editor instead. */
+    isAtRootScope: boolean;
   };
 };
 
@@ -291,6 +296,7 @@ function createContextValue(props: {
   typeOfNodes: unknown;
   enableDebugMode: unknown;
   dispatch: unknown;
+  isAtRootScope: boolean;
 }): React.ContextType<typeof FullGraphContext> {
   // R1: expose only the slices actually read through this context so the value
   // keeps a stable identity across unrelated dispatches — a fresh value here
@@ -301,6 +307,7 @@ function createContextValue(props: {
       enableDebugMode: props.enableDebugMode,
     },
     dispatch: props.dispatch,
+    isAtRootScope: props.isAtRootScope,
   } as unknown as FullGraphContextValue['allProps'];
   return { allProps };
 }

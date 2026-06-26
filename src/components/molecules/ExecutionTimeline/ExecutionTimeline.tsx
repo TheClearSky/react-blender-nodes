@@ -25,6 +25,7 @@ import { ButtonToggle } from '@/components/molecules/ButtonToggle';
 import { useTimelineZoomPan } from './useTimelineZoomPan';
 import { useTimelineScrub } from './useTimelineScrub';
 import { useTimelineAutoplay } from './useTimelineAutoplay';
+import { TimelineToolbarOverflowMenu } from './TimelineToolbarOverflowMenu';
 import {
   GUTTER_WIDTH,
   TIME_PAD_RIGHT_MS,
@@ -388,8 +389,11 @@ function ExecutionTimeline({
               </button>
             </div>
 
-            {/* Autoplay interval */}
-            <Tooltip content='Seconds between each step during autoplay. Drag or click to adjust (0.5s–30s).'>
+            {/* Autoplay interval (moves into the ⋯ menu below `@max-[832px]`) */}
+            <Tooltip
+              className='@max-[832px]/runnerpanel:hidden'
+              content='Seconds between each step during autoplay. Drag or click to adjust (0.5s–30s).'
+            >
               <SliderNumberInput
                 name='Interval'
                 value={autoplayIntervalSec}
@@ -401,8 +405,11 @@ function ExecutionTimeline({
               />
             </Tooltip>
 
-            {/* Auto-scroll toggle */}
-            <Tooltip content='Automatically scroll the timeline and canvas to follow the selected step'>
+            {/* Auto-scroll toggle (moves into the ⋯ menu below `@max-[832px]`) */}
+            <Tooltip
+              className='@max-[832px]/runnerpanel:hidden'
+              content='Automatically scroll the timeline and canvas to follow the selected step'
+            >
               <label className='flex cursor-pointer items-center gap-1 text-[12px] text-secondary-light-gray select-none'>
                 <input
                   type='checkbox'
@@ -417,96 +424,115 @@ function ExecutionTimeline({
         </div>
 
         <div className='flex items-center gap-3'>
-          {/* Time mode toggle — only visible when pause data exists */}
-          {hasPauseData && (
-            <Tooltip
-              content={
-                <div className='space-y-1.5 text-[12px] leading-relaxed text-primary-white'>
-                  <div>
-                    <span className='font-semibold'>Execution</span> — Shows
-                    only computation time with pauses removed. Best for
-                    step-by-step mode.
+          {/* Secondary controls collapse into the ⋯ menu below `@max-[832px]`. */}
+          <div className='flex items-center gap-3 @max-[832px]/runnerpanel:hidden'>
+            {/* Time mode toggle — only visible when pause data exists */}
+            {hasPauseData && (
+              <Tooltip
+                content={
+                  <div className='space-y-1.5 text-[12px] leading-relaxed text-primary-white'>
+                    <div>
+                      <span className='font-semibold'>Execution</span> — Shows
+                      only computation time with pauses removed. Best for
+                      step-by-step mode.
+                    </div>
+                    <div>
+                      <span className='font-semibold'>Wall Clock</span> — Shows
+                      real elapsed time including pauses between steps.
+                    </div>
                   </div>
-                  <div>
-                    <span className='font-semibold'>Wall Clock</span> — Shows
-                    real elapsed time including pauses between steps.
-                  </div>
-                </div>
-              }
-            >
-              <ButtonToggle
-                options={TIME_MODE_OPTIONS}
-                value={timeMode}
-                onChange={setTimeMode}
-                size='small'
-              />
-            </Tooltip>
-          )}
+                }
+              >
+                <ButtonToggle
+                  options={TIME_MODE_OPTIONS}
+                  value={timeMode}
+                  onChange={setTimeMode}
+                  size='small'
+                />
+              </Tooltip>
+            )}
 
-          {/* Duration / step count / compilation info */}
-          <div className='flex items-center gap-2 font-mono text-[12px] text-primary-white'>
-            <Tooltip content='Total execution duration'>
-              <span className='flex items-center gap-1'>
-                <Timer className='h-3.5 w-3.5' />
-                <span className='tabular-nums'>
-                  {adjustedTotalDuration.toFixed(2)}ms
-                </span>
-              </span>
-            </Tooltip>
-            <span>&middot;</span>
-            <Tooltip content='Total number of executed steps'>
-              <span className='flex items-center gap-1'>
-                <Layers className='h-3.5 w-3.5' />
-                <span>{record.steps.length} steps</span>
-              </span>
-            </Tooltip>
-            {record.warmupDuration > 0 && (
-              <>
-                <span>&middot;</span>
-                <Tooltip content='JIT warmup time — absorbed before execution to ensure accurate step timings'>
-                  <span className='flex items-center gap-1'>
-                    <Zap className='h-3.5 w-3.5' />
-                    <span>JIT {record.warmupDuration.toFixed(1)}ms</span>
+            {/* Duration / step count / compilation info */}
+            <div className='flex items-center gap-2 font-mono text-[12px] text-primary-white'>
+              <Tooltip content='Total execution duration'>
+                <span className='flex items-center gap-1'>
+                  <Timer className='h-3.5 w-3.5' />
+                  <span className='tabular-nums'>
+                    {adjustedTotalDuration.toFixed(2)}ms
                   </span>
-                </Tooltip>
-              </>
-            )}
-          </div>
+                </span>
+              </Tooltip>
+              <span>&middot;</span>
+              <Tooltip content='Total number of executed steps'>
+                <span className='flex items-center gap-1'>
+                  <Layers className='h-3.5 w-3.5' />
+                  <span>{record.steps.length} steps</span>
+                </span>
+              </Tooltip>
+              {record.warmupDuration > 0 && (
+                <>
+                  <span>&middot;</span>
+                  <Tooltip content='JIT warmup time — absorbed before execution to ensure accurate step timings'>
+                    <span className='flex items-center gap-1'>
+                      <Zap className='h-3.5 w-3.5' />
+                      <span>JIT {record.warmupDuration.toFixed(1)}ms</span>
+                    </span>
+                  </Tooltip>
+                </>
+              )}
+            </div>
 
-          {/* Zoom controls */}
-          <button
-            type='button'
-            onClick={() => zoomBy(1.5)}
-            className={cn(
-              'btn-press text-primary-white transition-colors hover:text-primary-blue',
-              theme?.timeline?.toolbarButton,
-            )}
-            title='Zoom In'
-          >
-            <ZoomIn className='h-4 w-4' />
-          </button>
-          <button
-            type='button'
-            onClick={() => zoomBy(1 / 1.5)}
-            className={cn(
-              'btn-press text-primary-white transition-colors hover:text-primary-blue',
-              theme?.timeline?.toolbarButton,
-            )}
-            title='Zoom Out'
-          >
-            <ZoomOut className='h-4 w-4' />
-          </button>
-          <button
-            type='button'
-            onClick={fitToView}
-            className={cn(
-              'btn-press text-primary-white transition-colors hover:text-primary-blue',
-              theme?.timeline?.toolbarButton,
-            )}
-            title='Fit to View'
-          >
-            <Maximize2 className='h-4 w-4' />
-          </button>
+            {/* Zoom controls */}
+            <button
+              type='button'
+              onClick={() => zoomBy(1.5)}
+              className={cn(
+                'btn-press text-primary-white transition-colors hover:text-primary-blue',
+                theme?.timeline?.toolbarButton,
+              )}
+              title='Zoom In'
+            >
+              <ZoomIn className='h-4 w-4' />
+            </button>
+            <button
+              type='button'
+              onClick={() => zoomBy(1 / 1.5)}
+              className={cn(
+                'btn-press text-primary-white transition-colors hover:text-primary-blue',
+                theme?.timeline?.toolbarButton,
+              )}
+              title='Zoom Out'
+            >
+              <ZoomOut className='h-4 w-4' />
+            </button>
+            <button
+              type='button'
+              onClick={fitToView}
+              className={cn(
+                'btn-press text-primary-white transition-colors hover:text-primary-blue',
+                theme?.timeline?.toolbarButton,
+              )}
+              title='Fit to View'
+            >
+              <Maximize2 className='h-4 w-4' />
+            </button>
+          </div>
+          <TimelineToolbarOverflowMenu
+            autoplayIntervalSec={autoplayIntervalSec}
+            onAutoplayIntervalChange={setAutoplayIntervalSec}
+            autoScroll={autoScroll}
+            onAutoScrollChange={setAutoScroll}
+            hasPauseData={hasPauseData}
+            timeMode={timeMode}
+            onTimeModeChange={setTimeMode}
+            onZoomIn={() => zoomBy(1.5)}
+            onZoomOut={() => zoomBy(1 / 1.5)}
+            onFitToView={fitToView}
+            totalDurationMs={adjustedTotalDuration}
+            stepCount={record.steps.length}
+            warmupDurationMs={record.warmupDuration}
+            triggerClassName='@min-[832px]/runnerpanel:hidden'
+          />
         </div>
       </div>
 

@@ -555,6 +555,78 @@ function computeHandleBlastRadius<
 }
 
 /* -------------------------------------------------------------------------- */
+/* Public: root Graph I/O blast radius (single handle on a root boundary node) */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Blast radius of deleting a single handle on a ROOT Graph Input / Graph Output
+ * node. Unlike `computeHandleBlastRadius` (which works on a node *type* whose
+ * handles are inherited by every instance and addressed by `name::dataType`),
+ * root Graph I/O handles live on a single instance node in `state.nodes` and are
+ * addressed directly by their stable handle id. The only scope that can break is
+ * the root graph itself (`state.edges`).
+ *
+ * Returns the SAME `HandleBlastRadius` shape the deletion modals consume, so
+ * `GraphIOEditDrawer` can reuse `HandleSummaryModal` / `DeletionReviewModal`
+ * verbatim (and `getConnectionNeighborhood(state, 'root', edgeId)` powers the
+ * inline mini-maps).
+ */
+function computeRootIoHandleBlastRadius<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends Complex<UnderlyingType> = never,
+>(
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+  boundaryNodeId: string,
+  handle: { id: string; name: string; direction: HandleDirection },
+): HandleBlastRadius {
+  const typeNames = buildTypeNames(state);
+  const nodeById = new Map(state.nodes.map((node) => [node.id, node]));
+  const handleNameCache = new Map<string, Map<string, string>>();
+
+  const connections = collectConnectionsInScope(
+    state.edges,
+    handle.id,
+    typeNames,
+    nodeById,
+    handleNameCache,
+  ).filter(
+    // Only edges that actually touch THIS boundary node's handle (the handle id
+    // is unique, but keep the boundary-node guard explicit and cheap).
+    (connection) =>
+      connection.sourceNodeId === boundaryNodeId ||
+      connection.targetNodeId === boundaryNodeId,
+  );
+
+  const target: HandleDeletionTarget = {
+    direction: handle.direction,
+    handleName: handle.name,
+    handleDataTypeId: '',
+  };
+
+  const scopes: ScopeConnections[] =
+    connections.length > 0
+      ? [
+          {
+            scopeId: 'root',
+            scopeLabel: 'Root graph',
+            isOwnInternalSubtree: false,
+            instanceManifestations: 1,
+            connections,
+          },
+        ]
+      : [];
+
+  return { target, scopes, totalConnections: connections.length };
+}
+
+/* -------------------------------------------------------------------------- */
 /* Public: full cascade (multiple handles, for validate/apply)               */
 /* -------------------------------------------------------------------------- */
 
@@ -838,6 +910,7 @@ function getConnectionScopeGraph<
 
 export {
   computeHandleBlastRadius,
+  computeRootIoHandleBlastRadius,
   computeDeletionCascade,
   collectConnectionsInScope,
   getScopeNodesEdges,

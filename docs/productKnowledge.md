@@ -256,33 +256,37 @@ pipeline:
 2. **apply** (`applyPlan`) is the only mutator. It runs inside Immer, mints all
    ids, and performs the actual node/edge/zone changes.
 
-There are 23 action types:
+There are 27 action types:
 
-| Action                       | What It Does                                                 |
-| ---------------------------- | ------------------------------------------------------------ |
-| `ADD_NODE`                   | Creates a new node instance from a TypeOfNode                |
-| `ADD_NODE_AND_SELECT`        | Creates and selects a new node                               |
-| `UPDATE_NODE_BY_REACT_FLOW`  | Applies position/dimension/selection changes from ReactFlow  |
-| `UPDATE_EDGES_BY_REACT_FLOW` | Applies edge selection/removal changes from ReactFlow        |
-| `ADD_EDGE_BY_REACT_FLOW`     | Creates a new edge (with validation)                         |
-| `UPDATE_INPUT_VALUE`         | Updates a node input's inline value (undoable)               |
-| `OPEN_NODE_GROUP`            | Navigates into a node group's subtree                        |
-| `CLOSE_NODE_GROUP`           | Navigates back out of a node group                           |
-| `ADD_NODE_GROUP`             | Creates a new empty node group and opens it                  |
-| `SET_VIEWPORT`               | Updates pan/zoom                                             |
-| `REPLACE_STATE`              | Replaces the entire state (used by import; rehydrates zones) |
-| `UPDATE_NODE_TYPE`           | Reorders/re-panels a node type's handles across instances    |
-| `ADD_LOOP`                   | Adds a loop triplet + bind edges + pre/post-stop zones       |
-| `UPDATE_LOOP`                | Reorders/renames data channels across a loop triplet         |
-| `OPEN_DRAWER`                | Opens an edit drawer (loop / switch / node-type)             |
-| `CLOSE_DRAWER`               | Closes the open drawer                                       |
-| `ADD_SWITCH`                 | Adds a switch pair + bind edge + true/false zones            |
-| `UPDATE_SWITCH`              | Reorders/renames data channels across a switch pair          |
-| `UNDO`                       | Reverts the most recent undoable action                      |
-| `REDO`                       | Re-applies the most recently undone action                   |
-| `BEGIN_BATCH`                | Starts grouping dispatches into one undo entry (e.g. drag)   |
-| `END_BATCH`                  | Collapses the active batch into a single undo entry          |
-| `CLEAR_HISTORY`              | Empties the undo/redo stacks                                 |
+| Action                       | What It Does                                                              |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `ADD_NODE`                   | Creates a new node instance from a TypeOfNode                             |
+| `ADD_NODE_AND_SELECT`        | Creates and selects a new node                                            |
+| `UPDATE_NODE_BY_REACT_FLOW`  | Applies position/dimension/selection changes from ReactFlow               |
+| `UPDATE_EDGES_BY_REACT_FLOW` | Applies edge selection/removal changes from ReactFlow                     |
+| `ADD_EDGE_BY_REACT_FLOW`     | Creates a new edge (with validation)                                      |
+| `UPDATE_INPUT_VALUE`         | Updates a node input's inline value (undoable)                            |
+| `OPEN_NODE_GROUP`            | Navigates into a node group's subtree                                     |
+| `CLOSE_NODE_GROUP`           | Navigates back out of a node group                                        |
+| `ADD_NODE_GROUP`             | Creates a new empty node group and opens it                               |
+| `SET_VIEWPORT`               | Updates pan/zoom                                                          |
+| `REPLACE_STATE`              | Replaces the entire state (used by import; rehydrates zones)              |
+| `UPDATE_NODE_TYPE`           | Reorders/re-panels a node type's handles across instances                 |
+| `ADD_LOOP`                   | Adds a loop triplet + bind edges + pre/post-stop zones                    |
+| `UPDATE_LOOP`                | Reorders/renames data channels across a loop triplet                      |
+| `OPEN_DRAWER`                | Opens an edit drawer (loop / switch / node-type)                          |
+| `CLOSE_DRAWER`               | Closes the open drawer                                                    |
+| `ADD_SWITCH`                 | Adds a switch pair + bind edge + true/false zones                         |
+| `UPDATE_SWITCH`              | Reorders/renames data channels across a switch pair                       |
+| `UNDO`                       | Reverts the most recent undoable action                                   |
+| `REDO`                       | Re-applies the most recently undone action                                |
+| `BEGIN_BATCH`                | Starts grouping dispatches into one undo entry (e.g. drag)                |
+| `END_BATCH`                  | Collapses the active batch into a single undo entry                       |
+| `CLEAR_HISTORY`              | Empties the undo/redo stacks                                              |
+| `DELETE_NODE_TYPE_HANDLES`   | Deletes node-type inputs/outputs and cascades broken edges                |
+| `DELETE_LOOP_CHANNELS`       | Deletes data channels from a loop triplet and cascades edges              |
+| `DELETE_SWITCH_CHANNELS`     | Deletes data channels from a switch pair and cascades edges               |
+| `UPDATE_GRAPH_IO_HANDLES`    | Edits a root Graph Input/Output node's handles (the `runGraph` signature) |
 
 All mutations go through `dispatch`. The store uses Immer for immutable updates
 and `produceWithPatches` to capture the patches that power undo/redo. Note:
@@ -682,6 +686,26 @@ During and after execution, each node displays a **visual state**:
 | `errored`    | Red solid border, error tooltip on hover   |
 | `skipped`    | Dimmed appearance                          |
 | `warning`    | Orange indicator, warning tooltip on hover |
+
+### Run Targets
+
+By default a graph runs through the built-in in-process executor. Consumers can
+register additional **run targets** — named execution strategies — via
+`FullGraph`'s `runTargets` prop and select one from the runner's split Run
+button. Two modes:
+
+- **`execute`** targets produce an `ExecutionRecord` and feed the timeline like
+  the default run (and may optionally support step-by-step via `runStepwise`).
+- **`artifact`** targets return / download a file or string and skip the
+  timeline.
+
+Three built-ins ship: the in-process executor (default), `json-ir` (export the
+compiled plan as JSON), and `codegen-js` (emit a standalone, dependency-free
+JavaScript `runGraph` — nodes become implementation calls, loops become `for`,
+switches become `if/else`, groups become nested scoped blocks). Targets are
+authored with `makeRunTargetWithAutoInfer` and consume the compiled
+`ExecutionPlan` (raw `State` remains available as an escape hatch). See
+`runTargetsDoc.md`.
 
 ---
 

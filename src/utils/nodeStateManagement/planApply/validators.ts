@@ -542,6 +542,75 @@ function validateAction<
       });
     }
 
+    case actionTypesMap.UPDATE_GRAPH_IO_HANDLES: {
+      const { nodeId, handles } = action.payload;
+      // Root-scope guard (mirrors the UI gating the edit button on
+      // isAtRootScope). The root Graph Input / Output boundary nodes live in
+      // `_state.nodes`, so a programmatic dispatch while a group is open would
+      // edit the root node off-screen. Reject unless we are at root scope.
+      if (getCurrentScope(_state) !== undefined) {
+        return err({
+          code: 'INVALID_NODE_GROUP' as const,
+          reason: 'Graph I/O handles can only be edited at the root scope',
+        });
+      }
+      const node = _state.nodes.find((n) => n.id === nodeId);
+      if (!node) {
+        return err({
+          code: 'INVALID_NODE_GROUP' as const,
+          reason: `Graph I/O node "${nodeId}" not found`,
+        });
+      }
+      const typeId = node.data.nodeTypeUniqueId;
+      const isInput = typeId === standardNodeTypeNamesMap.groupInput;
+      const isOutput = typeId === standardNodeTypeNamesMap.groupOutput;
+      if (!isInput && !isOutput) {
+        return err({
+          code: 'INVALID_NODE_GROUP' as const,
+          reason: 'Node is not a Graph Input / Graph Output',
+        });
+      }
+      const names = handles.map((handle) => handle.name.trim());
+      if (names.some((name) => name === '')) {
+        return err({
+          code: 'INVALID_NODE_GROUP' as const,
+          reason: 'Graph I/O handle name cannot be empty',
+        });
+      }
+      if (new Set(names).size !== names.length) {
+        return err({
+          code: 'INVALID_NODE_GROUP' as const,
+          reason: 'Graph I/O handle names must be unique',
+        });
+      }
+      // A Graph Input edits its outputs; a Graph Output edits its inputs.
+      // Outputs are always flat; inputs may (in general) carry panels, so
+      // flatten defensively even though group boundary nodes never panel them.
+      const editableList = isInput
+        ? (node.data.outputs ?? [])
+        : (node.data.inputs ?? []).flatMap((item) =>
+            'inputs' in item ? item.inputs : [item],
+          );
+      const keptIds = new Set(
+        handles
+          .filter((handle) => handle.id)
+          .map((handle) => handle.id as string),
+      );
+      const removedHandleIds = editableList
+        .filter((handle) => handle.id && !keptIds.has(handle.id))
+        .map((handle) => handle.id as string);
+      return ok({
+        kind: 'UPDATE_GRAPH_IO_HANDLES' as const,
+        nodeId,
+        direction: isInput ? ('output' as const) : ('input' as const),
+        handles: handles.map((handle) => ({
+          id: handle.id,
+          name: handle.name.trim(),
+        })),
+        removedHandleIds,
+      });
+    }
+
     case actionTypesMap.ADD_LOOP: {
       if (
         !(standardNodeTypeNamesMap.loopStart in _state.typeOfNodes) ||
@@ -835,6 +904,56 @@ function validateAction<
         switchStartNodeId,
         switchEndNodeId,
         cascades,
+      });
+    }
+
+    case actionTypesMap.REORDER_INPUT_CONNECTIONS: {
+      const { nodeId, handleId, orderedEdgeIds } = action.payload;
+      const view = getCurrentNodesAndEdgesFromState(_state);
+      const node = view.nodes.find((candidate) => candidate.id === nodeId);
+      if (!node) {
+        return err({
+          code: 'MISSING_ENDPOINT' as const,
+          which: 'target' as const,
+          detail: 'Node not found for connection reorder',
+        });
+      }
+      // The fan-in set: every edge currently entering this input handle in the
+      // CURRENT scope (a node group may be open). Reordering only makes sense
+      // for two or more connections; zero or one is a no-op.
+      const currentEdgeIds = view.edges
+        .filter(
+          (edge) => edge.target === nodeId && edge.targetHandle === handleId,
+        )
+        .map((edge) => edge.id);
+      if (currentEdgeIds.length < 2) {
+        return err({
+          code: 'NOOP' as const,
+          reason: 'Input handle has fewer than two connections to reorder',
+        });
+      }
+      // `orderedEdgeIds` must be a strict permutation of the current fan-in set:
+      // same length, no duplicates, every id present. A stale payload (e.g. an
+      // edge removed concurrently) is rejected as a no-op rather than dropping
+      // or inventing an order.
+      const currentEdgeIdSet = new Set(currentEdgeIds);
+      const orderedEdgeIdSet = new Set(orderedEdgeIds);
+      if (
+        orderedEdgeIds.length !== currentEdgeIds.length ||
+        orderedEdgeIdSet.size !== orderedEdgeIds.length ||
+        !orderedEdgeIds.every((edgeId) => currentEdgeIdSet.has(edgeId))
+      ) {
+        return err({
+          code: 'NOOP' as const,
+          reason:
+            'orderedEdgeIds must be a permutation of the input handle current connections',
+        });
+      }
+      return ok({
+        kind: 'REORDER_INPUT_CONNECTIONS' as const,
+        nodeId,
+        handleId,
+        orderedEdgeIds,
       });
     }
 

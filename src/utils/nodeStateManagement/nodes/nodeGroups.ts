@@ -4,34 +4,34 @@ import type { InstantiatedNonPanelTypesOfHandles } from '../handles/types';
 import { addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees } from '../constructAndModifyHandles';
 import { constructTypeOfHandleFromIndices } from './constructAndModifyNodes';
 import { insertOrDeleteHandleInNodeDataUsingHandleIndices } from '../handles/handleSetters';
+import { nextDefaultHandleName } from '../handles/handleNaming';
 import type { ConnectionValidationResult } from '../newOrRemovedEdgeValidation';
+import type { InferenceScope } from '../planApply/types';
 import { standardNodeTypeNamesMap } from '../standardNodes';
 
 /**
- * Adds a duplicate handle to a node group when a groupInput or groupOutput handle gets inferred
+ * Grows a fresh blank spare handle on a groupInput/groupOutput boundary after a
+ * connection inferred one of its template handles, and (for an OPEN GROUP only)
+ * propagates the newly-named handle across every instance of the group's node
+ * type. Works for BOTH an open group boundary and the ROOT graph boundary.
  *
- * When inside a node group, if we connect a handle to the groupInput or groupOutput,
- * that node group's type gets inferred across the entire tree and a new duplicate
- * handle is added for further inference.
+ * The body is three independent steps so the root path can run "grow, never
+ * propagate" (root is a single instance with no node type):
+ *   1. Resolve the consumed handle's name. Group / root+rename-on already
+ *      carry the source name (via `overrideName`); root+rename-off auto-names
+ *      the blank template `input{n}`/`output{n}` so a concrete handle is never
+ *      left `name:''`. Bound to TEMPLATE CONSUMPTION, not to the grow guard.
+ *   2. Grow a blank spare on this boundary node — group always; root only when
+ *      `allowStructureGrow`.
+ *   3. Propagate across the node type — GROUP ONLY (`nodeGroup.nodeType` does
+ *      not exist at root, so this is unrepresentable there by construction).
  *
- * @template DataTypeUniqueId - Unique identifier type for data types
- * @template NodeTypeUniqueId - Unique identifier type for node types
- * @template UnderlyingType - Supported underlying data types
- * @template ComplexSchemaType - Zod schema type for complex data types
- * @param state - The current graph state
- * @param sourceNodeIndex - Index of the source node
- * @param targetNodeIndex - Index of the target node
- * @param sourceHandle - The source handle
- * @param targetHandle - The target handle
- * @param unmodifiedState - The unmodified state before edge addition
- * @param isSourceHandleInferredFromConnection - Whether source handle is inferred from connection
- * @param isTargetHandleInferredFromConnection - Whether target handle is inferred from connection
- * @param isSourceNodeGroupInput - Whether source node is group input
- * @param isTargetNodeGroupOutput - Whether target node is group output
- * @param nodeGroup - The current node group
+ * @param scope - Root (carries the rename/structure policy) vs open group.
+ * @param nodeGroup - The open group (undefined at root); read by `applyPlan`
+ *   from its stack and threaded here for the propagation step.
  * @returns Validation result indicating success or failure
  */
-function addDuplicateHandleToNodeGroupAfterInference<
+function growSpareAndPropagateBoundaryHandle<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
@@ -79,27 +79,78 @@ function addDuplicateHandleToNodeGroupAfterInference<
         >['openedNodeGroupStack']
       >[number]
     | undefined,
+  scope: InferenceScope,
 ): {
   validation: ConnectionValidationResult;
 } {
-  // XOR gate: exactly one side must be (inferFromConnection AND group boundary).
-  // Both sides infer+group (first direct GroupInput→GroupOutput) is blocked — no
-  // type information exists. After overrideDataType converts one side to concrete,
-  // the XOR opens and the infer side gets a new template handle.
-  if (
-    nodeGroup &&
+  // Enter only for a real boundary template consume (the XOR: exactly one side
+  // is inferFromConnection AND a group boundary), and only in a scope that
+  // grows — an OPEN GROUP (read from applyPlan's stack via `nodeGroup`) or
+  // ROOT. A direct GroupInput→GroupOutput first connect (both sides infer+
+  // boundary) is blocked by the XOR — no type information exists yet; after
+  // `overrideDataType` concretizes one side, the XOR opens.
+  const isBoundaryTemplateConsumed =
     (isSourceHandleInferredFromConnection && isSourceNodeGroupInput) !==
-      (isTargetHandleInferredFromConnection && isTargetNodeGroupOutput)
-  ) {
-    // The node that was inferFromConnection is the one whose template was consumed
-    // and needs a replacement. This is NOT always the group boundary target —
-    // after overrideDataType, either side could be the infer side.
-    const indexOfNodeToUpdateInGroup = isSourceHandleInferredFromConnection
-      ? sourceNodeIndex
-      : targetNodeIndex;
-    const inputOrOutputType = isSourceHandleInferredFromConnection
-      ? 'output'
-      : 'input';
+    (isTargetHandleInferredFromConnection && isTargetNodeGroupOutput);
+  if (!isBoundaryTemplateConsumed || !(nodeGroup || scope.kind === 'root')) {
+    return { validation: { isValid: true } };
+  }
+
+  // The node whose template was consumed is the infer side — NOT always the
+  // boundary target; after `overrideDataType` either side could be it.
+  const indexOfNodeToUpdateInGroup = isSourceHandleInferredFromConnection
+    ? sourceNodeIndex
+    : targetNodeIndex;
+  const inputOrOutputType = isSourceHandleInferredFromConnection
+    ? 'output'
+    : 'input';
+  const inferredHandle = isSourceHandleInferredFromConnection
+    ? sourceHandle
+    : targetHandle;
+
+  // ── Step 1: resolve the consumed handle's name. ──────────────────────────
+  // Group / root+rename-on: `overrideName` already wrote the source name onto
+  // the handle. root+rename-off: the consumed blank template is still `name:''`
+  // after concretization — auto-name it (deduped) so a concrete handle is never
+  // left empty-named (codegen drops it; import rejects it). Bound to TEMPLATE
+  // CONSUMPTION, not to the grow guard below: even with structure editing off,
+  // a consumed template must be named.
+  let handleToAddName = inferredHandle.name;
+  if (!handleToAddName && scope.kind === 'root') {
+    const boundaryHandleList =
+      inputOrOutputType === 'output'
+        ? state.nodes[indexOfNodeToUpdateInGroup].data.outputs
+        : state.nodes[indexOfNodeToUpdateInGroup].data.inputs;
+    const existingNames = (boundaryHandleList ?? [])
+      .map((handle) => handle?.name)
+      .filter((name): name is string => Boolean(name));
+    // A Graph Input node's OUTPUT handles are the graph's inputs ("input{n}");
+    // a Graph Output node's INPUT handles are the graph's outputs ("output{n}").
+    const newNameBase = isSourceHandleInferredFromConnection
+      ? 'input'
+      : 'output';
+    handleToAddName = nextDefaultHandleName(newNameBase, existingNames);
+    inferredHandle.name = handleToAddName;
+  }
+
+  const handleToAddDataType = inferredHandle.inferredDataType?.dataTypeUniqueId;
+  const handleToAddAllowInput =
+    inferredHandle.inferredDataType?.dataTypeObject.allowInput;
+  const handleToAddMaxConnections =
+    inferredHandle.inferredDataType?.dataTypeObject.maxConnections;
+  if (!handleToAddName || !handleToAddDataType) {
+    return {
+      validation: {
+        isValid: false,
+        reason: 'Handle to add name, data type, or allow input not found',
+      },
+    };
+  }
+
+  // ── Step 2: grow a fresh blank spare on this boundary node. ──────────────
+  // Groups always grow; root grows only when structure editing is allowed.
+  const shouldGrowSpare = scope.kind === 'group' || scope.allowStructureGrow;
+  if (shouldGrowSpare) {
     const newDuplicateHandle = constructTypeOfHandleFromIndices(
       state.dataTypes,
       state.nodes[indexOfNodeToUpdateInGroup].data
@@ -107,24 +158,6 @@ function addDuplicateHandleToNodeGroupAfterInference<
       state.typeOfNodes,
       { type: inputOrOutputType, index1: 0, index2: undefined },
     );
-    const inferredHandle = isSourceHandleInferredFromConnection
-      ? sourceHandle
-      : targetHandle;
-    const handleToAddName = inferredHandle.name;
-    const handleToAddDataType =
-      inferredHandle.inferredDataType?.dataTypeUniqueId;
-    const handleToAddAllowInput =
-      inferredHandle.inferredDataType?.dataTypeObject.allowInput;
-    const handleToAddMaxConnections =
-      inferredHandle.inferredDataType?.dataTypeObject.maxConnections;
-    if (!handleToAddName || !handleToAddDataType) {
-      return {
-        validation: {
-          isValid: false,
-          reason: 'Handle to add name, data type, or allow input not found',
-        },
-      };
-    }
     if (!newDuplicateHandle) {
       return {
         validation: {
@@ -150,7 +183,13 @@ function addDuplicateHandleToNodeGroupAfterInference<
       true,
       'after',
     );
+  }
 
+  // ── Step 3: propagate the named handle across the node TYPE. ─────────────
+  // GROUP ONLY — root is a single instance with no node type to propagate to
+  // (`nodeGroup.nodeType` does not exist), so this path is unrepresentable at
+  // root by construction.
+  if (scope.kind === 'group' && nodeGroup) {
     addAnInputOrOutputToAllNodesOfANodeTypeAcrossStateIncludingSubtrees(
       unmodifiedState,
       nodeGroup.nodeType,
@@ -190,7 +229,4 @@ function isGroupInputOrOutputNode<NodeTypeUniqueId extends string = string>(
   );
 }
 
-export {
-  addDuplicateHandleToNodeGroupAfterInference,
-  isGroupInputOrOutputNode,
-};
+export { growSpareAndPropagateBoundaryHandle, isGroupInputOrOutputNode };

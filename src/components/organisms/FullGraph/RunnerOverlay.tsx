@@ -18,6 +18,8 @@ import {
 import { NodeRunnerPanel } from '@/components/organisms/NodeRunnerPanel';
 import type { FullGraphProps } from './FullGraph';
 import type { SupportedUnderlyingTypes } from '@/utils/nodeStateManagement/types';
+import type { RunTarget } from '@/utils/nodeRunner/runTargets/types';
+import { useRunTargets } from './useRunTargets';
 
 // ─────────────────────────────────────────────────────
 // RunnerOverlay: manages execution lifecycle and renders
@@ -45,6 +47,9 @@ function RunnerOverlay<
   children,
   onExecutionRecordRef,
   loadRecordRef,
+  runTargets,
+  defaultRunTargetId,
+  rootInputs,
 }: {
   state: FullGraphProps<
     DataTypeUniqueId,
@@ -68,17 +73,50 @@ function RunnerOverlay<
       ) => ReturnType<UseNodeRunnerReturn['loadRecord']>)
     | null
   >;
+  runTargets?: ReadonlyArray<
+    RunTarget<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >
+  >;
+  defaultRunTargetId?: string;
+  rootInputs?: Record<string, unknown>;
 }) {
   const {
     executionRecord: controlledRecord,
     setExecutionRecord: onExecutionRecordChange,
   } = useRecordContext();
+  const { targets, activeRunTargetId, activeRunTarget, setActiveRunTargetId } =
+    useRunTargets<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >({ runTargets, defaultRunTargetId });
   const runner = useNodeRunner({
     state,
     functionImplementations,
     executionRecord: controlledRecord,
     onExecutionRecordChange,
+    activeRunTarget,
+    rootInputs,
   });
+  // Stepping (pause/step) is available only for an execute target that provides
+  // `runStepwise` — the built-in default does; artifact targets do not.
+  const steppingAvailable =
+    activeRunTarget.mode === 'execute' && activeRunTarget.runStepwise != null;
+  const runTargetSummaries = useMemo(
+    () =>
+      targets.map((target) => ({
+        id: target.id,
+        label: target.label,
+        mode: target.mode,
+        icon: target.icon,
+      })),
+    [targets],
+  );
 
   const { getNode, setCenter, getViewport } = useReactFlow();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -262,6 +300,10 @@ function RunnerOverlay<
         onModeChange={handleModeChange}
         maxLoopIterations={runner.maxLoopIterations}
         onMaxLoopIterationsChange={runner.setMaxLoopIterations}
+        runTargets={runTargetSummaries}
+        activeRunTargetId={activeRunTargetId}
+        onRunTargetChange={setActiveRunTargetId}
+        steppingAvailable={steppingAvailable}
         onScrubTo={runner.replayTo}
         onNavigateToNode={handleNavigateToNode}
         panelRef={panelRef}
@@ -273,13 +315,13 @@ function RunnerOverlay<
           type='button'
           onClick={() => setIsRunnerPanelOpen(true)}
           className={cn(
-            'btn-press absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-secondary-dark-gray/60 bg-secondary-black/90 px-4 py-2 text-[12px] font-medium text-primary-white shadow-xl backdrop-blur-sm transition-colors hover:bg-primary-dark-gray',
+            'btn-press absolute bottom-4 left-1/2 z-10 flex max-w-[60vw] -translate-x-1/2 items-center gap-2 rounded-lg border border-secondary-dark-gray/60 bg-secondary-black/90 px-4 py-2 text-[12px] font-medium text-primary-white shadow-xl backdrop-blur-sm transition-colors hover:bg-primary-dark-gray',
             theme?.runnerToggleButton,
           )}
           title='Open runner panel'
         >
-          <Play className='h-3.5 w-3.5' />
-          Runner
+          <Play className='h-3.5 w-3.5 shrink-0' />
+          <span className='truncate'>Runner</span>
         </button>
       )}
     </RunnerContext.Provider>

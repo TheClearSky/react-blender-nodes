@@ -15,6 +15,7 @@ import type {
 } from '@/utils/nodeRunner/types';
 import { formatGraphError } from '@/utils/nodeRunner/errors';
 import { Tooltip } from '@/components/atoms/Tooltip';
+import { NodeIdentityLabel } from '@/components/atoms/NodeIdentityLabel';
 import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 // ─────────────────────────────────────────────────────
@@ -144,10 +145,15 @@ function ConnectionLine({
   const theme = useGraphTheme();
   return (
     <div className='flex flex-col gap-1.5'>
-      <div className='text-[13px]'>
-        <span className='text-runner-muted-text'>Coming From–</span>{' '}
-        <span className='text-primary-white/80'>
-          {conn.sourceNodeName} / {conn.sourceHandleName}
+      <div className='flex min-w-0 items-baseline gap-1 text-[13px] text-primary-white/80'>
+        <span className='shrink-0 text-runner-muted-text'>Coming From–</span>
+        <NodeIdentityLabel
+          typeName={conn.sourceNodeName}
+          customName={conn.sourceNodeCustomName}
+          className='min-w-0'
+        />
+        <span className='min-w-0 shrink-[9999] truncate'>
+          / {conn.sourceHandleName}
         </span>
       </div>
       {debugMode && (
@@ -290,9 +296,11 @@ function ExecutionStepInspector({
       >
         <div className='flex min-w-0 items-center gap-2.5'>
           <Package className='h-5 w-5 shrink-0 text-primary-white' />
-          <span className='truncate text-[15px] tracking-wide text-primary-white'>
-            {stepRecord.nodeTypeName}
-          </span>
+          <NodeIdentityLabel
+            typeName={stepRecord.nodeTypeName}
+            customName={stepRecord.customName}
+            className='min-w-0 text-[15px] tracking-wide text-primary-white'
+          />
         </div>
         <div className='flex shrink-0 items-center gap-3'>
           {onEdgeValuesAnimatedChange && (

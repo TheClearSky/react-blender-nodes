@@ -561,7 +561,7 @@ Direct `useReducer(mainReducer, …)` consumers still work: `mainReducer`
 (`src/utils/nodeStateManagement/mainReducer.ts` › `mainReducer`) delegates to
 the same `validateAction` + `applyValidatedAction`.
 
-### Action types (23)
+### Action types (29)
 
 `actionTypes` (`src/utils/nodeStateManagement/mainReducer.ts` › `actionTypes`):
 `ADD_NODE`, `ADD_NODE_AND_SELECT`, `UPDATE_NODE_BY_REACT_FLOW`,
@@ -569,16 +569,20 @@ the same `validateAction` + `applyValidatedAction`.
 `OPEN_NODE_GROUP`, `CLOSE_NODE_GROUP`, `ADD_NODE_GROUP`, `SET_VIEWPORT`,
 `REPLACE_STATE`, `UPDATE_NODE_TYPE`, `ADD_LOOP`, `UPDATE_LOOP`, `OPEN_DRAWER`,
 `CLOSE_DRAWER`, `ADD_SWITCH`, `UPDATE_SWITCH`, `UNDO`, `REDO`, `BEGIN_BATCH`,
-`END_BATCH`, `CLEAR_HISTORY`. FullGraph dispatches most of these directly; the
-exceptions are `ADD_NODE` and `UPDATE_INPUT_VALUE` (from the context-menu helper
-and node inputs respectively), `ADD_LOOP` / `ADD_SWITCH` (dispatched only
-transitively by the context-menu builders in
+`END_BATCH`, `CLEAR_HISTORY`, `DELETE_NODE_TYPE_HANDLES`,
+`DELETE_LOOP_CHANNELS`, `DELETE_SWITCH_CHANNELS`, `UPDATE_GRAPH_IO_HANDLES`,
+`REORDER_INPUT_CONNECTIONS`, `UPDATE_NODE_CUSTOM_NAME`. FullGraph dispatches
+most of these directly; the exceptions are `ADD_NODE` and `UPDATE_INPUT_VALUE`
+(from the context-menu helper and node inputs respectively), `ADD_LOOP` /
+`ADD_SWITCH` (dispatched only transitively by the context-menu builders in
 `src/components/molecules/ContextMenu/createLoopMenuItem.ts` ›
 `createLoopMenuItem` and
 `src/components/molecules/ContextMenu/createSwitchMenuItem.ts` ›
-`createSwitchMenuItem`), and `CLEAR_HISTORY` (a supported action the component
-never dispatches itself). See the full dispatched-action list in the **State
-Management** relationship section below.
+`createSwitchMenuItem`), `CLEAR_HISTORY` (a supported action the component never
+dispatches itself), and the last six (`DELETE_NODE_TYPE_HANDLES` …
+`UPDATE_NODE_CUSTOM_NAME`), which are dispatched from the editor drawers / node
+UI. See the full dispatched-action list in the **State Management** relationship
+section below.
 
 ---
 

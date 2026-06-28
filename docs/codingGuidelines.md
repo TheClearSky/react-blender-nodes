@@ -1669,6 +1669,7 @@ type GraphError = {
   nodeId: string;
   nodeTypeId: string;
   nodeTypeName: string;
+  customName?: string; // standard nodes only; renders `Custom : Type`
   handleId?: string;
   path: ReadonlyArray<GraphErrorPathEntry>;  // upstream trace
   loopContext?: { iteration: number; maxIterations: number; ... };

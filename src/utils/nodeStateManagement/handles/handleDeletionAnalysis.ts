@@ -238,10 +238,17 @@ function resolveNodeName<
   >,
   typeNames: Map<string, string>,
 ): string {
-  if (node.data?.name) return node.data.name;
+  // The type-derived label (node-type display name, else type id, else node id).
+  // A user custom name (standard nodes only) is shown before it as `Custom : Type`,
+  // matching the canvas / runner identity.
   const typeId = node.data?.nodeTypeUniqueId;
-  if (typeId && typeNames.has(typeId)) return typeNames.get(typeId) ?? node.id;
-  return node.id;
+  const typeLabel =
+    node.data?.name ??
+    (typeId && typeNames.has(typeId) ? typeNames.get(typeId) : undefined) ??
+    node.id;
+  const customName = node.data?.customName;
+  if (customName) return `${customName} : ${typeLabel}`;
+  return typeLabel;
 }
 
 /** Collect every edge in a scope that references `handleId` (as source or

@@ -1,14 +1,17 @@
 import { cn } from '@/utils';
 import type { ExecutionStepRecord } from '@/utils/nodeRunner/types';
+import { NodeIdentityLabel } from '@/components/atoms/NodeIdentityLabel';
 import { statusTooltipClass, statusLabel, formatDuration } from './types';
 
 function BlockTooltipContent({ step }: { step: ExecutionStepRecord }) {
   return (
     <>
       <div className='flex items-center gap-2'>
-        <span className='text-[12px] font-semibold text-primary-white'>
-          {step.nodeTypeName}
-        </span>
+        <NodeIdentityLabel
+          typeName={step.nodeTypeName}
+          customName={step.customName}
+          className='min-w-0 text-[12px] font-semibold text-primary-white'
+        />
         <span
           className={cn(
             'text-[10px] font-medium',

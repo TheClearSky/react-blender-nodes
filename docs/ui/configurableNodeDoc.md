@@ -429,7 +429,24 @@ The ConfigurableNode renders the following DOM structure (see
 
 The header is a colored bar (`headerColor` background, `rounded-t-md`) with:
 
-- The node `name` displayed as truncated text.
+- The node title, rendered by
+  `src/components/organisms/ConfigurableNode/SupportingSubcomponents/EditableNodeTitle.tsx`
+  › `EditableNodeTitle`. By default it shows the type-derived `name`
+  (truncated). A node may carry an optional per-instance **custom name**
+  (`customName`); when set, the title shows `Custom : Type` with the type name
+  dimmed (`src/components/atoms/NodeIdentityLabel/NodeIdentityLabel.tsx` ›
+  `NodeIdentityLabel`), the custom name ellipsizing first under overflow and the
+  type name protected. For STANDARD nodes inside ReactFlow, double-clicking the
+  title edits the custom name in place (commit on blur/Enter, Escape cancels,
+  empty clears), dispatching `UPDATE_NODE_CUSTOM_NAME`. System nodes (graph &
+  group I/O, loops, switches, groups) are NOT nameable (validator NOOP + display
+  gate). The same `customName` is threaded into the runner timeline / step
+  inspector and emitted as a `// node "Custom" : "Type"` codegen comment
+  (identifiers stay type-derived). A custom name on a standard node **inside a
+  referenced node group** is stored on the shared group definition, so it is
+  shared across every instance of that group (the same per-definition semantics
+  as input values). See the
+  [State Management doc](../core/stateManagementDoc.md).
 - The node `id` displayed when `state.enableDebugMode` is true in
   `FullGraphContext`.
 - A right-aligned (`ml-auto`) cluster rendering `ContextAwareNodeHeaderActions`

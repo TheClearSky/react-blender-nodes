@@ -228,8 +228,10 @@ Duration: 0.30ms
 
 Notes on the format produced by `formatGraphError`:
 
-- The `Path:` line joins `error.path[].nodeTypeName` with `→` (a Unicode right
-  arrow), and is omitted when `path` is empty.
+- The errored-node line and each `Path:` entry render `Custom : Type` when the
+  node has a user `customName` (else just the type name); the `Path:` line joins
+  the entries with `→` (a Unicode right arrow) and is omitted when `path` is
+  empty.
 - `Loop:` (`iteration X of Y`) is added only when `error.loopContext` is
   present.
 - `Group:` (`<groupNodeTypeId> (depth N)`) is added only when

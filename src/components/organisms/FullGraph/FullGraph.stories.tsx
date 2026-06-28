@@ -1913,20 +1913,29 @@ type CircuitInitialState = Parameters<
 type CodegenStudioViewProps = {
   initialNodes: CircuitInitialState['nodes'];
   initialEdges: CircuitInitialState['edges'];
+  /** Start with the `self-contained` toggle on (`emitImplementations: 'source'`). */
+  initialSelfContained?: boolean;
+  /** Start with the `optimize` (DCE) toggle in this state. Default on; pass `false`
+   *  for the self-contained demo so the baked output-node defs aren't pruned. */
+  initialOptimize?: boolean;
 };
 
 /**
  * The shared CodegenStudio canvas + live-codegen panel. Driven by an initial
  * node/edge set so it can start either empty (build from scratch) or with a
  * declared Graph Input → … → Graph Output pipeline that emits `runGraph(a, b)`.
- * Toolbar toggles: output format, `optimize` (dead-code elimination), and `lock
- * root I/O` (freezes the `runGraph` signature — `allowRootIORename` /
+ * Toolbar toggles: output format, `optimize` (dead-code elimination),
+ * `self-contained` (`emitImplementations: 'source'` — bake the impls so
+ * `runGraph()` needs no `functionImplementations` arg; see `CodegenSelfContained`),
+ * and `lock root I/O` (freezes the `runGraph` signature — `allowRootIORename` /
  * `allowRootIOStructureEdit` off, so connecting concretizes the TYPE only and the
  * Graph I/O editor's rename/add/delete affordances disable in lockstep).
  */
 function CodegenStudioView({
   initialNodes,
   initialEdges,
+  initialSelfContained,
+  initialOptimize,
 }: CodegenStudioViewProps) {
   const { state, dispatch } = useFullGraph<
     CircuitDataTypeId,
@@ -1954,7 +1963,13 @@ function CodegenStudioView({
   // Opt-in optimization passes (codegen v2 Stage 4). Dead-code elimination drops
   // graph branches no Graph Output depends on; needs the pure-impl assumption to
   // prune threaded impl-call nodes.
-  const [optimize, setOptimize] = useState(true);
+  const [optimize, setOptimize] = useState(initialOptimize ?? true);
+  // Bake the impls + helpers into the module (`emitImplementations: 'source'`) so
+  // the emitted `runGraph()` runs with no `functionImplementations` argument —
+  // covered nodes inline/source-emit, uncovered ones thread with a `// warning:`.
+  const [selfContained, setSelfContained] = useState(
+    initialSelfContained ?? false,
+  );
   // Freeze the root I/O contract — connecting concretizes the type but does NOT
   // rename the handle or grow a spare, and the Graph I/O editor locks in step.
   const [lockRootIO, setLockRootIO] = useState(false);
@@ -1988,10 +2003,22 @@ function CodegenStudioView({
               target: language,
               optimize: { deadCode: optimize },
               assumePureImplementations: optimize,
-              analyzeImplementations: optimize,
-              impls: circuitImplementations as Readonly<
-                Record<string, (...args: never[]) => unknown>
-              >,
+              ...(selfContained
+                ? {
+                    emitImplementations: 'source' as const,
+                    knownFunctions: {
+                      ...circuitImplementations,
+                      getFirstInputVal,
+                    } as Readonly<
+                      Record<string, (...args: never[]) => unknown>
+                    >,
+                  }
+                : {
+                    analyzeImplementations: optimize,
+                    impls: circuitImplementations as Readonly<
+                      Record<string, (...args: never[]) => unknown>
+                    >,
+                  }),
             },
           );
         }
@@ -2006,7 +2033,7 @@ function CodegenStudioView({
     return () => {
       cancelled = true;
     };
-  }, [state, format, optimize]);
+  }, [state, format, optimize, selfContained]);
 
   const runGeneratedCode = () => {
     if (format !== 'codegen-js') {
@@ -2125,6 +2152,25 @@ function CodegenStudioView({
               onChange={(event) => setOptimize(event.target.checked)}
             />
             optimize
+          </label>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              fontSize: 12,
+              cursor: format === 'json-ir' ? 'not-allowed' : 'pointer',
+              opacity: format === 'json-ir' ? 0.5 : 1,
+            }}
+            title='emitImplementations: source — bake the node impls + helpers into the module so runGraph() needs no functionImplementations argument (graceful mixed: uncovered nodes thread with a // warning).'
+          >
+            <input
+              type='checkbox'
+              checked={selfContained}
+              disabled={format === 'json-ir'}
+              onChange={(event) => setSelfContained(event.target.checked)}
+            />
+            self-contained
           </label>
           <label
             style={{
@@ -2363,6 +2409,132 @@ function buildGraphIoCircuit() {
   };
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// Half-adder demo for `emitImplementations: 'source'` (self-contained codegen):
+//
+//   Bit Input(A=true) ──┬──> AND Gate ──> Bit Output (Carry)
+//   Bit Input(B=true) ──┴──> XOR Gate ──> Bit Output (Sum)
+//
+// With `self-contained` ON: the gates / bit inputs AUTO-EMIT inline, and the Bit
+// Output (`bitDisplay`, a non-kernel `() => new Map()`) SOURCE-EMITS as a baked
+// `const bitDisplay = …` (ONE def, called by both display instances) — so the
+// emitted `runGraph()` is fully standalone, with no `functionImplementations`
+// argument. `optimize` (DCE) starts OFF so the baked output-node calls (which
+// produce no returned value) aren't pruned away — toggle it on to watch them go.
+// ────────────────────────────────────────────────────────────────────────
+
+function buildSelfContainedDemoCircuit() {
+  let state = makeStateWithAutoInfer<CircuitDataTypeId, CircuitNodeTypeId>({
+    dataTypes: circuitExampleDataTypes,
+    typeOfNodes: circuitExampleTypeOfNodes,
+    nodes: [],
+    edges: [],
+    enableTypeInference: true,
+  });
+  const dispatch = (
+    action: Action<CircuitDataTypeId, CircuitNodeTypeId>,
+  ): void => {
+    state = mainReducer<CircuitDataTypeId, CircuitNodeTypeId>(state, action);
+  };
+  const addNode = (
+    type: CircuitNodeTypeId,
+    position: { x: number; y: number },
+  ): string => {
+    const before = new Set(state.nodes.map((node) => node.id));
+    dispatch({ type: actionTypesMap.ADD_NODE, payload: { type, position } });
+    const added = state.nodes.find((node) => !before.has(node.id));
+    if (!added) throw new Error(`ADD_NODE(${type}) added no node`);
+    return added.id;
+  };
+  const handleId = (
+    nodeId: string,
+    side: 'inputs' | 'outputs',
+    name: string,
+  ): string => {
+    const node = state.nodes.find((candidate) => candidate.id === nodeId);
+    const leaves = (node?.data[side] ?? []).flatMap((handle) =>
+      'inputs' in handle ? handle.inputs : [handle],
+    );
+    const handle = leaves.find((leaf) => leaf.name === name);
+    if (!handle) {
+      throw new Error(`handle "${name}" not found on ${nodeId}.${side}`);
+    }
+    return handle.id;
+  };
+  const connect = (
+    source: string,
+    sourceHandle: string,
+    target: string,
+    targetHandle: string,
+  ): void => {
+    dispatch({
+      type: actionTypesMap.ADD_EDGE_BY_REACT_FLOW,
+      payload: { edge: { source, sourceHandle, target, targetHandle } },
+    });
+  };
+
+  const constA = addNode('bitConstant', { x: 0, y: 80 });
+  const constB = addNode('bitConstant', { x: 0, y: 320 });
+  const andId = addNode('andGate', { x: 440, y: 120 });
+  const xorId = addNode('xorGate', { x: 440, y: 320 });
+  const carryId = addNode('bitDisplay', { x: 880, y: 120 });
+  const sumId = addNode('bitDisplay', { x: 880, y: 320 });
+
+  const bake = (nodeId: string): void =>
+    dispatch({
+      type: actionTypesMap.UPDATE_INPUT_VALUE,
+      payload: {
+        nodeId,
+        inputId: handleId(nodeId, 'inputs', 'Value'),
+        value: true as unknown as number,
+      },
+    });
+  bake(constA);
+  bake(constB);
+
+  connect(
+    constA,
+    handleId(constA, 'outputs', 'Out'),
+    andId,
+    handleId(andId, 'inputs', 'A'),
+  );
+  connect(
+    constB,
+    handleId(constB, 'outputs', 'Out'),
+    andId,
+    handleId(andId, 'inputs', 'B'),
+  );
+  connect(
+    constA,
+    handleId(constA, 'outputs', 'Out'),
+    xorId,
+    handleId(xorId, 'inputs', 'A'),
+  );
+  connect(
+    constB,
+    handleId(constB, 'outputs', 'Out'),
+    xorId,
+    handleId(xorId, 'inputs', 'B'),
+  );
+  connect(
+    andId,
+    handleId(andId, 'outputs', 'Out'),
+    carryId,
+    handleId(carryId, 'inputs', 'In'),
+  );
+  connect(
+    xorId,
+    handleId(xorId, 'outputs', 'Out'),
+    sumId,
+    handleId(sumId, 'inputs', 'In'),
+  );
+
+  return {
+    nodes: state.nodes as CircuitInitialState['nodes'],
+    edges: state.edges as CircuitInitialState['edges'],
+  };
+}
+
 /**
  * The codegen studio: build a circuit on the left, watch the standalone `runGraph`
  * regenerate live on the right. Seeded with root Graph I/O — auto-grown by
@@ -2392,6 +2564,36 @@ export const CodegenStudio: StoryObj<typeof FullGraph> = {
       <CodegenStudioView
         initialNodes={graphIoCircuit.nodes}
         initialEdges={graphIoCircuit.edges}
+      />
+    );
+  },
+};
+
+/**
+ * **Self-contained codegen** (`emitImplementations: 'source'`). A pre-wired
+ * half-adder with the **`self-contained`** toggle ON: codegen BAKES the node
+ * implementations into the module, so the emitted `runGraph()` runs standalone —
+ * no `functionImplementations` argument. The Bit Output (`bitDisplay`) source-emits
+ * as a baked `const bitDisplay = …` (one def, two calls); the gates auto-emit
+ * inline. Toggle `self-contained` OFF and nodes return to threaded
+ * `functionImplementations[…](…)` calls (the param reappears) — with `optimize`
+ * OFF (this story's default) that threads EVERY node, gates included; turn
+ * `optimize` ON to keep the gates auto-emitted inline (only `bitDisplay` threads)
+ * and to dead-code-eliminate the (output-less) display calls entirely.
+ * A node codegen can't prove behaves identically to the executor (e.g. one reading
+ * `context.state`, or passing a handle to a helper) gracefully keeps its threaded
+ * call and emits a `// warning:` — the artifact is always runnable.
+ */
+export const CodegenSelfContained: StoryObj<typeof FullGraph> = {
+  args: {},
+  render: () => {
+    const circuit = useMemo(() => buildSelfContainedDemoCircuit(), []);
+    return (
+      <CodegenStudioView
+        initialNodes={circuit.nodes}
+        initialEdges={circuit.edges}
+        initialSelfContained
+        initialOptimize={false}
       />
     );
   },

@@ -1404,6 +1404,14 @@ function applyPlan<
       return;
     }
 
+    case 'UPDATE_NODE_CUSTOM_NAME': {
+      const customNameView = getCurrentNodesAndEdgesFromState(draft);
+      const targetNode = customNameView.nodes.find((n) => n.id === plan.nodeId);
+      if (!targetNode) return;
+      targetNode.data.customName = plan.customName;
+      return;
+    }
+
     case 'OPEN_DRAWER':
       draft.activeDrawer = plan.activeDrawer;
       return;

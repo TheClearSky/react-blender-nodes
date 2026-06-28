@@ -398,6 +398,7 @@ StandardExecutionStep {
   nodeId: string             -- runtime node instance ID
   nodeTypeId: string         -- key in state.typeOfNodes
   nodeTypeName: string       -- display name from typeOfNodes (falls back to nodeTypeId)
+  customName?: string        -- optional user custom name (standard nodes only); rendered `Custom : Type`
   concurrencyLevel: number   -- which level this step belongs to
 }
 ```

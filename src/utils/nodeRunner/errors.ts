@@ -26,6 +26,7 @@ function createGraphError(params: {
   nodeId: string;
   nodeTypeId: string;
   nodeTypeName: string;
+  customName?: string;
   handleId?: string;
   path: ReadonlyArray<GraphErrorPathEntry>;
   loopContext?: GraphError['loopContext'];
@@ -38,6 +39,7 @@ function createGraphError(params: {
     nodeId: params.nodeId,
     nodeTypeId: params.nodeTypeId,
     nodeTypeName: params.nodeTypeName,
+    customName: params.customName,
     handleId: params.handleId,
     path: params.path,
     loopContext: params.loopContext,
@@ -64,6 +66,7 @@ function buildErrorPath(
       nodeTypeId: string;
       nodeTypeName: string;
       concurrencyLevel: number;
+      data?: { customName?: string };
     }
   >,
 ): ReadonlyArray<GraphErrorPathEntry> {
@@ -86,6 +89,7 @@ function buildErrorPath(
         nodeId: current.nodeId,
         nodeTypeId: info.nodeTypeId,
         nodeTypeName: info.nodeTypeName,
+        customName: info.data?.customName,
         handleId: current.handleId,
         concurrencyLevel: info.concurrencyLevel,
       });
@@ -120,14 +124,27 @@ function buildErrorPath(
  * Formats a GraphError into a multi-line human-readable string
  * for display in error tooltips and logs.
  */
+/**
+ * Renders a node's display identity for an error string: `Custom : Type` when a
+ * custom name is set, else the type name. Plain text (no dimming) for log / tooltip
+ * contexts.
+ */
+function formatNodeIdentity(nodeTypeName: string, customName?: string): string {
+  return customName ? `${customName} : ${nodeTypeName}` : nodeTypeName;
+}
+
 function formatGraphError(error: GraphError): string {
   const lines: string[] = [];
 
-  lines.push(`Error in "${error.nodeTypeName}" (${error.nodeId})`);
+  lines.push(
+    `Error in "${formatNodeIdentity(error.nodeTypeName, error.customName)}" (${error.nodeId})`,
+  );
   lines.push(`Message: ${error.message}`);
 
   if (error.path.length > 0) {
-    const pathStr = error.path.map((entry) => entry.nodeTypeName).join(' → ');
+    const pathStr = error.path
+      .map((entry) => formatNodeIdentity(entry.nodeTypeName, entry.customName))
+      .join(' → ');
     lines.push(`Path: ${pathStr}`);
   }
 

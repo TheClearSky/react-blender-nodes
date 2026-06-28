@@ -570,6 +570,44 @@ describe('OPEN_NODE_GROUP / CLOSE_NODE_GROUP', () => {
     ).toBe(true);
   });
 
+  it('UPDATE_NODE_CUSTOM_NAME on a node inside an OPEN group lands on the shared subtree (scope-locality / per-definition)', () => {
+    // ADD_NODE_GROUP creates AND opens the group (subtree starts as [groupInput, groupOutput]).
+    const opened = mainReducer(createTestState(), {
+      type: actionTypesMap.ADD_NODE_GROUP,
+    });
+    const groupTypeKey = Object.keys(opened.typeOfNodes).find(
+      (k) =>
+        opened.typeOfNodes[k as TestNodeTypeId].subtree !== undefined &&
+        !Object.keys(standardNodeTypes).includes(k),
+    ) as TestNodeTypeId;
+
+    // Add a standard node while the group is open → it lands in the subtree (scope-aware).
+    const withInner = mainReducer(opened, {
+      type: actionTypesMap.ADD_NODE,
+      payload: {
+        type: 'testProcessor' as TestNodeTypeId,
+        position: { x: 0, y: 0 },
+      },
+    });
+    const innerNode = withInner.typeOfNodes[groupTypeKey].subtree!.nodes.find(
+      (n) => n.data.nodeTypeUniqueId === 'testProcessor',
+    )!;
+    expect(innerNode).toBeTruthy();
+
+    // Rename it.
+    const renamed = mainReducer(withInner, {
+      type: actionTypesMap.UPDATE_NODE_CUSTOM_NAME,
+      payload: { nodeId: innerNode.id, customName: 'Summer' },
+    });
+
+    // The name lands on the SHARED subtree definition (per-definition, D3), NOT at root.
+    const subtreeNode = renamed.typeOfNodes[groupTypeKey].subtree!.nodes.find(
+      (n) => n.id === innerNode.id,
+    )!;
+    expect(subtreeNode.data.customName).toBe('Summer');
+    expect(renamed.nodes.find((n) => n.id === innerNode.id)).toBeUndefined();
+  });
+
   it('OPEN_NODE_GROUP with nodeId pushes instance entry', () => {
     const afterAdd = createStateWithGroup();
     const groupTypeKey = Object.keys(afterAdd.typeOfNodes).find(

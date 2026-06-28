@@ -69,6 +69,31 @@ describe('undo/redo history — integration via mainReducer', () => {
     expect(s2.history?.redoStack).toHaveLength(1);
   });
 
+  it('a custom-name rename is one undoable entry; UNDO restores the prior name, REDO re-applies', () => {
+    const s0 = createTestState();
+    const s1 = addNode(s0);
+    const nodeId = s1.nodes[0].id;
+    const undoBefore = s1.history?.undoStack.length ?? 0;
+
+    const s2 = mainReducer<TestDataTypeId, TestNodeTypeId>(s1, {
+      type: actionTypesMap.UPDATE_NODE_CUSTOM_NAME,
+      payload: { nodeId, customName: 'Summer' },
+    });
+    expect(s2.nodes[0].data.customName).toBe('Summer');
+    // exactly ONE new undo entry for the rename
+    expect(s2.history?.undoStack).toHaveLength(undoBefore + 1);
+
+    const s3 = mainReducer<TestDataTypeId, TestNodeTypeId>(s2, {
+      type: actionTypesMap.UNDO,
+    });
+    expect(s3.nodes[0].data.customName).toBeUndefined();
+
+    const s4 = mainReducer<TestDataTypeId, TestNodeTypeId>(s3, {
+      type: actionTypesMap.REDO,
+    });
+    expect(s4.nodes[0].data.customName).toBe('Summer');
+  });
+
   it('re-applies the action on REDO', () => {
     const s1 = addNode(createTestState());
     const s2 = mainReducer<TestDataTypeId, TestNodeTypeId>(s1, {

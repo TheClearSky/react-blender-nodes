@@ -256,16 +256,17 @@ outputs). It is a red-tinted bordered container (`border-status-errored/30`,
 builds these lines:
 
 ```
-Error in "<nodeTypeName>" (<nodeId>)
+Error in "<customName> : <nodeTypeName>" (<nodeId>)   (custom name shown when set; else just "<nodeTypeName>")
 Message: <message>
-Path: <nodeTypeName> → <nodeTypeName> → ...      (only if path.length > 0)
+Path: <customName> : <nodeTypeName> → <nodeTypeName> → ...   (only if path.length > 0; each entry shows its own custom name)
 Loop: iteration <n> of <maxIterations>           (only if loopContext)
 Group: <groupNodeTypeId> (depth <depth>)         (only if groupContext)
 Duration: <duration.toFixed(2)>ms
 ```
 
 The `GraphError` type (`src/utils/nodeRunner/types.ts` › `GraphError`) carries
-`message`, `nodeId`, `nodeTypeId`, `nodeTypeName`, optional `handleId`, `path`
+`message`, `nodeId`, `nodeTypeId`, `nodeTypeName`, optional `customName`
+(standard nodes only; rendered `Custom : Type`), optional `handleId`, `path`
 (`GraphErrorPathEntry[]`), optional `loopContext`
 (`{ loopStructureId, iteration, maxIterations }`) and `groupContext`
 (`{ groupNodeId, groupNodeTypeId, depth }`), `timestamp`, `duration`, and

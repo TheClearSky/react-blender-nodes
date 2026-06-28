@@ -256,7 +256,7 @@ pipeline:
 2. **apply** (`applyPlan`) is the only mutator. It runs inside Immer, mints all
    ids, and performs the actual node/edge/zone changes.
 
-There are 27 action types:
+There are 29 action types:
 
 | Action                       | What It Does                                                              |
 | ---------------------------- | ------------------------------------------------------------------------- |
@@ -287,6 +287,8 @@ There are 27 action types:
 | `DELETE_LOOP_CHANNELS`       | Deletes data channels from a loop triplet and cascades edges              |
 | `DELETE_SWITCH_CHANNELS`     | Deletes data channels from a switch pair and cascades edges               |
 | `UPDATE_GRAPH_IO_HANDLES`    | Edits a root Graph Input/Output node's handles (the `runGraph` signature) |
+| `REORDER_INPUT_CONNECTIONS`  | Reorders a fan-in input handle's incoming connections (undoable)          |
+| `UPDATE_NODE_CUSTOM_NAME`    | Sets/clears a standard node's custom display name (undoable)              |
 
 All mutations go through `dispatch`. The store uses Immer for immutable updates
 and `produceWithPatches` to capture the patches that power undo/redo. Note:

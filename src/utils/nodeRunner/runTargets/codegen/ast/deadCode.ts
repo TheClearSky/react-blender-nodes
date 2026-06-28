@@ -21,6 +21,16 @@ type DeadCodeOptions = {
    *  Without it, any statement containing an impl call is kept (it may have
    *  side effects); pure inline-expression bindings still prune. */
   assumePureImplementations?: boolean;
+  /** Local names of SOURCE-EMITTED node impls (`emitImplementations: 'source'`). A
+   *  call to one of these is an impl call too (it no longer references
+   *  `functionImplementations`), so the "kept unless `assumePure`" side-effect floor
+   *  is preserved for baked nodes under full DCE. */
+  implCallNames?: ReadonlySet<string>;
+  /** Keep EVERY body statement (skip the liveness fixpoint); run ONLY the param +
+   *  `async` signature cleanup. Used by source-emission to drop the now-unreferenced
+   *  `functionImplementations` param without unsoundly pruning side-effecting baked
+   *  nodes. Behaviour-preserving. */
+  signatureOnly?: boolean;
 };
 
 /** A scope-introducing node whose own declarations shadow the outer scope. */
@@ -126,15 +136,18 @@ function containsAwait(ts: TsModule, node: import('typescript').Node): boolean {
   return found;
 }
 
-/** Whether `node` references the threaded `functionImplementations` parameter
- *  (⇒ an impl call; only side-effect-free under `assumePureImplementations`). */
+/** Whether `node` is an impl call — it references the threaded
+ *  `functionImplementations` parameter OR calls a source-emitted impl local name
+ *  (⇒ side-effect-free only under `assumePureImplementations`). */
 function callsImplementations(
   ts: TsModule,
   node: import('typescript').Node,
+  implCallNames: ReadonlySet<string>,
 ): boolean {
-  return collectFreeIdentifiers(ts, node, new Set()).has(
-    'functionImplementations',
-  );
+  const free = collectFreeIdentifiers(ts, node, new Set());
+  if (free.has('functionImplementations')) return true;
+  for (const name of implCallNames) if (free.has(name)) return true;
+  return false;
 }
 
 type StatementInfo = {
@@ -154,6 +167,7 @@ function classifyStatement(
   statement: import('typescript').Statement,
   index: number,
   assumePure: boolean,
+  implCallNames: ReadonlySet<string>,
 ): StatementInfo {
   const defs = new Set<string>();
   const uses = new Set<string>();
@@ -178,7 +192,8 @@ function classifyStatement(
       }
     }
     // A binding initialized from an impl call is a side effect unless pure.
-    if (!assumePure && callsImplementations(ts, statement)) sideEffect = true;
+    if (!assumePure && callsImplementations(ts, statement, implCallNames))
+      sideEffect = true;
   } else if (ts.isBlock(statement)) {
     // Loop / switch / group block: names ASSIGNED to the outer scope are defs;
     // free reads are uses; an impl call inside is a side effect unless pure.
@@ -199,7 +214,8 @@ function classifyStatement(
     collectFreeIdentifiers(ts, statement, new Set()).forEach((u) => {
       if (!defs.has(u)) uses.add(u);
     });
-    if (!assumePure && callsImplementations(ts, statement)) sideEffect = true;
+    if (!assumePure && callsImplementations(ts, statement, implCallNames))
+      sideEffect = true;
   } else if (isReturn) {
     const returnStatement = statement as import('typescript').ReturnStatement;
     if (returnStatement.expression) {
@@ -224,6 +240,8 @@ function eliminateDeadCode(
   options: DeadCodeOptions = {},
 ): string {
   const assumePure = options.assumePureImplementations ?? false;
+  const implCallNames = options.implCallNames ?? new Set<string>();
+  const signatureOnly = options.signatureOnly ?? false;
   const sourceFile = ts.createSourceFile(
     'runGraph.ts',
     source,
@@ -235,47 +253,59 @@ function eliminateDeadCode(
   if (!runGraph || !runGraph.body) return source;
 
   const bodyStatements = runGraph.body.statements;
+  // Classification (defs/uses/hasAwait/side-effect) ALWAYS runs — only the
+  // liveness fixpoint is skipped under `signatureOnly`.
   const items = bodyStatements.map((statement, index) =>
-    classifyStatement(ts, statement, index, assumePure),
+    classifyStatement(ts, statement, index, assumePure, implCallNames),
   );
 
   // Liveness fixpoint: live statements seed from the return + side effects; a
   // variable is live when used by a live statement; a statement is live when it
-  // defines a live variable.
+  // defines a live variable. Skipped under `signatureOnly` (every statement kept).
   const liveStatements = new Set<number>(
     items
       .filter((info) => info.isReturn || info.sideEffect)
       .map((i) => i.index),
   );
-  const liveVars = new Set<string>();
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const info of items) {
-      if (!liveStatements.has(info.index)) continue;
-      for (const use of info.uses) {
-        if (!liveVars.has(use)) {
-          liveVars.add(use);
-          changed = true;
+  if (!signatureOnly) {
+    const liveVars = new Set<string>();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const info of items) {
+        if (!liveStatements.has(info.index)) continue;
+        for (const use of info.uses) {
+          if (!liveVars.has(use)) {
+            liveVars.add(use);
+            changed = true;
+          }
         }
       }
-    }
-    for (const info of items) {
-      if (liveStatements.has(info.index)) continue;
-      for (const def of info.defs) {
-        if (liveVars.has(def)) {
-          liveStatements.add(info.index);
-          changed = true;
-          break;
+      for (const info of items) {
+        if (liveStatements.has(info.index)) continue;
+        for (const def of info.defs) {
+          if (liveVars.has(def)) {
+            liveStatements.add(info.index);
+            changed = true;
+            break;
+          }
         }
       }
     }
   }
 
-  const kept = items.filter((info) => liveStatements.has(info.index));
+  const kept = signatureOnly
+    ? items
+    : items.filter((info) => liveStatements.has(info.index));
   const keptStatements = kept.map((info) => info.statement);
 
   // Parameter cleanup: keep a parameter only if a surviving statement references it.
+  // COUPLING (review IR-3): under `signatureOnly` (source-emission's fully-covered
+  // param-drop) `functionImplementations` is dropped because nothing references it any
+  // more, while `options` survives ONLY because an unconditional statement reads it (the
+  // `abortSignal` destructure). If that read ever became conditional, `options` could be
+  // wrongly dropped from a still-`runGraph(functionImplementations, options)` signature —
+  // keep an always-live `options` reference, or special-case defaulted params.
   const referencedByKept = new Set<string>();
   for (const info of kept) info.uses.forEach((u) => referencedByKept.add(u));
   const keptParameters = runGraph.parameters.filter((parameter) =>
@@ -296,6 +326,12 @@ function eliminateDeadCode(
     undefined,
     factory.createBlock(keptStatements, true),
   );
+
+  // (Review CSM-5 considered the JS-target header at risk: `runGraph` is rebuilt as
+  // a positionless `factory` node, so it carries no leading comments of its own.
+  // But `printer.printFile` emits the module header from the SOURCE TEXT by position
+  // — it is preserved across the replace — so re-attaching it synthetically would
+  // DUPLICATE it. Verified live in the CodegenStudio. No re-attach needed.)
 
   // Re-emit the whole module: the rebuilt runGraph replaces the original, other
   // top-level statements (header comments live as leading trivia; `export {…}`)

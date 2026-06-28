@@ -234,6 +234,7 @@ Recording of a single node's execution step.
 | `nodeId`                | `string`                                         | Runtime node instance ID.                                                                                                                                                                               |
 | `nodeTypeId`            | `string`                                         | Node type ID from the type definitions.                                                                                                                                                                 |
 | `nodeTypeName`          | `string`                                         | Display name of the node type.                                                                                                                                                                          |
+| `customName`            | `string \| undefined`                            | Optional user custom name (standard nodes only); rendered `Custom : Type` in the timeline / inspector / errors. Read from `node.data.customName` at compile time.                                       |
 | `concurrencyLevel`      | `number`                                         | Which concurrency level this step belongs to.                                                                                                                                                           |
 | `startTime`             | `number`                                         | Time relative to execution start (ms). Computed as `timer.now() - recorder.startTime` (monotonic timer, not raw `performance.now()`).                                                                   |
 | `endTime`               | `number`                                         | Time relative to execution start (ms). Set on completion/error/skip.                                                                                                                                    |
@@ -411,10 +412,11 @@ Generates a unique ID via `crypto.randomUUID()` (with a
 | `skipStep(stepIndex)`                                | Records a step being skipped (upstream errored). Sets `duration=0`, `status='skipped'`, and routes it into pending structures.                                                                                                                                                                                                                                                            |
 
 `params` for `beginStep` accepts: `nodeId`, `nodeTypeId`, `nodeTypeName`,
-`concurrencyLevel`, plus the optional context fields `loopIteration`,
-`loopStructureId`, `parentLoopStructureId`, `parentLoopIteration`,
-`groupNodeId`, `groupDepth`, `loopPhase`, `inputSource`, `switchPhase`,
-`switchStructureId`, and `branchTaken`.
+`concurrencyLevel`, the optional `customName` (standard nodes only), plus the
+optional context fields `loopIteration`, `loopStructureId`,
+`parentLoopStructureId`, `parentLoopIteration`, `groupNodeId`, `groupDepth`,
+`loopPhase`, `inputSource`, `switchPhase`, `switchStructureId`, and
+`branchTaken`.
 
 ### Concurrency Level Methods
 

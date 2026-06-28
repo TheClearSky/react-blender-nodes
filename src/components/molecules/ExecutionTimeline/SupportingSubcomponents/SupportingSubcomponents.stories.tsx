@@ -49,6 +49,9 @@ const completedStep = makeStep({
   stepIndex: 0,
   nodeId: 'n1',
   nodeTypeName: 'Boolean Constant',
+  // A user custom name so the runner hosts render `Custom : Type` through the shared
+  // NodeIdentityLabel (timeline block uses protect='custom', tooltip protect='type').
+  customName: 'Summer',
   concurrencyLevel: 0,
   startTime: 0,
   duration: 12,

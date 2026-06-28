@@ -19,6 +19,7 @@ import {
   getStepNodeId,
   getStepTypeId,
   getStepTypeName,
+  getStepCustomName,
   handleCatchError,
   initializeDefaultValues,
 } from './executionHelpers';
@@ -150,6 +151,7 @@ async function execute<
         nodeId: stepNodeId,
         nodeTypeId: getStepTypeId(step),
         nodeTypeName: getStepTypeName(step),
+        customName: getStepCustomName(step),
         concurrencyLevel: step.concurrencyLevel,
       });
       recorder.skipStep(skipIndex);

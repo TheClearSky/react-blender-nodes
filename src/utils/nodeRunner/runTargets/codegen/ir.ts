@@ -41,9 +41,15 @@ type CgNodeCall = {
   nodeId: string;
   nodeTypeId: string;
   nodeTypeName: string;
+  /** The prebuilt `// node …` identity comment (incl. the custom name if any),
+   *  built once in `lower.ts` so the call + inline + raw forms never drift. */
+  comment: string;
   inputs: CgInput[];
   outputs: CgOutput[];
   stores: CgStore[];
+  /** When set (source-emission, `emitImplementations: 'source'`), the node calls
+   *  this LOCAL function name instead of `functionImplementations[nodeTypeId]`. */
+  localCallName?: string;
 };
 
 /** A node rendered inline via its `emitCode` hook — one `<name> = <expr>` per
@@ -91,6 +97,14 @@ type CgModule = {
   /** Loop-carry variable names — hoisted `let`s that hold internal loop state,
    *  NOT node outputs. Excluded from the compat keyed return. */
   loopCarryNames?: ReadonlyArray<string>;
+  /** Source-emitted function defs (the `readInput` intrinsic + helpers + node
+   *  impls), in dependency order — printed as `const <name> = <sourceText>;` inside
+   *  `runGraph`. Present only under `emitImplementations: 'source'`.
+   *
+   *  (`fullyCovered` for the param-drop is derived by `emitGraph` from the emitted
+   *  string's `functionImplementations["` opaque-call marker — sound vs author-emit
+   *  fan-in fall-throughs — so no `hasOpaqueCall` IR flag is threaded through `emitJs`.) */
+  emittedFunctions?: ReadonlyArray<{ name: string; sourceText: string }>;
 };
 
 export type {

@@ -182,6 +182,7 @@ function recordInputValues(
         value: conn.value,
         sourceNodeId: conn.sourceNodeId,
         sourceNodeName: conn.sourceNodeName,
+        sourceNodeCustomName: conn.sourceNodeCustomName,
         sourceHandleId: conn.sourceHandleId,
         sourceHandleName: conn.sourceHandleName,
         sourceDataTypeId: conn.sourceDataTypeId,
@@ -351,6 +352,12 @@ function getStepTypeName(step: ExecutionStep): string {
   }
 }
 
+/** The per-instance custom name for a step, if it is a standard node with one.
+ *  Loop/switch/group steps carry no single-node identity ⇒ undefined. */
+function getStepCustomName(step: ExecutionStep): string | undefined {
+  return step.kind === 'standard' ? step.customName : undefined;
+}
+
 /**
  * Handles errors caught in orchestration-level catch blocks.
  *
@@ -382,6 +389,7 @@ function handleCatchError(
     nodeId,
     nodeTypeId: getStepTypeId(step),
     nodeTypeName: getStepTypeName(step),
+    customName: getStepCustomName(step),
     concurrencyLevel: step.concurrencyLevel,
   });
   const error = createGraphError({
@@ -389,6 +397,7 @@ function handleCatchError(
     nodeId,
     nodeTypeId: getStepTypeId(step),
     nodeTypeName: getStepTypeName(step),
+    customName: getStepCustomName(step),
     path: [],
     timestamp: performance.now(),
     duration: 0,
@@ -580,6 +589,7 @@ export {
   getStepNodeId,
   getStepTypeId,
   getStepTypeName,
+  getStepCustomName,
   handleCatchError,
   initializeDefaultValues,
   getDataHandleIds,

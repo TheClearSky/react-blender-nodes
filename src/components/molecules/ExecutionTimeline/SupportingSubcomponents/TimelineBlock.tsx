@@ -1,6 +1,7 @@
 import { cn } from '@/utils';
 import type { ExecutionStepRecord } from '@/utils/nodeRunner/types';
 import { Tooltip } from '@/components/atoms/Tooltip';
+import { NodeIdentityLabel } from '@/components/atoms/NodeIdentityLabel';
 import {
   statusBlockClass,
   MIN_BLOCK_WIDTH,
@@ -79,10 +80,15 @@ function TimelineBlock({
     >
       {showLabel && (
         <span
-          className='block truncate px-2 text-[12px] font-normal text-timeline-hover-text drop-shadow-sm select-none'
-          style={{ lineHeight: `${subRowHeight}px` }}
+          className='flex items-center px-2 text-[12px] font-normal text-timeline-hover-text drop-shadow-sm select-none'
+          style={{ height: `${subRowHeight}px` }}
         >
-          {step.nodeTypeName}
+          <NodeIdentityLabel
+            typeName={step.nodeTypeName}
+            customName={step.customName}
+            protect='custom'
+            className='min-w-0'
+          />
         </span>
       )}
     </Tooltip>

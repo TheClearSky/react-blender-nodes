@@ -116,7 +116,10 @@ const ConfigurableNodeReactFlowWrapper = forwardRef<
             </span>
           </div>
           <p className='text-center text-[10px] text-zinc-500'>
-            {data.name ?? 'Node'} &mdash; {error.message}
+            {data.customName
+              ? `${data.customName} : ${data.name ?? 'Node'}`
+              : (data.name ?? 'Node')}{' '}
+            &mdash; {error.message}
           </p>
           <button
             type='button'

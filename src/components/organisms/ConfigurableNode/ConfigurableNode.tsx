@@ -4,7 +4,13 @@ import {
 } from '@/components/atoms/NodeResizerWithMoreControls/NodeResizerWithMoreControls';
 import { cn, type DataType, type SupportedUnderlyingTypes } from '@/utils';
 import { Position, useNodeConnections } from '@xyflow/react';
-import { forwardRef, type HTMLAttributes, useContext, useState } from 'react';
+import {
+  forwardRef,
+  type HTMLAttributes,
+  useCallback,
+  useContext,
+  useState,
+} from 'react';
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { Button } from '@/components/atoms';
 import {
@@ -13,6 +19,7 @@ import {
 } from './SupportingSubcomponents/ContextAwareHandle';
 import { ContextAwareInput } from './SupportingSubcomponents/ContextAwareInput';
 import { InputConnectionOrderControl } from './SupportingSubcomponents/InputConnectionOrderControl';
+import { EditableNodeTitle } from './SupportingSubcomponents/EditableNodeTitle';
 import {
   ContextAwareNodeHeaderActions,
   type NodeHeaderActionDefinition,
@@ -196,6 +203,9 @@ type ConfigurableNodeProps<
   id?: string;
   /** Display name of the node */
   name?: string;
+  /** Optional user-chosen instance name shown over the type name (standard nodes
+   *  only; absent = show the type name). */
+  customName?: string;
   /** Background color of the node header */
   headerColor?: string;
   /** Array of inputs and input panels */
@@ -512,6 +522,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
     {
       id,
       name = 'Node',
+      customName,
       headerColor = '#79461D',
       inputs = [],
       outputs = [],
@@ -536,6 +547,29 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       !!nodeTypeUniqueId &&
       !!fullGraphContext?.allProps?.state?.typeOfNodes?.[nodeTypeUniqueId]
         ?.subtree;
+
+    // Custom names are for STANDARD nodes only — system/structural nodes (graph &
+    // group I/O, loops, switches, groups) are excluded. The same predicate gates the
+    // rename affordance AND the display (a system node never shows a custom name).
+    const supportsCustomName =
+      !!nodeTypeUniqueId &&
+      !isGroupInputOrOutputNode(nodeTypeUniqueId) &&
+      !isLoopNode(nodeTypeUniqueId) &&
+      !isSwitchNode(nodeTypeUniqueId) &&
+      !hasSubtree;
+    const isCustomNameEditable =
+      isCurrentlyInsideReactFlow && supportsCustomName;
+    const dispatch = fullGraphContext?.allProps?.dispatch;
+    const handleCustomNameCommit = useCallback(
+      (newName: string | undefined) => {
+        if (!dispatch || !id) return;
+        dispatch({
+          type: actionTypesMap.UPDATE_NODE_CUSTOM_NAME,
+          payload: { nodeId: id, customName: newName },
+        });
+      },
+      [dispatch, id],
+    );
 
     const headerActions: NodeHeaderActionDefinition[] = [];
 
@@ -657,9 +691,13 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
             backgroundColor: headerColor,
           }}
         >
-          <p className={cn('truncate py-2', theme?.node?.headerTitle)}>
-            {displayName}
-          </p>
+          <EditableNodeTitle
+            typeName={displayName}
+            customName={supportsCustomName ? customName : undefined}
+            isEditable={isCustomNameEditable}
+            onCommit={handleCustomNameCommit}
+            className={cn('min-w-0', theme?.node?.headerTitle)}
+          />
           {fullGraphContext?.allProps?.state?.enableDebugMode && (
             <p className='shrink-0 py-2'>{id}</p>
           )}

@@ -452,6 +452,7 @@ function compile<
         nodeId,
         nodeTypeId,
         nodeTypeName: typeOfNode?.name ?? nodeTypeId,
+        customName: node.data.customName,
         concurrencyLevel: levelIdx,
       } satisfies StandardExecutionStep);
     }

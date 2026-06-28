@@ -14,6 +14,11 @@ type NameRegistry = {
   /** Bind a key to a specific desired identifier (deduped if taken) — used to map
    *  a group's input-node handles to the group function's parameter names. */
   force: (scopedKey: string, desiredName: string) => string;
+  /** Reserve a bare identifier so later value names avoid it, WITHOUT creating a
+   *  value-store entry (it is not a `nodeId:handleId` slot — used for source-emitted
+   *  function names, which must stay out of `entries()`/the hoisted-`let` list and
+   *  the keyed return). Returns the reserved (deduped) name. */
+  reserve: (desiredName: string) => string;
   /** The name already assigned to a key, or null if it was never registered. */
   existing: (scopedKey: string) => string | null;
   /** All registered (key → name) pairs, in first-seen (registration) order. */
@@ -140,9 +145,21 @@ function createNameRegistry(): NameRegistry {
     return candidate;
   }
 
+  function reserve(desiredName: string): string {
+    let candidate = desiredName;
+    let suffix = 2;
+    while (used.has(candidate)) {
+      candidate = `${desiredName}${suffix}`;
+      suffix += 1;
+    }
+    used.add(candidate); // NOT added to byKey/order — never a value-store entry
+    return candidate;
+  }
+
   return {
     nameFor,
     force,
+    reserve,
     existing: (scopedKey) => byKey.get(scopedKey) ?? null,
     entries: () => order,
   };

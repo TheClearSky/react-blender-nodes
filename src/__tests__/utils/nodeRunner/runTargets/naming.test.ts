@@ -84,4 +84,19 @@ describe('codegen NameRegistry', () => {
       'bitInputOut',
     ]);
   });
+
+  it('reserve() takes a name without adding it to entries(), steering derivation off it', () => {
+    const registry = createNameRegistry();
+    registry.reserve('readInput');
+    // a reserved scaffolding name is NOT a value-store slot — it stays out of entries()
+    expect(registry.entries()).toEqual([]);
+    // a key whose derived base collides with the reserved name is suffixed away
+    expect(
+      registry.nameFor('a:1', { nodeLabel: '', handleName: 'readInput' }),
+    ).toBe('readInput2');
+    // and the real derived slot DOES appear in entries()
+    expect(registry.entries().map((entry) => entry.name)).toEqual([
+      'readInput2',
+    ]);
+  });
 });

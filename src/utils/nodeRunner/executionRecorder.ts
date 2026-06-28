@@ -208,6 +208,7 @@ class ExecutionRecorder {
     nodeId: string;
     nodeTypeId: string;
     nodeTypeName: string;
+    customName?: string;
     concurrencyLevel: number;
     loopIteration?: number;
     loopStructureId?: string;
@@ -238,6 +239,7 @@ class ExecutionRecorder {
       nodeId: params.nodeId,
       nodeTypeId: params.nodeTypeId,
       nodeTypeName: params.nodeTypeName,
+      customName: params.customName,
       concurrencyLevel: params.concurrencyLevel,
       startTime: now - this.startTime,
       endTime: 0, // filled on completion

@@ -40,10 +40,14 @@ function handleMetaFields(meta: CgHandleMeta): string {
   return `handleId: ${JSON.stringify(meta.handleId)}, handleName: ${JSON.stringify(meta.handleName)}, dataTypeId: ${JSON.stringify(meta.dataTypeId)}`;
 }
 
-/** How a node call reaches its implementation: the threaded
- *  `functionImplementations[nodeTypeId]` lookup. */
+/** How a node call reaches its implementation: a source-emitted LOCAL function
+ *  name (`emitImplementations: 'source'`), else the threaded
+ *  `functionImplementations[nodeTypeId]` lookup (the default). */
 function implCallTarget(node: CgNodeCall): string {
-  return `functionImplementations[${JSON.stringify(node.nodeTypeId)}]`;
+  return (
+    node.localCallName ??
+    `functionImplementations[${JSON.stringify(node.nodeTypeId)}]`
+  );
 }
 
 function printNodeCallFull(
@@ -51,9 +55,7 @@ function printNodeCallFull(
   writer: CodeWriter,
   context: PrintContext,
 ): void {
-  writer.line(
-    `// node ${JSON.stringify(node.nodeTypeName)} (${node.nodeTypeId})  [${node.nodeId}]`,
-  );
+  writer.line(node.comment);
   writer.block('{', () => {
     writer.line('const inputs = new Map();');
     for (const input of node.inputs) {
@@ -114,9 +116,7 @@ function printNodeCallTrimmed(
   context: PrintContext,
   topLevel: boolean,
 ): void {
-  writer.line(
-    `// node ${JSON.stringify(node.nodeTypeName)} (${node.nodeTypeId})  [${node.nodeId}]`,
-  );
+  writer.line(node.comment);
   const outputsExpr = `makeOutputs([${node.outputs.map((o) => JSON.stringify(o.name)).join(', ')}])`;
   const ctxExpr = `makeContext(${JSON.stringify(node.nodeId)}, ${JSON.stringify(node.nodeTypeId)}, ${JSON.stringify(node.nodeTypeName)})`;
   const callExpr = `await ${implCallTarget(node)}(${inputsMapExpr(node)}, ${outputsExpr}, ${ctxExpr})`;
@@ -381,7 +381,14 @@ function printSource(module: CgModule, options: PrintOptions = {}): string {
       );
     }
     if (hoistedNames.length > 0) writer.line(`let ${hoistedNames.join(', ')};`);
-    if (usePrelude) writeHelpers(writer, ts);
+    // Source-emitted defs depend on the prelude (makeInput/makeContext), so the
+    // two share one gate (a source-emitted node is still a nodeCall, so today
+    // `usePrelude` already holds — the `||` keeps them coupled if that changes).
+    const emittedFunctions = module.emittedFunctions ?? [];
+    if (usePrelude || emittedFunctions.length > 0) writeHelpers(writer, ts);
+    for (const emitted of emittedFunctions) {
+      writer.line(`const ${emitted.name} = ${emitted.sourceText};`);
+    }
     writer.line('');
     for (const stmt of module.body) printStmt(stmt, writer, context, true);
     writer.line('');

@@ -33,7 +33,7 @@
 |                                      | createGraphStore + useFull- |      |
 |                                      |  Graph (external store)     |      |
 |                                      | validate -> plan -> apply   |      |
-|                                      | (28 actions, 27 plan kinds) |      |
+|                                      | (29 actions, 28 plan kinds) |      |
 |                                      | Immer produce + undo/redo   |      |
 |                                      |  history (patches)          |      |
 |                                      +-----------------------------+      |
@@ -230,14 +230,14 @@ used across the entire codebase, see
 
 ### Making Nodes Executable (Runner Integration)
 
-| Doc                                                           | Why                                                       |
-| ------------------------------------------------------------- | --------------------------------------------------------- |
-| [runnerCompilerDoc.md](./runner/runnerCompilerDoc.md)         | How nodes become ExecutionSteps                           |
-| [runnerExecutorDoc.md](./runner/runnerExecutorDoc.md)         | FunctionImplementation interface, ValueStore              |
-| [runnerHookDoc.md](./runner/runnerHookDoc.md)                 | useNodeRunner API, state machine                          |
-| [executionRecordingDoc.md](./runner/executionRecordingDoc.md) | Step records, replay support                              |
-| [runTargetsDoc.md](./runner/runTargetsDoc.md)                 | Pluggable run targets, split Run button, codegen / export |
-| [nodeStatusIndicatorDoc.md](./ui/nodeStatusIndicatorDoc.md)   | Visual feedback during execution                          |
+| Doc                                                           | Why                                                                                                                  |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| [runnerCompilerDoc.md](./runner/runnerCompilerDoc.md)         | How nodes become ExecutionSteps                                                                                      |
+| [runnerExecutorDoc.md](./runner/runnerExecutorDoc.md)         | FunctionImplementation interface, ValueStore                                                                         |
+| [runnerHookDoc.md](./runner/runnerHookDoc.md)                 | useNodeRunner API, state machine                                                                                     |
+| [executionRecordingDoc.md](./runner/executionRecordingDoc.md) | Step records, replay support                                                                                         |
+| [runTargetsDoc.md](./runner/runTargetsDoc.md)                 | Pluggable run targets, split Run button, codegen / export, self-contained artifact (`emitImplementations: 'source'`) |
+| [nodeStatusIndicatorDoc.md](./ui/nodeStatusIndicatorDoc.md)   | Visual feedback during execution                                                                                     |
 
 ### Building a Node Group
 
@@ -339,7 +339,7 @@ used across the entire codebase, see
 
 | Doc                                                   | Why                                               |
 | ----------------------------------------------------- | ------------------------------------------------- |
-| [stateManagementDoc.md](./core/stateManagementDoc.md) | State type, 28 actions, validate -> plan -> apply |
+| [stateManagementDoc.md](./core/stateManagementDoc.md) | State type, 29 actions, validate -> plan -> apply |
 | [historyDoc.md](./core/historyDoc.md)                 | Undo/redo, batching, Immer-patch history entries  |
 | [immerDoc.md](./external/immerDoc.md)                 | Immer produce + produceWithPatches integration    |
 | [edgesDoc.md](./core/edgesDoc.md)                     | Edge add/remove with type checking side effects   |
@@ -365,7 +365,7 @@ used across the entire codebase, see
 | 2   | Handles           | [handlesDoc.md](./core/handlesDoc.md)                 | Input/output ports, HandleIndices addressing, panels, dynamic handle addition               |
 | 3   | Nodes             | [nodesDoc.md](./core/nodesDoc.md)                     | TypeOfNode definitions, Node instances, 7 standard node types                               |
 | 4   | Edges             | [edgesDoc.md](./core/edgesDoc.md)                     | Connection management, type-checked add/remove, DFS cycle detection                         |
-| 5   | State Management  | [stateManagementDoc.md](./core/stateManagementDoc.md) | createGraphStore + useFullGraph, validate -> plan -> apply, 28 action types                 |
+| 5   | State Management  | [stateManagementDoc.md](./core/stateManagementDoc.md) | createGraphStore + useFullGraph, validate -> plan -> apply, 29 action types                 |
 | 6   | Type Inference    | [typeInferenceDoc.md](./core/typeInferenceDoc.md)     | inferFromConnection resolution, cascading inference on edge changes                         |
 | 7   | Undo/Redo History | [historyDoc.md](./core/historyDoc.md)                 | state.history, Immer patches, batching, UNDO/REDO/BEGIN_BATCH/END_BATCH/CLEAR_HISTORY       |
 
@@ -381,13 +381,13 @@ used across the entire codebase, see
 
 ### Runner Systems
 
-| #   | Feature             | Doc                                                           | Description                                                                              |
-| --- | ------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| 13  | Runner Compiler     | [runnerCompilerDoc.md](./runner/runnerCompilerDoc.md)         | 5-phase pipeline: State -> ExecutionPlan (loop/switch/group)                             |
-| 14  | Runner Executor     | [runnerExecutorDoc.md](./runner/runnerExecutorDoc.md)         | Async execution engine, ValueStore, concurrent level execution                           |
-| 15  | Runner Hook         | [runnerHookDoc.md](./runner/runnerHookDoc.md)                 | useNodeRunner hook: run/pause/resume/step/stop/reset/replayTo                            |
-| 16  | Execution Recording | [executionRecordingDoc.md](./runner/executionRecordingDoc.md) | ExecutionRecord, step records, value snapshots, replay support                           |
-| 17  | Run Targets         | [runTargetsDoc.md](./runner/runTargetsDoc.md)                 | Pluggable execution: RunTarget contract, in-process/json-ir/codegen-js, split Run button |
+| #   | Feature             | Doc                                                           | Description                                                                                                                                         |
+| --- | ------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 13  | Runner Compiler     | [runnerCompilerDoc.md](./runner/runnerCompilerDoc.md)         | 5-phase pipeline: State -> ExecutionPlan (loop/switch/group)                                                                                        |
+| 14  | Runner Executor     | [runnerExecutorDoc.md](./runner/runnerExecutorDoc.md)         | Async execution engine, ValueStore, concurrent level execution                                                                                      |
+| 15  | Runner Hook         | [runnerHookDoc.md](./runner/runnerHookDoc.md)                 | useNodeRunner hook: run/pause/resume/step/stop/reset/replayTo                                                                                       |
+| 16  | Execution Recording | [executionRecordingDoc.md](./runner/executionRecordingDoc.md) | ExecutionRecord, step records, value snapshots, replay support                                                                                      |
+| 17  | Run Targets         | [runTargetsDoc.md](./runner/runTargetsDoc.md)                 | Pluggable execution: RunTarget contract, in-process/json-ir/codegen-js, self-contained artifact (`emitImplementations: 'source'`), split Run button |
 
 ### UI Components
 
@@ -440,7 +440,7 @@ src/
 +-- utils/
 |   +-- nodeStateManagement/
 |   |   +-- types.ts                  State (incl. history, zones), DataType, TypeOfNode, ActiveDrawer
-|   |   +-- mainReducer.ts            28 action types; delegates to validate + applyValidatedAction
+|   |   +-- mainReducer.ts            29 action types; delegates to validate + applyValidatedAction
 |   |   +-- applyWithHistory.ts       applyValidatedAction: 3-path undo/redo history routing
 |   |   +-- graphEvent.ts             GraphEvent observability stream (applied/rejected/committed/ui)
 |   |   +-- standardNodes.ts          Standard data types & 7 standard node types
@@ -448,7 +448,7 @@ src/
 |   |   +-- planApply/
 |   |   |   +-- validators.ts         validateAction (pure) -> Result<Plan, ValidationError>
 |   |   |   +-- validateAddEdge.ts    13-step edge validation gauntlet
-|   |   |   +-- applyPlan.ts          The only mutator: switch over 26 plan kinds, mints ids
+|   |   |   +-- applyPlan.ts          The only mutator: switch over 28 plan kinds, mints ids
 |   |   |   +-- types.ts              Plan union, Result, ValidationError taxonomy
 |   |   +-- zones/                    First-class regions (types, lifecycle, BFS discovery)
 |   |   +-- nodes/

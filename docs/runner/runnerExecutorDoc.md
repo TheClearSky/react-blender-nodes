@@ -1057,6 +1057,7 @@ type GraphError = {
   nodeId: string; // node where the error occurred
   nodeTypeId: string;
   nodeTypeName: string;
+  customName?: string; // user custom name (standard nodes only); rendered as `Custom : Type`
   handleId?: string; // handle where the error manifested (if applicable)
   path: ReadonlyArray<GraphErrorPathEntry>; // upstream chain leading to the error
   loopContext?: {
@@ -1082,7 +1083,9 @@ a string, or `'Unknown error'` otherwise.
 collect every upstream node that contributed data to the errored node, looking
 up each node's `NodeInfo`. The collected path is **reversed** so it reads from
 earliest upstream node to the errored node. Each `GraphErrorPathEntry` carries
-`{ nodeId, nodeTypeId, nodeTypeName, handleId?, concurrencyLevel }`.
+`{ nodeId, nodeTypeId, nodeTypeName, customName?, handleId?, concurrencyLevel }`
+(the optional `customName` is read from the node's `data.customName` so error
+paths show `Custom : Type` for named standard nodes).
 
 `formatGraphError()` renders a multi-line string (node, message, `Path:` joined
 with `→`, optional `Loop:`/`Group:` lines, and `Duration`) for tooltips/logs.

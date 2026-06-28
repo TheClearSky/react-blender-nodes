@@ -28,10 +28,27 @@ type CodegenRunTargetOptions = {
    *  off — the export is a faithful, threaded `runGraph` unless enabled. */
   optimize?: { deadCode?: boolean };
   /** Opt-in: analyze `impls` so self-contained value-API nodes (reading inputs
-   *  via the `readInput` intrinsic) AUTO-EMIT inline instead of threading. */
+   *  via the `readInput` intrinsic) AUTO-EMIT inline instead of threading. `impls`
+   *  drives auto-emit independently of `emitImplementations`; under
+   *  `emitImplementations: 'source'` prefer `knownFunctions` (which also feeds
+   *  auto-emit) as the single registry and leave `impls` unset — codegen does not
+   *  reconcile the two. */
   analyzeImplementations?: boolean;
   /** Node-type id → implementation, for `analyzeImplementations`. */
   impls?: Readonly<Record<string, (...args: never[]) => unknown>>;
+  /** todo.txt #4 — bake node impls + helper deps into the module so `runGraph()`
+   *  runs with no `functionImplementations` argument (graceful mixed otherwise). */
+  emitImplementations?: 'off' | 'source';
+  /** node-type id → impl AND helper name → helper, for `emitImplementations`. ONE
+   *  namespace: a key equal to a node-type id is that type's impl, every other key is
+   *  a helper — so a helper must NOT be named after a node type. */
+  knownFunctions?: Readonly<Record<string, (...args: never[]) => unknown>>;
+  /** Extra identifiers treated as ambient globals during the source-emit
+   *  name-closure check. Bare identifiers only (a dotted/garbage entry is ignored
+   *  with a `// warning:`). A name listed here but NOT actually present at run time
+   *  lets a referencing impl bake and then throw `ReferenceError` with no codegen
+   *  warning — the consumer owns that guarantee. */
+  additionalGlobals?: ReadonlyArray<string>;
   /** Prettier-beautify the emitted source. Default true. */
   beautify?: boolean;
 };
@@ -102,6 +119,9 @@ function makeCodegenRunTarget(options: CodegenRunTargetOptions = {}) {
       optimize: options.optimize,
       analyzeImplementations: options.analyzeImplementations,
       impls: options.impls,
+      emitImplementations: options.emitImplementations,
+      knownFunctions: options.knownFunctions,
+      additionalGlobals: options.additionalGlobals,
       beautify: options.beautify,
     });
     downloadTextArtifact(filename, source, defaults.mimeType);

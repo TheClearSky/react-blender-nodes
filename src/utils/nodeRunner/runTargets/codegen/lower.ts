@@ -35,6 +35,7 @@ import type {
   CgStmt,
   CgStore,
 } from './ir';
+import type { SourceEmissionPlan } from './analyze/sourceEmit';
 
 type LowerContext = {
   typesById: ReadonlyMap<string, EmittableTypeOfNode>;
@@ -46,12 +47,18 @@ type LowerContext = {
    *  vars, but they are INTERNAL loop state — not node outputs — so the compat
    *  keyed return must exclude them. Collected during lowering. */
   loopCarryNames: Set<string>;
+  /** node-type id → local fn name for source-emitted impls (empty when the
+   *  `emitImplementations: 'source'` feature is off). */
+  localNameByTypeId: ReadonlyMap<string, string>;
 };
 
 type LowerOptions = {
   exportRunGraph?: boolean;
   language?: 'javascript' | 'typescript';
   nodeTypeMetadata?: Readonly<Record<string, NodeCodegenMetadata>>;
+  /** Source-emission plan (`emitImplementations: 'source'`). When present, covered
+   *  node types call a local fn and their defs are emitted into the module. */
+  sourceEmission?: SourceEmissionPlan;
 };
 
 function resolveDataTypeId(handle: {
@@ -100,12 +107,41 @@ function lowerStep(
   }
 }
 
+/**
+ * Strip the Unicode line/paragraph separators (U+2028 / U+2029) that
+ * `JSON.stringify` leaves UNESCAPED but the JS lexer treats as line terminators, so
+ * a custom name or type name — including a value injected via an imported state that
+ * bypassed the `UPDATE_NODE_CUSTOM_NAME` validator — can't terminate the `// node …`
+ * line comment mid-string.
+ */
+function sanitizeForLineComment(text: string): string {
+  // Strip U+2028 / U+2029 (line & paragraph separators) — JSON.stringify leaves
+  // them unescaped but the JS lexer treats them as line terminators, so they could
+  // break the `// node …` comment. Built from char codes so no raw separator or
+  // fragile escape sits in this source file.
+  const lineSeparators = String.fromCharCode(0x2028, 0x2029);
+  return Array.from(text)
+    .filter((ch) => !lineSeparators.includes(ch))
+    .join('');
+}
+
 function lowerStandardNode(
   step: StandardExecutionStep,
   scope: EmitScope,
   context: LowerContext,
 ): CgStmt[] {
-  const comment = `// node ${JSON.stringify(step.nodeTypeName)} (${step.nodeTypeId})  [${step.nodeId}]`;
+  // A custom name (standard nodes only) is shown in the comment ONLY — generated
+  // identifiers stay type-derived/stable. JSON.stringify (like nodeTypeName) escapes
+  // quotes / newlines / `*/`; sanitizeForLineComment additionally strips the Unicode
+  // line separators JSON.stringify does NOT escape (U+2028 / U+2029), so neither
+  // field can terminate the `//` line — even a value imported past the validator.
+  // Truthiness (not `!== undefined`): an empty-string customName — only reachable
+  // via a REPLACE_STATE import that bypassed the validator's empty→undefined — is
+  // treated as "no custom name" rather than emitting a degenerate `// node "" : …`.
+  const customNamePrefix = step.customName
+    ? `${JSON.stringify(sanitizeForLineComment(step.customName))} : `
+    : '';
+  const comment = `// node ${customNamePrefix}${JSON.stringify(sanitizeForLineComment(step.nodeTypeName))} (${step.nodeTypeId})  [${step.nodeId}]`;
   const data = scope.nodesById.get(step.nodeId);
   if (!data) {
     return [
@@ -245,9 +281,13 @@ function lowerStandardNode(
     nodeId: step.nodeId,
     nodeTypeId: step.nodeTypeId,
     nodeTypeName: step.nodeTypeName,
+    comment,
     inputs,
     outputs,
     stores,
+    // Source-emission: a covered type calls its emitted local fn; absent ⇒ the
+    // threaded `functionImplementations[…]` form (unchanged default behaviour).
+    localCallName: context.localNameByTypeId.get(step.nodeTypeId),
   };
   return [nodeCall];
 }
@@ -623,6 +663,12 @@ function collectNodeLabels(
           collectNodeLabels(level, into);
         }
         break;
+      default: {
+        // Exhaustiveness: a new ExecutionStep.kind must be handled here too (mirrors
+        // `collectNodeTypeIds` in emitGraph.ts), else its label silently goes missing.
+        const _exhaustive: never = step;
+        void _exhaustive;
+      }
     }
   }
 }
@@ -658,6 +704,7 @@ function lowerModule<
     nodeTypeMetadata,
     language: options.language ?? 'javascript',
     loopCarryNames: new Set<string>(),
+    localNameByTypeId: options.sourceEmission?.localNameByTypeId ?? new Map(),
   };
   const nodeLabels = new Map<string, string>();
   for (const level of plan.levels) collectNodeLabels(level, nodeLabels);
@@ -665,6 +712,23 @@ function lowerModule<
     registry: createNameRegistry(),
     nodeLabels,
   };
+  // Source-emission: reserve the emitted function names (readInput intrinsic +
+  // helpers + impl locals) BEFORE rootParams force / body value-var naming, so
+  // those avoid them. The pure analysis already made these names collision-free
+  // vs RESERVED_NAMES + each other, so `reserve` returns each unchanged; they are
+  // kept OUT of `entries()` (not value-store slots), so the hoisted-`let` list and
+  // the keyed return are unaffected.
+  for (const emitted of options.sourceEmission?.emittedFunctions ?? []) {
+    naming.registry.reserve(emitted.name);
+  }
+  // Also reserve the structural locals the source-emit analysis treats as taken
+  // (CSM-6: `switchInputs`/`loopValue`), so the registry is self-consistent — a
+  // defense-in-depth pairing with the analysis denylist (`emitGraph.ts` injects both
+  // into `reservedNames`). Gated so feature-off naming is byte-identical.
+  if (options.sourceEmission) {
+    naming.registry.reserve('switchInputs');
+    naming.registry.reserve('loopValue');
+  }
   const rootScope: EmitScope = {
     prefix: '',
     plan,
@@ -674,8 +738,12 @@ function lowerModule<
 
   const headerLines = [
     '// Auto-generated from a react-blender-nodes graph. No runtime dependencies.',
-    '// Provide node implementations keyed by node-type id, then call runGraph().',
+    options.sourceEmission
+      ? '// Implementations are baked in where possible; any node still threaded (see warnings) needs its impl.'
+      : '// Provide node implementations keyed by node-type id, then call runGraph().',
     ...plan.warnings.map((warning) => `// warning: ${warning}`),
+    // Source-emission per-node coverage warnings (already `// warning:`-prefixed).
+    ...(options.sourceEmission?.warnings ?? []),
   ];
 
   // Root Graph I/O → the function-model signature. FORCE the Graph Input node's
@@ -744,6 +812,7 @@ function lowerModule<
     rootParams,
     rootReturn,
     loopCarryNames: [...context.loopCarryNames],
+    emittedFunctions: options.sourceEmission?.emittedFunctions,
   };
 }
 

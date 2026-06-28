@@ -51,6 +51,8 @@ type InputConnectionValue = {
   sourceNodeId: string;
   /** Source node display name (from typeOfNodes) */
   sourceNodeName: string;
+  /** Source node custom (user) name, if any (standard nodes only). */
+  sourceNodeCustomName?: string;
   /** Source node type ID (key in typeOfNodes) */
   sourceNodeTypeId: string;
   /** Source output handle ID (unique per node instance) */
@@ -267,6 +269,8 @@ type StandardExecutionStep = {
   nodeId: string;
   nodeTypeId: string;
   nodeTypeName: string;
+  /** Optional user custom name for this node instance (standard nodes only). */
+  customName?: string;
   concurrencyLevel: number;
 };
 
@@ -396,6 +400,7 @@ type GraphErrorPathEntry = {
   nodeId: string;
   nodeTypeId: string;
   nodeTypeName: string;
+  customName?: string;
   handleId?: string;
   concurrencyLevel: number;
 };
@@ -416,6 +421,8 @@ type GraphError = {
   nodeTypeId: string;
   /** Display name of the node type */
   nodeTypeName: string;
+  /** Optional user-given custom display name (standard nodes only) */
+  customName?: string;
   /** Handle ID where the error manifested (if applicable) */
   handleId?: string;
   /** Ordered list of nodes in the execution path leading to this error */
@@ -455,6 +462,8 @@ type RecordedInputConnection = {
   sourceNodeId: string;
   /** Source node display name */
   sourceNodeName: string;
+  /** Source node custom (user) name, if any (standard nodes only). */
+  sourceNodeCustomName?: string;
   /** Source output handle ID */
   sourceHandleId: string;
   /** Source output handle display name */
@@ -507,6 +516,8 @@ type ExecutionStepRecord = {
   nodeId: string;
   nodeTypeId: string;
   nodeTypeName: string;
+  /** Optional user custom name for this node instance (standard nodes only). */
+  customName?: string;
   concurrencyLevel: number;
   /** Time relative to execution start (ms) */
   startTime: number;

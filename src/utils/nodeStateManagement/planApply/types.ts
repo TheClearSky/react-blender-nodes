@@ -158,6 +158,13 @@ export type UpdateInputValuePlan = {
   value: string | number;
 };
 
+export type UpdateNodeCustomNamePlan = {
+  kind: 'UPDATE_NODE_CUSTOM_NAME';
+  nodeId: string;
+  /** New custom name, or `undefined` to clear it (revert to the type name). */
+  customName: string | undefined;
+};
+
 export type OpenNodeGroupPlan = {
   kind: 'OPEN_NODE_GROUP';
   pushEntry: {
@@ -378,6 +385,7 @@ export type Plan =
   | AddNodePlan
   | UpdateNodesByReactFlowPlan
   | UpdateInputValuePlan
+  | UpdateNodeCustomNamePlan
   | OpenNodeGroupPlan
   | CloseNodeGroupPlan
   | AddNodeGroupPlan

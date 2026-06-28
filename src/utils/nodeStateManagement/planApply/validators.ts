@@ -6,6 +6,9 @@ import { ok, err } from './types';
 import { actionTypesMap } from '../mainReducer';
 import type { z } from 'zod';
 import { getCurrentNodesAndEdgesFromState } from '../nodes/constructAndModifyNodes';
+import { isGroupInputOrOutputNode } from '../nodes/nodeGroups';
+import { isLoopNode } from '../nodes/loops';
+import { isSwitchNode } from '../nodes/switches';
 import { validateAddEdge } from './validateAddEdge';
 import { removeEdgeWithTypeChecking } from '../constructAndModifyHandles';
 import type { EdgeChangeStep } from './types';
@@ -488,6 +491,44 @@ function validateAction<
         nodeId,
         inputId,
         value: action.payload.value,
+      });
+    }
+
+    case actionTypesMap.UPDATE_NODE_CUSTOM_NAME: {
+      const { nodeId, customName } = action.payload;
+      const view = getCurrentNodesAndEdgesFromState(_state);
+      const node = view.nodes.find((n) => n.id === nodeId);
+      if (!node) {
+        return err({
+          code: 'MISSING_ENDPOINT' as const,
+          which: 'source' as const,
+          detail: 'Node not found for custom-name update',
+        });
+      }
+      // Custom names are for STANDARD nodes only — system/structural nodes
+      // (graph & group I/O, loops, switches, groups) are not nameable. Reject as a
+      // NOOP so a programmatic UPDATE_NODE_CUSTOM_NAME can't name one. An imported
+      // state (via REPLACE_STATE) bypasses this validator, but such a stray
+      // customName is inert downstream: the display gate hides it and the
+      // runner/codegen skip it for structural nodes.
+      const nodeTypeId = node.data.nodeTypeUniqueId;
+      const isSystemNode =
+        !nodeTypeId ||
+        isGroupInputOrOutputNode(nodeTypeId) ||
+        isLoopNode(nodeTypeId) ||
+        isSwitchNode(nodeTypeId) ||
+        Boolean(_state.typeOfNodes[nodeTypeId]?.subtree);
+      if (isSystemNode) {
+        return err({
+          code: 'NOOP' as const,
+          reason: 'System nodes cannot be given a custom name',
+        });
+      }
+      const trimmed = customName?.trim();
+      return ok({
+        kind: 'UPDATE_NODE_CUSTOM_NAME' as const,
+        nodeId,
+        customName: trimmed ? trimmed : undefined,
       });
     }
 

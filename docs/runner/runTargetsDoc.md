@@ -247,6 +247,79 @@ side-effect free — the caller asserts that — and is inert with an un-narrowe
 return (every key is then a live root). Both options are exposed through
 `makeCodegenRunTarget`.
 
+### Self-contained artifact (`emitImplementations: 'source'`)
+
+By default the emitted `runGraph` takes `functionImplementations` as a
+parameter. With `emitImplementations: 'source'` + a `knownFunctions` registry,
+codegen BAKES the consumer's node implementations and their helper dependencies
+into the module as real `const` definitions and calls them by name, so the
+artifact runs standalone — `runGraph()` needs no implementations argument.
+
+```ts
+makeCodegenRunTarget({
+  emitImplementations: 'source',
+  knownFunctions: { andGate, xorGate, bitDisplay, firstVal /* a helper */ },
+});
+```
+
+`knownFunctions` is one object: keys matching a node-type id are that type's
+impl; every other key is a helper referenced by name inside bodies — so a helper
+must NOT be named after a node type (a key's role is decided purely by whether
+it equals a node-type id). Its impl subset also feeds auto-emit, so a
+self-contained kernel still inlines while a helper-using impl source-emits.
+Coverage is decided by
+`src/utils/nodeRunner/runTargets/codegen/analyze/sourceEmit.ts` ›
+`planSourceEmission`; the options live on
+`src/utils/nodeRunner/runTargets/codegenJsRunTarget.ts` ›
+`CodegenRunTargetOptions` and
+`src/utils/nodeRunner/runTargets/codegen/emitGraph.ts` › `emitGraph`.
+
+**The coverage contract.** A node type is "source-emittable" only when BOTH hold
+(the predicate proves the impl BEHAVES like the executor, not merely that the
+module links):
+
+- **name closure** — every free identifier resolves to a safe global, the
+  `src/utils/nodeRunner/readInput.ts` › `readInput` intrinsic (auto-emitted into
+  the module when referenced), another registered function, or a local;
+- **value-API surface** — every use of the impl's positional params
+  (`inputs`/`outputs`/`context`) stays within what the emitted
+  `makeInput`/`makeOutputs`/`makeContext` prelude provides. The guard is
+  INTER-PROCEDURAL: passing a value-API param to a registered helper propagates
+  the role into that helper's parameter and checks its body too (so the
+  universal value-extraction pattern `firstVal(inputs, name)` is covered).
+  Reading executor-only state (`context.state` / `.loopIteration` /
+  `.groupDepth`), a connection field other than `.value`, handle metadata, the
+  `outputs` param, or via a dynamic/bracket key ⇒ NOT emittable.
+
+**Graceful mixed.** A REGISTERED node type that fails either half keeps its
+threaded `functionImplementations[typeId](…)` call and a `// warning:` line
+names the reason; the `functionImplementations` parameter is dropped only when
+EVERY node is covered (via the statement-preserving signature cleanup). The
+artifact is therefore always runnable. Scope: only node types you list in
+`knownFunctions` are analyzed — a node type the graph uses but you did NOT
+register simply stays threaded (no `// warning:`) and its impl must still be
+supplied at run time.
+
+**Boundaries.** Source-emission relies on `Function.prototype.toString()`, so it
+covers BARE identifier references — a bundler/minifier that rewrites an imported
+`readInput`/helper to a namespaced `ns.readInput` (an unresolvable `ns`) makes
+that node thread; author impls so their intrinsic/helper references survive
+`toString()` as bare names, or accept the mixed fallback. Native/bound functions
+(incl. all `.bind()` results), method-shorthand impls, mutual recursion via the
+registry key, and impls reading the un-reconstructable value-API surface (above)
+thread by design. `this` (in an impl OR a baked helper) and `globalThis["x"]`
+are not whitelisted, and a generator (`function*`) impl threads. Use
+`additionalGlobals` for genuine ambient globals only: a non-identifier entry is
+ignored with a `// warning:`, and a name listed but NOT actually present at run
+time bakes its referencing impl and then throws `ReferenceError` with no codegen
+warning (ambient availability is undecidable at codegen time — the consumer owns
+it). **TS target:** baked bodies are emitted UNTYPED — `toString()` yields
+runtime JavaScript, so the inlined `const` definitions carry no types even
+though the surrounding scaffold is typed; for a fully-typed module use
+codegen-ts WITHOUT source-emission, and use codegen-js for a self-contained
+artifact. Inlining baked bodies / specializing them is a future layer — v1 emits
+each function once and calls it.
+
 ---
 
 ## Registering targets & the split Run button

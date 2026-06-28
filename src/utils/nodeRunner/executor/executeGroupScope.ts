@@ -11,6 +11,7 @@ import {
   getStepNodeId,
   getStepTypeId,
   getStepTypeName,
+  getStepCustomName,
   handleCatchError,
   buildInnerState,
 } from './executionHelpers';
@@ -221,6 +222,7 @@ async function executeGroupScope<
         nodeId: stepNodeId,
         nodeTypeId: getStepTypeId(step),
         nodeTypeName: getStepTypeName(step),
+        customName: getStepCustomName(step),
         concurrencyLevel: step.concurrencyLevel,
         groupNodeId,
         groupDepth,

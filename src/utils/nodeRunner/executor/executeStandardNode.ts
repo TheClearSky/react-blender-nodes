@@ -60,7 +60,8 @@ async function executeStandardNode<
   const switchContext = nested?.switchContext;
   const switchPhase = nested?.switchPhase;
 
-  const { nodeId, nodeTypeId, nodeTypeName, concurrencyLevel } = step;
+  const { nodeId, nodeTypeId, nodeTypeName, customName, concurrencyLevel } =
+    step;
 
   onNodeStateChange(nodeId, 'running');
 
@@ -68,6 +69,7 @@ async function executeStandardNode<
     nodeId,
     nodeTypeId,
     nodeTypeName,
+    customName,
     concurrencyLevel,
     loopIteration: loopContext?.loopIteration,
     loopStructureId: loopContext?.loopStructureId,
@@ -87,6 +89,7 @@ async function executeStandardNode<
       nodeId,
       nodeTypeId,
       nodeTypeName,
+      customName,
       path: [],
       timestamp: performance.now() - stepStartTime,
       duration: 0,
@@ -128,6 +131,7 @@ async function executeStandardNode<
       nodeId,
       nodeTypeId,
       nodeTypeName,
+      customName,
       path: buildErrorPath(nodeId, plan.inputResolutionMap, nodeInfoMap),
       timestamp: performance.now() - stepStartTime,
       duration: performance.now() - stepStartTime,
@@ -160,6 +164,7 @@ async function executeStandardNode<
       nodeId,
       nodeTypeId,
       nodeTypeName,
+      customName,
       path: buildErrorPath(nodeId, plan.inputResolutionMap, nodeInfoMap),
       timestamp: performance.now() - stepStartTime,
       duration: performance.now() - stepStartTime,
@@ -229,6 +234,7 @@ async function executeStandardNode<
       nodeId,
       nodeTypeId,
       nodeTypeName,
+      customName,
       path: buildErrorPath(nodeId, plan.inputResolutionMap, nodeInfoMap),
       timestamp: duration,
       duration,

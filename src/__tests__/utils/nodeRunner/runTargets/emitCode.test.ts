@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { emitJs } from '@/utils/nodeRunner/runTargets/codegen/emitJs';
-import type { ExecutionPlan } from '@/utils/nodeRunner/types';
+import type {
+  ExecutionPlan,
+  StandardExecutionStep,
+} from '@/utils/nodeRunner/types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyState = any;
@@ -180,6 +183,32 @@ describe('emitJs — emitCode hook (Stage D)', () => {
     expect(source).not.toContain('functionImplementations["add"]');
     // the upstream node is still a normal call
     expect(source).toContain('functionImplementations["src"]');
+  });
+
+  it('emits a custom name in the per-node comment only — identifiers stay type-derived', () => {
+    // 'add' opts into emitCode (inline path); 'src' threads. Give BOTH a custom name.
+    const { plan, state, metadata } = fixture(addEmit);
+    (plan.levels[1][0] as StandardExecutionStep).customName = 'Summer';
+    (plan.levels[0][0] as StandardExecutionStep).customName = 'TheSource';
+    const source = emitJs(plan, state, { metadata, exportRunGraph: false });
+    // The custom name appears in the `// node "<custom>" : "<type>"` comment, on both
+    // the inlined node and the threaded one (JSON.stringify'd for safety).
+    expect(source).toContain('// node "Summer" : "Add"');
+    expect(source).toContain('// node "TheSource" : "Number"');
+    // ...but NEVER in a generated identifier — those stay type-derived and stable.
+    expect(source).toContain('const addSum = (numberN) + (');
+    expect(source).not.toContain('const summer');
+    expect(source).not.toContain('theSource');
+  });
+
+  it('omits the comment prefix for an empty-string custom name (degenerate import bypass)', () => {
+    // '' can only arrive via a REPLACE_STATE import that bypassed the validator's
+    // empty→undefined; it is treated as "no custom name", not `// node "" : "Add"`.
+    const { plan, state, metadata } = fixture(addEmit);
+    (plan.levels[1][0] as StandardExecutionStep).customName = '';
+    const source = emitJs(plan, state, { metadata, exportRunGraph: false });
+    expect(source).toContain('// node "Add"');
+    expect(source).not.toContain('// node "" :');
   });
 
   it('the inlined expression runs to the correct value', async () => {

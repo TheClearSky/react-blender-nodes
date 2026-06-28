@@ -45,6 +45,7 @@ const actionTypes = [
   'DELETE_SWITCH_CHANNELS',
   'UPDATE_GRAPH_IO_HANDLES',
   'REORDER_INPUT_CONNECTIONS',
+  'UPDATE_NODE_CUSTOM_NAME',
 ] as const;
 
 /** Map of action types for type-safe action dispatching */
@@ -77,6 +78,7 @@ const actionTypesMap = {
   [actionTypes[25]]: actionTypes[25],
   [actionTypes[26]]: actionTypes[26],
   [actionTypes[27]]: actionTypes[27],
+  [actionTypes[28]]: actionTypes[28],
 } as const;
 
 /**
@@ -162,6 +164,17 @@ type Action<
         inputId: string;
         /** New value for the input */
         value: string | number;
+      };
+    }
+  | {
+      /** Set or clear a node instance's custom display name (standard nodes only;
+       *  system nodes are rejected as a NOOP by the validator). */
+      type: typeof actionTypesMap.UPDATE_NODE_CUSTOM_NAME;
+      payload: {
+        /** ID of the node to (re)name. */
+        nodeId: string;
+        /** New custom name, or `undefined` to clear it (revert to the type name). */
+        customName: string | undefined;
       };
     }
   | {

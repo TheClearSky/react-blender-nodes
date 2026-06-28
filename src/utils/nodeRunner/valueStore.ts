@@ -36,6 +36,9 @@ type MinimalNodeData = {
   inputs?: ReadonlyArray<MinimalInput | MinimalInputPanel>;
   outputs?: ReadonlyArray<MinimalOutput>;
   nodeTypeUniqueId?: string;
+  /** Optional user custom name (standard nodes only) — for the inspector's
+   *  "coming from" source label. */
+  customName?: string;
 };
 
 /**
@@ -189,6 +192,7 @@ class ValueStore {
             value: this.get(entry.sourceNodeId, entry.sourceHandleId),
             sourceNodeId: entry.sourceNodeId,
             sourceNodeName: sourceInfo?.typeOfNode?.name ?? '',
+            sourceNodeCustomName: sourceInfo?.data.customName,
             sourceNodeTypeId: sourceInfo?.data.nodeTypeUniqueId ?? '',
             sourceHandleId: entry.sourceHandleId,
             sourceHandleName: sourceHandle?.name ?? '',

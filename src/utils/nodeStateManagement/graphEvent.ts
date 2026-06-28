@@ -418,6 +418,11 @@ function planToDetail<NodeTypeUniqueId extends string = string>(
         handleId: plan.handleId,
         connectionCount: plan.orderedEdgeIds.length,
       };
+    case 'UPDATE_NODE_CUSTOM_NAME':
+      // No rich applied-event detail for a custom-name change (the rename is still
+      // applied + undoable); add an ActionDetail member here if the event stream
+      // should later report renames specifically.
+      return undefined;
     default: {
       const _exhaustive: never = plan;
       void _exhaustive;

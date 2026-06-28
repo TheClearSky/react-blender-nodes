@@ -858,6 +858,8 @@ Each `GraphError` (see `src/utils/nodeRunner/types.ts` › `GraphError`) contain
 
 - `message`: Human-readable description.
 - `nodeId`, `nodeTypeId`, `nodeTypeName`: Identity of the errored node.
+- `customName?`: User custom name (standard nodes only); error strings render
+  `Custom : Type` when set.
 - `handleId?`: Handle where the error manifested, if applicable.
 - `path`: Ordered list of `GraphErrorPathEntry` (nodes in the execution path
   leading to the error).

@@ -33,12 +33,12 @@ Key participants:
 | `State<D,N,U,C>`         | `src/utils/nodeStateManagement/types.ts` › `State`                               | Complete graph state type                                     |
 | `validateAction`         | `src/utils/nodeStateManagement/planApply/validators.ts` › `validateAction`       | Pure validator -> `Result<Plan, ValidationError> \| null`     |
 | `validateAddEdge`        | `src/utils/nodeStateManagement/planApply/validateAddEdge.ts` › `validateAddEdge` | 13-step edge-connection gauntlet                              |
-| `Plan`                   | `src/utils/nodeStateManagement/planApply/types.ts` › `Plan`                      | Non-generic discriminated union of intended mutations (26)    |
+| `Plan`                   | `src/utils/nodeStateManagement/planApply/types.ts` › `Plan`                      | Non-generic discriminated union of intended mutations (28)    |
 | `ValidationError`        | `src/utils/nodeStateManagement/planApply/types.ts` › `ValidationError`           | Machine-readable rejection taxonomy (13 codes)                |
 | `applyValidatedAction`   | `src/utils/nodeStateManagement/applyWithHistory.ts` › `applyValidatedAction`     | 3-path routing; patch capture + history recording             |
-| `applyPlan`              | `src/utils/nodeStateManagement/planApply/applyPlan.ts` › `applyPlan`             | The ONLY mutator; mints ids; 26 plan kinds                    |
+| `applyPlan`              | `src/utils/nodeStateManagement/planApply/applyPlan.ts` › `applyPlan`             | The ONLY mutator; mints ids; 28 plan kinds                    |
 | `mainReducer`            | `src/utils/nodeStateManagement/mainReducer.ts` › `mainReducer`                   | `useReducer` entry; delegates to `applyValidatedAction`       |
-| `Action`                 | `src/utils/nodeStateManagement/mainReducer.ts` › `Action`                        | Discriminated union of all 28 action payloads                 |
+| `Action`                 | `src/utils/nodeStateManagement/mainReducer.ts` › `Action`                        | Discriminated union of all 29 action payloads                 |
 | `actionTypesMap`         | `src/utils/nodeStateManagement/mainReducer.ts` › `actionTypesMap`                | String-constant map for type-safe dispatch                    |
 | `createGraphStore`       | `src/components/organisms/FullGraph/graphStore.ts` › `createGraphStore`          | External Redux-style store (recommended dispatch path)        |
 | `useFullGraph`           | `src/components/organisms/FullGraph/FullGraphState.ts` › `useFullGraph`          | Store + `useSyncExternalStore` wrapper -> `{state, dispatch}` |
@@ -252,15 +252,16 @@ is generic over four type parameters:
 
 ## Action Types
 
-All actions are a discriminated union on `type`. There are **28** action types,
+All actions are a discriminated union on `type`. There are **29** action types,
 declared in the `actionTypes` array
-(`src/utils/nodeStateManagement/mainReducer.ts` › `actionTypes`, indices 0–27)
+(`src/utils/nodeStateManagement/mainReducer.ts` › `actionTypes`, indices 0–28)
 and mirrored into the `actionTypesMap` constant. Indices 18–22 (`UNDO`, `REDO`,
 `BEGIN_BATCH`, `END_BATCH`, `CLEAR_HISTORY`) are the history additions; indices
 23–26 (`DELETE_NODE_TYPE_HANDLES`, `DELETE_LOOP_CHANNELS`,
 `DELETE_SWITCH_CHANNELS`, `UPDATE_GRAPH_IO_HANDLES`) are the handle-deletion and
 root Graph I/O additions; index 27 (`REORDER_INPUT_CONNECTIONS`) reorders a
-fan-in input handle's connections.
+fan-in input handle's connections; index 28 (`UPDATE_NODE_CUSTOM_NAME`)
+sets/clears a standard node's custom display name.
 
 | #   | Action Type                  | Payload                                                               | Description                                                                                                                                                                                                                                                  |
 | --- | ---------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -292,8 +293,9 @@ fan-in input handle's connections.
 | 25  | `DELETE_SWITCH_CHANNELS`     | `{ switchStart/EndNodeId, removedChannelIds }`                        | Deletes data channels carried through a switch pair and cascades their edges.                                                                                                                                                                                |
 | 26  | `UPDATE_GRAPH_IO_HANDLES`    | `{ nodeId, direction, handles, removedHandleIds }`                    | Adds/renames/reorders/deletes the handles of a root **Graph Input / Output** node; new entries mint `groupInfer` handles, deletions cascade the root edges.                                                                                                  |
 | 27  | `REORDER_INPUT_CONNECTIONS`  | `{ nodeId, handleId, orderedEdgeIds }`                                | Reorders the incoming connections of a multi-connection (fan-in) input handle by writing each edge's contiguous `data.order`. Validator requires a strict permutation of the handle's current 2+ fan-in edges (else `NOOP`); scope-aware; one undoable step. |
+| 28  | `UPDATE_NODE_CUSTOM_NAME`    | `{ nodeId, customName: string \| undefined }`                         | Sets/clears a standard node's custom display name. Validator rejects system/structural nodes as `NOOP`; trims and treats empty as clear; scope-aware; one undoable step.                                                                                     |
 
-> The `Plan` union has **27** kinds because `ADD_NODE` and `ADD_NODE_AND_SELECT`
+> The `Plan` union has **28** kinds because `ADD_NODE` and `ADD_NODE_AND_SELECT`
 > both produce a single `ADD_NODE` plan (distinguished by `selectExclusively`).
 
 ### ValidationError taxonomy (13 codes)
@@ -362,7 +364,7 @@ after validation. Routing is keyed off `isUndoable(action, plan)`:
 ### 4. `applyPlan` — the ONLY mutator
 
 `src/utils/nodeStateManagement/planApply/applyPlan.ts` › `applyPlan`. A giant
-switch over `plan.kind` (**26** kinds, exhaustively checked with
+switch over `plan.kind` (**28** kinds, exhaustively checked with
 `default: throw new Error("Unknown plan kind: ...")`). It:
 
 - Mints ids with `generateRandomString(lengthOfIds)` (`lengthOfIds = 20`,

@@ -80,6 +80,23 @@ if (bundleDiagnostics.length > 0) {
   process.exit(1);
 }
 
+// Encapsulation guard: the source-emission analysis wire types (`SourceEmissionPlan`,
+// `EmittedFunction`) are INTERNAL — `emitJs` keeps them off the public `EmitJsOptions`
+// via the `EmitJsOptionsInternal` split (review H-1). They must never reach the
+// published bundle; re-adding `sourceEmission?` to the PUBLIC type would re-pull them
+// and STILL type-check clean (they resolve — they're just re-exposed), so type-checking
+// alone can't catch the regression. Guard the surface text explicitly.
+const bundleText = ts.sys.readFile(bundlePath) ?? '';
+const leakedInternalTypes = ['SourceEmissionPlan', 'EmittedFunction'].filter(
+  (name) => bundleText.includes(name),
+);
+if (leakedInternalTypes.length > 0) {
+  process.stderr.write(
+    `[check-dist-types] internal codegen analysis type(s) leaked into the published bundle: ${leakedInternalTypes.join(', ')}. These belong to analyze/sourceEmit.ts and must stay OFF the public EmitJsOptions (use EmitJsOptionsInternal) — see the H-1 split.\n`,
+  );
+  process.exit(1);
+}
+
 process.stdout.write(
   '[check-dist-types] OK — dist/index.d.ts type-checks as a standalone bundle (no escaping imports).\n',
 );

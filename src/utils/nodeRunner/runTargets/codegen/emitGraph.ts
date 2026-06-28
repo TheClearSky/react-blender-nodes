@@ -3,14 +3,53 @@ import type {
   State,
   SupportedUnderlyingTypes,
   ExecutionPlan,
+  ExecutionStep,
 } from './contract';
-import type { CodegenMetadata } from './contract';
-import { emitJs } from './emitJs';
+import { emitJsInternal } from './emitJs';
 import type { EmitJsOptions } from './emitJs';
 import { loadTs } from './tsLoader';
 import { eliminateDeadCode } from './ast/deadCode';
 import { deriveAutoEmit } from './analyze/autoEmit';
+import type { DerivedEmit } from './analyze/autoEmit';
+import { planSourceEmission } from './analyze/sourceEmit';
+import type { SourceEmissionPlan } from './analyze/sourceEmit';
+import { RESERVED_NAMES } from './nameRegistry';
 import { formatSource } from './formatSource';
+
+/** Collect every standard-node `nodeTypeId` across the plan, recursing into
+ *  loop/switch/group bodies (so a type used only inside a structure still counts —
+ *  review SC-05). Mirrors `lower.ts`'s `collectNodeLabels` walk. */
+function collectNodeTypeIds(
+  steps: ReadonlyArray<ExecutionStep>,
+  into: Set<string>,
+): void {
+  for (const step of steps) {
+    switch (step.kind) {
+      case 'standard':
+        into.add(step.nodeTypeId);
+        break;
+      case 'loop':
+        collectNodeTypeIds(step.preStopSteps, into);
+        collectNodeTypeIds(step.postStopSteps, into);
+        break;
+      case 'switch':
+        collectNodeTypeIds(step.trueBranchSteps, into);
+        collectNodeTypeIds(step.falseBranchSteps, into);
+        break;
+      case 'group':
+        for (const level of step.innerPlan.levels) {
+          collectNodeTypeIds(level, into);
+        }
+        break;
+      default: {
+        // Exhaustiveness: a new ExecutionStep.kind must be handled here, else a
+        // node type used only under it would silently escape source-emit coverage.
+        const _exhaustive: never = step;
+        void _exhaustive;
+      }
+    }
+  }
+}
 
 /** Opt-in optimization passes (Masterplan §15-26), each a `ts.transform` over the
  *  generated module. Default off (codegen-v2 §10). */
@@ -31,6 +70,17 @@ type EmitGraphOptions = EmitJsOptions & {
   analyzeImplementations?: boolean;
   /** Node-type id → implementation, for `analyzeImplementations`. */
   impls?: Readonly<Record<string, (...args: never[]) => unknown>>;
+  /** todo.txt #4 — bake the consumer's node impls + helper deps into the module so
+   *  `runGraph()` runs with no `functionImplementations` arg. Under this mode prefer
+   *  `knownFunctions` as the single impl registry (its impl subset also feeds
+   *  auto-emit); `impls`/`analyzeImplementations` are not reconciled with it. */
+  emitImplementations?: 'off' | 'source';
+  /** node-type id → impl AND helper name → helper, in one object (for
+   *  `emitImplementations: 'source'`). */
+  knownFunctions?: Readonly<Record<string, (...args: never[]) => unknown>>;
+  /** Extra identifiers treated as safe ambient globals during the source-emit
+   *  name-closure check. */
+  additionalGlobals?: ReadonlyArray<string>;
 };
 
 /**
@@ -66,7 +116,7 @@ async function emitGraph<
     const ts = await loadTs();
     const derived: Record<
       string,
-      { emit: ReturnType<typeof deriveAutoEmit>; emitFanInSafe: boolean }
+      { emit: DerivedEmit; emitFanInSafe: boolean }
     > = {};
     for (const [typeId, implementation] of Object.entries(options.impls)) {
       if (metadata?.nodeTypeMetadata?.[typeId]?.emit) continue; // author hook wins
@@ -79,14 +129,63 @@ async function emitGraph<
       metadata = {
         ...metadata,
         nodeTypeMetadata: { ...metadata?.nodeTypeMetadata, ...derived },
-      } as CodegenMetadata;
+      };
     }
+  }
+
+  // 0.5. Opt-in source-emission (`emitImplementations: 'source'`): bake covered
+  //      impls + helpers into the module. Auto-emit derives from the SAME
+  //      `knownFunctions` impl subset (review CSM-2) and its covered ids are
+  //      excluded, so a kernel inlines while a helper-using impl source-emits.
+  let sourceEmission: SourceEmissionPlan | undefined;
+  if (options.emitImplementations === 'source' && options.knownFunctions) {
+    const ts = await loadTs();
+    const knownFunctions = options.knownFunctions;
+    const allNodeTypeIds = new Set<string>();
+    for (const level of plan.levels) collectNodeTypeIds(level, allNodeTypeIds);
+
+    const autoEmittedTypeIds = new Set<string>();
+    const derivedFromKnown: Record<
+      string,
+      { emit: DerivedEmit; emitFanInSafe: boolean }
+    > = {};
+    for (const [key, implementation] of Object.entries(knownFunctions)) {
+      if (!allNodeTypeIds.has(key)) continue; // a helper, not a node impl
+      if (metadata?.nodeTypeMetadata?.[key]?.emit) continue; // author hook wins
+      const hook = deriveAutoEmit(ts, implementation);
+      if (hook) {
+        derivedFromKnown[key] = { emit: hook, emitFanInSafe: true };
+        autoEmittedTypeIds.add(key);
+      }
+    }
+    if (Object.keys(derivedFromKnown).length > 0) {
+      metadata = {
+        ...metadata,
+        nodeTypeMetadata: {
+          ...metadata?.nodeTypeMetadata,
+          ...derivedFromKnown,
+        },
+      };
+    }
+
+    sourceEmission = planSourceEmission(ts, {
+      knownFunctions,
+      allNodeTypeIds,
+      autoEmittedTypeIds,
+      reservedNames: new Set<string>([
+        ...RESERVED_NAMES,
+        'readInput',
+        'switchInputs',
+        'loopValue',
+      ]),
+      additionalGlobals: options.additionalGlobals,
+    });
   }
 
   // 1. Proven string emit. Don't pass `returnValues` here — when the dead-code
   //    pass runs it derives roots from the actual `return`, doing the
   //    comprehensive sweep the IR-level `dropDead` only approximates.
-  let text = emitJs<
+  let text = emitJsInternal<
     DataTypeUniqueId,
     NodeTypeUniqueId,
     UnderlyingType,
@@ -95,14 +194,42 @@ async function emitGraph<
     exportRunGraph: options.exportRunGraph,
     target: options.target,
     metadata,
+    sourceEmission,
   });
 
   // 2. Opt-in passes over the generated AST.
   if (options.optimize?.deadCode) {
     const ts = await loadTs();
+    // The baked local impl names — consumed ONLY by the full-DCE branch (the
+    // `signatureOnly` branch never references it), so build it here, not above.
+    const implCallNames = sourceEmission
+      ? new Set(sourceEmission.localNameByTypeId.values())
+      : undefined;
     text = eliminateDeadCode(ts, text, {
       assumePureImplementations: options.assumePureImplementations,
+      // Preserve the "kept unless assumePure" floor for baked node calls (review
+      // SC-01) — a local impl call no longer references `functionImplementations`.
+      implCallNames,
     });
+  } else if (sourceEmission) {
+    // Source-emission param-drop: when every node is baked (no opaque
+    // `functionImplementations["…"]` call remains), strip the now-unreferenced impls
+    // param via the statement-preserving `signatureOnly` cleanup. Mixed coverage
+    // keeps the param (an opaque call still references it), so the pass is skipped.
+    //
+    // The regex matches the opaque CALL form only — `functionImplementations["`. Every
+    // opaque call target is `JSON.stringify`'d (a quote always follows `[`) and emitted
+    // pre-Prettier on contiguous text, so this NEVER false-drops a real threaded call.
+    // (Only a baked impl whose own body literally contains `functionImplementations["`
+    // — a string-LITERAL-keyed bound LOCAL — can still false-MIXED; the param is wrongly
+    // retained but that is benign: it is unused and callers pass nothing. A numeric or
+    // variable subscript no longer trips it. The plan's sound `hasOpaqueCall` IR signal
+    // was, by design, not built; see `ir.ts`.)
+    const fullyCovered = !/functionImplementations\["/.test(text);
+    if (fullyCovered) {
+      const ts = await loadTs();
+      text = eliminateDeadCode(ts, text, { signatureOnly: true });
+    }
   }
 
   // 3. Beautify (default on).

@@ -47,6 +47,7 @@ function LoopHandleLevelRow({ level, onUpdateLevel }: LoopHandleLevelRowProps) {
   return (
     <HandleLevelRowShell
       color={level.dataTypeColor}
+      shape={level.dataTypeShape}
       commonName={commonName}
       onRenameAll={renameAll}
     >

@@ -4,15 +4,27 @@ import type {
 } from '@/utils/nodeStateManagement/types';
 import type { DragListItem } from '@/components/molecules/DragList/types';
 import { generateRandomString } from '@/utils/randomGeneration';
+import type { HandleShape } from '@/components/atoms/HandleShapeSwatch/handleShapes';
 
 type InputAdditionalProps = {
   dataType: string;
   allowInput?: boolean;
   maxConnections?: number;
+  /** Data-type color for the editor swatch (display-only; never round-trips). */
+  color?: string;
+  /** Data-type shape for the editor swatch (display-only; never round-trips). */
+  shape?: HandleShape;
 };
+
+/** The visual (color + shape) resolved for a data type, for the editor swatch. */
+type HandleVisual = { color?: string; shape?: HandleShape };
+
+/** Resolves a data-type id to its swatch visual. Display-only. */
+type ResolveHandleVisual = (dataTypeId: string) => HandleVisual;
 
 function typeOfInputsToDragListItems(
   inputs: (TypeOfInput | TypeOfInputPanel)[],
+  resolveVisual?: ResolveHandleVisual,
 ): DragListItem<InputAdditionalProps>[] {
   return inputs.map((input) => {
     if ('inputs' in input) {
@@ -26,6 +38,7 @@ function typeOfInputsToDragListItems(
             dataType: subInput.dataType,
             allowInput: subInput.allowInput,
             maxConnections: subInput.maxConnections,
+            ...resolveVisual?.(subInput.dataType),
           },
         })),
       };
@@ -37,6 +50,7 @@ function typeOfInputsToDragListItems(
         dataType: input.dataType,
         allowInput: input.allowInput,
         maxConnections: input.maxConnections,
+        ...resolveVisual?.(input.dataType),
       },
     };
   });
@@ -76,6 +90,7 @@ function dragListItemsToTypeOfInputs(
 
 function typeOfOutputsToDragListItems(
   outputs: TypeOfInput[],
+  resolveVisual?: ResolveHandleVisual,
 ): DragListItem<InputAdditionalProps>[] {
   return outputs.map((output) => ({
     id: generateRandomString(20),
@@ -84,6 +99,7 @@ function typeOfOutputsToDragListItems(
       dataType: output.dataType,
       allowInput: output.allowInput,
       maxConnections: output.maxConnections,
+      ...resolveVisual?.(output.dataType),
     },
   }));
 }
@@ -114,4 +130,4 @@ export {
   dragListItemsToTypeOfOutputs,
   hasEmptyPanels,
 };
-export type { InputAdditionalProps };
+export type { InputAdditionalProps, HandleVisual, ResolveHandleVisual };

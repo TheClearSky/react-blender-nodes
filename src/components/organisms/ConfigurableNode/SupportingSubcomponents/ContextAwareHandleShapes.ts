@@ -1,38 +1,10 @@
-/** Available handle shapes for node inputs and outputs */
-const handleShapes = [
-  'circle',
-  'square',
-  'rectangle',
-  'list',
-  'grid',
-  'diamond',
-  'trapezium',
-  'hexagon',
-  'star',
-  'cross',
-  'zigzag',
-  'sparkle',
-  'parallelogram',
-] as const;
-
-/** Map of handle shapes for type-safe access */
-const handleShapesMap = {
-  [handleShapes[0]]: handleShapes[0],
-  [handleShapes[1]]: handleShapes[1],
-  [handleShapes[2]]: handleShapes[2],
-  [handleShapes[3]]: handleShapes[3],
-  [handleShapes[4]]: handleShapes[4],
-  [handleShapes[5]]: handleShapes[5],
-  [handleShapes[6]]: handleShapes[6],
-  [handleShapes[7]]: handleShapes[7],
-  [handleShapes[8]]: handleShapes[8],
-  [handleShapes[9]]: handleShapes[9],
-  [handleShapes[10]]: handleShapes[10],
-  [handleShapes[11]]: handleShapes[11],
-  [handleShapes[12]]: handleShapes[12],
-} as const;
-
-/** Type representing all available handle shapes */
-type HandleShape = (typeof handleShapesMap)[keyof typeof handleShapesMap];
-
-export { handleShapesMap, type HandleShape };
+// Re-export shim. The canonical home for the handle-shape constants moved to the
+// internal `atoms/HandleShapeSwatch` so molecule editors can consume the swatch
+// without a molecule->organisms layering inversion. Kept here so `handleShapesMap`
+// and the `HandleShape` type keep their exact public export path (this organisms
+// barrel -> src/index.ts). Explicit named re-exports (NOT `export *`) so the
+// module-private `handleShapes` tuple is never leaked onto the public surface.
+export {
+  handleShapesMap,
+  type HandleShape,
+} from '@/components/atoms/HandleShapeSwatch/handleShapes';

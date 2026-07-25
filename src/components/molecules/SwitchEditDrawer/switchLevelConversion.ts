@@ -1,9 +1,12 @@
+import type { HandleShape } from '@/components/atoms/HandleShapeSwatch/handleShapes';
+
 type HandleInfo = { id: string; name: string };
 
 type SwitchHandleLevel = {
   id: string;
   dataTypeUniqueId: string;
   dataTypeColor: string;
+  dataTypeShape?: HandleShape;
   handles: {
     switchStartIn: HandleInfo;
     switchStartTrueOut: HandleInfo;
@@ -29,13 +32,26 @@ function extractHandleInfo(handle: Record<string, unknown>): HandleInfo {
 function extractDataTypeInfo(handle: Record<string, unknown>): {
   dataTypeUniqueId: string;
   dataTypeColor: string;
+  dataTypeShape: HandleShape | undefined;
 } {
   const dataType = handle.dataType as
-    | { dataTypeUniqueId?: string; dataTypeObject?: { color?: string } }
+    | {
+        dataTypeUniqueId?: string;
+        dataTypeObject?: { color?: string; shape?: HandleShape };
+      }
     | undefined;
+  // Source the swatch from the handle's OWN instance fields — the exact fields the
+  // canvas paints (ConfigurableNode -> handleColor/handleShape) — so the editor
+  // mirrors the canvas; fall back to the resolved data-type object when absent.
   return {
     dataTypeUniqueId: dataType?.dataTypeUniqueId ?? '',
-    dataTypeColor: dataType?.dataTypeObject?.color ?? '#666666',
+    dataTypeColor:
+      (handle.handleColor as string | undefined) ??
+      dataType?.dataTypeObject?.color ??
+      '#666666',
+    dataTypeShape:
+      (handle.handleShape as HandleShape | undefined) ??
+      dataType?.dataTypeObject?.shape,
   };
 }
 
@@ -123,12 +139,14 @@ function extractLevelsFromSwitchNodes(
   const levels: SwitchHandleLevel[] = [];
   for (let i = 0; i < levelCount; i++) {
     const startIn = startInputs[i];
-    const { dataTypeUniqueId, dataTypeColor } = extractDataTypeInfo(startIn);
+    const { dataTypeUniqueId, dataTypeColor, dataTypeShape } =
+      extractDataTypeInfo(startIn);
 
     levels.push({
       id: extractHandleInfo(startIn).id,
       dataTypeUniqueId,
       dataTypeColor,
+      dataTypeShape,
       handles: {
         switchStartIn: extractHandleInfo(startIn),
         switchStartTrueOut: extractHandleInfo(startTrueOutputs[i]),

@@ -403,7 +403,8 @@ type HandleInfo = { id: string; name: string };
 type LoopHandleLevel = {
   id: string; // = loopStartIn handle id (channel identity)
   dataTypeUniqueId: string;
-  dataTypeColor: string; // from dataType.dataTypeObject.color, default '#666666'
+  dataTypeColor: string; // handle.handleColor (canvas-accurate), else dataTypeObject.color, default '#666666'
+  dataTypeShape?: HandleShape; // handle.handleShape (canvas-accurate), else dataTypeObject.shape
   handles: {
     loopStartIn: HandleInfo;
     loopStartOut: HandleInfo;
@@ -425,8 +426,11 @@ the levels (verified logic):
 - `levelCount = Math.min(...)` of all six handle-array lengths, so a level only
   exists when every one of the six positions is present (defensive against
   desynced nodes).
-- Each level's `id` is the `loopStartIn` handle id; `dataTypeUniqueId` /
-  `dataTypeColor` come from that same handle's `dataType`.
+- Each level's `id` is the `loopStartIn` handle id; `dataTypeUniqueId` comes
+  from that handle's `dataType`, while `dataTypeColor` / `dataTypeShape` come
+  from the handle's OWN `handleColor` / `handleShape` (the exact fields the
+  canvas paints, so the editor swatch mirrors the canvas), falling back to
+  `dataTypeObject`.
 
 ### Editing model
 
@@ -450,7 +454,13 @@ to any loop node to create the first channel."_
 **File:** `src/components/molecules/LoopEditDrawer/LoopHandleLevelRow.tsx` ›
 `LoopHandleLevelRow`
 
-A collapsible row (chevron, color dot, name, rename Pencil):
+A collapsible row (chevron, handle-shape swatch, name, rename Pencil):
+
+The leading marker is the data type's real **handle-shape swatch** (the shared
+`src/components/atoms/HandleShapeSwatch/HandleShapeSwatch.tsx` ›
+`HandleShapeSwatch` atom the canvas uses), not a plain dot — so a
+diamond/star/hexagon channel reads the same in the editor as on the canvas.
+Sourced from the channel handle's own `handleShape` / `handleColor`.
 
 - `getCommonName(level)` returns the shared name if **all six** handle names are
   identical, else `null`; the header shows the common name
@@ -520,6 +530,7 @@ type SwitchHandleLevel = {
   id: string; // = switchStartIn handle id
   dataTypeUniqueId: string;
   dataTypeColor: string;
+  dataTypeShape?: HandleShape;
   handles: {
     switchStartIn: HandleInfo;
     switchStartTrueOut: HandleInfo;

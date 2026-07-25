@@ -7,6 +7,10 @@ import type {
   HandleBlastRadius,
   ConnectionNeighborhood,
 } from '@/utils/nodeStateManagement/handles/handleDeletionAnalysis';
+import {
+  handleShapesMap,
+  type HandleShape,
+} from '@/components/atoms/HandleShapeSwatch';
 
 const meta = {
   title: 'Molecules/GraphIOEditDrawer',
@@ -223,4 +227,59 @@ function GraphOutputWithReviewTemplate() {
 
 export const GraphOutputWithDeletionReview: Story = {
   render: () => <GraphOutputWithReviewTemplate />,
+};
+
+function ShapedGraphInputTemplate() {
+  const [isOpen, setIsOpen] = useState(true);
+  const [handles, setHandles] = useState<
+    { id: string; name: string; color?: string; shape?: HandleShape }[]
+  >([
+    {
+      id: 'h1',
+      name: 'position',
+      color: '#61afef',
+      shape: handleShapesMap.diamond,
+    },
+    {
+      id: 'h2',
+      name: 'label',
+      color: '#c678dd',
+      shape: handleShapesMap.rectangle,
+    },
+    {
+      id: 'h3',
+      name: 'seed',
+      color: '#98c379',
+      shape: handleShapesMap.hexagon,
+    },
+    { id: 'h4', name: 'unconnected' },
+  ]);
+
+  return (
+    <>
+      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+        Edit Shaped Graph Input
+      </Button>
+      <GraphIOEditDrawer
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        variant='graphInput'
+        nodeId='graph-input-node'
+        handles={handles}
+        onSave={(_nodeId, specs) => {
+          setHandles(applySpecs(specs));
+          setIsOpen(false);
+        }}
+      />
+    </>
+  );
+}
+
+/**
+ * Connected root Graph I/O handles show their inferred SHAPE swatch (fed from the
+ * live boundary handle's `handleShape` / `handleColor`); a genuinely-unconnected /
+ * typeless handle (`unconnected`) shows no swatch.
+ */
+export const ShapedGraphInput: Story = {
+  render: () => <ShapedGraphInputTemplate />,
 };

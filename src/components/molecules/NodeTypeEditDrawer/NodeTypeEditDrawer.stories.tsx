@@ -6,6 +6,10 @@ import type {
   TypeOfInput,
   TypeOfInputPanel,
 } from '@/utils/nodeStateManagement/types';
+import {
+  handleShapesMap,
+  type HandleShape,
+} from '@/components/atoms/HandleShapeSwatch';
 
 const meta = {
   title: 'Molecules/NodeTypeEditDrawer',
@@ -269,4 +273,77 @@ function EmptyNodeGroupTemplate() {
 
 export const EmptyNodeGroup: Story = {
   render: () => <EmptyNodeGroupTemplate />,
+};
+
+// Mock data-type -> visual resolver (mirrors how FullGraph resolves
+// `state.dataTypes[id].{color, shape}`). Module-level so the drawer's open-effect
+// keeps a stable `getDataTypeVisual` identity.
+const SHAPED_VISUALS: Record<string, { color: string; shape: HandleShape }> = {
+  circle: { color: '#e06c75', shape: handleShapesMap.circle },
+  diamond: { color: '#61afef', shape: handleShapesMap.diamond },
+  star: { color: '#e5c07b', shape: handleShapesMap.star },
+  hexagon: { color: '#98c379', shape: handleShapesMap.hexagon },
+  rectangle: { color: '#c678dd', shape: handleShapesMap.rectangle },
+  grid: { color: '#56b6c2', shape: handleShapesMap.grid },
+  cross: { color: '#d19a66', shape: handleShapesMap.cross },
+  trapezium: { color: '#e06c75', shape: handleShapesMap.trapezium },
+  sparkle: { color: '#c678dd', shape: handleShapesMap.sparkle },
+};
+
+function resolveShapedVisual(dataTypeId: string) {
+  return SHAPED_VISUALS[dataTypeId] ?? {};
+}
+
+function ShapedHandlesTemplate() {
+  const [isOpen, setIsOpen] = useState(true);
+  const [inputs, setInputs] = useState<(TypeOfInput | TypeOfInputPanel)[]>([
+    { name: 'Circle In', dataType: 'circle' },
+    { name: 'Diamond In', dataType: 'diamond' },
+    { name: 'Star In', dataType: 'star' },
+    { name: 'Hexagon In', dataType: 'hexagon' },
+    { name: 'Rectangle In', dataType: 'rectangle' },
+    {
+      name: 'Shaped Panel',
+      inputs: [
+        { name: 'Grid Nested', dataType: 'grid' },
+        { name: 'Cross Nested', dataType: 'cross' },
+      ],
+    },
+  ]);
+  const [outputs, setOutputs] = useState<TypeOfInput[]>([
+    { name: 'Trapezium Out', dataType: 'trapezium' },
+    { name: 'Sparkle Out', dataType: 'sparkle' },
+  ]);
+
+  return (
+    <>
+      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+        Edit Shaped Node
+      </Button>
+      <NodeTypeEditDrawer
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        nodeTypeId='shaped-node'
+        nodeTypeName='Shaped Node'
+        nodeTypeHeaderColor='#3b6ea5'
+        nodeTypeInputs={inputs}
+        nodeTypeOutputs={outputs}
+        getDataTypeVisual={resolveShapedVisual}
+        onSave={(_nodeTypeId, updates) => {
+          if (updates.inputs) setInputs(updates.inputs);
+          if (updates.outputs) setOutputs(updates.outputs);
+          setIsOpen(false);
+        }}
+      />
+    </>
+  );
+}
+
+/**
+ * The input/output rows render each handle's real data-type SHAPE swatch (via the
+ * shared `HandleShapeSwatch` atom), mirroring the canvas — including panel-nested
+ * handles. Absent a `getDataTypeVisual` resolver the rows show no swatch (graceful).
+ */
+export const ShapedHandles: Story = {
+  render: () => <ShapedHandlesTemplate />,
 };

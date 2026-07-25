@@ -6,7 +6,11 @@ import {
   useNodeConnections,
 } from '@xyflow/react';
 import { forwardRef, type HTMLAttributes } from 'react';
-import { handleShapesMap, type HandleShape } from './ContextAwareHandleShapes';
+import {
+  HandleShapeSwatch,
+  handleShapesMap,
+  type HandleShape,
+} from '@/components/atoms/HandleShapeSwatch';
 import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 /**
@@ -28,206 +32,6 @@ type ContextAwareHandleProps = {
   /** Whether the handle is currently inside a ReactFlow context */
   isCurrentlyInsideReactFlow?: boolean;
 } & HTMLAttributes<HTMLDivElement>;
-
-// Helper function to create bordered clip-path shapes
-const createBorderedClipPath = (
-  clipPath: string,
-  color: string,
-  className?: string,
-  borderColor: string = 'black',
-  borderWidth: number = 2,
-) => {
-  return (
-    <div className={cn('relative', className)}>
-      {/* Border layer - slightly larger container */}
-      <div
-        className='absolute'
-        style={{
-          top: -borderWidth,
-          left: -borderWidth,
-          right: -borderWidth,
-          bottom: -borderWidth,
-          backgroundColor: borderColor,
-          clipPath: clipPath,
-        }}
-      />
-      {/* Main shape layer - ensure it has full dimensions */}
-      <div
-        className='absolute inset-0'
-        style={{
-          backgroundColor: color,
-          clipPath: clipPath,
-        }}
-      />
-    </div>
-  );
-};
-
-// Helper function to render different handle shapes
-const renderHandleShape = (
-  shape: HandleShape = handleShapesMap.circle,
-  color: string = '#A1A1A1',
-  className?: string,
-) => {
-  const baseClassesThickBorder = 'border-2 border-black';
-  const baseClassesThinBorder = 'border-1 border-black';
-  const colorStyle = { backgroundColor: color };
-
-  switch (shape) {
-    case handleShapesMap.circle:
-      return (
-        <div
-          className={cn(
-            'w-6 h-6 rounded-full',
-            baseClassesThickBorder,
-            className,
-          )}
-          style={colorStyle}
-        />
-      );
-
-    case handleShapesMap.square:
-      return (
-        <div
-          className={cn('w-6 h-6', baseClassesThickBorder, className)}
-          style={colorStyle}
-        />
-      );
-
-    case handleShapesMap.rectangle:
-      return (
-        <div
-          className={cn('w-4 h-8', baseClassesThickBorder, className)}
-          style={colorStyle}
-        />
-      );
-
-    case handleShapesMap.list:
-      return (
-        <div
-          className={cn(
-            'w-6 h-6 flex flex-col justify-center gap-0.5',
-            className,
-          )}
-        >
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className={cn('w-full h-2', baseClassesThinBorder)}
-              style={colorStyle}
-            />
-          ))}
-        </div>
-      );
-
-    case handleShapesMap.grid:
-      return (
-        <div className={cn('w-6 h-6 grid grid-cols-2 gap-0.5', className)}>
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className={cn('w-full h-full', baseClassesThinBorder)}
-              style={colorStyle}
-            />
-          ))}
-        </div>
-      );
-
-    case handleShapesMap.diamond:
-      return (
-        <div
-          className={cn('w-6 h-6 rotate-45', baseClassesThickBorder, className)}
-          style={colorStyle}
-        />
-      );
-
-    case handleShapesMap.trapezium:
-      return createBorderedClipPath(
-        'polygon(25% 0%, 75% 0%, 100% 100%, 0% 100%)',
-        color,
-        cn('w-6 h-6', className),
-      );
-
-    case handleShapesMap.hexagon:
-      return createBorderedClipPath(
-        'polygon(-50% 50%,50% 100%,150% 50%,50% 0)',
-        color,
-        cn('w-5 h-6', className),
-      );
-
-    case handleShapesMap.star:
-      return createBorderedClipPath(
-        'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
-        color,
-        cn('w-6 h-6', className),
-      );
-
-    case handleShapesMap.cross:
-      return (
-        <div className={cn('w-6 h-6 relative', className)}>
-          <div
-            className={cn(
-              'absolute top-1/2 left-0 w-full h-2 -translate-y-1/2',
-              baseClassesThinBorder,
-            )}
-            style={colorStyle}
-          />
-          <div
-            className={cn(
-              'absolute left-1/2 top-0 w-2 h-full -translate-x-1/2',
-              baseClassesThinBorder,
-            )}
-            style={colorStyle}
-          />
-        </div>
-      );
-
-    case handleShapesMap.zigzag:
-      return (
-        <div
-          className={cn('w-6 h-6', className)}
-          style={{
-            ...colorStyle,
-            width: 'calc(4px + 24px/(2*tan(90deg/2)))',
-            minHeight: '24px',
-            mask: '4px 50%/100% 24px repeat-y conic-gradient(from calc(90deg - 90deg/2) at left, #0000, #000 1deg calc(90deg - 1deg), #0000 90deg) exclude, 0 50%/100% 24px repeat-y conic-gradient(from calc(90deg - 90deg/2) at left, #0000, #000 1deg calc(90deg - 1deg), #0000 90deg)',
-            border: '2px solid black',
-          }}
-        />
-      );
-
-    case handleShapesMap.sparkle:
-      return (
-        <div
-          className={cn('w-6 h-6', className)}
-          style={{
-            ...colorStyle,
-            mask: 'radial-gradient(#0000 71%, #000 72%) 10000% 10000%/99.5% 99.5%',
-            border: '2px solid black',
-          }}
-        />
-      );
-
-    case handleShapesMap.parallelogram:
-      return createBorderedClipPath(
-        'polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)',
-        color,
-        cn('w-6 h-6', className),
-      );
-
-    default:
-      return (
-        <div
-          className={cn(
-            'w-6 h-6 rounded-full',
-            baseClassesThickBorder,
-            className,
-          )}
-          style={colorStyle}
-        />
-      );
-  }
-};
 
 /**
  * A context-aware handle component for node inputs and outputs
@@ -326,11 +130,11 @@ const ConnectableHandle = forwardRef<HTMLDivElement, ConnectableHandleProps>(
         ref={ref}
       >
         <div className={cn('pointer-events-none flex justify-center')}>
-          {renderHandleShape(
-            shape,
-            color || '#A1A1A1',
-            cn(theme?.node?.handleShape, className),
-          )}
+          <HandleShapeSwatch
+            shape={shape}
+            color={color}
+            className={cn(theme?.node?.handleShape, className)}
+          />
         </div>
       </Handle>
     );
@@ -362,11 +166,11 @@ const StaticHandle = forwardRef<HTMLDivElement, StaticHandleProps>(
         {...props}
         ref={ref}
       >
-        {renderHandleShape(
-          shape,
-          color || '#A1A1A1',
-          cn(theme?.node?.handleShape, className),
-        )}
+        <HandleShapeSwatch
+          shape={shape}
+          color={color}
+          className={cn(theme?.node?.handleShape, className)}
+        />
       </div>
     );
   },

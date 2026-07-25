@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, Pencil } from 'lucide-react';
 import { Button, Input } from '@/components/atoms';
+import { HandleShapeSwatch } from '@/components/atoms/HandleShapeSwatch';
 import { DragList } from '@/components/molecules/DragList';
 import { PresetModal } from '@/components/molecules/PresetModal';
 import type { DragListItem } from '@/components/molecules/DragList/types';
@@ -8,6 +9,7 @@ import { isDragListNonLeaf } from '@/components/molecules/DragList/types';
 import type { InputAdditionalProps } from './inputOutputConversion';
 import { generateRandomString } from '@/utils/randomGeneration';
 import { cn } from '@/utils/cnHelper';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 /** Remove an item by id at the top level or nested inside any panel's subTrees. */
 function removeItemById(
@@ -83,6 +85,7 @@ function InputOutputReorderSection({
   onAddItem,
   addItemLabel = 'Item',
 }: InputOutputReorderSectionProps) {
+  const theme = useGraphTheme();
   const [panelModalOpen, setPanelModalOpen] = useState(false);
   const [panelModalName, setPanelModalName] = useState('');
   // The id of the item being renamed (leaf or panel), or null when the modal
@@ -163,6 +166,16 @@ function InputOutputReorderSection({
 
     return (
       <div className='flex items-center gap-1.5 min-w-0 flex-1'>
+        {!isPanel &&
+          (item.additionalProperties?.color ||
+            item.additionalProperties?.shape) && (
+            <HandleShapeSwatch
+              shape={item.additionalProperties.shape}
+              color={item.additionalProperties.color}
+              size={16}
+              className={theme?.node?.handleShape}
+            />
+          )}
         <span
           className={cn(
             'truncate text-primary-white',

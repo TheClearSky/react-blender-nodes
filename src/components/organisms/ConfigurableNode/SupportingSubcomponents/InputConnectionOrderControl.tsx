@@ -2,6 +2,10 @@ import { useContext, useState } from 'react';
 import { useNodeId, useNodeConnections, useReactFlow } from '@xyflow/react';
 import { ListOrdered } from 'lucide-react';
 import { cn } from '@/utils';
+import {
+  HandleShapeSwatch,
+  type HandleShape,
+} from '@/components/atoms/HandleShapeSwatch';
 import { compareFanIn } from '@/utils/connectionOrder';
 import { Popover } from '@/components/atoms/Popover/Popover';
 import { DragList } from '@/components/molecules/DragList/DragList';
@@ -17,8 +21,8 @@ type InputConnectionOrderControlProps = {
   handleId: string;
 };
 
-/** Per-row extra data carried through the DragList (the source handle's color). */
-type ConnectionRowData = { color?: string };
+/** Per-row extra data carried through the DragList (the source handle's swatch). */
+type ConnectionRowData = { color?: string; shape?: HandleShape };
 
 /**
  * The reorderable list inside the popover. Mounts only when the popover is open,
@@ -39,6 +43,7 @@ function ConnectionReorderList({
   nodeId: string;
   handleId: string;
 }) {
+  const theme = useGraphTheme();
   const fullGraphContext = useContext(FullGraphContext);
   const dispatch = fullGraphContext?.allProps?.dispatch;
   const reactFlow = useReactFlow<Nodes[number], Edges[number]>();
@@ -88,7 +93,10 @@ function ConnectionReorderList({
       return {
         id: edge.id,
         name: label,
-        additionalProperties: { color: sourceHandle?.handleColor },
+        additionalProperties: {
+          color: sourceHandle?.handleColor,
+          shape: sourceHandle?.handleShape,
+        },
       };
     });
   });
@@ -113,16 +121,18 @@ function ConnectionReorderList({
   function renderRow(item: DragListItem<ConnectionRowData>) {
     const position = positionById.get(item.id) ?? 0;
     const color = item.additionalProperties?.color;
+    const shape = item.additionalProperties?.shape;
     return (
       <span className='flex min-w-0 items-center gap-2'>
         <span className='w-4 shrink-0 text-right tabular-nums text-secondary-light-gray'>
           {position}
         </span>
-        {color && (
-          <span
-            aria-hidden
-            className='h-3 w-3 shrink-0 rounded-full border border-secondary-dark-gray'
-            style={{ backgroundColor: color }}
+        {(color || shape) && (
+          <HandleShapeSwatch
+            shape={shape}
+            color={color}
+            size={14}
+            className={theme?.node?.handleShape}
           />
         )}
         <span className='truncate'>{item.name}</span>

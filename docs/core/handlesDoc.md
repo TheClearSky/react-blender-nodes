@@ -197,9 +197,12 @@ react-blender-nodes
 |
 +-- UI Rendering (src/components/organisms/ConfigurableNode/)
 |   +-- ConfigurableNode.tsx                       RenderInput, RenderOutput, RenderInputPanel
-|   +-- SupportingSubcomponents/ContextAwareHandle.tsx       Handle shape rendering (13 shapes)
+|   +-- SupportingSubcomponents/ContextAwareHandle.tsx       Handle host (renders HandleShapeSwatch)
 |   +-- SupportingSubcomponents/ContextAwareInput.tsx        Interactive input + custom registry
-|   +-- SupportingSubcomponents/ContextAwareHandleShapes.ts  HandleShape type and handleShapesMap
+|   +-- SupportingSubcomponents/ContextAwareHandleShapes.ts  Shim -> atoms/HandleShapeSwatch (types)
++-- Handle shapes (src/components/atoms/HandleShapeSwatch/)
+|   +-- HandleShapeSwatch.tsx                                13-shape renderer (canvas + editors)
+|   +-- handleShapes.ts                                      handleShapes tuple, handleShapesMap, HandleShape
 |
 +-- Dynamic Handle Addition (driven by planApply/applyPlan.ts ADD_EDGE)
 |   +-- nodes/nodeGroups.ts             growSpareAndPropagateBoundaryHandle
@@ -447,8 +450,11 @@ and constructs each inner input.
 - **Outside ReactFlow** (preview/storybook): Renders the shape as a positioned
   `<div>`.
 
-The component supports 13 shapes via `renderHandleShape()`, using CSS,
-`clip-path`, and CSS masks for complex shapes.
+The component supports 13 shapes via the shared `HandleShapeSwatch` atom
+(`src/components/atoms/HandleShapeSwatch/HandleShapeSwatch.tsx`, which wraps the
+internal `renderHandleShape`), using CSS, `clip-path`, and CSS masks for complex
+shapes. The config editors reuse the same atom (scaled down) so their handle
+rows mirror the canvas.
 
 ### 4. User Input via ContextAwareInput
 

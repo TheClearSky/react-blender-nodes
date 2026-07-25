@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Info, Undo2 } from 'lucide-react';
 import { Button } from '@/components/atoms';
+import {
+  HandleShapeSwatch,
+  type HandleShape,
+} from '@/components/atoms/HandleShapeSwatch';
 import { cn } from '@/utils';
 import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { useSlideAnimation } from '@/hooks/useSlideAnimation';
@@ -22,7 +26,13 @@ import { nextDefaultHandleName } from '@/utils/nodeStateManagement/handles/handl
 type GraphIOVariant = 'graphInput' | 'graphOutput';
 
 /** One existing handle on the root Graph I/O node, identified by its stable id. */
-type GraphIOHandle = { id: string; name: string };
+type GraphIOHandle = {
+  id: string;
+  name: string;
+  /** Live handle color/shape for the display-only swatch (canvas-accurate). */
+  color?: string;
+  shape?: HandleShape;
+};
 
 /** The save payload: the FINAL kept handle list. Entries WITHOUT an `id` are
  *  new (their id is minted in `applyPlan`); entries WITH an `id` are reused. */
@@ -153,8 +163,14 @@ function GraphIOEditDrawer({
           id: handle.id,
           name: handle.name,
           // The dataType badge is intentionally blank — root Graph I/O handles
-          // infer their type on connect, so the editor manages names only.
-          additionalProperties: { dataType: '' },
+          // infer their type on connect, so the editor manages names only. The
+          // color/shape ride the live boundary handle so a connected root I/O
+          // handle still shows its inferred shape (display-only; never saved).
+          additionalProperties: {
+            dataType: '',
+            color: handle.color,
+            shape: handle.shape,
+          },
         })),
       );
       setDeleted([]);
@@ -367,6 +383,15 @@ function GraphIOEditDrawer({
                     key={entry.id}
                     className='flex items-center gap-1.5 px-2 py-1 rounded bg-primary-gray/40'
                   >
+                    {(entry.additionalProperties?.color ||
+                      entry.additionalProperties?.shape) && (
+                      <HandleShapeSwatch
+                        shape={entry.additionalProperties.shape}
+                        color={entry.additionalProperties.color}
+                        size={14}
+                        className={theme?.node?.handleShape}
+                      />
+                    )}
                     <span className='truncate text-primary-white/70 line-through text-[13px]'>
                       {entry.name}
                     </span>

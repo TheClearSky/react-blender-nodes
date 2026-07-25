@@ -3,6 +3,7 @@ import type { HistoryEntry } from '@/components/organisms/FullGraph/historyTypes
 import type { HandleDeletionPlanData } from '../handles/handleDeletionAnalysis';
 import type { ChannelDeletionPlanData } from '../handles/channelDeletionAnalysis';
 import type { ActiveDrawer } from '../types';
+import type { RunnerViewPreferenceKey } from '../runnerViewPreferences';
 import type {
   Edges,
   EdgeChanges,
@@ -63,7 +64,11 @@ export type ValidationError =
       limit: number;
       currentCount: number;
     }
-  | { code: 'NOOP'; reason: string };
+  | { code: 'NOOP'; reason: string }
+  // Not a validation outcome — an EXCEPTION thrown during `applyPlan` (caught
+  // by `graphStore.dispatch` so it can't unwind through `produce`/React with
+  // no signal). Surfaced as an `action:rejected` event for observability.
+  | { code: 'APPLY_EXCEPTION'; reason: string };
 
 // ---------------------------------------------------------------------------
 // Inference plan — describes handle type changes without performing them
@@ -163,6 +168,53 @@ export type UpdateNodeCustomNamePlan = {
   nodeId: string;
   /** New custom name, or `undefined` to clear it (revert to the type name). */
   customName: string | undefined;
+};
+
+export type UpdateNodePreviewCollapsedPlan = {
+  kind: 'UPDATE_NODE_PREVIEW_COLLAPSED';
+  nodeId: string;
+  /** `true` = collapse the preview panel; `false` = expand (stored as absent). */
+  previewCollapsed: boolean;
+};
+
+export type UpdateRunnerViewPreferencePlan = {
+  kind: 'UPDATE_RUNNER_VIEW_PREFERENCE';
+  /** Which preference to set (`'autoScroll' | 'followIntoGroups'`). */
+  preference: RunnerViewPreferenceKey;
+  /** The new on/off value. */
+  enabled: boolean;
+};
+
+export type AddUserZonePlan = {
+  kind: 'ADD_USER_ZONE';
+  /** Member node IDs (deduped + scope-validated; non-empty). */
+  nodeIds: string[];
+  /** Optional name; applyPlan defaults to "Zone". */
+  name?: string;
+  /** Optional CSS hex color; applyPlan defaults to a rotating palette entry. */
+  color?: string;
+};
+
+export type UpdateUserZonePlan = {
+  kind: 'UPDATE_USER_ZONE';
+  zoneId: string;
+  /** Cleaned name (blank dropped); undefined = unchanged. */
+  name?: string;
+  /** Cleaned color (invalid dropped); undefined = unchanged. */
+  color?: string;
+};
+
+export type UpdateUserZoneMembersPlan = {
+  kind: 'UPDATE_USER_ZONE_MEMBERS';
+  zoneId: string;
+  /** Node IDs to add or remove (deduped; scope-validated when mode is 'add'). */
+  nodeIds: string[];
+  mode: 'add' | 'remove';
+};
+
+export type DeleteUserZonePlan = {
+  kind: 'DELETE_USER_ZONE';
+  zoneId: string;
 };
 
 export type OpenNodeGroupPlan = {
@@ -386,6 +438,8 @@ export type Plan =
   | UpdateNodesByReactFlowPlan
   | UpdateInputValuePlan
   | UpdateNodeCustomNamePlan
+  | UpdateNodePreviewCollapsedPlan
+  | UpdateRunnerViewPreferencePlan
   | OpenNodeGroupPlan
   | CloseNodeGroupPlan
   | AddNodeGroupPlan
@@ -407,4 +461,8 @@ export type Plan =
   | DeleteLoopChannelsPlan
   | DeleteSwitchChannelsPlan
   | UpdateGraphIoHandlesPlan
-  | ReorderInputConnectionsPlan;
+  | ReorderInputConnectionsPlan
+  | AddUserZonePlan
+  | UpdateUserZonePlan
+  | UpdateUserZoneMembersPlan
+  | DeleteUserZonePlan;

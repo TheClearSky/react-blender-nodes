@@ -1,0 +1,794 @@
+{
+  "version": 1,
+  "exportedAt": "2026-07-10T18:06:00.533Z",
+  "state": {
+    "dataTypes": {
+      "bit": {
+        "name": "Bit",
+        "underlyingType": "boolean",
+        "color": "#00BFFF",
+        "shape": "rectangle",
+        "allowInput": true
+      },
+      "number": {
+        "name": "Number",
+        "underlyingType": "number",
+        "color": "#FF6B6B",
+        "shape": "circle",
+        "allowInput": true
+      },
+      "gateMode": {
+        "name": "Gate Mode",
+        "underlyingType": "string",
+        "color": "#FECA57",
+        "allowInput": true,
+        "allowedStrings": ["AND", "OR", "XOR", "NAND", "NOR", "XNOR"]
+      },
+      "groupInfer": {
+        "name": "Group Infer",
+        "underlyingType": "inferFromConnection",
+        "color": "#333333"
+      },
+      "loopInfer": {
+        "name": "Loop Infer",
+        "underlyingType": "inferFromConnection",
+        "color": "#333333"
+      },
+      "condition": {
+        "name": "Condition",
+        "underlyingType": "boolean",
+        "color": "#cca6d6",
+        "allowInput": true
+      },
+      "bindLoopNodes": {
+        "name": "Bind Loop Nodes",
+        "underlyingType": "noEquivalent",
+        "color": "#8c52d1",
+        "maxConnections": 1
+      },
+      "switchInfer": {
+        "name": "Switch Infer",
+        "underlyingType": "inferFromConnection",
+        "color": "#333333"
+      },
+      "bindSwitchNodes": {
+        "name": "Bind Switch Nodes",
+        "underlyingType": "noEquivalent",
+        "color": "#8c52d1",
+        "maxConnections": 1
+      }
+    },
+    "typeOfNodes": {
+      "andGate": {
+        "name": "AND Gate",
+        "headerColor": "#8B5CC8",
+        "locationInContextMenu": ["Logic Gates"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "bit"
+          },
+          {
+            "name": "B",
+            "dataType": "bit"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "bit"
+          }
+        ]
+      },
+      "orGate": {
+        "name": "OR Gate",
+        "headerColor": "#8B5CC8",
+        "locationInContextMenu": ["Logic Gates"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "bit"
+          },
+          {
+            "name": "B",
+            "dataType": "bit"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "bit"
+          }
+        ]
+      },
+      "notGate": {
+        "name": "NOT Gate",
+        "headerColor": "#8B5CC8",
+        "locationInContextMenu": ["Logic Gates"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "bit"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "bit"
+          }
+        ]
+      },
+      "xorGate": {
+        "name": "XOR Gate",
+        "headerColor": "#8B5CC8",
+        "locationInContextMenu": ["Logic Gates"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "bit"
+          },
+          {
+            "name": "B",
+            "dataType": "bit"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "bit"
+          }
+        ]
+      },
+      "nandGate": {
+        "name": "NAND Gate",
+        "headerColor": "#8B5CC8",
+        "locationInContextMenu": ["Logic Gates"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "bit"
+          },
+          {
+            "name": "B",
+            "dataType": "bit"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "bit"
+          }
+        ]
+      },
+      "norGate": {
+        "name": "NOR Gate",
+        "headerColor": "#8B5CC8",
+        "locationInContextMenu": ["Logic Gates"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "bit"
+          },
+          {
+            "name": "B",
+            "dataType": "bit"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "bit"
+          }
+        ]
+      },
+      "buffer": {
+        "name": "Buffer",
+        "headerColor": "#9B0F2B",
+        "locationInContextMenu": ["Utility"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "bit"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "bit"
+          }
+        ]
+      },
+      "anyOf": {
+        "name": "Any Of (bus OR)",
+        "headerColor": "#8B5CC8",
+        "locationInContextMenu": ["Logic Gates"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "bit"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "bit"
+          }
+        ]
+      },
+      "bitConstant": {
+        "name": "Bit Input",
+        "headerColor": "#C75B8E",
+        "locationInContextMenu": ["I/O"],
+        "inputs": [
+          {
+            "name": "Value",
+            "dataType": "bit",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "bit"
+          }
+        ]
+      },
+      "bitDisplay": {
+        "name": "Bit Output",
+        "headerColor": "#4A96BA",
+        "locationInContextMenu": ["I/O"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "bit"
+          }
+        ],
+        "outputs": []
+      },
+      "numberConstant": {
+        "name": "Number Input",
+        "headerColor": "#C75B8E",
+        "locationInContextMenu": ["I/O"],
+        "inputs": [
+          {
+            "name": "Value",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "number"
+          }
+        ]
+      },
+      "numberDisplay": {
+        "name": "Number Output",
+        "headerColor": "#4A96BA",
+        "locationInContextMenu": ["I/O"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "number"
+          }
+        ],
+        "outputs": []
+      },
+      "counter": {
+        "name": "Counter",
+        "headerColor": "#9B0F2B",
+        "locationInContextMenu": ["Utility"],
+        "inputs": [
+          {
+            "name": "Count",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Max",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Count + 1",
+            "dataType": "number"
+          },
+          {
+            "name": "Reached Max",
+            "dataType": "bit"
+          }
+        ]
+      },
+      "configurableGate": {
+        "name": "Configurable Gate",
+        "headerColor": "#6B5B95",
+        "locationInContextMenu": ["Logic Gates"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "bit"
+          },
+          {
+            "name": "B",
+            "dataType": "bit"
+          },
+          {
+            "name": "Mode",
+            "dataType": "gateMode",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "bit"
+          }
+        ]
+      },
+      "groupInput": {
+        "name": "Group Input",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "dataType": "groupInfer"
+          }
+        ]
+      },
+      "groupOutput": {
+        "name": "Group Output",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [
+          {
+            "name": "",
+            "dataType": "groupInfer"
+          }
+        ],
+        "outputs": []
+      },
+      "loopStart": {
+        "name": "Loop Start",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [
+          {
+            "name": "",
+            "dataType": "loopInfer"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Bind Loop Nodes",
+            "dataType": "bindLoopNodes"
+          },
+          {
+            "name": "",
+            "dataType": "loopInfer"
+          }
+        ]
+      },
+      "loopStop": {
+        "name": "Loop Stop",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [
+          {
+            "name": "Bind Loop Nodes",
+            "dataType": "bindLoopNodes"
+          },
+          {
+            "name": "Continue If Condition Is True",
+            "dataType": "condition"
+          },
+          {
+            "name": "",
+            "dataType": "loopInfer"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Bind Loop Nodes",
+            "dataType": "bindLoopNodes"
+          },
+          {
+            "name": "",
+            "dataType": "loopInfer"
+          }
+        ]
+      },
+      "loopEnd": {
+        "name": "Loop End",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [
+          {
+            "name": "Bind Loop Nodes",
+            "dataType": "bindLoopNodes"
+          },
+          {
+            "name": "",
+            "dataType": "loopInfer"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "dataType": "loopInfer"
+          }
+        ]
+      },
+      "switchStart": {
+        "name": "Switch Start",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [
+          {
+            "name": "",
+            "dataType": "switchInfer"
+          },
+          {
+            "name": "Condition",
+            "dataType": "condition"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Bind Switch Nodes",
+            "dataType": "bindSwitchNodes"
+          },
+          {
+            "name": "",
+            "dataType": "switchInfer"
+          },
+          {
+            "name": "",
+            "dataType": "switchInfer"
+          }
+        ]
+      },
+      "switchEnd": {
+        "name": "Switch End",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [
+          {
+            "name": "Bind Switch Nodes",
+            "dataType": "bindSwitchNodes"
+          },
+          {
+            "name": "",
+            "dataType": "switchInfer"
+          },
+          {
+            "name": "",
+            "dataType": "switchInfer"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "dataType": "switchInfer"
+          }
+        ]
+      }
+    },
+    "nodes": [
+      {
+        "id": "thi62rt7o4jladkcd73g",
+        "position": {
+          "x": 444.44444444444446,
+          "y": 444.44444444444446
+        },
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "configurableNode",
+        "width": 400,
+        "data": {
+          "name": "Bit Input",
+          "headerColor": "#C75B8E",
+          "inputs": [
+            {
+              "id": "f16nt7zpnj8ujrdgdg0o",
+              "name": "Value",
+              "handleColor": "#00BFFF",
+              "allowInput": true,
+              "type": "boolean",
+              "handleShape": "rectangle",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Bit",
+                  "underlyingType": "boolean",
+                  "color": "#00BFFF",
+                  "shape": "rectangle",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "bit"
+              },
+              "value": true
+            }
+          ],
+          "outputs": [
+            {
+              "id": "3bwkxy80aqe0qbdk8jvi",
+              "name": "Out",
+              "handleColor": "#00BFFF",
+              "allowInput": true,
+              "type": "boolean",
+              "handleShape": "rectangle",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Bit",
+                  "underlyingType": "boolean",
+                  "color": "#00BFFF",
+                  "shape": "rectangle",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "bit"
+              }
+            }
+          ],
+          "nodeTypeUniqueId": "bitConstant"
+        },
+        "selected": false,
+        "measured": {
+          "width": 400,
+          "height": 197
+        }
+      },
+      {
+        "id": "ac9xdtqh14anhoqobgwe",
+        "position": {
+          "x": 444.44444444444446,
+          "y": 933.3333333333333
+        },
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "configurableNode",
+        "width": 400,
+        "data": {
+          "name": "Bit Input",
+          "headerColor": "#C75B8E",
+          "inputs": [
+            {
+              "id": "f5nf6s8izbz9v36wcokl",
+              "name": "Value",
+              "handleColor": "#00BFFF",
+              "allowInput": true,
+              "type": "boolean",
+              "handleShape": "rectangle",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Bit",
+                  "underlyingType": "boolean",
+                  "color": "#00BFFF",
+                  "shape": "rectangle",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "bit"
+              },
+              "value": true
+            }
+          ],
+          "outputs": [
+            {
+              "id": "fmwetitj1zj9zgwpxaqq",
+              "name": "Out",
+              "handleColor": "#00BFFF",
+              "allowInput": true,
+              "type": "boolean",
+              "handleShape": "rectangle",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Bit",
+                  "underlyingType": "boolean",
+                  "color": "#00BFFF",
+                  "shape": "rectangle",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "bit"
+              }
+            }
+          ],
+          "nodeTypeUniqueId": "bitConstant"
+        },
+        "selected": true,
+        "measured": {
+          "width": 400,
+          "height": 197
+        }
+      },
+      {
+        "id": "taqb3dmsggqg2tlj4kxz",
+        "position": {
+          "x": 1244.4444444444443,
+          "y": 666.6666666666666
+        },
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "configurableNode",
+        "width": 400,
+        "data": {
+          "name": "AND Gate",
+          "headerColor": "#8B5CC8",
+          "inputs": [
+            {
+              "id": "qs9imnkz68524ibfsabk",
+              "name": "A",
+              "handleColor": "#00BFFF",
+              "allowInput": true,
+              "type": "boolean",
+              "handleShape": "rectangle",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Bit",
+                  "underlyingType": "boolean",
+                  "color": "#00BFFF",
+                  "shape": "rectangle",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "bit"
+              }
+            },
+            {
+              "id": "pqgh3z3hw4kil9fholii",
+              "name": "B",
+              "handleColor": "#00BFFF",
+              "allowInput": true,
+              "type": "boolean",
+              "handleShape": "rectangle",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Bit",
+                  "underlyingType": "boolean",
+                  "color": "#00BFFF",
+                  "shape": "rectangle",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "bit"
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "id": "aw35td88d6lr36luv47k",
+              "name": "Out",
+              "handleColor": "#00BFFF",
+              "allowInput": true,
+              "type": "boolean",
+              "handleShape": "rectangle",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Bit",
+                  "underlyingType": "boolean",
+                  "color": "#00BFFF",
+                  "shape": "rectangle",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "bit"
+              }
+            }
+          ],
+          "nodeTypeUniqueId": "andGate"
+        },
+        "selected": false,
+        "measured": {
+          "width": 400,
+          "height": 263
+        }
+      },
+      {
+        "id": "p3k07i6s04v9wf5i15pw",
+        "position": {
+          "x": 2000,
+          "y": 666.6666666666666
+        },
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "configurableNode",
+        "width": 400,
+        "data": {
+          "name": "Bit Output",
+          "headerColor": "#4A96BA",
+          "inputs": [
+            {
+              "id": "bs29s3abfacevnbof9sc",
+              "name": "In",
+              "handleColor": "#00BFFF",
+              "allowInput": true,
+              "type": "boolean",
+              "handleShape": "rectangle",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Bit",
+                  "underlyingType": "boolean",
+                  "color": "#00BFFF",
+                  "shape": "rectangle",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "bit"
+              }
+            }
+          ],
+          "outputs": [],
+          "nodeTypeUniqueId": "bitDisplay"
+        },
+        "selected": false,
+        "measured": {
+          "width": 400,
+          "height": 161
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "2w966594dggh43ao4dg8",
+        "source": "thi62rt7o4jladkcd73g",
+        "target": "taqb3dmsggqg2tlj4kxz",
+        "sourceHandle": "3bwkxy80aqe0qbdk8jvi",
+        "targetHandle": "qs9imnkz68524ibfsabk",
+        "type": "configurableEdge"
+      },
+      {
+        "id": "mmjuts3qcjdoyp1gmwwt",
+        "source": "ac9xdtqh14anhoqobgwe",
+        "target": "taqb3dmsggqg2tlj4kxz",
+        "sourceHandle": "fmwetitj1zj9zgwpxaqq",
+        "targetHandle": "pqgh3z3hw4kil9fholii",
+        "type": "configurableEdge"
+      },
+      {
+        "id": "8vqrz2tsh35iewqzykxh",
+        "source": "taqb3dmsggqg2tlj4kxz",
+        "target": "p3k07i6s04v9wf5i15pw",
+        "sourceHandle": "aw35td88d6lr36luv47k",
+        "targetHandle": "bs29s3abfacevnbof9sc",
+        "type": "configurableEdge"
+      }
+    ],
+    "allowedConversionsBetweenDataTypes": {
+      "bit": {
+        "condition": true
+      },
+      "condition": {
+        "bit": true
+      }
+    },
+    "allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking": true,
+    "enableComplexTypeChecking": true,
+    "enableTypeInference": true,
+    "enableCycleChecking": true,
+    "enableRecursionChecking": true,
+    "nodeCountConstraints": {
+      "groupInput": {
+        "maxInRoot": 1,
+        "minInRoot": 0,
+        "minWithinANodeGroup": 1,
+        "maxWithinANodeGroup": 1
+      },
+      "groupOutput": {
+        "maxInRoot": 1,
+        "minInRoot": 0,
+        "minWithinANodeGroup": 1,
+        "maxWithinANodeGroup": 1
+      }
+    },
+    "viewport": {
+      "x": -472,
+      "y": -54.724999999999966,
+      "zoom": 0.45
+    }
+  }
+}

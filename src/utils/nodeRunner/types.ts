@@ -552,6 +552,17 @@ type ExecutionStepRecord = {
   /** Group nesting depth (only when inside a group scope) */
   groupDepth?: number;
   /**
+   * Chain of group-INSTANCE node ids from the root down to (and including) the
+   * innermost group scope this step executed in, outermost first — e.g.
+   * `["A1", "B_tpl"]` for a node inside group `B` inside instance `A1`. Absent
+   * for root-level steps. Unlike `groupNodeId` (which below depth 1 is a shared
+   * subtree TEMPLATE id), the full chain uniquely identifies the execution
+   * instance path — it mirrors the ValueStore's scoped-prefix chain. A group
+   * node's OWN structural/error step carries its PARENT scope's path.
+   * PROVISIONAL while execution-path/instance tracking (todo #8) ships.
+   */
+  instancePath?: readonly string[];
+  /**
    * True when the step's duration was below timer resolution
    * (performance.now() returned the same value for start and end).
    * Displayed as "< 0.1ms" in the UI instead of an exact value.

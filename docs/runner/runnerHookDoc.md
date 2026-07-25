@@ -130,6 +130,10 @@ useNodeRunner({ state, functionImplementations, options,
 │   ├── No generator? ──> runStepByStep()          │
 │   └── gen.next() ──> pause after one step        │
 │                                                  │
+├── stepOver() ──> drain until the yielded step's  │
+│   instancePath depth ≤ the head's depth (executes│
+│   THROUGH a group's interior; resume-grade guards)│
+│                                                  │
 ├── pause() ──> shouldContinueRef = false          │
 │                                                  │
 ├── resume() ──> drain generator until done/paused │

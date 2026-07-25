@@ -6,7 +6,10 @@ import { cn } from '@/utils';
 import type { Action } from '@/utils/nodeStateManagement/mainReducer';
 
 type NodeHeaderActionDefinition = {
+  /** Stable id — React key + the `data-testid` e2e hook. */
   id: string;
+  /** Human-readable label — the icon's `aria-label`. */
+  label: string;
   icon: LucideIcon;
   iconClassName?: string;
   action: Action;
@@ -37,6 +40,8 @@ function ContextAwareNodeHeaderActions({
         return (
           <Icon
             key={actionDef.id}
+            aria-label={actionDef.label}
+            data-testid={actionDef.id}
             strokeWidth={2.5}
             className={cn(
               actionDef.iconClassName ??

@@ -281,6 +281,10 @@ function compileLoopStructures<
           nodeId,
           nodeTypeId,
           nodeTypeName: typeOfNode?.name ?? nodeTypeId,
+          // Custom name must ride the body step too (the Phase-5 path sets it)
+          // — else a custom-named node inside a loop body loses its name in
+          // records, errors, and codegen comments.
+          customName: node.data.customName,
           concurrencyLevel: levelIdx,
         });
       }

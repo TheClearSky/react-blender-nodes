@@ -26,3 +26,4 @@ export type {
   CloseDrawerDetail,
 } from './graphEvent';
 export type { ValidationError, Result } from './planApply/types';
+export type { RunnerViewPreferences } from './runnerViewPreferences';

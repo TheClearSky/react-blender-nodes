@@ -42,8 +42,25 @@ async function executeSwitchBlock<
   valueStore: ValueStore,
   erroredNodes: Set<string>,
   afterStep?: () => Promise<void>,
+  groupContext?: {
+    groupNodeId: string;
+    groupNodeTypeId: string;
+    groupDepth: number;
+    instancePath: readonly string[];
+  },
 ): Promise<void> {
   const { recorder, plan, nodeInfoMap, onNodeStateChange, abortSignal } = env;
+  // When this switch executes INSIDE a group scope, every step it records (the
+  // pair's structural steps AND branch nodes) carries the enclosing group's
+  // identity + instance path — without this, switch-in-group steps record as
+  // root-level (unattributed).
+  const groupStepFields = groupContext
+    ? {
+        groupNodeId: groupContext.groupNodeId,
+        groupDepth: groupContext.groupDepth,
+        instancePath: groupContext.instancePath,
+      }
+    : {};
   const {
     switchStartNodeId,
     switchEndNodeId,
@@ -76,6 +93,7 @@ async function executeSwitchBlock<
       nodeTypeId: 'switch',
       nodeTypeName: 'Switch',
       concurrencyLevel: block.concurrencyLevel,
+      ...groupStepFields,
     });
     recorder.errorStep(errIdx, error, new Map());
     onNodeStateChange(switchStartNodeId, 'errored');
@@ -127,6 +145,7 @@ async function executeSwitchBlock<
       nodeTypeId: startInfo.nodeTypeId,
       nodeTypeName: startInfo.nodeTypeName,
       concurrencyLevel: block.concurrencyLevel,
+      ...groupStepFields,
     });
     recorder.errorStep(errIdx, error, new Map());
     onNodeStateChange(switchStartNodeId, 'errored');
@@ -191,6 +210,7 @@ async function executeSwitchBlock<
       switchPhase: 'switchStart' as SwitchPhase,
       switchStructureId,
       branchTaken: conditionValue,
+      ...groupStepFields,
     });
     const startInputMap = valueStore.resolveInputs(
       switchStartNodeId,
@@ -253,6 +273,7 @@ async function executeSwitchBlock<
         nodeTypeName: getStepTypeName(step),
         customName: getStepCustomName(step),
         concurrencyLevel: step.concurrencyLevel,
+        ...groupStepFields,
       });
       recorder.skipStep(skipIdx);
       await afterStep?.();
@@ -264,6 +285,7 @@ async function executeSwitchBlock<
     const switchNested = {
       switchContext: { switchStructureId },
       switchPhase: branchPhase,
+      groupContext,
     };
 
     if (afterStep) {
@@ -281,6 +303,7 @@ async function executeSwitchBlock<
               branchErroredNodes,
               undefined,
               afterStep,
+              groupContext,
             );
           }
         } catch (e) {
@@ -294,7 +317,15 @@ async function executeSwitchBlock<
           if (step.kind === 'standard') {
             return executeStandardNode(step, env, valueStore, switchNested);
           }
-          return executeOneStep(step, env, valueStore, branchErroredNodes);
+          return executeOneStep(
+            step,
+            env,
+            valueStore,
+            branchErroredNodes,
+            undefined,
+            undefined,
+            groupContext,
+          );
         }),
       );
       for (let i = 0; i < results.length; i++) {
@@ -347,6 +378,7 @@ async function executeSwitchBlock<
       switchPhase: 'switchEnd' as SwitchPhase,
       switchStructureId,
       branchTaken: conditionValue,
+      ...groupStepFields,
     });
     const endInputMap = valueStore.resolveInputs(
       switchEndNodeId,

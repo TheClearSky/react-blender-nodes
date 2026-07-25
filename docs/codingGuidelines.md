@@ -1904,11 +1904,14 @@ enforcing connection boundaries). They follow several conventions:
   `structureLink`, and `enforced: true`, and are created/recomputed
   automatically: `createSwitchZones` / `createLoopZones` on ADD,
   `recomputeAllZoneMemberships` on every edge change, `rehydrateAllZones` on
-  `REPLACE_STATE` import. User zones (future) omit
-  `boundaryHandles`/`structureLink` and are visual-only.
-- **Membership is derived, never authored.** `nodeIds` (the nodes inside a zone)
-  are recomputed via BFS from boundary handles (`discoverZoneNodesFromHandles`)
-  — treat them as cache, not source of truth.
+  `REPLACE_STATE` import. User zones (SHIPPED — stored separately on
+  `state.userZones` / `subtree.userZones`, created via `ADD_USER_ZONE`) omit
+  `boundaryHandles`/`structureLink`, are `enforced: false`, and are visual-only.
+- **System-zone membership is derived, never authored.** A system zone's
+  `nodeIds` are recomputed via BFS from boundary handles
+  (`discoverZoneNodesFromHandles`) — treat them as cache, not source of truth.
+  USER-zone `nodeIds` are the opposite: authored (selection + member actions),
+  never recomputed — which is why they live in the separate `userZones` record.
 - **Lookup helpers, not id math.** Use
   `findZoneByStructure(zones, structureId, zoneRole)` and
   `getBoundaryNodeIds(zone)` rather than reconstructing keys.

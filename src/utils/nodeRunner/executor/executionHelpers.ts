@@ -21,6 +21,7 @@ import { qualifiedId } from '../valueStore';
 import type { ValueStore } from '../valueStore';
 import { ExecutionRecorder } from '../executionRecorder';
 import { standardDataTypeNamesMap } from '../../nodeStateManagement/standardNodes';
+import { getCurrentNodesAndEdgesFromState } from '../../nodeStateManagement/nodes/constructAndModifyNodes';
 
 // ─────────────────────────────────────────────────────
 // Execution environment — immutable context for a run
@@ -85,11 +86,17 @@ function buildNodeInfoMap<
   >,
 ): Map<string, NodeInfo> {
   const map = new Map<string, NodeInfo>();
+  // Read nodes from the CURRENT scope, not root `state.nodes`: a plan compiled
+  // while a group is open at the top level references SUBTREE node ids, which
+  // aren't in the root array — reading root would miss every step's node and
+  // fail execution with "node not found" (the executor half of the open-group
+  // compile scope gap). At true root this is `state.nodes`.
+  const scopedNodes = getCurrentNodesAndEdgesFromState(state).nodes;
 
   function processSteps(steps: ReadonlyArray<ExecutionStep>) {
     for (const step of steps) {
       if (step.kind === 'standard') {
-        const node = state.nodes.find((n) => n.id === step.nodeId);
+        const node = scopedNodes.find((n) => n.id === step.nodeId);
         if (!node) continue;
         const nodeTypeId = node.data.nodeTypeUniqueId;
         if (!nodeTypeId) continue;
@@ -108,7 +115,7 @@ function buildNodeInfoMap<
           step.loopStopNodeId,
           step.loopEndNodeId,
         ]) {
-          const node = state.nodes.find((n) => n.id === loopNodeId);
+          const node = scopedNodes.find((n) => n.id === loopNodeId);
           if (!node) continue;
           const nodeTypeId = node.data.nodeTypeUniqueId;
           if (!nodeTypeId) continue;
@@ -128,7 +135,7 @@ function buildNodeInfoMap<
           step.switchStartNodeId,
           step.switchEndNodeId,
         ]) {
-          const node = state.nodes.find((n) => n.id === switchNodeId);
+          const node = scopedNodes.find((n) => n.id === switchNodeId);
           if (!node) continue;
           const nodeTypeId = node.data.nodeTypeUniqueId;
           if (!nodeTypeId) continue;
@@ -144,7 +151,7 @@ function buildNodeInfoMap<
         processSteps(step.trueBranchSteps);
         processSteps(step.falseBranchSteps);
       } else if (step.kind === 'group') {
-        const node = state.nodes.find((n) => n.id === step.groupNodeId);
+        const node = scopedNodes.find((n) => n.id === step.groupNodeId);
         if (!node) continue;
         const nodeTypeId = node.data.nodeTypeUniqueId;
         if (!nodeTypeId) continue;
@@ -290,6 +297,7 @@ function recordStructuralNodeCompletion(
     parentLoopIteration?: number;
     groupNodeId?: string;
     groupDepth?: number;
+    instancePath?: readonly string[];
   },
   outcome: { status: 'completed' } | { status: 'errored'; error: GraphError },
 ): void {

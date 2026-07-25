@@ -28,8 +28,9 @@ type ZoneBoundaryHandle = {
  * and optionally enforcing connection boundary rules.
  *
  * System zones (switches, loops) are created/updated automatically when
- * structures are added or edges change. User zones (future) are visual-only
- * with no boundary enforcement.
+ * structures are added or edges change. User zones are authored (named/colored
+ * frames the user wraps around selected nodes) and visual-only — `enforced: false`,
+ * no `structureLink`/`boundaryHandles`, no boundary enforcement.
  *
  * Zones are scope-local: root-level zones live on `state.zones`, subtree
  * zones live on `subtree.zones` inside their node group.
@@ -41,7 +42,10 @@ type Zone = {
   name: string;
   /** CSS color for the zone frame polygon and label. */
   color: string;
-  /** IDs of body nodes currently inside this zone (recomputed on every edge change). */
+  /**
+   * Member node IDs. For SYSTEM zones this is recomputed on every edge change;
+   * for USER zones it is AUTHORED (never recomputed).
+   */
   nodeIds: string[];
   /**
    * Per-boundary-node handle definitions. Keys are boundary node IDs.

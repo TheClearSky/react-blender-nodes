@@ -65,7 +65,34 @@ function compile<
   // Phase 1: Graph Analysis
   // ─────────────────────────────────────────────────────
 
-  const { nodes, edges } = getCurrentNodesAndEdgesFromState(state);
+  const {
+    nodes,
+    edges,
+    zones: scopedZones,
+    zoneIndex: scopedZoneIndex,
+  } = getCurrentNodesAndEdgesFromState(state);
+
+  // The loop/switch structure resolvers (`getLoopStructureFromNode`,
+  // `getNodesInLoopRegion`, switch equivalents) read `state.nodes` /
+  // `state.edges` / `state.zones` DIRECTLY. When a group is open at the top
+  // level the compiled scope is the SUBTREE, but those root arrays don't
+  // contain the subtree's structure nodes/bind edges — so every subtree
+  // loop/switch would resolve to `undefined` and be SILENTLY dropped from the
+  // plan (a loop-free miscompilation, no error). Hand the sub-compilers a
+  // state whose arrays and zones ARE the current scope, with the open-group
+  // stack cleared so nested group compiles re-scope from their own subtree.
+  // At true root (no open group) this is `state` unchanged.
+  const isCompilingOpenSubtree = !depth && !!state.openedNodeGroupStack?.length;
+  const scopedState = isCompilingOpenSubtree
+    ? {
+        ...state,
+        nodes,
+        edges,
+        zones: scopedZones,
+        zoneIndex: scopedZoneIndex,
+        openedNodeGroupStack: undefined,
+      }
+    : state;
 
   // Root-level Graph I/O: ONLY at the true root scope (not inside an opened group,
   // not a nested compile). The single Graph Input / Graph Output node lets the
@@ -232,7 +259,7 @@ function compile<
   // ─────────────────────────────────────────────────────
 
   const { loopBlocks, loopNodeIds } = compileLoopStructures(
-    state,
+    scopedState,
     nodes,
     edges,
     maxLoopIterations,
@@ -246,7 +273,7 @@ function compile<
   // ─────────────────────────────────────────────────────
 
   const { switchBlocks, switchNodeIds } = compileSwitchStructures(
-    state,
+    scopedState,
     nodes,
     edges,
     maxLoopIterations,
@@ -264,7 +291,7 @@ function compile<
     groupNodeIds: _groupNodeIds,
     warnings: groupWarnings,
   } = compileGroupScopes(
-    state,
+    scopedState,
     nodes,
     functionImplementations,
     maxLoopIterations,

@@ -74,6 +74,12 @@ const lightGraphTheme: GraphTheme = {
     // + text overrides here (mirrors select.content / tooltip.content), plus
     // re-anchor the drag-list vars the portaled DragList can't otherwise see.
     inputOrderPopover: `bg-white border-zinc-300 ${LIGHT_TEXT_OVERRIDES} [&_.border-secondary-dark-gray]:border-zinc-300 [--color-drag-list-item-hover-bg:#d4d4d8] [--color-drag-list-ghost-accent:#71717a]`,
+    // The preview panel sits ON TOP of the node; on light it needs a light
+    // surface + border + text recolors (its dark default is `bg-primary-dark-gray`).
+    // The fallback error card's `hover:text-primary-white` is a hover VARIANT (not
+    // a static class), so it escapes LIGHT_TEXT_OVERRIDES — recolor button hovers
+    // here too.
+    previewPanel: `bg-zinc-100 border border-zinc-300 ${LIGHT_TEXT_OVERRIDES} [&_button:hover]:text-zinc-900`,
   },
   statusIndicator: {
     // The arrow SVG reads vars; re-anchoring them on the slot keeps the

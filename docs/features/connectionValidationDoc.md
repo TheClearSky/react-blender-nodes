@@ -566,8 +566,11 @@ it:
    `configurableEdge` object.
 2. Captures pre-inference handle data (needed to detect infer handles for group
    duplication).
-3. Applies the plan's `nodeDataReplacements` to the draft (deep-cloning each
-   `newData` with `structuredClone` so later splices don't hit frozen objects).
+3. Applies the plan's `nodeDataReplacements` to the draft, deep-copying each
+   `newData` with `cloneDeepPreservingNonPlainObjects` (plain object/array data
+   copied so later splices don't hit frozen objects; functions and zod
+   `complexSchema`s passed by reference, avoiding `structuredClone`'s
+   `DataCloneError` and lodash `cloneDeep`'s identity-break).
 4. De-duplicates handle names, then runs handle duplication on the draft via the
    still-mutating helpers: `addDuplicateHandlesToLoopNodesAfterInference`,
    `addDuplicateHandlesToSwitchNodesAfterInference` (plus switch zone-prefix and

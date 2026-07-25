@@ -14,6 +14,7 @@ import type {
   ExecutionRecord,
   ExecutionStepRecord,
 } from '@/utils/nodeRunner/types';
+import type { NodePreviewValueEntry } from '@/utils/nodeRunner/computeNodePreviewValues';
 import type { GraphEvent } from '@/utils/nodeStateManagement/graphEvent';
 import { createGraphStore, type GraphStore } from './graphStore';
 
@@ -56,6 +57,15 @@ type RunnerContextValue = {
   nodeRunnerStates: ReadonlyMap<string, NodeRunnerState>;
   selectedStepRecord: ExecutionStepRecord | null;
   edgeValuesAnimated: boolean;
+  /**
+   * Per-node runner values for the preview panels (`nodePreviews`). `live` = the
+   * node's latest computed step; `atStep` = its step at/≤ the current timeline
+   * position. Two distinct "nothing" states: the field is ABSENT ⇔ there is no
+   * `RunnerOverlay` (no runner at all); it is present but an EMPTY map ⇔ a runner
+   * exists yet there is no registry or no record. Under `RunnerOverlay` it is
+   * ALWAYS supplied (empty when idle), so every reader still uses `?.`.
+   */
+  nodePreviewValues?: ReadonlyMap<string, NodePreviewValueEntry>;
 };
 
 const RunnerContext = createContext<RunnerContextValue | undefined>(undefined);
@@ -65,12 +75,21 @@ const RunnerContext = createContext<RunnerContextValue | undefined>(undefined);
 // ─────────────────────────────────────────────────────
 
 type RecordContextValue = {
-  executionRecord: ExecutionRecord | null;
+  /**
+   * Tri-state, mirroring `useNodeRunner`'s controlled/uncontrolled contract:
+   * - `undefined` — the consumer did NOT pass `executionRecord` to
+   *   `<FullGraph>`: the runner is UNCONTROLLED and owns its record
+   *   internally. (Coalescing this to `null` used to make the runner
+   *   "controlled with a noop sink", silently discarding every record.)
+   * - `null` — controlled, currently empty.
+   * - a record — controlled, loaded.
+   */
+  executionRecord: ExecutionRecord | null | undefined;
   setExecutionRecord: (record: ExecutionRecord | null) => void;
 };
 
 const RecordContext = createContext<RecordContextValue>({
-  executionRecord: null,
+  executionRecord: undefined,
   setExecutionRecord: () => {},
 });
 

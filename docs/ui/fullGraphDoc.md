@@ -118,14 +118,15 @@ FullGraph (outer)                          FullGraph.tsx › FullGraph
         +-- getLoopStructureFromNode() / getSwitchStructureFromNode() (drawer data)
         |
         +-- ErrorBoundary (graph)        wraps everything
-        |     +-- InputComponentRegistryContext.Provider (inputComponents)
+        |     +-- NodePreviewRegistryContext.Provider (nodePreviews)
+        |           +-- InputComponentRegistryContext.Provider (inputComponents)
         |
         +-- [conditional] RecordingViewStateProvider   RecordingViewStateProvider.tsx › RecordingViewStateProvider
         |     +-- ErrorBoundary (runner)
         |     +-- RunnerOverlay                        RunnerOverlay.tsx › RunnerOverlay
         |           +-- useNodeRunner()    (compile, execute, replay, record)
         |           +-- RunnerContext.Provider (nodeRunnerStates, selectedStepRecord,
-        |           |                            edgeValuesAnimated)
+        |           |                            edgeValuesAnimated, nodePreviewValues)
         |           +-- NodeRunnerPanel    (transport, timeline, inspector)
         |
         +-- graphContent (shared between runner and non-runner modes)
@@ -155,6 +156,9 @@ FullGraph (outer)                          FullGraph.tsx › FullGraph
 |   FullGraph     |  ReactFlowProvider
 |   (outer)       |  FullGraphContext.Provider value = createContextValue({state, dispatch})
 |                 |  RecordContext.Provider value = { executionRecord, setExecutionRecord }
+|                 |  executionRecord is TRI-STATE: omitted (undefined) selects the
+|                 |  runner's UNCONTROLLED mode (it owns its record internally);
+|                 |  null = controlled-empty; a record = controlled-loaded.
 +-------+--------+
         |
         v
@@ -328,8 +332,11 @@ Defined at `src/components/organisms/FullGraph/RunnerOverlay.tsx` ›
   open, edge-value animation, etc.)
 - Builds a combined `nodeRunnerStates` Map by merging the runner's
   `nodeVisualStates`, `nodeWarnings`, and `nodeErrors`
+- When a `nodePreviews` registry is present, derives a per-node
+  `{ live, atStep }` map (`computeNodePreviewValues`) from the record + current
+  step — gated so no-preview graphs keep a stable empty reference
 - Provides `RunnerContext` with
-  `{ nodeRunnerStates, selectedStepRecord, edgeValuesAnimated }`
+  `{ nodeRunnerStates, selectedStepRecord, edgeValuesAnimated, nodePreviewValues }`
 - Renders `NodeRunnerPanel` with all runner controls, plus a "navigate to node"
   callback (`setCenter`) and a floating "Runner" reopen button when the panel is
   closed
@@ -345,22 +352,23 @@ Defined at `src/components/organisms/FullGraph/RunnerOverlay.tsx` ›
 Defined at `src/components/organisms/FullGraph/FullGraph.tsx` ›
 `FullGraphProps`.
 
-| Prop                       | Type                                           | Required | Description                                                                                                                                                        |
-| -------------------------- | ---------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `state`                    | `State<D, N, U, C>`                            | Yes      | Complete graph state: nodes, edges, dataTypes, typeOfNodes, openedNodeGroupStack, viewport, zones, history                                                         |
-| `dispatch`                 | `ActionDispatch<[action: Action<D, N, U, C>]>` | Yes      | Dispatch from `useFullGraph` (or raw `useReducer`)                                                                                                                 |
-| `functionImplementations`  | `FunctionImplementations<N>`                   | No       | Map of nodeTypeId → execution function. When provided, mounts the runner overlay                                                                                   |
-| `onStateImported`          | `(importedState: State<D,N,U,C>) => void`      | No       | Called after a successful state import with the merged state                                                                                                       |
-| `onRecordingImported`      | `(record: ExecutionRecord) => void`            | No       | Called after a successful recording import                                                                                                                         |
-| `onImportError`            | `(errors: string[]) => void`                   | No       | Called when import validation (state or recording) fails                                                                                                           |
-| `executionRecord`          | `ExecutionRecord \| null`                      | No       | Controlled execution record. When provided, the runner uses it instead of internal state                                                                           |
-| `onExecutionRecordChange`  | `(record: ExecutionRecord \| null) => void`    | No       | Called whenever the record changes (run completes, reset, load, etc.)                                                                                              |
-| `onGraphEvent`             | `(event: GraphEvent<D,N,U,C>) => void`         | No       | Unified observability stream for UI-layer lifecycle events (see below)                                                                                             |
-| `inputComponents`          | `InputComponentRegistry<D>`                    | No       | Registry of custom input components keyed by `DataTypeUniqueId` (for `unsupportedDirectly` types)                                                                  |
-| `enableUndoRedoShortcuts`  | `boolean`                                      | No       | Listen for Ctrl/⌘+Z, Ctrl/⌘+Shift+Z, Ctrl/⌘+Y. **Defaults to `true`**                                                                                              |
-| `rootInputs`               | `Record<string, unknown>`                      | No       | Values seeded into the root Graph Input on run, keyed by handle **name** OR stable handle **id** (id is rename-proof). Mirrors codegen's `runGraph` params         |
-| `allowRootIORename`        | `boolean`                                      | No       | Root I/O renames on connect (group parity) + editor rename. **Defaults to `true`** (behavior change — see Root I/O contract stability). `false` keeps names stable |
-| `allowRootIOStructureEdit` | `boolean`                                      | No       | Root I/O grows a blank spare on connect + editor add/delete. **Defaults to `true`**. `false` freezes the root handle count                                         |
+| Prop                       | Type                                           | Required | Description                                                                                                                                                                                                     |
+| -------------------------- | ---------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `state`                    | `State<D, N, U, C>`                            | Yes      | Complete graph state: nodes, edges, dataTypes, typeOfNodes, openedNodeGroupStack, viewport, zones, history                                                                                                      |
+| `dispatch`                 | `ActionDispatch<[action: Action<D, N, U, C>]>` | Yes      | Dispatch from `useFullGraph` (or raw `useReducer`)                                                                                                                                                              |
+| `functionImplementations`  | `FunctionImplementations<N>`                   | No       | Map of nodeTypeId → execution function. When provided, mounts the runner overlay                                                                                                                                |
+| `onStateImported`          | `(importedState: State<D,N,U,C>) => void`      | No       | Called after a successful state import with the merged state                                                                                                                                                    |
+| `onRecordingImported`      | `(record: ExecutionRecord) => void`            | No       | Called after a successful recording import                                                                                                                                                                      |
+| `onImportError`            | `(errors: string[]) => void`                   | No       | Called when import validation (state or recording) fails                                                                                                                                                        |
+| `executionRecord`          | `ExecutionRecord \| null`                      | No       | Controlled execution record. When provided, the runner uses it instead of internal state                                                                                                                        |
+| `onExecutionRecordChange`  | `(record: ExecutionRecord \| null) => void`    | No       | Called whenever the record changes (run completes, reset, load, etc.)                                                                                                                                           |
+| `onGraphEvent`             | `(event: GraphEvent<D,N,U,C>) => void`         | No       | Unified observability stream for UI-layer lifecycle events (see below)                                                                                                                                          |
+| `inputComponents`          | `InputComponentRegistry<D>`                    | No       | Registry of custom input components keyed by `DataTypeUniqueId` (for `unsupportedDirectly` types)                                                                                                               |
+| `nodePreviews`             | `NodePreviewRegistry<N>`                       | No       | Registry of per-node-type preview components keyed by `NodeTypeUniqueId`, rendered on top of the node (outside the status border) and fed live / at-step runner values (see [Node Previews](nodePreviewDoc.md)) |
+| `enableUndoRedoShortcuts`  | `boolean`                                      | No       | Listen for Ctrl/⌘+Z, Ctrl/⌘+Shift+Z, Ctrl/⌘+Y. **Defaults to `true`**                                                                                                                                           |
+| `rootInputs`               | `Record<string, unknown>`                      | No       | Values seeded into the root Graph Input on run, keyed by handle **name** OR stable handle **id** (id is rename-proof). Mirrors codegen's `runGraph` params                                                      |
+| `allowRootIORename`        | `boolean`                                      | No       | Root I/O renames on connect (group parity) + editor rename. **Defaults to `true`** (behavior change — see Root I/O contract stability). `false` keeps names stable                                              |
+| `allowRootIOStructureEdit` | `boolean`                                      | No       | Root I/O grows a blank spare on connect + editor add/delete. **Defaults to `true`**. `false` freezes the root handle count                                                                                      |
 
 The four generic type parameters default to: `DataTypeUniqueId = string`,
 `NodeTypeUniqueId = string`, `UnderlyingType = SupportedUnderlyingTypes`, and
@@ -460,10 +468,20 @@ Defined at `src/components/organisms/FullGraph/FullGraphState.ts` ›
 `RunnerContext`, **provided** by `RunnerOverlay`.
 
 ```typescript
+// When the viewport stands INSIDE a group instance (openedNodeGroupStack
+// carries a nodeId chain), RunnerOverlay filters both the visual states and
+// nodePreviewValues to steps whose `instancePath` equals that chain — and the
+// "Follow groups" timeline toggle — a document-level graph-`State` preference
+// (`runnerViewPreferences.followIntoGroups`, persisted, default ON) — dispatches
+// non-undoable OPEN/CLOSE_NODE_GROUP to keep the open scope synced to the
+// scrub head's instance path.
 type RunnerContextValue = {
   nodeRunnerStates: ReadonlyMap<string, NodeRunnerState>;
   selectedStepRecord: ExecutionStepRecord | null;
   edgeValuesAnimated: boolean;
+  // per-node { live, atStep } for `nodePreviews`; absent ⇔ no RunnerOverlay,
+  // an EMPTY map ⇔ a runner exists but no registry/record.
+  nodePreviewValues?: ReadonlyMap<string, NodePreviewValueEntry>;
 };
 const RunnerContext = createContext<RunnerContextValue | undefined>(undefined);
 ```
@@ -494,14 +512,21 @@ Defined at `src/components/organisms/FullGraph/FullGraphState.ts` ›
 
 ```typescript
 type RecordContextValue = {
-  executionRecord: ExecutionRecord | null;
+  // TRI-STATE: `undefined` (prop omitted) selects the runner's UNCONTROLLED
+  // mode; `null` = controlled-empty; a record = controlled-loaded.
+  executionRecord: ExecutionRecord | null | undefined;
   setExecutionRecord: (record: ExecutionRecord | null) => void;
 };
 ```
 
-Bridges the controlled `executionRecord` / `onExecutionRecordChange` props to
+Bridges the `executionRecord` / `onExecutionRecordChange` props to
 `RunnerOverlay` (read via `useRecordContext()`), which forwards them into
-`useNodeRunner`. This makes the execution record a fully controllable prop.
+`useNodeRunner`. `undefined` is preserved (not coalesced to `null`) so an
+omitted prop reaches `useNodeRunner`'s `controlledRecord !== undefined` gate as
+uncontrolled — omitting `executionRecord` gives a self-contained runner that
+owns its record internally; providing it (with `onExecutionRecordChange`) makes
+the record a fully controlled prop. Consumers reading `executionRecord` off
+`useRecordContext()` must therefore handle `undefined` as well as `null`.
 
 ### InputComponentRegistryContext
 
@@ -561,7 +586,7 @@ Direct `useReducer(mainReducer, …)` consumers still work: `mainReducer`
 (`src/utils/nodeStateManagement/mainReducer.ts` › `mainReducer`) delegates to
 the same `validateAction` + `applyValidatedAction`.
 
-### Action types (29)
+### Action types (35)
 
 `actionTypes` (`src/utils/nodeStateManagement/mainReducer.ts` › `actionTypes`):
 `ADD_NODE`, `ADD_NODE_AND_SELECT`, `UPDATE_NODE_BY_REACT_FLOW`,
@@ -571,18 +596,23 @@ the same `validateAction` + `applyValidatedAction`.
 `CLOSE_DRAWER`, `ADD_SWITCH`, `UPDATE_SWITCH`, `UNDO`, `REDO`, `BEGIN_BATCH`,
 `END_BATCH`, `CLEAR_HISTORY`, `DELETE_NODE_TYPE_HANDLES`,
 `DELETE_LOOP_CHANNELS`, `DELETE_SWITCH_CHANNELS`, `UPDATE_GRAPH_IO_HANDLES`,
-`REORDER_INPUT_CONNECTIONS`, `UPDATE_NODE_CUSTOM_NAME`. FullGraph dispatches
-most of these directly; the exceptions are `ADD_NODE` and `UPDATE_INPUT_VALUE`
-(from the context-menu helper and node inputs respectively), `ADD_LOOP` /
-`ADD_SWITCH` (dispatched only transitively by the context-menu builders in
+`REORDER_INPUT_CONNECTIONS`, `UPDATE_NODE_CUSTOM_NAME`, `ADD_USER_ZONE`,
+`UPDATE_USER_ZONE`, `UPDATE_USER_ZONE_MEMBERS`, `DELETE_USER_ZONE`,
+`UPDATE_NODE_PREVIEW_COLLAPSED`, `UPDATE_RUNNER_VIEW_PREFERENCE`. FullGraph
+dispatches most of these directly; the exceptions are `ADD_NODE` and
+`UPDATE_INPUT_VALUE` (from the context-menu helper and node inputs
+respectively), `ADD_LOOP` / `ADD_SWITCH` (dispatched only transitively by the
+context-menu builders in
 `src/components/molecules/ContextMenu/createLoopMenuItem.ts` ›
 `createLoopMenuItem` and
 `src/components/molecules/ContextMenu/createSwitchMenuItem.ts` ›
 `createSwitchMenuItem`), `CLEAR_HISTORY` (a supported action the component never
-dispatches itself), and the last six (`DELETE_NODE_TYPE_HANDLES` …
-`UPDATE_NODE_CUSTOM_NAME`), which are dispatched from the editor drawers / node
-UI. See the full dispatched-action list in the **State Management** relationship
-section below.
+dispatches itself), and the handle/channel-deletion, reorder, custom-name,
+user-zone, preview-collapse, and runner-view-preference actions
+(`DELETE_NODE_TYPE_HANDLES` … `UPDATE_RUNNER_VIEW_PREFERENCE`), which are
+dispatched from the editor drawers, node UI, zone frames, and runner panel. See
+the full dispatched-action list in the **State Management** relationship section
+below.
 
 ---
 

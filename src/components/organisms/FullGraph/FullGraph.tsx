@@ -7,7 +7,11 @@ import {
   type ActionDispatch,
 } from 'react';
 import { z } from 'zod';
-import { ZoneFrameOverlay } from '@/components/molecules/ZoneFrameOverlay';
+import {
+  ZoneFrameOverlay,
+  UserZoneLabelLayer,
+  computeZoneFrames,
+} from '@/components/molecules/ZoneFrameOverlay';
 import {
   ReactFlow,
   Background,
@@ -37,6 +41,7 @@ import {
   type TypeOfInputPanel,
 } from '@/utils/nodeStateManagement/types';
 import { cn, getCurrentNodesAndEdgesFromState } from '@/utils';
+import { getRunnerViewPreferences } from '@/utils/nodeStateManagement/runnerViewPreferences';
 import {
   FullGraphContext,
   RecordContext,
@@ -62,6 +67,10 @@ import {
   InputComponentRegistryContext,
   type InputComponentRegistry,
 } from './InputComponentRegistryContext';
+import {
+  NodePreviewRegistryContext,
+  type NodePreviewRegistry,
+} from './NodePreviewRegistryContext';
 import {
   NodeTypeEditDrawer,
   type SaveUpdates,
@@ -91,6 +100,7 @@ import { SwitchEditDrawer } from '@/components/molecules/SwitchEditDrawer';
 import type { SwitchHandleLevel } from '@/components/molecules/SwitchEditDrawer';
 import { createLoopMenuItem } from '@/components/molecules/ContextMenu/createLoopMenuItem';
 import { createSwitchMenuItem } from '@/components/molecules/ContextMenu/createSwitchMenuItem';
+import { createUserZoneMenuItem } from '@/components/molecules/ContextMenu/createUserZoneMenuItem';
 
 /**
  * Props for the FullGraph component
@@ -162,9 +172,20 @@ type FullGraphProps<
   onRecordingImported?: (record: ExecutionRecord) => void;
   /** Called when import validation fails. Receives the error messages. */
   onImportError?: (errors: string[]) => void;
-  /** Controlled execution record. When provided, FullGraph uses this instead of internal state. */
+  /**
+   * Execution record — tri-state, matching `useNodeRunner`:
+   * - OMIT the prop → UNCONTROLLED: the runner owns its record internally
+   *   (Run populates the timeline/previews without any parent state).
+   * - `null` → CONTROLLED and empty; pair with `onExecutionRecordChange`
+   *   and feed updates back in (the pattern every runner story uses).
+   * - a record → controlled and loaded (e.g. an imported recording).
+   */
   executionRecord?: ExecutionRecord | null;
-  /** Called whenever the execution record changes (run completes, reset, load, etc.). */
+  /**
+   * Called whenever the execution record changes (run completes, reset,
+   * load, etc.) — in BOTH modes; controlled consumers must feed the value
+   * back into `executionRecord`.
+   */
   onExecutionRecordChange?: (record: ExecutionRecord | null) => void;
   /**
    * Unified observability stream — fires for every UI lifecycle moment
@@ -194,6 +215,22 @@ type FullGraphProps<
    * as a prop, kept out of serialized state.
    */
   inputComponents?: InputComponentRegistry<DataTypeUniqueId>;
+  /**
+   * Registry of custom node-body PREVIEW components keyed by NodeTypeUniqueId.
+   * Each renders ON TOP of its node and receives that node's runner values
+   * (`live` + `atStep` `ExecutionStepRecord`s, plus name / visualState). The panel
+   * and its eye toggle appear whenever a preview is REGISTERED for the type — the
+   * no-runner tier is designed (values are then `null`, so the component renders
+   * its own empty state); `live`/`atStep` only POPULATE once a
+   * `functionImplementations` runner has produced a record. Per-node visibility is
+   * a persisted eye toggle.
+   *
+   * Follows the same pattern as `functionImplementations` / `inputComponents`: a map
+   * passed as a prop, kept out of serialized state. It may target any node type id,
+   * though standard nodes are the primary use case (group nodes record empty value
+   * maps; group-SUBTREE nodes are instance-aware — the open instance's own values).
+   */
+  nodePreviews?: NodePreviewRegistry<NodeTypeUniqueId>;
   /**
    * Whether the component should listen for Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y
    * keyboard shortcuts for undo/redo. Defaults to `true`.
@@ -249,6 +286,7 @@ function FullGraphWithReactFlowProvider<
   onImportError,
   onGraphEvent,
   inputComponents,
+  nodePreviews,
   enableUndoRedoShortcuts = true,
   allowRootIORename = true,
   allowRootIOStructureEdit = true,
@@ -289,6 +327,11 @@ function FullGraphWithReactFlowProvider<
     isOpen: false,
     position: { x: 0, y: 0 },
   });
+
+  // Snapshot of the selected node IDs captured when the context menu OPENS — the
+  // user-zone "Create / Add / Remove" items need the selection at open time, and
+  // ReactFlow's per-node `selected` flag isn't otherwise a menu dependency.
+  const [menuSelectionIds, setMenuSelectionIds] = useState<string[]>([]);
 
   const editDrawerNodeTypeId =
     state.activeDrawer?.type === 'editNodeType'
@@ -684,6 +727,92 @@ function FullGraphWithReactFlowProvider<
   }, [state.nodes]);
   const isAtRootScopeForMenu = !currentNodeGroup;
 
+  // Current-scope nodes/edges/zones (root or open group subtree) — consumed by
+  // BOTH the context menu (user-zone items) and the zone overlay, so it is defined
+  // once here, above both.
+  const currentNodesAndEdges = useMemo(() => {
+    return getCurrentNodesAndEdgesFromState(state);
+  }, [
+    state.nodes,
+    state.edges,
+    state.openedNodeGroupStack,
+    state.typeOfNodes,
+    // PC-1: root-scope user-zone add/rename/recolor/delete only touch
+    // `state.userZones`; without this dep the overlay/menu would never update.
+    state.userZones,
+  ]);
+
+  // System (derived) + user (authored) zones render through the one overlay.
+  // Memoized so the overlay's own [zones, nodes] memo isn't busted every render.
+  const allZonesForOverlay = useMemo(
+    () => ({
+      ...currentNodesAndEdges.zones,
+      ...currentNodesAndEdges.userZones,
+    }),
+    [currentNodesAndEdges.zones, currentNodesAndEdges.userZones],
+  );
+
+  // The overlay suppresses static labels for these; UserZoneLabelLayer renders
+  // their interactive (rename / recolor / delete) labels instead.
+  const userZoneIds = useMemo(
+    () => new Set(Object.keys(currentNodesAndEdges.userZones ?? {})),
+    [currentNodesAndEdges.userZones],
+  );
+
+  // Convex-hull frames for both overlays, computed ONCE here (was computed twice
+  // — once per overlay). Keyed on the already-memoized inputs so viewport ticks
+  // don't recompute the hull math.
+  const zoneFrames = useMemo(
+    () => computeZoneFrames(allZonesForOverlay, currentNodesAndEdges.nodes),
+    [allZonesForOverlay, currentNodesAndEdges.nodes],
+  );
+
+  const handleRenameUserZone = useCallback(
+    (zoneId: string, name: string) =>
+      dispatch({
+        type: actionTypesMap.UPDATE_USER_ZONE,
+        payload: { zoneId, name },
+      }),
+    [dispatch],
+  );
+  const handleRecolorUserZone = useCallback(
+    (zoneId: string, color: string) =>
+      dispatch({
+        type: actionTypesMap.UPDATE_USER_ZONE,
+        payload: { zoneId, color },
+      }),
+    [dispatch],
+  );
+  const handleDeleteUserZone = useCallback(
+    (zoneId: string) =>
+      dispatch({
+        type: actionTypesMap.DELETE_USER_ZONE,
+        payload: { zoneId },
+      }),
+    [dispatch],
+  );
+  // PY-2: make a zone's authored membership legible on demand — select exactly
+  // its member nodes (others deselected). A select-only change set is
+  // non-undoable (hasNonSelectionChanges), so this never pollutes undo.
+  const handleSelectUserZoneMembers = useCallback(
+    (zoneId: string) => {
+      const members = new Set(
+        currentNodesAndEdges.userZones?.[zoneId]?.nodeIds ?? [],
+      );
+      dispatch({
+        type: actionTypesMap.UPDATE_NODE_BY_REACT_FLOW,
+        payload: {
+          changes: currentNodesAndEdges.nodes.map((node) => ({
+            id: node.id,
+            type: 'select' as const,
+            selected: members.has(node.id),
+          })),
+        },
+      });
+    },
+    [dispatch, currentNodesAndEdges.userZones, currentNodesAndEdges.nodes],
+  );
+
   const contextMenuItems = useMemo(
     () => [
       ...createLoopMenuItem({
@@ -695,6 +824,12 @@ function FullGraphWithReactFlowProvider<
         dispatch,
         setContextMenu,
         contextMenuPosition: screenToFlowPosition(contextMenu.position),
+      }),
+      ...createUserZoneMenuItem({
+        dispatch,
+        setContextMenu,
+        selectedNodeIds: menuSelectionIds,
+        userZones: currentNodesAndEdges.userZones ?? {},
       }),
       ...createNodeContextMenu({
         typeOfNodes: state.typeOfNodes,
@@ -731,18 +866,26 @@ function FullGraphWithReactFlowProvider<
       isAtRootScopeForMenu,
       rootGraphIoPresence.input,
       rootGraphIoPresence.output,
+      menuSelectionIds,
+      currentNodesAndEdges.userZones,
     ],
   );
 
-  const handleContextMenu = useCallback((event: React.MouseEvent) => {
-    event.preventDefault();
-    const position = { x: event.clientX, y: event.clientY };
-    setContextMenu({ isOpen: true, position });
-  }, []);
-
-  const currentNodesAndEdges = useMemo(() => {
-    return getCurrentNodesAndEdgesFromState(state);
-  }, [state.nodes, state.edges, state.openedNodeGroupStack, state.typeOfNodes]);
+  const handleContextMenu = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      const position = { x: event.clientX, y: event.clientY };
+      // Snapshot the selection NOW for the user-zone menu items (it can change
+      // before/while the menu is open).
+      setMenuSelectionIds(
+        getNodes()
+          .filter((node) => node.selected)
+          .map((node) => node.id),
+      );
+      setContextMenu({ isOpen: true, position });
+    },
+    [getNodes],
+  );
 
   useEffect(() => {
     if (state.viewport === undefined) {
@@ -899,9 +1042,14 @@ function FullGraphWithReactFlowProvider<
               | undefined
           }
         />
-        <ZoneFrameOverlay
-          zones={currentNodesAndEdges.zones}
-          nodes={currentNodesAndEdges.nodes}
+        <ZoneFrameOverlay frames={zoneFrames} userZoneIds={userZoneIds} />
+        <UserZoneLabelLayer
+          frames={zoneFrames}
+          userZoneIds={userZoneIds}
+          onRename={handleRenameUserZone}
+          onRecolor={handleRecolorUserZone}
+          onDelete={handleDeleteUserZone}
+          onSelectMembers={handleSelectUserZoneMembers}
         />
         <MiniMap pannable {...theme?.reactFlow?.miniMap} />
       </ReactFlow>
@@ -956,6 +1104,15 @@ function FullGraphWithReactFlowProvider<
     </>
   );
 
+  const handleAutoScrollChange = useCallback(
+    (enabled: boolean) =>
+      dispatch({
+        type: actionTypesMap.UPDATE_RUNNER_VIEW_PREFERENCE,
+        payload: { preference: 'autoScroll', enabled },
+      }),
+    [dispatch],
+  );
+
   return (
     <ErrorBoundary
       fallback={({ error, reset }) => (
@@ -990,123 +1147,129 @@ function FullGraphWithReactFlowProvider<
         console.error('[FullGraph] Render error:', error, errorInfo);
       }}
     >
-      <InputComponentRegistryContext.Provider value={inputComponents}>
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-          }}
-          className={cn('relative', theme?.root)}
-        >
-          {functionImplementations ? (
-            <RecordingViewStateProvider>
-              <ErrorBoundary
-                fallback={({ error, reset }) => (
-                  <div
-                    data-slot='error-boundary-runner'
-                    className={cn(
-                      'flex h-full w-full flex-col items-center justify-center gap-3 rounded-md border border-red-500/50 bg-zinc-900 p-6 text-zinc-300',
-                      theme?.errorBoundary?.container,
-                    )}
-                  >
-                    <AlertTriangle className='h-8 w-8 text-red-400' />
-                    <p className='text-sm font-medium text-red-400'>
-                      Runner panel error
-                    </p>
-                    <p className='max-w-md text-center text-xs text-zinc-500'>
-                      {error.message}
-                    </p>
-                    <button
-                      type='button'
-                      onClick={reset}
+      <NodePreviewRegistryContext.Provider value={nodePreviews}>
+        <InputComponentRegistryContext.Provider value={inputComponents}>
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+            }}
+            className={cn('relative', theme?.root)}
+          >
+            {functionImplementations ? (
+              <RecordingViewStateProvider
+                autoScroll={getRunnerViewPreferences(state).autoScroll}
+                onAutoScrollChange={handleAutoScrollChange}
+              >
+                <ErrorBoundary
+                  fallback={({ error, reset }) => (
+                    <div
+                      data-slot='error-boundary-runner'
                       className={cn(
-                        'mt-2 inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-zinc-700',
-                        theme?.errorBoundary?.retryButton,
+                        'flex h-full w-full flex-col items-center justify-center gap-3 rounded-md border border-red-500/50 bg-zinc-900 p-6 text-zinc-300',
+                        theme?.errorBoundary?.container,
                       )}
                     >
-                      <RotateCcw className='h-3 w-3' />
-                      Retry
-                    </button>
-                  </div>
-                )}
-                onError={(error, errorInfo) => {
-                  console.error(
-                    '[RunnerOverlay] Render error:',
-                    error,
-                    errorInfo,
-                  );
-                }}
-              >
-                <RunnerOverlay
-                  state={state}
-                  functionImplementations={functionImplementations}
-                  runTargets={runTargets}
-                  defaultRunTargetId={defaultRunTargetId}
-                  rootInputs={rootInputs}
-                  onExecutionRecordRef={executionRecordRef}
-                  loadRecordRef={loadRecordRef}
+                      <AlertTriangle className='h-8 w-8 text-red-400' />
+                      <p className='text-sm font-medium text-red-400'>
+                        Runner panel error
+                      </p>
+                      <p className='max-w-md text-center text-xs text-zinc-500'>
+                        {error.message}
+                      </p>
+                      <button
+                        type='button'
+                        onClick={reset}
+                        className={cn(
+                          'mt-2 inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-zinc-700',
+                          theme?.errorBoundary?.retryButton,
+                        )}
+                      >
+                        <RotateCcw className='h-3 w-3' />
+                        Retry
+                      </button>
+                    </div>
+                  )}
+                  onError={(error, errorInfo) => {
+                    console.error(
+                      '[RunnerOverlay] Render error:',
+                      error,
+                      errorInfo,
+                    );
+                  }}
                 >
-                  {graphContent}
-                </RunnerOverlay>
-              </ErrorBoundary>
-            </RecordingViewStateProvider>
-          ) : (
-            graphContent
-          )}
+                  <RunnerOverlay
+                    state={state}
+                    dispatch={dispatch}
+                    functionImplementations={functionImplementations}
+                    runTargets={runTargets}
+                    defaultRunTargetId={defaultRunTargetId}
+                    rootInputs={rootInputs}
+                    onExecutionRecordRef={executionRecordRef}
+                    loadRecordRef={loadRecordRef}
+                  >
+                    {graphContent}
+                  </RunnerOverlay>
+                </ErrorBoundary>
+              </RecordingViewStateProvider>
+            ) : (
+              graphContent
+            )}
 
-          {/* Hidden file inputs for import actions triggered by context menu */}
-          <FileInputElements />
+            {/* Hidden file inputs for import actions triggered by context menu */}
+            <FileInputElements />
 
-          <NodeTypeEditDrawer
-            isOpen={editDrawerNodeTypeId !== null}
-            onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
-            nodeTypeId={editDrawerNodeTypeId}
-            nodeTypeName={editDrawerNodeType?.name ?? null}
-            nodeTypeHeaderColor={editDrawerNodeType?.headerColor ?? null}
-            nodeTypeInputs={editDrawerNodeType?.inputs ?? null}
-            nodeTypeOutputs={editDrawerNodeType?.outputs ?? null}
-            onSave={handleSaveNodeType}
-            getHandleBlastRadius={getHandleBlastRadiusForType}
-            getNeighborhood={getConnectionNeighborhoodForScope}
-          />
+            <NodeTypeEditDrawer
+              isOpen={editDrawerNodeTypeId !== null}
+              onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
+              nodeTypeId={editDrawerNodeTypeId}
+              nodeTypeName={editDrawerNodeType?.name ?? null}
+              nodeTypeHeaderColor={editDrawerNodeType?.headerColor ?? null}
+              nodeTypeInputs={editDrawerNodeType?.inputs ?? null}
+              nodeTypeOutputs={editDrawerNodeType?.outputs ?? null}
+              onSave={handleSaveNodeType}
+              getHandleBlastRadius={getHandleBlastRadiusForType}
+              getNeighborhood={getConnectionNeighborhoodForScope}
+            />
 
-          <LoopEditDrawer
-            isOpen={editLoopNodeId !== null}
-            onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
-            loopStartNodeData={editLoopTriplet?.loopStartData ?? null}
-            loopStopNodeData={editLoopTriplet?.loopStopData ?? null}
-            loopEndNodeData={editLoopTriplet?.loopEndData ?? null}
-            onSave={handleSaveLoop}
-            getChannelBlastRadius={getLoopChannelBlastRadius}
-            getNeighborhood={getConnectionNeighborhoodForScope}
-          />
+            <LoopEditDrawer
+              isOpen={editLoopNodeId !== null}
+              onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
+              loopStartNodeData={editLoopTriplet?.loopStartData ?? null}
+              loopStopNodeData={editLoopTriplet?.loopStopData ?? null}
+              loopEndNodeData={editLoopTriplet?.loopEndData ?? null}
+              onSave={handleSaveLoop}
+              getChannelBlastRadius={getLoopChannelBlastRadius}
+              getNeighborhood={getConnectionNeighborhoodForScope}
+            />
 
-          <SwitchEditDrawer
-            isOpen={editSwitchNodeId !== null}
-            onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
-            switchStartNodeData={editSwitchPair?.switchStartData ?? null}
-            switchEndNodeData={editSwitchPair?.switchEndData ?? null}
-            onSave={handleSaveSwitch}
-            getChannelBlastRadius={getSwitchChannelBlastRadius}
-            getNeighborhood={getConnectionNeighborhoodForScope}
-          />
+            <SwitchEditDrawer
+              isOpen={editSwitchNodeId !== null}
+              onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
+              switchStartNodeData={editSwitchPair?.switchStartData ?? null}
+              switchEndNodeData={editSwitchPair?.switchEndData ?? null}
+              onSave={handleSaveSwitch}
+              getChannelBlastRadius={getSwitchChannelBlastRadius}
+              getNeighborhood={getConnectionNeighborhoodForScope}
+            />
 
-          <GraphIOEditDrawer
-            isOpen={
-              editGraphInputNodeId !== null || editGraphOutputNodeId !== null
-            }
-            onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
-            variant={editGraphInputNodeId ? 'graphInput' : 'graphOutput'}
-            nodeId={editGraphInputNodeId ?? editGraphOutputNodeId}
-            handles={editGraphIoHandles}
-            onSave={handleSaveGraphIoHandles}
-            getHandleBlastRadius={getGraphIoHandleBlastRadius}
-            getNeighborhood={getConnectionNeighborhoodForScope}
-            allowRename={allowRootIORename}
-            allowStructureEdit={allowRootIOStructureEdit}
-          />
-        </div>
-      </InputComponentRegistryContext.Provider>
+            <GraphIOEditDrawer
+              isOpen={
+                editGraphInputNodeId !== null || editGraphOutputNodeId !== null
+              }
+              onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
+              variant={editGraphInputNodeId ? 'graphInput' : 'graphOutput'}
+              nodeId={editGraphInputNodeId ?? editGraphOutputNodeId}
+              handles={editGraphIoHandles}
+              onSave={handleSaveGraphIoHandles}
+              getHandleBlastRadius={getGraphIoHandleBlastRadius}
+              getNeighborhood={getConnectionNeighborhoodForScope}
+              allowRename={allowRootIORename}
+              allowStructureEdit={allowRootIOStructureEdit}
+            />
+          </div>
+        </InputComponentRegistryContext.Provider>
+      </NodePreviewRegistryContext.Provider>
     </ErrorBoundary>
   );
 }
@@ -1218,6 +1381,7 @@ function FullGraph<
   onExecutionRecordChange,
   onGraphEvent,
   inputComponents,
+  nodePreviews,
   enableUndoRedoShortcuts,
   allowRootIORename,
   allowRootIOStructureEdit,
@@ -1230,11 +1394,40 @@ function FullGraph<
   const noop = useCallback(() => {}, []);
   const recordContextValue = useMemo(
     () => ({
-      executionRecord: executionRecord ?? null,
+      // Preserve `undefined` — it is MEANINGFUL: an absent prop selects the
+      // runner's UNCONTROLLED mode (`useNodeRunner` keys controlled-ness on
+      // `!== undefined`). Coalescing to `null` here made every prop-less
+      // consumer "controlled with a noop sink": runs completed but their
+      // records evaporated (timeline forever empty, previews never fed).
+      executionRecord,
       setExecutionRecord: onExecutionRecordChange ?? noop,
     }),
     [executionRecord, onExecutionRecordChange, noop],
   );
+
+  // Dev diagnostic: CONTROLLING the record (`executionRecord` provided) without
+  // wiring `onExecutionRecordChange` is still a silent sink — the runner writes
+  // every completed record through the callback, which is `noop`, so the
+  // controlled value stays frozen and the timeline/previews never update. This
+  // is the same failure the absent-prop coalescing bug produced, one prop away;
+  // React warns for the analogous controlled-`<input>`-without-`onChange` case,
+  // so we do too. `useEffect` (not render) so StrictMode double-render doesn't
+  // double-log; deps cover both props.
+  useEffect(() => {
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      executionRecord !== undefined &&
+      onExecutionRecordChange === undefined
+    ) {
+      console.error(
+        '[FullGraph] `executionRecord` was provided (controlled mode) without ' +
+          '`onExecutionRecordChange`. The runner cannot write back, so the ' +
+          'timeline and node previews will never update. Either wire ' +
+          '`onExecutionRecordChange` (controlled) or omit `executionRecord` ' +
+          'entirely (uncontrolled).',
+      );
+    }
+  }, [executionRecord, onExecutionRecordChange]);
 
   // R1: memoize the context value on only the slices consumers read. immer keeps
   // identity for untouched slices, so this stays stable across drags / viewport /
@@ -1267,6 +1460,7 @@ function FullGraph<
             onImportError={onImportError}
             onGraphEvent={onGraphEvent}
             inputComponents={inputComponents}
+            nodePreviews={nodePreviews}
             enableUndoRedoShortcuts={enableUndoRedoShortcuts}
             allowRootIORename={allowRootIORename}
             allowRootIOStructureEdit={allowRootIOStructureEdit}

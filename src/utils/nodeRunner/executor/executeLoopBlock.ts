@@ -52,8 +52,26 @@ async function executeLoopBlock<
     loopStructureId: string;
   },
   afterStep?: () => Promise<void>,
+  groupContext?: {
+    groupNodeId: string;
+    groupNodeTypeId: string;
+    groupDepth: number;
+    instancePath: readonly string[];
+  },
 ): Promise<void> {
   const { recorder, plan, nodeInfoMap, onNodeStateChange, abortSignal } = env;
+
+  // When this loop executes INSIDE a group scope, every step it records (the
+  // triplet's structural steps AND its body nodes) carries the enclosing
+  // group's identity + instance path — without this, loop-in-group steps
+  // record as root-level (unattributed).
+  const groupStepFields = groupContext
+    ? {
+        groupNodeId: groupContext.groupNodeId,
+        groupDepth: groupContext.groupDepth,
+        instancePath: groupContext.instancePath,
+      }
+    : {};
 
   const {
     loopStartNodeId,
@@ -87,6 +105,7 @@ async function executeLoopBlock<
       nodeTypeId: 'loop',
       nodeTypeName: 'Loop',
       concurrencyLevel: block.concurrencyLevel,
+      ...groupStepFields,
     });
     recorder.errorStep(errIdx, error, new Map());
     onNodeStateChange(loopStartNodeId, 'errored');
@@ -148,6 +167,7 @@ async function executeLoopBlock<
       nodeTypeId: loopStartInfo.nodeTypeId,
       nodeTypeName: loopStartInfo.nodeTypeName,
       concurrencyLevel: block.concurrencyLevel,
+      ...groupStepFields,
     });
     recorder.errorStep(errIdx, error, new Map());
     onNodeStateChange(loopStartNodeId, 'errored');
@@ -183,12 +203,17 @@ async function executeLoopBlock<
   );
 
   // Build parent context fields for structural/body step recordings
-  const parentFields = parentLoopContext
-    ? {
-        parentLoopStructureId: parentLoopContext.loopStructureId,
-        parentLoopIteration: parentLoopContext.loopIteration,
-      }
-    : {};
+  // Spread into every step this loop records: parent-loop nesting fields plus
+  // the enclosing group's identity/path (empty objects when not applicable).
+  const parentFields = {
+    ...groupStepFields,
+    ...(parentLoopContext
+      ? {
+          parentLoopStructureId: parentLoopContext.loopStructureId,
+          parentLoopIteration: parentLoopContext.loopIteration,
+        }
+      : {}),
+  };
 
   // Pre-compute output info (doesn't change per iteration)
   const startOutputInfo = valueStore.buildOutputInfo(
@@ -283,6 +308,7 @@ async function executeLoopBlock<
                   maxIterations,
                 },
                 loopPhase,
+                groupContext,
               });
               await afterStep();
             } else {
@@ -293,6 +319,7 @@ async function executeLoopBlock<
                 bodyErroredNodes,
                 { loopIteration: iteration, loopStructureId },
                 afterStep,
+                groupContext,
               );
             }
           } catch (e) {
@@ -311,12 +338,18 @@ async function executeLoopBlock<
                   maxIterations,
                 },
                 loopPhase,
+                groupContext,
               });
             }
-            return executeOneStep(step, env, valueStore, bodyErroredNodes, {
-              loopIteration: iteration,
-              loopStructureId,
-            });
+            return executeOneStep(
+              step,
+              env,
+              valueStore,
+              bodyErroredNodes,
+              { loopIteration: iteration, loopStructureId },
+              undefined,
+              groupContext,
+            );
           }),
         );
 

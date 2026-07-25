@@ -33,7 +33,7 @@
 |                                      | createGraphStore + useFull- |      |
 |                                      |  Graph (external store)     |      |
 |                                      | validate -> plan -> apply   |      |
-|                                      | (29 actions, 28 plan kinds) |      |
+|                                      | (35 actions, 34 plan kinds) |      |
 |                                      | Immer produce + undo/redo   |      |
 |                                      |  history (patches)          |      |
 |                                      +-----------------------------+      |
@@ -227,6 +227,7 @@ used across the entire codebase, see
 | [configurableNodeDoc.md](./ui/configurableNodeDoc.md) | How the node renders visually              |
 | [stateManagementDoc.md](./core/stateManagementDoc.md) | ADD_NODE action, reducer integration       |
 | [contextMenuDoc.md](./ui/contextMenuDoc.md)           | Adding the node to the "Add Node" menu     |
+| [nodePreviewDoc.md](./ui/nodePreviewDoc.md)           | Optional per-node-type preview component   |
 
 ### Making Nodes Executable (Runner Integration)
 
@@ -238,6 +239,7 @@ used across the entire codebase, see
 | [executionRecordingDoc.md](./runner/executionRecordingDoc.md) | Step records, replay support                                                                                         |
 | [runTargetsDoc.md](./runner/runTargetsDoc.md)                 | Pluggable run targets, split Run button, codegen / export, self-contained artifact (`emitImplementations: 'source'`) |
 | [nodeStatusIndicatorDoc.md](./ui/nodeStatusIndicatorDoc.md)   | Visual feedback during execution                                                                                     |
+| [nodePreviewDoc.md](./ui/nodePreviewDoc.md)                   | Optional per-node-type preview components fed live / at-step runner values                                           |
 
 ### Building a Node Group
 
@@ -339,7 +341,7 @@ used across the entire codebase, see
 
 | Doc                                                   | Why                                               |
 | ----------------------------------------------------- | ------------------------------------------------- |
-| [stateManagementDoc.md](./core/stateManagementDoc.md) | State type, 29 actions, validate -> plan -> apply |
+| [stateManagementDoc.md](./core/stateManagementDoc.md) | State type, 35 actions, validate -> plan -> apply |
 | [historyDoc.md](./core/historyDoc.md)                 | Undo/redo, batching, Immer-patch history entries  |
 | [immerDoc.md](./external/immerDoc.md)                 | Immer produce + produceWithPatches integration    |
 | [edgesDoc.md](./core/edgesDoc.md)                     | Edge add/remove with type checking side effects   |
@@ -365,7 +367,7 @@ used across the entire codebase, see
 | 2   | Handles           | [handlesDoc.md](./core/handlesDoc.md)                 | Input/output ports, HandleIndices addressing, panels, dynamic handle addition               |
 | 3   | Nodes             | [nodesDoc.md](./core/nodesDoc.md)                     | TypeOfNode definitions, Node instances, 7 standard node types                               |
 | 4   | Edges             | [edgesDoc.md](./core/edgesDoc.md)                     | Connection management, type-checked add/remove, DFS cycle detection                         |
-| 5   | State Management  | [stateManagementDoc.md](./core/stateManagementDoc.md) | createGraphStore + useFullGraph, validate -> plan -> apply, 29 action types                 |
+| 5   | State Management  | [stateManagementDoc.md](./core/stateManagementDoc.md) | createGraphStore + useFullGraph, validate -> plan -> apply, 35 action types                 |
 | 6   | Type Inference    | [typeInferenceDoc.md](./core/typeInferenceDoc.md)     | inferFromConnection resolution, cascading inference on edge changes                         |
 | 7   | Undo/Redo History | [historyDoc.md](./core/historyDoc.md)                 | state.history, Immer patches, batching, UNDO/REDO/BEGIN_BATCH/END_BATCH/CLEAR_HISTORY       |
 
@@ -391,19 +393,20 @@ used across the entire codebase, see
 
 ### UI Components
 
-| #   | Feature                | Doc                                                               | Description                                                                           |
-| --- | ---------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| 18  | FullGraph              | [fullGraphDoc.md](./ui/fullGraphDoc.md)                           | Top-level graph editor, external store, ReactFlow integration                         |
-| 19  | ConfigurableNode       | [configurableNodeDoc.md](./ui/configurableNodeDoc.md)             | Node rendering: header, handles, inputs, panels, header actions                       |
-| 20  | ConfigurableEdge       | [configurableEdgeDoc.md](./ui/configurableEdgeDoc.md)             | Edge rendering: gradient colors, bezier curves, viewport optimization                 |
-| 21  | Context Menu           | [contextMenuDoc.md](./ui/contextMenuDoc.md)                       | Right-click menu: add node/loop/switch, node groups, import/export                    |
-| 22  | Editor Drawers         | [editorsDoc.md](./ui/editorsDoc.md)                               | Loop / switch / node-type edit drawers, data-channel reorder & rename                 |
-| 23  | NodeRunnerPanel        | [nodeRunnerPanelDoc.md](./ui/nodeRunnerPanelDoc.md)               | Runner UI drawer: composed of RunControls + Timeline + Inspector                      |
-| 24  | RunControls            | [runControlsDoc.md](./ui/runControlsDoc.md)                       | Transport bar: play/pause/step/stop/reset, mode toggle, split Run-target picker       |
-| 25  | ExecutionTimeline      | [executionTimelineDoc.md](./ui/executionTimelineDoc.md)           | Multi-track timeline: loops, switches, zoom/pan, scrubber                             |
-| 26  | ExecutionStepInspector | [executionStepInspectorDoc.md](./ui/executionStepInspectorDoc.md) | Step detail panel: input/output values, error display                                 |
-| 27  | ColorPicker            | [colorPickerDoc.md](./ui/colorPickerDoc.md)                       | OKLCH-native color picker: PopoverColorPicker, compound parts, useColorPicker         |
-| 28  | Graph Theming          | [themingDoc.md](./ui/themingDoc.md)                               | Optional GraphThemeProvider: per-slot className overrides, presets, ReactFlow section |
+| #   | Feature                | Doc                                                               | Description                                                                                    |
+| --- | ---------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 18  | FullGraph              | [fullGraphDoc.md](./ui/fullGraphDoc.md)                           | Top-level graph editor, external store, ReactFlow integration                                  |
+| 19  | ConfigurableNode       | [configurableNodeDoc.md](./ui/configurableNodeDoc.md)             | Node rendering: header, handles, inputs, panels, header actions                                |
+| 20  | ConfigurableEdge       | [configurableEdgeDoc.md](./ui/configurableEdgeDoc.md)             | Edge rendering: gradient colors, bezier curves, viewport optimization                          |
+| 21  | Context Menu           | [contextMenuDoc.md](./ui/contextMenuDoc.md)                       | Right-click menu: add node/loop/switch, node groups, import/export                             |
+| 22  | Editor Drawers         | [editorsDoc.md](./ui/editorsDoc.md)                               | Loop / switch / node-type edit drawers, data-channel reorder & rename                          |
+| 23  | NodeRunnerPanel        | [nodeRunnerPanelDoc.md](./ui/nodeRunnerPanelDoc.md)               | Runner UI drawer: composed of RunControls + Timeline + Inspector                               |
+| 24  | RunControls            | [runControlsDoc.md](./ui/runControlsDoc.md)                       | Transport bar: play/pause/step/stop/reset, mode toggle, split Run-target picker                |
+| 25  | ExecutionTimeline      | [executionTimelineDoc.md](./ui/executionTimelineDoc.md)           | Multi-track timeline: loops, switches, zoom/pan, scrubber                                      |
+| 26  | ExecutionStepInspector | [executionStepInspectorDoc.md](./ui/executionStepInspectorDoc.md) | Step detail panel: input/output values, error display                                          |
+| 27  | ColorPicker            | [colorPickerDoc.md](./ui/colorPickerDoc.md)                       | OKLCH-native color picker: PopoverColorPicker, compound parts, useColorPicker                  |
+| 28  | Graph Theming          | [themingDoc.md](./ui/themingDoc.md)                               | Optional GraphThemeProvider: per-slot className overrides, presets, ReactFlow section          |
+| 40  | Node Preview           | [nodePreviewDoc.md](./ui/nodePreviewDoc.md)                       | Optional per-node-type preview components rendered on the node, fed live/at-step runner values |
 
 ### UI Atoms, Hooks & Utilities
 
@@ -440,7 +443,7 @@ src/
 +-- utils/
 |   +-- nodeStateManagement/
 |   |   +-- types.ts                  State (incl. history, zones), DataType, TypeOfNode, ActiveDrawer
-|   |   +-- mainReducer.ts            29 action types; delegates to validate + applyValidatedAction
+|   |   +-- mainReducer.ts            35 action types; delegates to validate + applyValidatedAction
 |   |   +-- applyWithHistory.ts       applyValidatedAction: 3-path undo/redo history routing
 |   |   +-- graphEvent.ts             GraphEvent observability stream (applied/rejected/committed/ui)
 |   |   +-- standardNodes.ts          Standard data types & 7 standard node types
@@ -448,7 +451,7 @@ src/
 |   |   +-- planApply/
 |   |   |   +-- validators.ts         validateAction (pure) -> Result<Plan, ValidationError>
 |   |   |   +-- validateAddEdge.ts    13-step edge validation gauntlet
-|   |   |   +-- applyPlan.ts          The only mutator: switch over 28 plan kinds, mints ids
+|   |   |   +-- applyPlan.ts          The only mutator: switch over 34 plan kinds, mints ids
 |   |   |   +-- types.ts              Plan union, Result, ValidationError taxonomy
 |   |   +-- zones/                    First-class regions (types, lifecycle, BFS discovery)
 |   |   +-- nodes/

@@ -42,6 +42,8 @@ type NodeRunnerPanelProps = {
   onRun: () => void;
   onPause: () => void;
   onStep: () => void;
+  /** Live step-over (forwarded to RunControls; rendered when provided). */
+  onStepOver?: () => void;
   onStop: () => void;
   onReset: () => void;
 
@@ -63,6 +65,11 @@ type NodeRunnerPanelProps = {
   // ── Node navigation ──────────────────────────────────
   /** Called when prev/next navigation buttons are used to focus a node */
   onNavigateToNode?: (nodeId: string) => void;
+  /** Follow-into-groups toggle — a document-level graph-`State` preference
+   *  (`runnerViewPreferences.followIntoGroups`, persisted); forwarded to the
+   *  timeline. */
+  followIntoGroups?: boolean;
+  onFollowIntoGroupsChange?: (enabled: boolean) => void;
 
   // ── Display options ────────────────────────────────
   debugMode?: boolean;
@@ -86,6 +93,7 @@ function NodeRunnerPanel({
   onRun,
   onPause,
   onStep,
+  onStepOver,
   onStop,
   onReset,
   mode,
@@ -98,6 +106,8 @@ function NodeRunnerPanel({
   steppingAvailable,
   onScrubTo,
   onNavigateToNode,
+  followIntoGroups,
+  onFollowIntoGroupsChange,
   panelRef,
   debugMode = false,
   hideComplexValues = false,
@@ -214,6 +224,7 @@ function NodeRunnerPanel({
               onRun={onRun}
               onPause={onPause}
               onStep={onStep}
+              onStepOver={onStepOver}
               onStop={onStop}
               onReset={onReset}
               mode={mode}
@@ -253,6 +264,8 @@ function NodeRunnerPanel({
               onStepClick={handleStepClick}
               selectedStepIndex={selectedStepIndex}
               onNavigateToNode={onNavigateToNode}
+              followIntoGroups={followIntoGroups}
+              onFollowIntoGroupsChange={onFollowIntoGroupsChange}
             />
           </div>
 

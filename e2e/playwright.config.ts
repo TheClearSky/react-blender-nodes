@@ -96,6 +96,14 @@ export default defineConfig({
       },
     },
     {
+      name: 'advancedGraphExamples',
+      testDir: './tests/advancedGraphExamples',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1920, height: 1080 },
+      },
+    },
+    {
       name: 'dataTypes',
       testDir: './tests/dataTypes',
       use: {

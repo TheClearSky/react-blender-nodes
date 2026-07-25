@@ -216,6 +216,7 @@ class ExecutionRecorder {
     parentLoopIteration?: number;
     groupNodeId?: string;
     groupDepth?: number;
+    instancePath?: readonly string[];
     loopPhase?: LoopPhase;
     inputSource?: 'upstream' | 'feedback';
     switchPhase?: SwitchPhase;
@@ -254,6 +255,7 @@ class ExecutionRecorder {
       parentLoopIteration: params.parentLoopIteration,
       groupNodeId: params.groupNodeId,
       groupDepth: params.groupDepth,
+      instancePath: params.instancePath,
       loopPhase: params.loopPhase,
       inputSource: params.inputSource,
       switchPhase: params.switchPhase,

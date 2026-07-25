@@ -37,6 +37,18 @@ type PopoverColorPickerProps = {
   renderInline?: boolean;
   className?: string;
   size?: 'normal' | 'small';
+  /**
+   * Called when the popover opens (`true`) or closes (`false`). Lets a consumer
+   * commit the picked color ONCE on close (one history entry) instead of on every
+   * `onChange` tick. Additive — existing consumers are unaffected.
+   */
+  onOpenChange?: (open: boolean) => void;
+  /**
+   * Extra classes merged onto the TRIGGER button (last-wins via `cn`), e.g. to
+   * shrink the hardcoded `w-6 h-6` swatch. `className` lands on the wrapper and
+   * cannot reach the trigger. Additive — existing consumers unaffected.
+   */
+  triggerClassName?: string;
 };
 
 function PopoverColorPicker({
@@ -50,6 +62,8 @@ function PopoverColorPicker({
   renderInline = false,
   className,
   size = 'small',
+  onOpenChange,
+  triggerClassName,
 }: PopoverColorPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   // Context-fallback consumer (like Tooltip/DragList): the popover is
@@ -76,7 +90,10 @@ function PopoverColorPicker({
 
   const { refs, floatingStyles, context } = useFloating({
     open: isOpen,
-    onOpenChange: setIsOpen,
+    onOpenChange: (open) => {
+      setIsOpen(open);
+      onOpenChange?.(open);
+    },
     placement,
     middleware: [offset(4), flip({ padding: 8 }), shift({ padding: 8 })],
     whileElementsMounted: autoUpdate,
@@ -159,6 +176,7 @@ function PopoverColorPicker({
           'rounded-md border border-secondary-dark-gray cursor-pointer',
           'outline-none focus-visible:ring-1 focus-visible:ring-white',
           'overflow-hidden transition-shadow hover:shadow-md',
+          triggerClassName,
         )}
         style={{ backgroundColor: previewColor }}
         aria-label='Pick color'

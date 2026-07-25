@@ -1,20 +1,18 @@
-import { useMemo } from 'react';
 import { useStore } from '@xyflow/react';
-import type { Zone } from '@/utils/nodeStateManagement/zones/types';
-import { computePaddedHull } from './convexHull';
-
-type NodeRect = {
-  id: string;
-  position: { x: number; y: number };
-  measured?: { width?: number; height?: number };
-};
+import type { ZoneFrame } from './useZoneFrames';
 
 type ZoneFrameOverlayProps = {
-  zones: Record<string, Zone> | undefined;
-  nodes: ReadonlyArray<NodeRect>;
+  /** Precomputed frames (system ∪ user) from FullGraph's shared memo. */
+  frames: ZoneFrame[];
+  /**
+   * IDs of USER zones. Their dashed polygon is still drawn here, but their LABEL
+   * is suppressed — the interactive `UserZoneLabelLayer` renders editable labels
+   * for user zones instead (rename / recolor / delete).
+   */
+  userZoneIds?: Set<string>;
 };
 
-function ZoneFrameOverlay({ zones, nodes }: ZoneFrameOverlayProps) {
+function ZoneFrameOverlay({ frames, userZoneIds }: ZoneFrameOverlayProps) {
   // R2: without an equality fn the fresh `{x,y,zoom}` literal makes this overlay
   // reconcile on EVERY ReactFlow store tick (drag, select, hover, dimensions),
   // not just when the transform changes. Compare the three scalars instead.
@@ -23,71 +21,7 @@ function ZoneFrameOverlay({ zones, nodes }: ZoneFrameOverlayProps) {
     (a, b) => a.x === b.x && a.y === b.y && a.zoom === b.zoom,
   );
 
-  const zoneFrames = useMemo(() => {
-    if (!zones) return [];
-
-    const nodeMap = new Map<string, NodeRect>();
-    for (const node of nodes) {
-      nodeMap.set(node.id, node);
-    }
-
-    const frames: Array<{
-      id: string;
-      name: string;
-      color: string;
-      points: string;
-      labelX: number;
-      labelY: number;
-    }> = [];
-
-    for (const zone of Object.values(zones)) {
-      if (zone.nodeIds.length === 0) continue;
-
-      const rects: Array<{
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-      }> = [];
-      for (const nodeId of zone.nodeIds) {
-        const node = nodeMap.get(nodeId);
-        if (!node) continue;
-        const width = node.measured?.width ?? 180;
-        const height = node.measured?.height ?? 60;
-        rects.push({
-          x: node.position.x,
-          y: node.position.y,
-          width,
-          height,
-        });
-      }
-
-      if (rects.length === 0) continue;
-
-      const hull = computePaddedHull(rects, 24);
-      if (hull.length < 3) continue;
-
-      const pointsStr = hull.map((p) => `${p.x},${p.y}`).join(' ');
-      const topLeft = hull.reduce(
-        (best, p) =>
-          p.y < best.y || (p.y === best.y && p.x < best.x) ? p : best,
-        hull[0],
-      );
-
-      frames.push({
-        id: zone.id,
-        name: zone.name,
-        color: zone.color,
-        points: pointsStr,
-        labelX: topLeft.x + 4,
-        labelY: topLeft.y - 6,
-      });
-    }
-
-    return frames;
-  }, [zones, nodes]);
-
-  if (zoneFrames.length === 0) return null;
+  if (frames.length === 0) return null;
 
   return (
     <svg
@@ -105,7 +39,7 @@ function ZoneFrameOverlay({ zones, nodes }: ZoneFrameOverlayProps) {
       <g
         transform={`translate(${viewport.x}, ${viewport.y}) scale(${viewport.zoom})`}
       >
-        {zoneFrames.map((frame) => (
+        {frames.map((frame) => (
           <g key={frame.id}>
             <polygon
               points={frame.points}
@@ -117,17 +51,20 @@ function ZoneFrameOverlay({ zones, nodes }: ZoneFrameOverlayProps) {
               strokeDasharray={`${8 / viewport.zoom},${4 / viewport.zoom}`}
               strokeLinejoin='round'
             />
-            <text
-              x={frame.labelX}
-              y={frame.labelY}
-              fill={frame.color}
-              fontSize={12 / viewport.zoom}
-              fontFamily='Inter, system-ui, sans-serif'
-              fontWeight={600}
-              opacity={0.85}
-            >
-              {frame.name}
-            </text>
+            {/* User-zone labels are rendered (and edited) by UserZoneLabelLayer. */}
+            {!userZoneIds?.has(frame.id) && (
+              <text
+                x={frame.labelX}
+                y={frame.labelY}
+                fill={frame.color}
+                fontSize={12 / viewport.zoom}
+                fontFamily='Inter, system-ui, sans-serif'
+                fontWeight={600}
+                opacity={0.85}
+              >
+                {frame.name}
+              </text>
+            )}
           </g>
         ))}
       </g>

@@ -323,17 +323,19 @@ function isUndoable(action, plan): boolean {
 }
 ```
 
-### Statically non-undoable plan kinds (9)
+### Statically non-undoable plan kinds (12)
 
 `NON_UNDOABLE_PLAN_KINDS` (`src/components/organisms/FullGraph/historyTypes.ts`
 › `NON_UNDOABLE_PLAN_KINDS`):
 
-`SET_VIEWPORT`, `REPLACE_STATE`, `OPEN_DRAWER`, `CLOSE_DRAWER`, `UNDO`, `REDO`,
-`BEGIN_BATCH`, `END_BATCH`, `CLEAR_HISTORY`.
+`SET_VIEWPORT`, `REPLACE_STATE`, `OPEN_DRAWER`, `CLOSE_DRAWER`,
+`UPDATE_RUNNER_VIEW_PREFERENCE`, `OPEN_NODE_GROUP`, `CLOSE_NODE_GROUP`, `UNDO`,
+`REDO`, `BEGIN_BATCH`, `END_BATCH`, `CLEAR_HISTORY`.
 
-Viewport panning, full-state import, drawer open/close, and the history actions
-themselves never produce undo entries. (The history actions being non-undoable
-is what keeps UNDO/REDO out of the history they manage.)
+Viewport panning, full-state import, drawer open/close, group navigation,
+runner-view-preference toggles, and the history actions themselves never produce
+undo entries. (The history actions being non-undoable is what keeps UNDO/REDO
+out of the history they manage.)
 
 ### Conditional: `UPDATE_NODES_RF` (`hasNonSelectionChanges`)
 

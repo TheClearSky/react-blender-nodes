@@ -1,0 +1,1619 @@
+{
+  "version": 1,
+  "exportedAt": "2026-07-16T19:57:39.483Z",
+  "state": {
+    "dataTypes": {
+      "sdf": {
+        "name": "SDF",
+        "underlyingType": "complex",
+        "color": "#8b5cf6"
+      },
+      "mask": {
+        "name": "Mask",
+        "underlyingType": "complex",
+        "color": "#e5e7eb"
+      },
+      "number": {
+        "name": "Number",
+        "underlyingType": "number",
+        "color": "#38bdf8",
+        "allowInput": true
+      },
+      "groupInfer": {
+        "name": "Group Infer",
+        "underlyingType": "inferFromConnection",
+        "color": "#333333"
+      },
+      "loopInfer": {
+        "name": "Loop Infer",
+        "underlyingType": "inferFromConnection",
+        "color": "#333333"
+      },
+      "condition": {
+        "name": "Condition",
+        "underlyingType": "boolean",
+        "color": "#cca6d6",
+        "allowInput": true
+      },
+      "bindLoopNodes": {
+        "name": "Bind Loop Nodes",
+        "underlyingType": "noEquivalent",
+        "color": "#8c52d1",
+        "maxConnections": 1
+      },
+      "switchInfer": {
+        "name": "Switch Infer",
+        "underlyingType": "inferFromConnection",
+        "color": "#333333"
+      },
+      "bindSwitchNodes": {
+        "name": "Bind Switch Nodes",
+        "underlyingType": "noEquivalent",
+        "color": "#8c52d1",
+        "maxConnections": 1
+      }
+    },
+    "typeOfNodes": {
+      "sdfCircle": {
+        "name": "Circle",
+        "headerColor": "#7c3aed",
+        "locationInContextMenu": ["SDF Shapes"],
+        "inputs": [
+          {
+            "name": "Radius",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfBox": {
+        "name": "Box",
+        "headerColor": "#7c3aed",
+        "locationInContextMenu": ["SDF Shapes"],
+        "inputs": [
+          {
+            "name": "Width",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Height",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfStar": {
+        "name": "Star",
+        "headerColor": "#7c3aed",
+        "locationInContextMenu": ["SDF Shapes"],
+        "inputs": [
+          {
+            "name": "Radius",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Points",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Pointiness",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfRoundedBox": {
+        "name": "Rounded Box",
+        "headerColor": "#7c3aed",
+        "locationInContextMenu": ["SDF Shapes"],
+        "inputs": [
+          {
+            "name": "Width",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Height",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Corner",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfHexagon": {
+        "name": "Hexagon",
+        "headerColor": "#7c3aed",
+        "locationInContextMenu": ["SDF Shapes"],
+        "inputs": [
+          {
+            "name": "Radius",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfTriangle": {
+        "name": "Triangle",
+        "headerColor": "#7c3aed",
+        "locationInContextMenu": ["SDF Shapes"],
+        "inputs": [
+          {
+            "name": "Radius",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfVesica": {
+        "name": "Vesica",
+        "headerColor": "#7c3aed",
+        "locationInContextMenu": ["SDF Shapes"],
+        "inputs": [
+          {
+            "name": "Radius",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Distance",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfMoon": {
+        "name": "Moon",
+        "headerColor": "#7c3aed",
+        "locationInContextMenu": ["SDF Shapes"],
+        "inputs": [
+          {
+            "name": "Offset",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Outer",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Inner",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfPie": {
+        "name": "Pie",
+        "headerColor": "#7c3aed",
+        "locationInContextMenu": ["SDF Shapes"],
+        "inputs": [
+          {
+            "name": "Angle",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Radius",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfHeart": {
+        "name": "Heart",
+        "headerColor": "#7c3aed",
+        "locationInContextMenu": ["SDF Shapes"],
+        "inputs": [
+          {
+            "name": "Size",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfUnion": {
+        "name": "Union",
+        "headerColor": "#ea580c",
+        "locationInContextMenu": ["SDF Operators"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "B",
+            "dataType": "sdf",
+            "maxConnections": 1
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfSubtract": {
+        "name": "Subtract",
+        "headerColor": "#ea580c",
+        "locationInContextMenu": ["SDF Operators"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "B",
+            "dataType": "sdf",
+            "maxConnections": 1
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfIntersect": {
+        "name": "Intersect",
+        "headerColor": "#ea580c",
+        "locationInContextMenu": ["SDF Operators"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "B",
+            "dataType": "sdf",
+            "maxConnections": 1
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfXor": {
+        "name": "Xor",
+        "headerColor": "#ea580c",
+        "locationInContextMenu": ["SDF Operators"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "B",
+            "dataType": "sdf",
+            "maxConnections": 1
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfSmoothUnion": {
+        "name": "Smooth Union",
+        "headerColor": "#ea580c",
+        "locationInContextMenu": ["SDF Operators"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "B",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Blend",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfSmoothSubtract": {
+        "name": "Smooth Subtract",
+        "headerColor": "#ea580c",
+        "locationInContextMenu": ["SDF Operators"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "B",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Blend",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfSmoothIntersect": {
+        "name": "Smooth Intersect",
+        "headerColor": "#ea580c",
+        "locationInContextMenu": ["SDF Operators"],
+        "inputs": [
+          {
+            "name": "A",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "B",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Blend",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfRound": {
+        "name": "Round",
+        "headerColor": "#b45309",
+        "locationInContextMenu": ["SDF Modify"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Radius",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfOnion": {
+        "name": "Onion",
+        "headerColor": "#b45309",
+        "locationInContextMenu": ["SDF Modify"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Thickness",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfTranslate": {
+        "name": "Translate",
+        "headerColor": "#0d9488",
+        "locationInContextMenu": ["SDF Transforms"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "X",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Y",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfRotate": {
+        "name": "Rotate",
+        "headerColor": "#0d9488",
+        "locationInContextMenu": ["SDF Transforms"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Degrees",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfScale": {
+        "name": "Scale",
+        "headerColor": "#0d9488",
+        "locationInContextMenu": ["SDF Transforms"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Factor",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfMirrorX": {
+        "name": "Mirror X",
+        "headerColor": "#0d9488",
+        "locationInContextMenu": ["SDF Transforms"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfMirrorY": {
+        "name": "Mirror Y",
+        "headerColor": "#0d9488",
+        "locationInContextMenu": ["SDF Transforms"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfRepeat": {
+        "name": "Repeat",
+        "headerColor": "#0d9488",
+        "locationInContextMenu": ["SDF Transforms"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Cell X",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Cell Y",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfRadialRepeat": {
+        "name": "Radial Repeat",
+        "headerColor": "#0d9488",
+        "locationInContextMenu": ["SDF Transforms"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Count",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "sdf"
+          }
+        ]
+      },
+      "sdfLessThan": {
+        "name": "Less Than",
+        "headerColor": "#4b5563",
+        "locationInContextMenu": ["SDF Masks"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Threshold",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "mask"
+          }
+        ]
+      },
+      "sdfGreaterThan": {
+        "name": "Greater Than",
+        "headerColor": "#4b5563",
+        "locationInContextMenu": ["SDF Masks"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Threshold",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Out",
+            "dataType": "mask"
+          }
+        ]
+      },
+      "sdfMeasureMask": {
+        "name": "Measure Mask",
+        "headerColor": "#1d4ed8",
+        "locationInContextMenu": ["SDF Measure"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "mask",
+            "maxConnections": 1
+          }
+        ],
+        "outputs": [
+          {
+            "name": "White Pixels",
+            "dataType": "number"
+          },
+          {
+            "name": "Black Pixels",
+            "dataType": "number"
+          },
+          {
+            "name": "White Ratio",
+            "dataType": "number"
+          }
+        ]
+      },
+      "sdfMeasureBrightness": {
+        "name": "Measure Brightness",
+        "headerColor": "#1d4ed8",
+        "locationInContextMenu": ["SDF Measure"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Threshold",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Bright Pixels",
+            "dataType": "number"
+          },
+          {
+            "name": "Bright Ratio",
+            "dataType": "number"
+          }
+        ]
+      },
+      "sdfRender": {
+        "name": "Render",
+        "headerColor": "#be123c",
+        "locationInContextMenu": ["SDF Output"],
+        "inputs": [
+          {
+            "name": "In",
+            "dataType": "sdf",
+            "maxConnections": 1
+          },
+          {
+            "name": "Palette",
+            "dataType": "number",
+            "allowInput": true
+          },
+          {
+            "name": "Glow",
+            "dataType": "number",
+            "allowInput": true
+          }
+        ],
+        "outputs": []
+      },
+      "groupInput": {
+        "name": "Group Input",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "dataType": "groupInfer"
+          }
+        ]
+      },
+      "groupOutput": {
+        "name": "Group Output",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [
+          {
+            "name": "",
+            "dataType": "groupInfer"
+          }
+        ],
+        "outputs": []
+      },
+      "loopStart": {
+        "name": "Loop Start",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [
+          {
+            "name": "",
+            "dataType": "loopInfer"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Bind Loop Nodes",
+            "dataType": "bindLoopNodes"
+          },
+          {
+            "name": "",
+            "dataType": "loopInfer"
+          }
+        ]
+      },
+      "loopStop": {
+        "name": "Loop Stop",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [
+          {
+            "name": "Bind Loop Nodes",
+            "dataType": "bindLoopNodes"
+          },
+          {
+            "name": "Continue If Condition Is True",
+            "dataType": "condition"
+          },
+          {
+            "name": "",
+            "dataType": "loopInfer"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Bind Loop Nodes",
+            "dataType": "bindLoopNodes"
+          },
+          {
+            "name": "",
+            "dataType": "loopInfer"
+          }
+        ]
+      },
+      "loopEnd": {
+        "name": "Loop End",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [
+          {
+            "name": "Bind Loop Nodes",
+            "dataType": "bindLoopNodes"
+          },
+          {
+            "name": "",
+            "dataType": "loopInfer"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "dataType": "loopInfer"
+          }
+        ]
+      },
+      "switchStart": {
+        "name": "Switch Start",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [
+          {
+            "name": "",
+            "dataType": "switchInfer"
+          },
+          {
+            "name": "Condition",
+            "dataType": "condition"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Bind Switch Nodes",
+            "dataType": "bindSwitchNodes"
+          },
+          {
+            "name": "",
+            "dataType": "switchInfer"
+          },
+          {
+            "name": "",
+            "dataType": "switchInfer"
+          }
+        ]
+      },
+      "switchEnd": {
+        "name": "Switch End",
+        "headerColor": "#1d1d1d",
+        "locationInContextMenu": ["Standard Nodes"],
+        "priorityInContextMenu": 200,
+        "inputs": [
+          {
+            "name": "Bind Switch Nodes",
+            "dataType": "bindSwitchNodes"
+          },
+          {
+            "name": "",
+            "dataType": "switchInfer"
+          },
+          {
+            "name": "",
+            "dataType": "switchInfer"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "dataType": "switchInfer"
+          }
+        ]
+      }
+    },
+    "nodes": [
+      {
+        "id": "urm3xlye2pq7yrrkqefr",
+        "position": {
+          "x": 333.3333333333333,
+          "y": 310
+        },
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "configurableNode",
+        "width": 400,
+        "data": {
+          "name": "Heart",
+          "headerColor": "#7c3aed",
+          "inputs": [
+            {
+              "id": "8ssyxrcjwjcelid7fm2l",
+              "name": "Size",
+              "handleColor": "#38bdf8",
+              "allowInput": true,
+              "type": "number",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Number",
+                  "underlyingType": "number",
+                  "color": "#38bdf8",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "number"
+              },
+              "value": 0.45926999999999996
+            }
+          ],
+          "outputs": [
+            {
+              "id": "kyaum7yql71m6p2bppw3",
+              "name": "Out",
+              "handleColor": "#8b5cf6",
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "SDF",
+                  "underlyingType": "complex",
+                  "color": "#8b5cf6"
+                },
+                "dataTypeUniqueId": "sdf"
+              }
+            }
+          ],
+          "nodeTypeUniqueId": "sdfHeart"
+        },
+        "selected": false,
+        "measured": {
+          "width": 400,
+          "height": 537
+        }
+      },
+      {
+        "id": "itg9bq5h7zrc1mc0tqy1",
+        "position": {
+          "x": 933.3333333333333,
+          "y": 310
+        },
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "configurableNode",
+        "width": 400,
+        "data": {
+          "name": "Translate",
+          "headerColor": "#0d9488",
+          "inputs": [
+            {
+              "id": "p8epqiey9e96qiqw08ow",
+              "name": "In",
+              "handleColor": "#8b5cf6",
+              "maxConnections": 1,
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "SDF",
+                  "underlyingType": "complex",
+                  "color": "#8b5cf6"
+                },
+                "dataTypeUniqueId": "sdf"
+              }
+            },
+            {
+              "id": "8qawwaiqur9pgk2szdj6",
+              "name": "X",
+              "handleColor": "#38bdf8",
+              "allowInput": true,
+              "type": "number",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Number",
+                  "underlyingType": "number",
+                  "color": "#38bdf8",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "number"
+              },
+              "value": 0.5324000000000001
+            },
+            {
+              "id": "t0dzc1myrr5g15fswbd3",
+              "name": "Y",
+              "handleColor": "#38bdf8",
+              "allowInput": true,
+              "type": "number",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Number",
+                  "underlyingType": "number",
+                  "color": "#38bdf8",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "number"
+              },
+              "value": 0
+            }
+          ],
+          "outputs": [
+            {
+              "id": "x2r0xed2az9o95lzkbwy",
+              "name": "Out",
+              "handleColor": "#8b5cf6",
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "SDF",
+                  "underlyingType": "complex",
+                  "color": "#8b5cf6"
+                },
+                "dataTypeUniqueId": "sdf"
+              }
+            }
+          ],
+          "nodeTypeUniqueId": "sdfTranslate"
+        },
+        "selected": true,
+        "measured": {
+          "width": 400,
+          "height": 640
+        }
+      },
+      {
+        "id": "vbq7npqvetyowdy5fano",
+        "position": {
+          "x": 1555.5555555555554,
+          "y": 310
+        },
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "configurableNode",
+        "width": 400,
+        "data": {
+          "name": "Radial Repeat",
+          "headerColor": "#0d9488",
+          "inputs": [
+            {
+              "id": "xsm0jpdjm76z2bbghk8m",
+              "name": "In",
+              "handleColor": "#8b5cf6",
+              "maxConnections": 1,
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "SDF",
+                  "underlyingType": "complex",
+                  "color": "#8b5cf6"
+                },
+                "dataTypeUniqueId": "sdf"
+              }
+            },
+            {
+              "id": "ldgdnk9w31s5963g3cg0",
+              "name": "Count",
+              "handleColor": "#38bdf8",
+              "allowInput": true,
+              "type": "number",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Number",
+                  "underlyingType": "number",
+                  "color": "#38bdf8",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "number"
+              },
+              "value": 6
+            }
+          ],
+          "outputs": [
+            {
+              "id": "eg3qyt8sds3myrt9fkqy",
+              "name": "Out",
+              "handleColor": "#8b5cf6",
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "SDF",
+                  "underlyingType": "complex",
+                  "color": "#8b5cf6"
+                },
+                "dataTypeUniqueId": "sdf"
+              }
+            }
+          ],
+          "nodeTypeUniqueId": "sdfRadialRepeat"
+        },
+        "selected": false,
+        "measured": {
+          "width": 400,
+          "height": 588
+        }
+      },
+      {
+        "id": "1n2u36pj723vn8kfhtid",
+        "position": {
+          "x": 333.3333333333333,
+          "y": 1065.5555555555554
+        },
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "configurableNode",
+        "width": 400,
+        "data": {
+          "name": "Circle",
+          "headerColor": "#7c3aed",
+          "inputs": [
+            {
+              "id": "a4md4hkmf9aty3unwl9c",
+              "name": "Radius",
+              "handleColor": "#38bdf8",
+              "allowInput": true,
+              "type": "number",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Number",
+                  "underlyingType": "number",
+                  "color": "#38bdf8",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "number"
+              },
+              "value": 0.4
+            }
+          ],
+          "outputs": [
+            {
+              "id": "myphwvy5y2qyfi8lusfz",
+              "name": "Out",
+              "handleColor": "#8b5cf6",
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "SDF",
+                  "underlyingType": "complex",
+                  "color": "#8b5cf6"
+                },
+                "dataTypeUniqueId": "sdf"
+              }
+            }
+          ],
+          "nodeTypeUniqueId": "sdfCircle"
+        },
+        "selected": false,
+        "measured": {
+          "width": 400,
+          "height": 537
+        }
+      },
+      {
+        "id": "6xi9yoygcfhj8fclw4ib",
+        "position": {
+          "x": 2177.777777777778,
+          "y": 310
+        },
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "configurableNode",
+        "width": 400,
+        "data": {
+          "name": "Smooth Union",
+          "headerColor": "#ea580c",
+          "inputs": [
+            {
+              "id": "xi5lihss2flxub6da2rr",
+              "name": "A",
+              "handleColor": "#8b5cf6",
+              "maxConnections": 1,
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "SDF",
+                  "underlyingType": "complex",
+                  "color": "#8b5cf6"
+                },
+                "dataTypeUniqueId": "sdf"
+              }
+            },
+            {
+              "id": "4gi6bmmi95gh208ylyts",
+              "name": "B",
+              "handleColor": "#8b5cf6",
+              "maxConnections": 1,
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "SDF",
+                  "underlyingType": "complex",
+                  "color": "#8b5cf6"
+                },
+                "dataTypeUniqueId": "sdf"
+              }
+            },
+            {
+              "id": "qxeonuwke10vfwmged8f",
+              "name": "Blend",
+              "handleColor": "#38bdf8",
+              "allowInput": true,
+              "type": "number",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Number",
+                  "underlyingType": "number",
+                  "color": "#38bdf8",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "number"
+              },
+              "value": 0.15
+            }
+          ],
+          "outputs": [
+            {
+              "id": "k64mouw6mq5bzbscdu79",
+              "name": "Out",
+              "handleColor": "#8b5cf6",
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "SDF",
+                  "underlyingType": "complex",
+                  "color": "#8b5cf6"
+                },
+                "dataTypeUniqueId": "sdf"
+              }
+            }
+          ],
+          "nodeTypeUniqueId": "sdfSmoothUnion"
+        },
+        "selected": false,
+        "measured": {
+          "width": 400,
+          "height": 639
+        }
+      },
+      {
+        "id": "fcfj3h23qd53wx2ovriv",
+        "position": {
+          "x": 3111.111111111111,
+          "y": 310
+        },
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "configurableNode",
+        "width": 400,
+        "data": {
+          "name": "Render",
+          "headerColor": "#be123c",
+          "inputs": [
+            {
+              "id": "s35xzjkfiq9ejxfo2d9j",
+              "name": "In",
+              "handleColor": "#8b5cf6",
+              "maxConnections": 1,
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "SDF",
+                  "underlyingType": "complex",
+                  "color": "#8b5cf6"
+                },
+                "dataTypeUniqueId": "sdf"
+              }
+            },
+            {
+              "id": "gc2tl0ekyli2ioxdmly1",
+              "name": "Palette",
+              "handleColor": "#38bdf8",
+              "allowInput": true,
+              "type": "number",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Number",
+                  "underlyingType": "number",
+                  "color": "#38bdf8",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "number"
+              },
+              "value": 0
+            },
+            {
+              "id": "8of4cu5rvz8xd4hk8h6j",
+              "name": "Glow",
+              "handleColor": "#38bdf8",
+              "allowInput": true,
+              "type": "number",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Number",
+                  "underlyingType": "number",
+                  "color": "#38bdf8",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "number"
+              },
+              "value": 1
+            }
+          ],
+          "outputs": [],
+          "nodeTypeUniqueId": "sdfRender"
+        },
+        "selected": false,
+        "measured": {
+          "width": 400,
+          "height": 589
+        }
+      },
+      {
+        "id": "m4pf7et726ax4rc99dtw",
+        "position": {
+          "x": 2177.777777777778,
+          "y": 1065.5555555555554
+        },
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "configurableNode",
+        "width": 400,
+        "data": {
+          "name": "Less Than",
+          "headerColor": "#4b5563",
+          "inputs": [
+            {
+              "id": "ct5w4gyovjkeet0k4l7l",
+              "name": "In",
+              "handleColor": "#8b5cf6",
+              "maxConnections": 1,
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "SDF",
+                  "underlyingType": "complex",
+                  "color": "#8b5cf6"
+                },
+                "dataTypeUniqueId": "sdf"
+              }
+            },
+            {
+              "id": "uyk1lvky0yv0moau1ued",
+              "name": "Threshold",
+              "handleColor": "#38bdf8",
+              "allowInput": true,
+              "type": "number",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Number",
+                  "underlyingType": "number",
+                  "color": "#38bdf8",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "number"
+              },
+              "value": 0
+            }
+          ],
+          "outputs": [
+            {
+              "id": "muizckn7w9326wqe2mw4",
+              "name": "Out",
+              "handleColor": "#e5e7eb",
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Mask",
+                  "underlyingType": "complex",
+                  "color": "#e5e7eb"
+                },
+                "dataTypeUniqueId": "mask"
+              }
+            }
+          ],
+          "nodeTypeUniqueId": "sdfLessThan"
+        },
+        "selected": false,
+        "measured": {
+          "width": 400,
+          "height": 588
+        }
+      },
+      {
+        "id": "zt2u12yalfe5vtfdd2qk",
+        "position": {
+          "x": 3111.111111111111,
+          "y": 1065.5555555555554
+        },
+        "sourcePosition": "right",
+        "targetPosition": "left",
+        "type": "configurableNode",
+        "width": 400,
+        "data": {
+          "name": "Measure Mask",
+          "headerColor": "#1d4ed8",
+          "inputs": [
+            {
+              "id": "u35cwj4tih1tcnkzlkby",
+              "name": "In",
+              "handleColor": "#e5e7eb",
+              "maxConnections": 1,
+              "type": "unsupportedDirectly",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Mask",
+                  "underlyingType": "complex",
+                  "color": "#e5e7eb"
+                },
+                "dataTypeUniqueId": "mask"
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "id": "xz3wdzr5si2m36mla680",
+              "name": "White Pixels",
+              "handleColor": "#38bdf8",
+              "allowInput": true,
+              "type": "number",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Number",
+                  "underlyingType": "number",
+                  "color": "#38bdf8",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "number"
+              }
+            },
+            {
+              "id": "qsd3odi3dx2qok5pwft3",
+              "name": "Black Pixels",
+              "handleColor": "#38bdf8",
+              "allowInput": true,
+              "type": "number",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Number",
+                  "underlyingType": "number",
+                  "color": "#38bdf8",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "number"
+              }
+            },
+            {
+              "id": "qlbzo44og9iqps545whs",
+              "name": "White Ratio",
+              "handleColor": "#38bdf8",
+              "allowInput": true,
+              "type": "number",
+              "dataType": {
+                "dataTypeObject": {
+                  "name": "Number",
+                  "underlyingType": "number",
+                  "color": "#38bdf8",
+                  "allowInput": true
+                },
+                "dataTypeUniqueId": "number"
+              }
+            }
+          ],
+          "nodeTypeUniqueId": "sdfMeasureMask"
+        },
+        "selected": false,
+        "measured": {
+          "width": 400,
+          "height": 420
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "xzj0nfx6gsorqiuag5j5",
+        "source": "urm3xlye2pq7yrrkqefr",
+        "target": "itg9bq5h7zrc1mc0tqy1",
+        "sourceHandle": "kyaum7yql71m6p2bppw3",
+        "targetHandle": "p8epqiey9e96qiqw08ow",
+        "type": "configurableEdge"
+      },
+      {
+        "id": "qyk2k28rqp0xd3kk5zot",
+        "source": "itg9bq5h7zrc1mc0tqy1",
+        "target": "vbq7npqvetyowdy5fano",
+        "sourceHandle": "x2r0xed2az9o95lzkbwy",
+        "targetHandle": "xsm0jpdjm76z2bbghk8m",
+        "type": "configurableEdge"
+      },
+      {
+        "id": "dyf09a8nm326g9s1w1o5",
+        "source": "vbq7npqvetyowdy5fano",
+        "target": "6xi9yoygcfhj8fclw4ib",
+        "sourceHandle": "eg3qyt8sds3myrt9fkqy",
+        "targetHandle": "xi5lihss2flxub6da2rr",
+        "type": "configurableEdge"
+      },
+      {
+        "id": "qho4b2e71zc9xii4n1n3",
+        "source": "1n2u36pj723vn8kfhtid",
+        "target": "6xi9yoygcfhj8fclw4ib",
+        "sourceHandle": "myphwvy5y2qyfi8lusfz",
+        "targetHandle": "4gi6bmmi95gh208ylyts",
+        "type": "configurableEdge"
+      },
+      {
+        "id": "c3qwht5kz0r4vyapw3ql",
+        "source": "6xi9yoygcfhj8fclw4ib",
+        "target": "fcfj3h23qd53wx2ovriv",
+        "sourceHandle": "k64mouw6mq5bzbscdu79",
+        "targetHandle": "s35xzjkfiq9ejxfo2d9j",
+        "type": "configurableEdge"
+      },
+      {
+        "id": "vpnx57m6g47s1qou154j",
+        "source": "6xi9yoygcfhj8fclw4ib",
+        "target": "m4pf7et726ax4rc99dtw",
+        "sourceHandle": "k64mouw6mq5bzbscdu79",
+        "targetHandle": "ct5w4gyovjkeet0k4l7l",
+        "type": "configurableEdge"
+      },
+      {
+        "id": "zty19j2tvm8o3g7e2ds9",
+        "source": "m4pf7et726ax4rc99dtw",
+        "target": "zt2u12yalfe5vtfdd2qk",
+        "sourceHandle": "muizckn7w9326wqe2mw4",
+        "targetHandle": "u35cwj4tih1tcnkzlkby",
+        "type": "configurableEdge"
+      }
+    ],
+    "allowedConversionsBetweenDataTypes": {},
+    "allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking": true,
+    "enableComplexTypeChecking": true,
+    "enableTypeInference": true,
+    "enableCycleChecking": true,
+    "enableRecursionChecking": true,
+    "nodeCountConstraints": {
+      "groupInput": {
+        "maxInRoot": 1,
+        "minInRoot": 0,
+        "minWithinANodeGroup": 1,
+        "maxWithinANodeGroup": 1
+      },
+      "groupOutput": {
+        "maxInRoot": 1,
+        "minInRoot": 0,
+        "minWithinANodeGroup": 1,
+        "maxWithinANodeGroup": 1
+      }
+    },
+    "viewport": {
+      "x": -530,
+      "y": -185.85000000000002,
+      "zoom": 0.45
+    }
+  }
+}

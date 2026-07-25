@@ -112,7 +112,7 @@ Relationships:
 |                                                                       |
 |  applyPlan(ADD_EDGE)                 (planApply/applyPlan.ts)          |
 |    |-- mint edge id (generateRandomString)                           |
-|    |-- structuredClone inference nodeDataReplacements into draft      |
+|    |-- cloneDeepPreservingNonPlain replacements into draft            |
 |    |-- ensureAllHandleNamesUnique()                                   |
 |    |-- addDuplicateHandlesToLoopNodesAfterInference()                 |
 |    |-- addDuplicateHandlesToSwitchNodesAfterInference()               |
@@ -199,7 +199,7 @@ validateAction() -> validateAddEdge(state, action)        [PURE]
 applyValidatedAction() -> produceWithPatches(state, draft => applyPlan(draft, plan))
             |
             +-----> mint edge id (generateRandomString(20))
-            +-----> structuredClone each inference replacement into the draft
+            +-----> cloneDeepPreservingNonPlain each inference replacement into the draft
             +-----> ensureAllHandleNamesUnique() per replaced node
             +-----> addDuplicateHandlesToLoopNodesAfterInference()
             +-----> addDuplicateHandlesToSwitchNodesAfterInference()
@@ -634,10 +634,15 @@ Runs inside Immer's draft. In order:
    detect `inferFromConnection`, because inference's `overrideDataType` rewrites
    the handle's `underlyingType` to the concrete type).
 3. **Apply inference replacements**: for each `nodeDataReplacements` entry,
-   `structuredClone` the `newData` into the draft. The deep clone is required:
-   the inference plan can hold frozen objects (Immer auto-freezes the prior
+   deep-copy the `newData` into the draft with
+   `cloneDeepPreservingNonPlainObjects`. The deep copy is required: the
+   inference plan can hold frozen objects (Immer auto-freezes the prior
    committed state, which inference reads from), and the subsequent splice-based
-   handle duplication would otherwise fail with "object is not extensible".
+   handle duplication would otherwise fail with "object is not extensible". The
+   helper copies PLAIN data but passes functions and zod `complexSchema`s
+   through by reference, so it dodges `structuredClone`'s `DataCloneError` on
+   schema internals and lodash `cloneDeep`'s identity-break of the schema
+   singletons.
 4. **Dedup handle names** per replaced node via `ensureAllHandleNamesUnique`
    (skipped for switch nodes here; switch dedup happens after zone prefixing).
 5. **Write back** inference changes to the scoped location.
@@ -960,7 +965,7 @@ User connects NodeA:output -> LoopStart:input[0]
      -> projection built; complex check: neither complex, pass
      -> return ok(AddEdgePlan with one nodeDataReplacement)
   -> applyPlan(ADD_EDGE):
-     -> structuredClone replacement into draft, dedup names
+     -> cloneDeepPreservingNonPlain replacement into draft, dedup names
      -> addDuplicateHandlesToLoopNodesAfterInference() adds a new
         input+output loopInfer handle
      -> push edge; recompute zones
@@ -1004,7 +1009,7 @@ or removed.
 
 Edges connect nodes. Cycle detection traverses node adjacency. Node `data`
 contains the handles that edges reference. Inference replaces a node's entire
-`data` (via `structuredClone` in `applyPlan`).
+`data` (via `cloneDeepPreservingNonPlainObjects` in `applyPlan`).
 
 ### -> [Type Inference](typeInferenceDoc.md)
 

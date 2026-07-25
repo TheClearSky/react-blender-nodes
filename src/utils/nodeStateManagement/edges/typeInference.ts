@@ -6,8 +6,8 @@ import type {
   HandleIndices,
   InstantiatedNonPanelTypesOfHandles,
 } from '../handles/types';
-import _ from 'lodash';
 import { produce } from 'immer';
+import { cloneDeepPreservingNonPlainObjects } from '../cloneDeepPreservingNonPlainObjects';
 
 function inferTypeOnHandleAfterConnectingWithAnotherHandle<
   DataTypeUniqueId extends string = string,
@@ -64,7 +64,13 @@ function inferTypeOnHandleAfterConnectingWithAnotherHandle<
       ? connectedHandle?.handle?.inferredDataType ||
         connectedHandle?.handle?.dataType
       : undefined;
-  const updateValues = _.cloneDeep({
+  // NOT lodash `cloneDeep`: it rebuilds class instances, so a zod
+  // `complexSchema` inside `inferredDataType.dataTypeObject` would come out
+  // as an equivalent-but-DIFFERENT object — silently breaking the
+  // reference-identity comparison edge validation relies on. The preserving
+  // clone deep-copies the plain data (so `Object.assign` grafts a mutable
+  // tree) and hands schemas/functions through by reference.
+  const updateValues = cloneDeepPreservingNonPlainObjects({
     inferredDataType: inferredDataType,
     ...(connectedHandle?.overrideDataType
       ? { dataType: inferredDataType }

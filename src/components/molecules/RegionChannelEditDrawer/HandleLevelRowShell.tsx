@@ -1,12 +1,19 @@
 import { useState } from 'react';
 import { ChevronDown, Pencil } from 'lucide-react';
 import { Input } from '@/components/atoms';
+import {
+  HandleShapeSwatch,
+  type HandleShape,
+} from '@/components/atoms/HandleShapeSwatch';
 import { PresetModal } from '@/components/molecules/PresetModal';
 import { cn } from '@/utils/cnHelper';
+import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 
 type HandleLevelRowShellProps = {
-  /** Data-type color shown as the leading dot. */
+  /** Data-type color for the leading handle-shape swatch. */
   color: string;
+  /** Data-type shape for the leading swatch (defaults to circle when absent). */
+  shape?: HandleShape;
   /** Shared name across all handles in the level, or null when they differ. */
   commonName: string | null;
   /** Apply a single trimmed name to every handle in the level. */
@@ -23,10 +30,12 @@ type HandleLevelRowShellProps = {
  */
 function HandleLevelRowShell({
   color,
+  shape,
   commonName,
   onRenameAll,
   children,
 }: HandleLevelRowShellProps) {
+  const theme = useGraphTheme();
   const [expanded, setExpanded] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameName, setRenameName] = useState('');
@@ -52,9 +61,11 @@ function HandleLevelRowShell({
           className='flex items-center gap-2 cursor-pointer select-none'
           onClick={() => setExpanded(!expanded)}
         >
-          <div
-            className='w-3 h-3 rounded-full shrink-0'
-            style={{ backgroundColor: color }}
+          <HandleShapeSwatch
+            shape={shape}
+            color={color}
+            size={16}
+            className={theme?.node?.handleShape}
           />
           <span
             className={cn(

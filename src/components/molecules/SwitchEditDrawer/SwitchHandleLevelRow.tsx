@@ -76,6 +76,7 @@ function SwitchHandleLevelRow({
   return (
     <HandleLevelRowShell
       color={level.dataTypeColor}
+      shape={level.dataTypeShape}
       commonName={commonName}
       onRenameAll={renameAll}
     >

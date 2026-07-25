@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Nodes, Edges } from '@/components/organisms/FullGraph/types';
-import type { HandleShape } from '@/components/organisms/ConfigurableNode';
+import type { HandleShape } from '@/components/atoms/HandleShapeSwatch/handleShapes';
 import type { Viewport } from '@xyflow/react';
 import type { Zone, ZoneIndex } from './zones/types';
 import type { RunnerViewPreferences } from './runnerViewPreferences';

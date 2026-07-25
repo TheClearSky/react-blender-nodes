@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Info, Undo2 } from 'lucide-react';
 import { Button, Input } from '@/components/atoms';
+import { HandleShapeSwatch } from '@/components/atoms/HandleShapeSwatch';
 import { cn } from '@/utils';
 import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { useSlideAnimation } from '@/hooks/useSlideAnimation';
@@ -13,7 +14,11 @@ import type {
   TypeOfInputPanel,
 } from '@/utils/nodeStateManagement/types';
 import type { DragListItem } from '@/components/molecules/DragList/types';
-import type { InputAdditionalProps } from './inputOutputConversion';
+import type {
+  InputAdditionalProps,
+  HandleVisual,
+  ResolveHandleVisual,
+} from './inputOutputConversion';
 import type {
   HandleBlastRadius,
   HandleDeletionTarget,
@@ -54,6 +59,9 @@ type NodeTypeEditDrawerProps = {
   ) => HandleBlastRadius;
   /** Neighborhood data for a connection's inline read-only mini-map. */
   getNeighborhood?: GetNeighborhood;
+  /** Resolve a data-type id to its swatch visual (color + shape) for the handle
+   *  rows. Display-only; when omitted no swatch is shown (e.g. standalone story). */
+  getDataTypeVisual?: ResolveHandleVisual;
 };
 
 const EMPTY_NEIGHBORHOOD: GetNeighborhood = () => ({
@@ -90,6 +98,7 @@ function NodeTypeEditDrawer({
   onSave,
   getHandleBlastRadius,
   getNeighborhood,
+  getDataTypeVisual,
 }: NodeTypeEditDrawerProps) {
   const theme = useGraphTheme();
   const { mounted, ref, style } = useSlideAnimation(isOpen, {
@@ -116,10 +125,14 @@ function NodeTypeEditDrawer({
       if (nodeTypeName !== null) setLocalName(nodeTypeName);
       setLocalHeaderColor(nodeTypeHeaderColor);
       setLocalInputs(
-        nodeTypeInputs ? typeOfInputsToDragListItems(nodeTypeInputs) : [],
+        nodeTypeInputs
+          ? typeOfInputsToDragListItems(nodeTypeInputs, getDataTypeVisual)
+          : [],
       );
       setLocalOutputs(
-        nodeTypeOutputs ? typeOfOutputsToDragListItems(nodeTypeOutputs) : [],
+        nodeTypeOutputs
+          ? typeOfOutputsToDragListItems(nodeTypeOutputs, getDataTypeVisual)
+          : [],
       );
       setDeleted([]);
       setShowEmptyPanelError(false);
@@ -132,6 +145,7 @@ function NodeTypeEditDrawer({
     nodeTypeHeaderColor,
     nodeTypeInputs,
     nodeTypeOutputs,
+    getDataTypeVisual,
   ]);
 
   const handleColorChange = useCallback((hex: string) => {
@@ -355,6 +369,15 @@ function NodeTypeEditDrawer({
                     key={entry.item.id}
                     className='flex items-center gap-1.5 px-2 py-1 rounded bg-primary-gray/40'
                   >
+                    {(entry.item.additionalProperties?.color ||
+                      entry.item.additionalProperties?.shape) && (
+                      <HandleShapeSwatch
+                        shape={entry.item.additionalProperties.shape}
+                        color={entry.item.additionalProperties.color}
+                        size={14}
+                        className={theme?.node?.handleShape}
+                      />
+                    )}
                     <span className='truncate text-primary-white/70 line-through text-[13px]'>
                       {entry.item.name}
                     </span>
@@ -433,4 +456,9 @@ function NodeTypeEditDrawer({
 }
 
 export { NodeTypeEditDrawer };
-export type { NodeTypeEditDrawerProps, SaveUpdates };
+export type {
+  NodeTypeEditDrawerProps,
+  SaveUpdates,
+  HandleVisual,
+  ResolveHandleVisual,
+};

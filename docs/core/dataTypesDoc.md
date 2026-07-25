@@ -477,9 +477,9 @@ The `ContextAwareHandle` component
 
 - `color` prop -> CSS `backgroundColor` on the handle shape
 - `shape` prop -> selects from the 13 shape variants defined in
-  `src/components/organisms/ConfigurableNode/SupportingSubcomponents/ContextAwareHandleShapes.ts`
-  › `handleShapes`: `circle`, `square`, `rectangle`, `list`, `grid`, `diamond`,
-  `trapezium`, `hexagon`, `star`, `cross`, `zigzag`, `sparkle`, `parallelogram`
+  `src/components/atoms/HandleShapeSwatch/handleShapes.ts` › `handleShapes`:
+  `circle`, `square`, `rectangle`, `list`, `grid`, `diamond`, `trapezium`,
+  `hexagon`, `star`, `cross`, `zigzag`, `sparkle`, `parallelogram`
 - `maxConnections` prop -> controls `isConnectable` on the ReactFlow `Handle`
 
 ### In Edge Validation

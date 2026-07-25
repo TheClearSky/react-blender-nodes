@@ -611,7 +611,9 @@ custom shapes. Operates in two modes:
   (`!w-6 !h-6 !border-none !bg-transparent !pointer-events-auto`) with a
   transparent background.
 - The actual shape is rendered inside the Handle in a `pointer-events-none`
-  overlay via `renderHandleShape(shape, color, className)`.
+  overlay via the shared `HandleShapeSwatch` atom (which wraps the internal
+  `renderHandleShape`); the same atom is reused, scaled down, by the config
+  editors.
 - Uses `useNodeConnections({ handleId: id, handleType: type })` to count
   connections. When `maxConnections` is defined,
   `canConnect = connections.length < maxConnections` and is passed to
@@ -628,9 +630,9 @@ custom shapes. Operates in two modes:
 **Available shapes (13):** `circle`, `square`, `rectangle`, `list`, `grid`,
 `diamond`, `trapezium`, `hexagon`, `star`, `cross`, `zigzag`, `sparkle`,
 `parallelogram`. Defined in
-`src/components/organisms/ConfigurableNode/SupportingSubcomponents/ContextAwareHandleShapes.ts`
-› `handleShapes` (a `readonly` tuple), exposed via `handleShapesMap` and the
-`HandleShape` type. Default color is `#A1A1A1`; default shape is `circle`.
+`src/components/atoms/HandleShapeSwatch/handleShapes.ts` › `handleShapes` (a
+`readonly` tuple), exposed via `handleShapesMap` and the `HandleShape` type.
+Default color is `#A1A1A1`; default shape is `circle`.
 
 Shapes are implemented via:
 
@@ -1019,11 +1021,11 @@ const nodeTypes = {
 
 ConfigurableNode uses `ContextAwareHandle` for all connection ports. Each
 input/output handle is configured with a `HandleShape` from the 13 shapes in
-`src/components/organisms/ConfigurableNode/SupportingSubcomponents/ContextAwareHandleShapes.ts`
-› `handleShapes`. Handle shapes are rendered inside transparent ReactFlow
-`<Handle>` elements, providing custom visual appearance while keeping
-ReactFlow's connection interaction behavior. Connection capacity is enforced via
-`maxConnections` + `useNodeConnections()`.
+`src/components/atoms/HandleShapeSwatch/handleShapes.ts` › `handleShapes`.
+Handle shapes are rendered inside transparent ReactFlow `<Handle>` elements,
+providing custom visual appearance while keeping ReactFlow's connection
+interaction behavior. Connection capacity is enforced via `maxConnections` +
+`useNodeConnections()`.
 
 ### -> [Data Types](../core/dataTypesDoc.md)
 

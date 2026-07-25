@@ -5,6 +5,10 @@ import { cn } from '@/utils';
 import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { useSlideAnimation } from '@/hooks/useSlideAnimation';
 import { DragList } from '@/components/molecules/DragList';
+import {
+  HandleShapeSwatch,
+  type HandleShape,
+} from '@/components/atoms/HandleShapeSwatch';
 import type { DragListItem } from '@/components/molecules/DragList/types';
 import {
   HandleSummaryModal,
@@ -17,7 +21,11 @@ import type {
 } from '@/utils/nodeStateManagement/handles/handleDeletionAnalysis';
 
 /** Minimal shape every region channel level must provide for the shared drawer. */
-type RegionChannelLevel = { id: string; dataTypeColor: string };
+type RegionChannelLevel = {
+  id: string;
+  dataTypeColor: string;
+  dataTypeShape?: HandleShape;
+};
 
 type LevelAdditionalProps<TLevel> = {
   level: TLevel;
@@ -279,9 +287,11 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
                     key={level.id}
                     className='flex items-center gap-1.5 px-2 py-1 rounded bg-primary-gray/40'
                   >
-                    <span
-                      className='w-2.5 h-2.5 rounded-sm shrink-0'
-                      style={{ backgroundColor: level.dataTypeColor }}
+                    <HandleShapeSwatch
+                      shape={level.dataTypeShape}
+                      color={level.dataTypeColor}
+                      size={14}
+                      className={theme?.node?.handleShape}
                     />
                     <span className='truncate text-primary-white/70 line-through text-[13px]'>
                       {getDeletedLabel(level)}

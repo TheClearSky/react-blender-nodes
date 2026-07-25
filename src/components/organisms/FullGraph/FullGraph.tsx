@@ -26,6 +26,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ConfigurableConnection } from '@/components/atoms/ConfigurableConnection/ConfigurableConnection';
+import type { HandleShape } from '@/components/atoms/HandleShapeSwatch/handleShapes';
 import { createNodeContextMenu } from '../../molecules/ContextMenu/createNodeContextMenu';
 import { FullGraphContextMenu } from './FullGraphContextMenu';
 import { createImportExportMenuItems } from './createImportExportMenuItems';
@@ -343,6 +344,17 @@ function FullGraphWithReactFlowProvider<
       state.typeOfNodes[editDrawerNodeTypeId as NodeTypeUniqueId]
     : null;
 
+  // Resolve a data-type id to its swatch visual (color + shape) for the node-type
+  // editor's handle rows. Display-only; memoized on state.dataTypes so the drawer's
+  // open-effect keeps a stable identity (never resets in-progress edits).
+  const getDataTypeVisual = useCallback(
+    (dataTypeId: string) => {
+      const dataType = state.dataTypes[dataTypeId as DataTypeUniqueId];
+      return { color: dataType?.color, shape: dataType?.shape };
+    },
+    [state.dataTypes],
+  );
+
   const editLoopNodeId =
     state.activeDrawer?.type === 'editLoop' ? state.activeDrawer.nodeId : null;
 
@@ -363,7 +375,9 @@ function FullGraphWithReactFlowProvider<
 
   // Root Graph I/O nodes live in the ROOT node list (the editor is only opened
   // at root scope). A Graph Input edits its outputs; a Graph Output its inputs.
-  const editGraphIoHandles = useMemo<{ id: string; name: string }[]>(() => {
+  const editGraphIoHandles = useMemo<
+    { id: string; name: string; color?: string; shape?: HandleShape }[]
+  >(() => {
     const nodeId = editGraphInputNodeId ?? editGraphOutputNodeId;
     if (!nodeId) return [];
     const node = state.nodes.find((candidate) => candidate.id === nodeId);
@@ -384,7 +398,20 @@ function FullGraphWithReactFlowProvider<
     return list
       .flatMap((handle) => ('inputs' in handle ? handle.inputs : [handle]))
       .filter((handle) => !isInferTemplate(handle))
-      .map((handle) => ({ id: handle.id, name: handle.name }));
+      .map((handle) => {
+        // Source the swatch from the live boundary handle's OWN fields — the exact
+        // fields the canvas paints — so connected root I/O shows its inferred shape.
+        const visual = handle as {
+          handleColor?: string;
+          handleShape?: HandleShape;
+        };
+        return {
+          id: handle.id,
+          name: handle.name,
+          color: visual.handleColor,
+          shape: visual.handleShape,
+        };
+      });
   }, [editGraphInputNodeId, editGraphOutputNodeId, state.nodes]);
 
   const editLoopTriplet = useMemo(() => {
@@ -1230,6 +1257,7 @@ function FullGraphWithReactFlowProvider<
               onSave={handleSaveNodeType}
               getHandleBlastRadius={getHandleBlastRadiusForType}
               getNeighborhood={getConnectionNeighborhoodForScope}
+              getDataTypeVisual={getDataTypeVisual}
             />
 
             <LoopEditDrawer

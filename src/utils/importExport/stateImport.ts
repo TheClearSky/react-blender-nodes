@@ -17,6 +17,9 @@ import {
   validateGraphStateStructure,
   repairRootGraphIo,
   normalizeConnectionOrder,
+  coerceUserZones,
+  coerceRunnerViewPreferences,
+  normalizeUserZones,
   isObject,
 } from './validation';
 import { rehydrateHandleDataType } from './serialization';
@@ -256,6 +259,17 @@ function importGraphState<
 
   if (repair.normalizeConnectionOrder) {
     normalizeConnectionOrder(state, warnings);
+  }
+
+  // ALWAYS-ON: a malformed authored `userZones` (visual-only) must never crash the
+  // canvas. REPLACE_STATE bypasses the editor and `handleImportState` spreads the
+  // imported state wholesale, so this runs unconditionally (not gated on a flag).
+  coerceUserZones(state, warnings);
+  // Document-level runner view prefs: absent/null left untouched (byte-preserving;
+  // the accessor defaults per-field), a present-malformed value repaired.
+  coerceRunnerViewPreferences(state, warnings);
+  if (repair.normalizeUserZones) {
+    normalizeUserZones(state, warnings);
   }
 
   // Rehydrate complexSchema on dataTypes from provided dataTypes

@@ -454,7 +454,8 @@ When an edge connects a typed handle to a `groupInfer` template handle on
 1. `validateAddEdge` calls `planInferenceForEdgeAddition`, passing the current
    scope's `inputNodeId`/`outputNodeId`, to compute the concrete type.
 2. `applyPlan`'s `ADD_EDGE` case applies the inference (via `overrideDataType`,
-   deep-cloned with `structuredClone`), then in step 4c calls
+   deep-copied with `cloneDeepPreservingNonPlainObjects` — plain data copied,
+   zod schemas by reference), then in step 4c calls
    `growSpareAndPropagateBoundaryHandle` (see
    [Handle Synchronization](#handle-synchronization)).
 3. A fresh empty-name `groupInfer` template handle is appended to the boundary

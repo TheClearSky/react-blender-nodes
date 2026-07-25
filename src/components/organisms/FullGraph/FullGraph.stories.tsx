@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Toaster, toast } from 'sonner';
 
 import { FullGraph, useFullGraph, GraphThemeProvider } from './';
+import type { NodePreviewProps, NodePreviewRegistry } from './';
 import type { GraphTheme, GraphThemePresetName } from '@/utils/theme';
 import { Position } from '@xyflow/react';
 import { type Nodes, type Edges } from './types';
@@ -36,12 +37,17 @@ import { constructNodeOfType } from '@/utils/nodeStateManagement/nodes/construct
 import type {
   InputHandleValue,
   ExecutionRecord,
+  ExecutionStepRecord,
 } from '@/utils/nodeRunner/types';
 import { importExecutionRecord } from '@/utils/importExport';
 import { ColorPicker } from '@/components/molecules/ColorPicker/ColorPicker';
 import type { OklchColor } from '@/components/molecules/ColorPicker/lib/types';
 import adderLoopState from '../../../../.storybook/static/graphStates/adder-state-with-inner-noop-loop.json';
 import adderLoopRecordingJson from '../../../../.storybook/static/graphStates/adder-state-with-inner-noop-loop-instant.json';
+import previewDemoState from '../../../../.storybook/static/graphStates/preview-demo-and-gate-state.json';
+import previewDemoRecordingJson from '../../../../.storybook/static/graphStates/preview-demo-and-gate-recording.json';
+import groupTwoInstancesState from '../../../../.storybook/static/graphStates/group-two-instances-not-chain-state.json';
+import groupTwoInstancesRecordingJson from '../../../../.storybook/static/graphStates/group-two-instances-not-chain-recording.json';
 import Editor from '@monaco-editor/react';
 import { compile } from '@/utils/nodeRunner';
 import { emitJs } from '@/utils/nodeRunner/runTargets/codegen/emitJs';
@@ -51,6 +57,7 @@ import { serializeExecutionPlan } from '@/utils/nodeRunner/runTargets/serializeE
 import {
   makeCodegenRunTarget,
   jsonIrRunTarget,
+  formatGraphError,
 } from '@/utils/nodeRunner/runTargets';
 import type { CodegenMetadata } from '@/utils/nodeRunner/runTargets';
 
@@ -4045,8 +4052,17 @@ const circuitCodegenTsRunTarget = makeCodegenRunTarget({
  */
 function RunnerStoryView({
   frame,
+  nodePreviews,
+  decorateForPreviewDemo = false,
+  omitRunner = false,
 }: {
   frame?: { width: number; height: number };
+  nodePreviews?: NodePreviewRegistry<CircuitNodeTypeId>;
+  /** Preview demo only: name the first previewable node + collapse the second. */
+  decorateForPreviewDemo?: boolean;
+  /** Tier-2 demo: render WITHOUT a runner (no impls / record) so previews show
+   *  their null-safe empty states. */
+  omitRunner?: boolean;
 }) {
   const { state, dispatch } = useFullGraph<
     CircuitDataTypeId,
@@ -4077,19 +4093,46 @@ function RunnerStoryView({
   useEffect(() => {
     if (hasLoaded.current) return;
     hasLoaded.current = true;
+    // adderLoopState is built with default generics; force it into this story's
+    // concrete state shape (deliberate cross-fixture injection). For the preview
+    // demo, decorate the first previewable node with a custom name (so its panel
+    // shows `Custom : Type`) and start the second one collapsed (STORY-6).
+    const rawNodes = adderLoopState.state.nodes as unknown as Array<{
+      data?: { nodeTypeUniqueId?: string };
+    }>;
+    let named = false;
+    let collapsed = false;
+    const nodes = (decorateForPreviewDemo && nodePreviews
+      ? rawNodes.map((node) => {
+          const typeId = node.data?.nodeTypeUniqueId as
+            | CircuitNodeTypeId
+            | undefined;
+          if (!typeId || !nodePreviews[typeId]) return node;
+          if (!named) {
+            named = true;
+            return { ...node, data: { ...node.data, customName: 'Flagship' } };
+          }
+          if (!collapsed) {
+            collapsed = true;
+            return {
+              ...node,
+              data: { ...node.data, previewCollapsed: true },
+            };
+          }
+          return node;
+        })
+      : rawNodes) as unknown as typeof state.nodes;
     dispatch({
       type: 'REPLACE_STATE',
       payload: {
         state: {
           ...state,
-          // adderLoopState is built with default generics; force it into this
-          // story's concrete state shape (deliberate cross-fixture injection).
-          nodes: adderLoopState.state.nodes as unknown as typeof state.nodes,
+          nodes,
           edges: adderLoopState.state.edges as unknown as typeof state.edges,
         },
       },
     });
-  }, []);
+  }, [dispatch, state, nodePreviews, decorateForPreviewDemo]);
 
   const [record, setRecord] = useState(adderLoopRecording ?? null);
 
@@ -4097,9 +4140,10 @@ function RunnerStoryView({
     <FullGraph<CircuitDataTypeId, CircuitNodeTypeId>
       state={state}
       dispatch={dispatch}
-      functionImplementations={circuitImplementations}
-      executionRecord={record}
-      onExecutionRecordChange={setRecord}
+      functionImplementations={omitRunner ? undefined : circuitImplementations}
+      executionRecord={omitRunner ? undefined : record}
+      onExecutionRecordChange={omitRunner ? undefined : setRecord}
+      nodePreviews={nodePreviews}
       onStateImported={(imported) => console.log('State imported:', imported)}
       onRecordingImported={(record) =>
         console.log('Recording imported:', record)
@@ -4112,7 +4156,7 @@ function RunnerStoryView({
     return (
       <div
         style={{
-          height: '100vh',
+          height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -4136,27 +4180,706 @@ function RunnerStoryView({
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1 }}>{editor}</div>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minHeight: 0 }}>{editor}</div>
     </div>
   );
 }
 
+// ─────────────────────────────────────────────────────
+// WithRunner control panel — one story, many aspects
+// ─────────────────────────────────────────────────────
+
+type RunnerPreviewMode =
+  | 'none'
+  | 'dashboard'
+  | 'step-through'
+  | 'error-handling'
+  | 'no-runner';
+type RunnerStoryTheme = 'dark' | 'light';
+type RunnerStoryFrame = 'full' | 'narrow-390';
+
+const RUNNER_PREVIEW_MODES: RunnerPreviewMode[] = [
+  'none',
+  'dashboard',
+  'step-through',
+  'error-handling',
+  'no-runner',
+];
+const RUNNER_STORY_THEMES: RunnerStoryTheme[] = ['dark', 'light'];
+const RUNNER_STORY_FRAMES: RunnerStoryFrame[] = ['full', 'narrow-390'];
+
+/** One row of labeled story-chrome buttons (data-testid="story-<control>-<value>"). */
+function StoryControlGroup<Value extends string>({
+  label,
+  control,
+  values,
+  active,
+  onSelect,
+}: {
+  label: string;
+  control: string;
+  values: Value[];
+  active: Value;
+  onSelect: (value: Value) => void;
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ opacity: 0.6, fontSize: 12 }}>{label}</span>
+      {values.map((value) => (
+        <button
+          key={value}
+          type='button'
+          data-testid={`story-${control}-${value}`}
+          onClick={() => onSelect(value)}
+          style={{
+            padding: '2px 10px',
+            fontSize: 12,
+            borderRadius: 4,
+            border: '1px solid #444',
+            cursor: 'pointer',
+            background: active === value ? '#2f6feb' : '#222',
+            color: '#eee',
+          }}
+        >
+          {value}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Consolidated runner story: a story-chrome control panel drives PREVIEW MODE
+ * (none / dashboard / error-handling / step-through / no-runner registries),
+ * THEME (dark ≡ blenderDark ≡ no-op, light preset), and FRAME (full-bleed vs a
+ * 390px phone box exercising the container-query runner-panel reflow). Defaults
+ * (none/dark/full) are byte-identical to the pre-panel WithRunner, so existing
+ * e2e specs are unaffected. The editor subtree remounts on mode/frame changes
+ * (`key`) because the decoration + no-runner wiring are mount-coupled; the theme
+ * provider sits OUTSIDE the key and swaps live.
+ */
+function WithRunnerStoryView() {
+  const [previewMode, setPreviewMode] = useState<RunnerPreviewMode>('none');
+  const [storyTheme, setStoryTheme] = useState<RunnerStoryTheme>('dark');
+  const [storyFrame, setStoryFrame] = useState<RunnerStoryFrame>('full');
+
+  const modeProps =
+    previewMode === 'dashboard'
+      ? { nodePreviews: circuitNodePreviews, decorateForPreviewDemo: true }
+      : previewMode === 'step-through'
+        ? { nodePreviews: stepThroughPreviews }
+        : previewMode === 'error-handling'
+          ? { nodePreviews: errorHandlingPreviews }
+          : previewMode === 'no-runner'
+            ? { nodePreviews: noRunnerPreviews, omitRunner: true }
+            : {};
+
+  return (
+    <GraphThemeProvider
+      preset={storyTheme === 'light' ? 'light' : 'blenderDark'}
+    >
+      <div
+        style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 16,
+            padding: '8px 12px',
+            background: '#161616',
+            borderBottom: '1px solid #333',
+            fontFamily: 'monospace',
+            color: '#eee',
+          }}
+        >
+          <StoryControlGroup
+            label='previews'
+            control='preview-mode'
+            values={RUNNER_PREVIEW_MODES}
+            active={previewMode}
+            onSelect={setPreviewMode}
+          />
+          <StoryControlGroup
+            label='theme'
+            control='theme'
+            values={RUNNER_STORY_THEMES}
+            active={storyTheme}
+            onSelect={setStoryTheme}
+          />
+          <StoryControlGroup
+            label='frame'
+            control='frame'
+            values={RUNNER_STORY_FRAMES}
+            active={storyFrame}
+            onSelect={setStoryFrame}
+          />
+        </div>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <RunnerStoryView
+            key={`${previewMode}|${storyFrame}`}
+            {...modeProps}
+            frame={
+              storyFrame === 'narrow-390'
+                ? { width: 390, height: 760 }
+                : undefined
+            }
+          />
+        </div>
+      </div>
+    </GraphThemeProvider>
+  );
+}
+
+/**
+ * THE runner story: adder-loop editor + recording with a control panel for
+ * preview idiom, theme, and frame (see `WithRunnerStoryView`). Consolidates the
+ * former WithNodePreviews / NodePreviewsStepThrough / NodePreviewsErrorHandling /
+ * NodePreviewsWithoutRunner / NodePreviewsThemed / WithRunnerNarrow stories.
+ */
 export const WithRunner: StoryObj<typeof FullGraph> = {
   args: {},
-  render: () => <RunnerStoryView />,
+  render: () => <WithRunnerStoryView />,
 };
 
 /**
- * The runner panel inside a ~390px phone-width frame — the canonical proof of the
- * container-query responsive layout: RunControls + the timeline toolbar collapse
- * their secondary controls into ⋯ menus, and selecting a step opens the inspector
- * as a full-body slide-over instead of squeezing the timeline. Drag the Storybook
- * viewport / resize the frame to watch it reflow at the 832px breakpoint.
+ * A consumer-registered per-node-type PREVIEW component (`nodePreviews`) rendered
+ * inside each node's body. This generic demo renders the node's computed outputs
+ * (from the live / at-step `ExecutionStepRecord`) plus its runner status; the header
+ * eye toggles it. The adder-loop recording is pre-loaded as a controlled
+ * `executionRecord`, so previews populate on load — no Run click needed. Click a
+ * node's eye to collapse its preview (persisted, undoable).
  */
-export const WithRunnerNarrow: StoryObj<typeof FullGraph> = {
+function CircuitNodePreview({
+  nodeName,
+  customName,
+  visualState,
+  live,
+  atStep,
+}: NodePreviewProps) {
+  // Flagship "latest-value dashboard" idiom: show the scrubbed-to step when the
+  // timeline is parked on one, else the latest value (`atStep ?? live`). This
+  // populates with zero clicks; STORY `NodePreviewsStepThrough` shows the honest
+  // labeled at-step / live split for temporal precision.
+  const snapshot = atStep ?? live;
+  const outputs = snapshot ? Array.from(snapshot.outputValues.entries()) : [];
+  const iteration = snapshot?.loopIteration;
+  const dotColor =
+    visualState === 'errored'
+      ? '#ff6b6b'
+      : visualState === 'running'
+        ? '#feca57'
+        : visualState === 'completed'
+          ? '#4ade80'
+          : '#797979';
+  return (
+    <div
+      data-testid='circuit-preview'
+      style={{
+        padding: '10px 12px',
+        fontSize: 18,
+        lineHeight: 1.4,
+        fontFamily: 'monospace',
+        color: '#e6e6e6',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          marginBottom: 4,
+        }}
+      >
+        <span
+          style={{
+            width: 12,
+            height: 12,
+            flexShrink: 0,
+            borderRadius: '50%',
+            background: dotColor,
+          }}
+        />
+        <strong>{customName ? `${customName} : ${nodeName}` : nodeName}</strong>
+        {iteration !== undefined && (
+          <span
+            style={{
+              marginLeft: 'auto',
+              fontSize: 14,
+              opacity: 0.75,
+              background: '#2a2a2a',
+              borderRadius: 4,
+              padding: '1px 6px',
+            }}
+          >
+            it #{iteration}
+          </span>
+        )}
+      </div>
+      {outputs.length === 0 ? (
+        <div style={{ opacity: 0.5 }}>{visualState ?? 'waiting…'}</div>
+      ) : (
+        outputs.map(([handleName, out]) => (
+          <div key={handleName} data-testid='circuit-preview-output'>
+            {handleName} = <strong>{String(out.value)}</strong>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// Register the SAME preview for every NON-standard circuit node type, so each
+// compute node in the loaded adder-loop state shows one (structural loop/group
+// nodes are left out for a cleaner demo).
+const circuitNodePreviews = Object.fromEntries(
+  Object.keys(circuitExampleTypeOfNodes)
+    .filter((key) => !(key in standardNodeTypes))
+    .map((key) => [key, CircuitNodePreview]),
+) as NodePreviewRegistry<CircuitNodeTypeId>;
+
+// (The dashboard preview mode of `WithRunner` is the former WithNodePreviews
+// flagship: `circuitNodePreviews` + the Flagship rename + one collapsed panel.)
+
+/**
+ * Step-through preview that embodies the TWO axes and the live-vs-at-step split
+ * honestly. Reads the node's primary bit (first output, else first input) at both
+ * the latest step and the scrubbed-to step.
+ */
+function StepThroughPreview({
+  nodeName,
+  visualState,
+  live,
+  atStep,
+}: NodePreviewProps) {
+  const bitOf = (snap: ExecutionStepRecord | null) => {
+    if (!snap) return undefined;
+    const out = Array.from(snap.outputValues.values())[0]?.value;
+    if (out !== undefined) return out;
+    return Array.from(snap.inputValues.values())[0]?.connections[0]?.value;
+  };
+  const liveVal = bitOf(live);
+  const atStepVal = bitOf(atStep);
+  const dotColor =
+    visualState === 'errored'
+      ? '#ff6b6b'
+      : visualState === 'running'
+        ? '#feca57'
+        : visualState === 'completed'
+          ? '#4ade80'
+          : '#797979';
+  const statusBadge = atStep?.status ?? live?.status;
+  return (
+    <div
+      data-testid='stepthrough-preview'
+      style={{
+        padding: '10px 12px',
+        fontSize: 18,
+        fontFamily: 'monospace',
+        color: '#e6e6e6',
+        lineHeight: 1.4,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          marginBottom: 4,
+        }}
+      >
+        {/* dot = LIVE visualState axis */}
+        <span
+          title={`visualState: ${visualState ?? 'none'}`}
+          style={{
+            width: 12,
+            height: 12,
+            flexShrink: 0,
+            borderRadius: '50%',
+            background: dotColor,
+          }}
+        />
+        <strong>{nodeName}</strong>
+        {/* badge = RECORDED step.status axis */}
+        {statusBadge && (
+          <span
+            style={{
+              marginLeft: 'auto',
+              fontSize: 13,
+              opacity: 0.7,
+              background: '#2a2a2a',
+              borderRadius: 4,
+              padding: '1px 6px',
+            }}
+          >
+            {statusBadge}
+          </span>
+        )}
+      </div>
+      <div data-testid='stepthrough-live' style={{ opacity: 0.55 }}>
+        live: {liveVal === undefined ? '—' : String(liveVal)}
+      </div>
+      <div data-testid='stepthrough-atstep' style={{ opacity: 0.9 }}>
+        at step: {atStep === null ? 'not reached' : String(atStepVal)}
+      </div>
+    </div>
+  );
+}
+
+const stepThroughPreviews = Object.fromEntries(
+  Object.keys(circuitExampleTypeOfNodes)
+    .filter((key) => !(key in standardNodeTypes))
+    .map((key) => [key, StepThroughPreview]),
+) as NodePreviewRegistry<CircuitNodeTypeId>;
+
+// (`stepThroughPreviews` is the WithRunner `step-through` preview mode — the
+// honest dual live/at-step display with "not reached".)
+
+/**
+ * A preview that intentionally THROWS on render, to exercise the panel's nested
+ * ErrorBoundary (containment + Retry + auto-recovery when new values arrive).
+ */
+function TrapPreview({ live, atStep }: NodePreviewProps) {
+  const snapshot = atStep ?? live;
+  if (snapshot) {
+    throw new Error('Trap preview: simulated render failure');
+  }
+  return (
+    <div style={{ padding: 10, fontSize: 18, opacity: 0.5 }}>waiting…</div>
+  );
+}
+
+/** Reads a recorded step error via `formatGraphError`, else shows the value. */
+function ErrorAwarePreview({ nodeName, live, atStep }: NodePreviewProps) {
+  const snapshot = atStep ?? live;
+  const errored = snapshot?.status === 'errored';
+  const out = snapshot
+    ? Array.from(snapshot.outputValues.values())[0]?.value
+    : undefined;
+  return (
+    <div
+      data-testid='error-aware-preview'
+      style={{
+        padding: '10px 12px',
+        fontSize: 18,
+        fontFamily: 'monospace',
+        color: '#e6e6e6',
+      }}
+    >
+      <strong>{nodeName}</strong>
+      {errored && snapshot?.error ? (
+        <div style={{ color: '#ff6b6b' }}>
+          err: {formatGraphError(snapshot.error)}
+        </div>
+      ) : (
+        <div style={{ opacity: 0.7 }}>
+          {snapshot ? String(out) : 'waiting…'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const errorHandlingPreviews = Object.fromEntries(
+  Object.keys(circuitExampleTypeOfNodes)
+    .filter((key) => !(key in standardNodeTypes))
+    .map((key) => [key, key === 'notGate' ? TrapPreview : ErrorAwarePreview]),
+) as NodePreviewRegistry<CircuitNodeTypeId>;
+
+/**
+ * ERROR HANDLING preview mode (WithRunner panel): two failure surfaces. The
+ * `notGate` node uses a `TrapPreview` that THROWS on render — contained to the
+ * panel by its own nested ErrorBoundary (the fallback card + Retry appear; since
+ * this trap throws on EVERY render with values, it deliberately STAYS on the
+ * fallback — a transient thrower would auto-recover when its input changes), so
+ * the rest of the graph is unaffected.
+ * Every other node uses an `ErrorAwarePreview` that reads a recorded step error
+ * via `formatGraphError` when a step errored, else shows the value.
+ */
+// (`errorHandlingPreviews` is the WithRunner `error-handling` preview mode.)
+
+/** Tier-2 preview: no runner, so `live`/`atStep` are null — show an empty state. */
+function NoRunnerPreview({ nodeName, live, atStep }: NodePreviewProps) {
+  const snapshot = atStep ?? live;
+  return (
+    <div
+      data-testid='no-runner-preview'
+      style={{
+        padding: '10px 12px',
+        fontSize: 18,
+        fontFamily: 'monospace',
+        color: '#e6e6e6',
+      }}
+    >
+      <strong>{nodeName}</strong>
+      <div style={{ opacity: 0.6 }}>
+        {snapshot ? 'has values' : 'no runner — waiting for values'}
+      </div>
+    </div>
+  );
+}
+
+const noRunnerPreviews = Object.fromEntries(
+  Object.keys(circuitExampleTypeOfNodes)
+    .filter((key) => !(key in standardNodeTypes))
+    .map((key) => [key, NoRunnerPreview]),
+) as NodePreviewRegistry<CircuitNodeTypeId>;
+
+// (`noRunnerPreviews` is the WithRunner `no-runner` preview mode — tier-2:
+// registry without a runner, null-safe empty states. Theming is the panel's
+// orthogonal `theme` control: any preview mode × the light preset pins A-1.)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Real-graph preview demo — the graph + recording were built through the REAL
+// editor UI (context-menu adds, mouse-drag connections, checkbox values, Run),
+// exported via the Import/Export menu, and committed as fixtures. Demonstrates
+// the ON-TOP preview placement: the panel sits ABOVE the node at the node's
+// width, and the runner status border wraps ONLY the node proper.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const previewDemoRecordingResult = importExecutionRecord(
+  JSON.stringify(previewDemoRecordingJson),
+  { repair: { sanitizeNonSerializableValues: true, removeOrphanSteps: true } },
+);
+const previewDemoRecording: ExecutionRecord | undefined =
+  previewDemoRecordingResult.success
+    ? previewDemoRecordingResult.data
+    : undefined;
+
+/** Reads the node's primary bit from a step snapshot (first output, else input). */
+function readPrimaryBit(
+  snapshot: ExecutionStepRecord | null,
+): boolean | undefined {
+  if (!snapshot) return undefined;
+  const firstOutput = Array.from(snapshot.outputValues.values())[0]?.value;
+  if (firstOutput !== undefined) return firstOutput as boolean;
+  return Array.from(snapshot.inputValues.values())[0]?.connections[0]?.value as
+    | boolean
+    | undefined;
+}
+
+/**
+ * Node-scale bit lamp for the real-graph demo. The lamp follows the
+ * SCRUBBED-TO step (`atStep`), so dragging the timeline visibly re-lights it —
+ * and when the scrub head is BEFORE this node has run, `atStep` is null and the
+ * preview honestly reads "not reached yet" (it does NOT silently fall back to
+ * the final value). The labeled `at step` / `live` lines make the distinction
+ * legible: `at step` = value at the current scrub head; `live` = latest/final.
+ */
+function RealGraphBitLampPreview({ nodeName, atStep, live }: NodePreviewProps) {
+  const atStepBit = readPrimaryBit(atStep);
+  const liveBit = readPrimaryBit(live);
+  const reached = atStep !== null;
+  const isLit = atStepBit === true;
+  const label = (bit: boolean | undefined) =>
+    bit === undefined ? '—' : String(bit);
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        padding: '12px 16px',
+        fontFamily: 'monospace',
+        fontSize: 27,
+        lineHeight: 1.2,
+      }}
+    >
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: '50%',
+          flexShrink: 0,
+          background: !reached ? '#2a2a2a' : isLit ? '#4ade80' : '#3a3a3a',
+          boxShadow: isLit
+            ? '0 0 20px 5px rgba(74, 222, 128, 0.5)'
+            : 'inset 0 0 8px rgba(0,0,0,0.6)',
+          border: '3px solid #1d1d1d',
+          transition: 'all 300ms',
+        }}
+      />
+      <div>
+        <div style={{ fontWeight: 700 }}>{nodeName}</div>
+        <div style={{ fontSize: 20, opacity: 0.85 }}>
+          at step: {reached ? label(atStepBit) : 'not reached yet'}
+        </div>
+        <div style={{ fontSize: 20, opacity: 0.55 }}>
+          live: {label(liveBit)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const realGraphPreviews: NodePreviewRegistry<CircuitNodeTypeId> = {
+  bitConstant: RealGraphBitLampPreview,
+  bitDisplay: RealGraphBitLampPreview,
+  andGate: RealGraphBitLampPreview,
+};
+
+// Registry for the group fixture — includes `notGate` (the group SUBTREE node),
+// so opening a group instance shows a preview INSIDE it. Two instances of the
+// same group type demonstrate INSTANCE-AWARE previews: each instance shows its
+// OWN values on the shared template node (instancePath filtering).
+const groupFixturePreviews: NodePreviewRegistry<CircuitNodeTypeId> = {
+  bitConstant: RealGraphBitLampPreview,
+  bitDisplay: RealGraphBitLampPreview,
+  notGate: RealGraphBitLampPreview,
+};
+
+const groupTwoInstancesRecordingResult = importExecutionRecord(
+  JSON.stringify(groupTwoInstancesRecordingJson),
+  { repair: { sanitizeNonSerializableValues: true, removeOrphanSteps: true } },
+);
+const groupTwoInstancesRecording: ExecutionRecord | undefined =
+  groupTwoInstancesRecordingResult.success
+    ? groupTwoInstancesRecordingResult.data
+    : undefined;
+
+type RunnerFixtureId = 'and-gate-real-graph' | 'group-two-instances';
+
+/** UI-built + UI-exported fixture bundles (see .storybook/static/graphStates/README.md). */
+const RUNNER_FIXTURE_DEMOS: Record<
+  RunnerFixtureId,
+  {
+    state: {
+      state: {
+        dataTypes: unknown;
+        typeOfNodes: unknown;
+        nodes: unknown[];
+        edges: unknown[];
+      };
+    };
+    recording: ExecutionRecord | undefined;
+    registry: NodePreviewRegistry<CircuitNodeTypeId>;
+  }
+> = {
+  'and-gate-real-graph': {
+    state: previewDemoState,
+    recording: previewDemoRecording,
+    registry: realGraphPreviews,
+  },
+  'group-two-instances': {
+    state: groupTwoInstancesState,
+    recording: groupTwoInstancesRecording,
+    registry: groupFixturePreviews,
+  },
+};
+
+function FixtureDemoStoryView({ fixtureId }: { fixtureId: RunnerFixtureId }) {
+  const fixture = RUNNER_FIXTURE_DEMOS[fixtureId];
+  const { state, dispatch } = useFullGraph<
+    CircuitDataTypeId,
+    CircuitNodeTypeId
+  >({
+    dataTypes: circuitExampleDataTypes,
+    typeOfNodes: circuitExampleTypeOfNodes,
+    nodes: [],
+    edges: [],
+    allowedConversionsBetweenDataTypes: {
+      bit: { condition: true },
+      condition: { bit: true },
+    },
+    allowConversionBetweenComplexTypesUnlessDisallowedByComplexTypeChecking: true,
+    enableComplexTypeChecking: true,
+    enableTypeInference: true,
+    enableCycleChecking: true,
+    enableRecursionChecking: true,
+    nodeCountConstraints: standardNodeCountConstraints,
+  });
+
+  const hasLoaded = useRef(false);
+  useEffect(() => {
+    if (hasLoaded.current) return;
+    hasLoaded.current = true;
+    // FULL-STATE load: the fixture's dataTypes/typeOfNodes must come along —
+    // the group fixture defines its own group type (with a subtree) that does
+    // NOT exist in circuitExampleTypeOfNodes. Spread `...state` first so the
+    // hook's config flags (inference/conversions/constraints) survive.
+    dispatch({
+      type: 'REPLACE_STATE',
+      payload: {
+        state: {
+          ...state,
+          dataTypes: fixture.state.state
+            .dataTypes as unknown as typeof state.dataTypes,
+          typeOfNodes: fixture.state.state
+            .typeOfNodes as unknown as typeof state.typeOfNodes,
+          nodes: fixture.state.state.nodes as unknown as typeof state.nodes,
+          edges: fixture.state.state.edges as unknown as typeof state.edges,
+        },
+      },
+    });
+    // Ref-guarded one-shot load (early-returns on re-run).
+  }, [dispatch, state, fixture]);
+
+  const [record, setRecord] = useState(fixture.recording ?? null);
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <FullGraph<CircuitDataTypeId, CircuitNodeTypeId>
+          state={state}
+          dispatch={dispatch}
+          functionImplementations={circuitImplementations}
+          executionRecord={record}
+          onExecutionRecordChange={setRecord}
+          nodePreviews={fixture.registry}
+        />
+      </div>
+    </div>
+  );
+}
+
+function RunnerFixtureDemosStoryView() {
+  const [fixtureId, setFixtureId] = useState<RunnerFixtureId>(
+    'and-gate-real-graph',
+  );
+  return (
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 16,
+          padding: '8px 12px',
+          background: '#161616',
+          borderBottom: '1px solid #333',
+          fontFamily: 'monospace',
+          color: '#eee',
+        }}
+      >
+        <StoryControlGroup
+          label='fixture'
+          control='fixture'
+          values={Object.keys(RUNNER_FIXTURE_DEMOS) as RunnerFixtureId[]}
+          active={fixtureId}
+          onSelect={setFixtureId}
+        />
+      </div>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <FixtureDemoStoryView key={fixtureId} fixtureId={fixtureId} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * REAL exported-fixture demos with a fixture selector. Every graph + recording
+ * here was built through the actual editor UI and exported via the
+ * Import/Export menu (see `.storybook/static/graphStates/README.md`):
+ * - `and-gate-real-graph` — AND(true,true) with on-top previews (placement demo).
+ * - `group-two-instances` — TWO instances of one group type (subtree = NOT gate)
+ *   chained; previews are registered for the SUBTREE node, so opening either
+ *   instance shows ITS OWN values on the shared template node (instance-path
+ *   filtering), scrubbing follows into the executing instance, and the
+ *   step-over/out buttons jump over/out of group interiors.
+ * (The narrow-frame responsive demo lives in `WithRunner` → frame=narrow-390.)
+ */
+export const RunnerFixtureDemos: StoryObj<typeof FullGraph> = {
   args: {},
-  render: () => <RunnerStoryView frame={{ width: 390, height: 760 }} />,
+  render: () => <RunnerFixtureDemosStoryView />,
 };
 
 export const EmptyRunnerPlayground: StoryObj<typeof FullGraph> = {

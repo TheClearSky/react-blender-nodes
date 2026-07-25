@@ -423,6 +423,26 @@ function planToDetail<NodeTypeUniqueId extends string = string>(
       // applied + undoable); add an ActionDetail member here if the event stream
       // should later report renames specifically.
       return undefined;
+    case 'UPDATE_NODE_PREVIEW_COLLAPSED':
+      // Canvas-only visibility toggle (persisted on node.data, undoable); no rich
+      // applied-event detail. Explicit case (not folded into `default`) so the
+      // `never`-guard stays meaningful for the next action.
+      return undefined;
+    case 'ADD_USER_ZONE':
+    case 'UPDATE_USER_ZONE':
+    case 'UPDATE_USER_ZONE_MEMBERS':
+    case 'DELETE_USER_ZONE':
+      // User zones are a canvas-only visual concern. ADD_USER_ZONE does mint a zone
+      // id, but (like UPDATE_NODE_CUSTOM_NAME) it is intentionally NOT surfaced on
+      // the applied-event stream — add an ActionDetail member here if consumers
+      // should track zone lifecycle. Explicit cases (not folded into `default`)
+      // keep the `never`-guard meaningful for the next action.
+      return undefined;
+    case 'UPDATE_RUNNER_VIEW_PREFERENCE':
+      // Document-level runner view-pref toggle (auto-scroll / follow-groups); no
+      // rich applied-event detail. Explicit case (not folded into `default`) keeps
+      // the `never`-guard meaningful for the next action.
+      return undefined;
     default: {
       const _exhaustive: never = plan;
       void _exhaustive;

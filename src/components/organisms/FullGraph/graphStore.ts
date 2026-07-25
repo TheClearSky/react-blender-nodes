@@ -147,7 +147,29 @@ function createGraphStore<
       // Apply the plan with automatic history management.
       // `applyValidatedAction` handles the 3-path routing (undoable
       // with patch capture, non-undoable, UNDO/REDO) internally.
-      const next = applyValidatedAction(prev, action, plan);
+      //
+      // An apply-time THROW (a validator bug, a frozen-graft crash, an
+      // unexpected plan kind) would otherwise unwind through `produce` and
+      // this dispatch with NO event and NO toast — the exact silent-failure
+      // class the clone fix eliminated for one known thrower. Catch it, keep
+      // state at `prev` (no partial apply), and surface a structured
+      // `action:rejected` so the outcome is observable.
+      let next: typeof prev;
+      try {
+        next = applyValidatedAction(prev, action, plan);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        if (process.env.NODE_ENV !== 'production') {
+          console.error(
+            `react-blender-nodes: applyPlan threw for "${action.type}"`,
+            error,
+          );
+        }
+        getOnGraphEvent()?.(
+          deriveRejectedEvent(action, { code: 'APPLY_EXCEPTION', reason }),
+        );
+        return;
+      }
 
       // Identity-preserving short-circuit: if nothing changed, don't
       // notify or emit (keeps unnecessary re-renders + event noise out).

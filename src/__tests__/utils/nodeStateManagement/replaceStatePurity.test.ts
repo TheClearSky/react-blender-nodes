@@ -31,4 +31,31 @@ describe('REPLACE_STATE — reducer purity (S1)', () => {
     expect(next.history).toBeUndefined();
     expect('zones' in next).toBe(true);
   });
+
+  it('forwards authored userZones from the payload unchanged (never rehydrated)', () => {
+    const current = createStandardState();
+    const payloadState: StdState = {
+      ...createStandardState(),
+      userZones: {
+        uz1: {
+          id: 'uz1',
+          name: 'My Zone',
+          color: '#60a5fa',
+          nodeIds: ['n1', 'n2'],
+          enforced: false,
+        },
+      },
+    };
+
+    const next = mainReducer(current, {
+      type: actionTypesMap.REPLACE_STATE,
+      payload: { state: payloadState },
+    });
+
+    // userZones ride `...rest` verbatim — authored, never stripped or rehydrated
+    // (only the derived `zones`/`zoneIndex` are rebuilt).
+    expect(next.userZones).toEqual(payloadState.userZones);
+    // The dispatched payload object is untouched (purity).
+    expect(payloadState.userZones?.uz1.nodeIds).toEqual(['n1', 'n2']);
+  });
 });

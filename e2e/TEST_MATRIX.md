@@ -4,6 +4,12 @@ Authoritative list of loop behaviors this suite verifies. Before adding tests
 read **Mental Model**; each rule here traces to a function under
 `src/utils/nodeStateManagement/nodes/loops/`.
 
+## Other Playwright projects (non-loop)
+
+| Project                 | Tests | Pins                                                                                                                                                                                                                                                                       |
+| ----------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `advancedGraphExamples` | 4     | SDF Shape Studio: param-default seeding + `SliderNumberInput` external-sync + no-auto-run (Playground); render-on-Run; strict binary mask + analytic measure-ratio window; Showcase fixture preload through the real import pipeline + one-shot auto-run + Reset→Run cycle |
+
 ## Mental Model
 
 ### Triplet handle indices (DOM row order)

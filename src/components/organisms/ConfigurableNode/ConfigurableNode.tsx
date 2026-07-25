@@ -24,14 +24,16 @@ import {
   ContextAwareNodeHeaderActions,
   type NodeHeaderActionDefinition,
 } from './SupportingSubcomponents/ContextAwareNodeHeaderActions';
+import { NodePreviewPanel } from './SupportingSubcomponents/NodePreviewPanel';
 import { isLoopNode } from '@/utils/nodeStateManagement/nodes/loops/loopIdentification';
 import { isSwitchNode } from '@/utils/nodeStateManagement/nodes/switches/switchIdentification';
 import { isGroupInputOrOutputNode } from '@/utils/nodeStateManagement/nodes/nodeGroups';
 import { standardNodeTypeNamesMap } from '@/utils/nodeStateManagement/standardNodes';
 import { actionTypesMap } from '@/utils/nodeStateManagement/mainReducer';
-import { Pencil, SquareMousePointerIcon } from 'lucide-react';
+import { Pencil, SquareMousePointerIcon, Eye, EyeOff } from 'lucide-react';
 import { z } from 'zod';
 import { FullGraphContext } from '../FullGraph/FullGraphState';
+import { useNodePreviewRegistry } from '../FullGraph/NodePreviewRegistryContext';
 import type { NodeVisualState, GraphError } from '@/utils/nodeRunner/types';
 import { NodeStatusIndicator } from '@/components/atoms/NodeStatusIndicator/NodeStatusIndicator';
 import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
@@ -206,6 +208,10 @@ type ConfigurableNodeProps<
   /** Optional user-chosen instance name shown over the type name (standard nodes
    *  only; absent = show the type name). */
   customName?: string;
+  /** Whether this node instance's preview panel is collapsed (persisted on
+   *  `node.data`; absent = expanded). Only rendered when a `nodePreviews`
+   *  component is registered for this node type. */
+  previewCollapsed?: boolean;
   /** Background color of the node header */
   headerColor?: string;
   /** Array of inputs and input panels */
@@ -523,6 +529,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       id,
       name = 'Node',
       customName,
+      previewCollapsed,
       headerColor = '#79461D',
       inputs = [],
       outputs = [],
@@ -542,6 +549,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
 
     const fullGraphContext = useContext(FullGraphContext);
     const theme = useGraphTheme();
+    const nodePreviewRegistry = useNodePreviewRegistry();
 
     const hasSubtree =
       !!nodeTypeUniqueId &&
@@ -586,6 +594,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
         nodeTypeUniqueId === standardNodeTypeNamesMap.groupInput;
       headerActions.push({
         id: 'edit-graph-io',
+        label: 'Edit graph I/O',
         icon: Pencil,
         action: {
           type: actionTypesMap.OPEN_DRAWER,
@@ -613,6 +622,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
     if (nodeTypeUniqueId && isLoopNode(nodeTypeUniqueId)) {
       headerActions.push({
         id: 'edit-loop',
+        label: 'Edit loop',
         icon: Pencil,
         action: {
           type: actionTypesMap.OPEN_DRAWER,
@@ -624,6 +634,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
     if (nodeTypeUniqueId && isSwitchNode(nodeTypeUniqueId)) {
       headerActions.push({
         id: 'edit-switch',
+        label: 'Edit switch',
         icon: Pencil,
         action: {
           type: actionTypesMap.OPEN_DRAWER,
@@ -635,6 +646,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
     if (hasSubtree) {
       headerActions.push({
         id: 'edit-node-type',
+        label: 'Edit node type',
         icon: Pencil,
         action: {
           type: actionTypesMap.OPEN_DRAWER,
@@ -648,12 +660,31 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       });
       headerActions.push({
         id: 'open-node-group',
+        label: 'Open node group',
         icon: SquareMousePointerIcon,
         iconClassName:
           'shrink-0 w-7 h-7 aspect-square cursor-pointer hover:opacity-80',
         action: {
           type: actionTypesMap.OPEN_NODE_GROUP,
           payload: { nodeId: id ?? '' },
+        },
+      });
+    }
+
+    // A preview registered for this node type gets a persisted eye toggle to
+    // collapse/expand its preview panel. The eye is a GRAPH action (needs
+    // dispatch), so it is shown only IN-GRAPH — standalone the preview still
+    // renders (via the `visualState` prop) but has no toggle control (D-9).
+    const hasPreview =
+      !!nodeTypeUniqueId && !!nodePreviewRegistry?.[nodeTypeUniqueId];
+    if (hasPreview && isCurrentlyInsideReactFlow) {
+      headerActions.push({
+        id: 'toggle-preview',
+        label: 'Toggle preview',
+        icon: previewCollapsed ? EyeOff : Eye,
+        action: {
+          type: actionTypesMap.UPDATE_NODE_PREVIEW_COLLAPSED,
+          payload: { nodeId: id ?? '', previewCollapsed: !previewCollapsed },
         },
       });
     }
@@ -699,7 +730,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
             className={cn('min-w-0', theme?.node?.headerTitle)}
           />
           {fullGraphContext?.allProps?.state?.enableDebugMode && (
-            <p className='shrink-0 py-2'>{id}</p>
+            <p className='ml-3 shrink-0 py-2'>{id}</p>
           )}
           <div className='ml-auto flex items-center gap-3'>
             <ContextAwareNodeHeaderActions
@@ -759,9 +790,12 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       </div>
     );
 
-    // Wrap with status indicator when runner state is present
-    if (runnerVisualState !== undefined) {
-      return (
+    // Wrap ONLY the node proper with the status indicator; the preview panel
+    // sits ON TOP of the node (outside the status border), width-matched to the
+    // node. Placement is fixed to 'top' today (bottom/left/right are future
+    // options).
+    const wrappedNodeContent =
+      runnerVisualState !== undefined ? (
         <NodeStatusIndicator
           visualState={runnerVisualState}
           errors={runnerErrors}
@@ -769,10 +803,30 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
         >
           {nodeContent}
         </NodeStatusIndicator>
+      ) : (
+        nodeContent
       );
-    }
 
-    return nodeContent;
+    return (
+      <div
+        className={cn(
+          'flex flex-col',
+          // Inside ReactFlow the RF node div owns the width; standalone the node
+          // content does. Either way the panel matches the node's width below.
+          isCurrentlyInsideReactFlow ? 'w-full' : 'w-max',
+        )}
+      >
+        <NodePreviewPanel
+          nodeId={id}
+          nodeTypeUniqueId={nodeTypeUniqueId}
+          nodeName={displayName}
+          customName={supportsCustomName ? customName : undefined}
+          visualState={runnerVisualState}
+          collapsed={!!previewCollapsed}
+        />
+        {wrappedNodeContent}
+      </div>
+    );
   },
 );
 

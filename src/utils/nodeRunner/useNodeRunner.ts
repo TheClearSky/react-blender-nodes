@@ -22,6 +22,7 @@ import type {
   RunTarget,
 } from './runTargets/types';
 import { isStandardNodeType, hasKey } from './groupCompiler';
+import { instancePathEquals } from './computeNodePreviewValues';
 import { isLoopNode } from '../nodeStateManagement/nodes/loops';
 import { isSwitchNode } from '../nodeStateManagement/nodes/switches';
 
@@ -100,6 +101,9 @@ type UseNodeRunnerReturn = {
   pause: () => void;
   resume: () => void;
   step: () => void;
+  /** Live step-OVER: drains steps until execution returns to the depth the
+   *  head was at (skips through a group's interior); honors pause()/stop(). */
+  stepOver: () => void;
   stop: () => void;
   reset: () => void;
   replayTo: (stepIndex: number) => void;
@@ -128,11 +132,24 @@ const EMPTY_ERRORS: ReadonlyMap<string, ReadonlyArray<GraphError>> = new Map();
 function computeVisualStatesAtStep(
   record: ExecutionRecord,
   stepIndex: number,
+  openInstancePath?: readonly string[],
 ): ReadonlyMap<string, NodeVisualState> {
   const states = new Map<string, NodeVisualState>();
 
-  // Phase 1: Process regular step records
+  // Phase 1: Process regular step records. When an `openInstancePath` is given
+  // (the viewport is standing INSIDE a specific group instance), only steps of
+  // THAT instance drive real states — another instance's execution of the same
+  // shared template node reads as 'idle' here, not 'running'/'completed'.
   for (const step of record.steps) {
+    if (
+      openInstancePath !== undefined &&
+      !instancePathEquals(step.instancePath, openInstancePath)
+    ) {
+      if (!states.has(step.nodeId)) {
+        states.set(step.nodeId, 'idle');
+      }
+      continue;
+    }
     if (step.stepIndex < stepIndex) {
       states.set(
         step.nodeId,
@@ -156,19 +173,28 @@ function computeVisualStatesAtStep(
   // Phase 2: Override for loop structural nodes during body execution.
   // Loop triplet step records are appended AFTER body steps (high stepIndex),
   // so without this override they'd show as "idle" while the body replays.
+  // Instance-filtered like Phase 1: a loop living in another instance of the
+  // open scope must not light this scope's loop template nodes.
   for (const [, loopRec] of record.loopRecords) {
     let minBody = Infinity;
     let maxBody = -Infinity;
     let bodyCount = 0;
+    let bodyMatchesOpenPath = openInstancePath === undefined;
     for (const iter of loopRec.iterations) {
       for (const stepRec of iter.stepRecords) {
         const idx = stepRec.stepIndex;
         if (idx < minBody) minBody = idx;
         if (idx > maxBody) maxBody = idx;
         bodyCount++;
+        if (
+          openInstancePath !== undefined &&
+          instancePathEquals(stepRec.instancePath, openInstancePath)
+        ) {
+          bodyMatchesOpenPath = true;
+        }
       }
     }
-    if (bodyCount === 0) continue;
+    if (bodyCount === 0 || !bodyMatchesOpenPath) continue;
 
     // If replaying within the body range, loop nodes should show as "running"
     if (stepIndex >= minBody && stepIndex <= maxBody) {
@@ -180,20 +206,52 @@ function computeVisualStatesAtStep(
 
   // Phase 3: Override for group nodes during inner execution.
   // Group structural step records are appended AFTER inner steps.
-  for (const [groupNodeId, groupRec] of record.groupRecords) {
-    const innerSteps = groupRec.innerRecord.steps;
-    if (innerSteps.length === 0) continue;
+  if (openInstancePath === undefined) {
+    // Root / template view: the top-level groupRecords are keyed by REAL
+    // instance ids, so this is instance-correct as-is.
+    for (const [groupNodeId, groupRec] of record.groupRecords) {
+      const innerSteps = groupRec.innerRecord.steps;
+      if (innerSteps.length === 0) continue;
 
-    let minInner = Infinity;
-    let maxInner = -Infinity;
-    for (const s of innerSteps) {
-      const idx = s.stepIndex;
-      if (idx < minInner) minInner = idx;
-      if (idx > maxInner) maxInner = idx;
+      let minInner = Infinity;
+      let maxInner = -Infinity;
+      for (const s of innerSteps) {
+        const idx = s.stepIndex;
+        if (idx < minInner) minInner = idx;
+        if (idx > maxInner) maxInner = idx;
+      }
+
+      if (stepIndex >= minInner && stepIndex <= maxInner) {
+        states.set(groupNodeId, 'running');
+      }
     }
+  } else {
+    // Standing inside an instance: walk the GroupRecord tree ALONG the open
+    // path (nested groupRecords are keyed by shared TEMPLATE ids — a flat
+    // recursive walk would light the wrong instance), then apply the range
+    // override to the nested group template nodes visible at this level.
+    let scopeRecord: ExecutionRecord | undefined = record;
+    for (const pathSegment of openInstancePath) {
+      scopeRecord = scopeRecord?.groupRecords.get(pathSegment)?.innerRecord;
+      if (!scopeRecord) break;
+    }
+    if (scopeRecord) {
+      for (const [groupNodeId, groupRec] of scopeRecord.groupRecords) {
+        const innerSteps = groupRec.innerRecord.steps;
+        if (innerSteps.length === 0) continue;
 
-    if (stepIndex >= minInner && stepIndex <= maxInner) {
-      states.set(groupNodeId, 'running');
+        let minInner = Infinity;
+        let maxInner = -Infinity;
+        for (const s of innerSteps) {
+          const idx = s.stepIndex;
+          if (idx < minInner) minInner = idx;
+          if (idx > maxInner) maxInner = idx;
+        }
+
+        if (stepIndex >= minInner && stepIndex <= maxInner) {
+          states.set(groupNodeId, 'running');
+        }
+      }
     }
   }
 
@@ -391,6 +449,14 @@ function useNodeRunner<
 >): UseNodeRunnerReturn {
   // ── Controlled / uncontrolled record ─────────────────
   const isControlled = controlledRecord !== undefined;
+  // Latch the mode chosen at mount. Switching controlled↔uncontrolled at
+  // runtime (e.g. a parent passing `executionRecord={record ?? undefined}`, or
+  // toggling the prop's presence) is UNSUPPORTED: the derived stores
+  // (runnerState, visual states, errors, step index) reconcile only on the
+  // controlled sync path, so any flip across that boundary leaves them stale
+  // and orphans `internalRecord`. React warns for the analogous controlled
+  // `<input>` flip; we do the same in dev.
+  const initialIsControlledRef = useRef(isControlled);
   const [internalRecord, setInternalRecord] = useState<ExecutionRecord | null>(
     null,
   );
@@ -499,6 +565,17 @@ function useNodeRunner<
     // If this is a record we set ourselves, just track it — no state sync needed.
     if (executionRecord === lastSetRecordRef.current) return;
 
+    // Truly-external record change: STOP any in-flight execution before
+    // adopting it (mirrors loadRecord's preamble). Without this, the sync
+    // below flips runnerState to 'completed'/'idle' while the background
+    // execute()/generator keeps running and later SILENTLY OVERWRITES the
+    // externally-loaded record — the UI asserts 'completed' mid-run. The
+    // preamble is safe when nothing is in flight (abort on a settled
+    // controller is a no-op; the next run resets shouldContinueRef).
+    shouldContinueRef.current = false;
+    abortControllerRef.current?.abort();
+    terminateGenerator();
+
     if (executionRecord) {
       const lastIdx = Math.max(0, executionRecord.steps.length - 1);
       setCurrentStepIndex(lastIdx);
@@ -520,7 +597,27 @@ function useNodeRunner<
       setNodeVisualStates(EMPTY_VISUAL_STATES);
       setRunnerState('idle');
     }
-  }, [executionRecord, isControlled]);
+  }, [executionRecord, isControlled, terminateGenerator]);
+
+  // ── Dev diagnostic: controlled↔uncontrolled mode flip (unsupported) ──
+  useEffect(() => {
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      isControlled !== initialIsControlledRef.current
+    ) {
+      console.error(
+        'react-blender-nodes: the runner switched between controlled and ' +
+          'uncontrolled mode at runtime (the `executionRecord` prop went ' +
+          (initialIsControlledRef.current
+            ? 'from provided to undefined'
+            : 'from undefined to provided') +
+          '). This is not supported — choose one mode per mount. The derived ' +
+          'runner state (timeline, previews, step index) may be incoherent. ' +
+          'For uncontrolled use, omit `executionRecord` entirely; do not pass ' +
+          '`record ?? undefined`.',
+      );
+    }
+  }, [isControlled]);
 
   // ── Warning detection on state/implementation change ──
   useEffect(() => {
@@ -856,6 +953,73 @@ function useNodeRunner<
     })();
   }, [runStepByStep, flushVisualStates, finalizeRun]);
 
+  // ── Public: stepOver() — live drain until execution returns to the depth
+  // the head was at (skips THROUGH a group/structure the next step descends
+  // into, pausing on the first step back at/above the starting depth). Mirrors
+  // resume()'s guards: shouldContinueRef honors pause(), isMountedRef guards
+  // unmount, errors terminate the generator (F5).
+  const stepOver = useCallback(() => {
+    const gen = generatorRef.current;
+    if (!gen) return;
+    // Base depth = the generator's TRUE head (the last recorded step), NOT
+    // `currentStepIndex` — scrubbing moves the latter freely while paused, and
+    // a scrubbed-to-root index would make the drain run through everything
+    // (review M2). `steps` is append-ordered, so last entry = max stepIndex.
+    const lastRecordedStep =
+      executionRecord?.steps[executionRecord.steps.length - 1];
+    const baseDepth = lastRecordedStep?.instancePath?.length ?? 0;
+
+    shouldContinueRef.current = true;
+    setRunnerState('running');
+
+    void (async () => {
+      while (shouldContinueRef.current) {
+        try {
+          const result = await gen.next();
+          if (!isMountedRef.current) return;
+
+          if (result.done) {
+            shouldContinueRef.current = false;
+            finalizeRun(result.value);
+            return;
+          }
+
+          const { stepRecord, partialRecord } = result.value;
+          setExecutionRecord(partialRecord);
+          setCurrentStepIndex(stepRecord.stepIndex);
+          setNodeVisualStates(
+            computeVisualStatesAtStep(partialRecord, stepRecord.stepIndex),
+          );
+          if ((stepRecord.instancePath?.length ?? 0) <= baseDepth) {
+            // Back at/above the starting depth — the "over" is complete.
+            shouldContinueRef.current = false;
+          }
+        } catch (e) {
+          lastErrorRef.current = e;
+          if (process.env.NODE_ENV !== 'production')
+            console.error('react-blender-nodes runner error:', e);
+          shouldContinueRef.current = false;
+          if (isMountedRef.current) {
+            flushVisualStates();
+            setRunnerState('errored');
+            terminateGenerator();
+          }
+          return;
+        }
+      }
+
+      if (isMountedRef.current) {
+        setRunnerState('paused');
+      }
+    })();
+  }, [
+    executionRecord,
+    flushVisualStates,
+    finalizeRun,
+    setExecutionRecord,
+    terminateGenerator,
+  ]);
+
   // ── Public: pause() ───────────────────────────────────
   const pause = useCallback(() => {
     // Only meaningful when auto-draining in resume()
@@ -992,6 +1156,7 @@ function useNodeRunner<
     pause,
     resume,
     step,
+    stepOver,
     stop,
     reset,
     replayTo,

@@ -156,6 +156,7 @@ function useGraphImportExport<
           fillMissingDefaults: true,
           rehydrateDataTypeObjects: true,
           normalizeConnectionOrder: true,
+          normalizeUserZones: true,
         },
       });
       if (result.success) {

@@ -333,18 +333,20 @@ Swatches).
 
 ### Props (`PopoverColorPickerProps`)
 
-| Prop            | Type                    | Default          | Description                                                                                               |
-| --------------- | ----------------------- | ---------------- | --------------------------------------------------------------------------------------------------------- |
-| `value`         | `string`                | —                | Current color as a CSS string                                                                             |
-| `onChange`      | `(hex: string) => void` | —                | Fires with the formatted string on every change (despite the param name, it is the active-format string)  |
-| `defaultFormat` | `ColorFormat`           | `'hex'`          | Initial editing format                                                                                    |
-| `showAlpha`     | `boolean`               | `false`          | Render the Alpha strip                                                                                    |
-| `showSwatches`  | `boolean`               | `false`          | Render the preset Swatches grid                                                                           |
-| `swatchPresets` | `string[]`              | part default     | Custom preset list when `showSwatches`                                                                    |
-| `placement`     | `Placement`             | `'bottom-start'` | floating-ui placement                                                                                     |
-| `renderInline`  | `boolean`               | `false`          | Render the popover inline (absolute) instead of via portal — used inside ReactFlow / transformed canvases |
-| `className`     | `string`                | —                | Wrapper class                                                                                             |
-| `size`          | `'normal' \| 'small'`   | `'small'`        | Trigger + panel density                                                                                   |
+| Prop               | Type                      | Default          | Description                                                                                                               |
+| ------------------ | ------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `value`            | `string`                  | —                | Current color as a CSS string                                                                                             |
+| `onChange`         | `(hex: string) => void`   | —                | Fires with the formatted string on every change (despite the param name, it is the active-format string)                  |
+| `defaultFormat`    | `ColorFormat`             | `'hex'`          | Initial editing format                                                                                                    |
+| `showAlpha`        | `boolean`                 | `false`          | Render the Alpha strip                                                                                                    |
+| `showSwatches`     | `boolean`                 | `false`          | Render the preset Swatches grid                                                                                           |
+| `swatchPresets`    | `string[]`                | part default     | Custom preset list when `showSwatches`                                                                                    |
+| `placement`        | `Placement`               | `'bottom-start'` | floating-ui placement                                                                                                     |
+| `renderInline`     | `boolean`                 | `false`          | Render the popover inline (absolute) instead of via portal — used inside ReactFlow / transformed canvases                 |
+| `className`        | `string`                  | —                | Wrapper class                                                                                                             |
+| `size`             | `'normal' \| 'small'`     | `'small'`        | Trigger + panel density                                                                                                   |
+| `onOpenChange`     | `(open: boolean) => void` | —                | Fires on popover open/close — lets a consumer commit the picked color ONCE on close (one history entry)                   |
+| `triggerClassName` | `string`                  | —                | Extra classes merged (last-wins) onto the TRIGGER button, e.g. to shrink the swatch; `className` only reaches the wrapper |
 
 ### Internal state design
 

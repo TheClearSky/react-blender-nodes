@@ -73,6 +73,13 @@ type GraphThemeNodeSlots = {
    * Portaled, so root var overrides can't reach it.
    */
   inputOrderPopover?: string;
+  /**
+   * The per-node PREVIEW panel wrapper — the container hosting a consumer's
+   * registered `nodePreviews` component ON TOP of the node (outside the node
+   * container and the runner status border, width-matched to the node). Merged
+   * LAST onto the panel's default classes.
+   */
+  previewPanel?: string;
 };
 
 type GraphThemeEdgeSlots = {

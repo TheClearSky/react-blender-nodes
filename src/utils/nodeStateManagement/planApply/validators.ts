@@ -6,6 +6,7 @@ import { ok, err } from './types';
 import { actionTypesMap } from '../mainReducer';
 import type { z } from 'zod';
 import { getCurrentNodesAndEdgesFromState } from '../nodes/constructAndModifyNodes';
+import { normalizeZoneColor } from '../zones/zoneColor';
 import { isGroupInputOrOutputNode } from '../nodes/nodeGroups';
 import { isLoopNode } from '../nodes/loops';
 import { isSwitchNode } from '../nodes/switches';
@@ -26,6 +27,10 @@ import {
   switchChannelToRequest,
 } from '../handles/channelDeletionAnalysis';
 import { handleKey } from '../handles/handleKey';
+import {
+  getRunnerViewPreferences,
+  DEFAULT_RUNNER_VIEW_PREFERENCES,
+} from '../runnerViewPreferences';
 
 // ---------------------------------------------------------------------------
 // Helpers for UPDATE_NODE_TYPE input/output validation
@@ -448,12 +453,24 @@ function validateAction<
       const steps: EdgeChangeStep[] = [];
       const currentView = getCurrentNodesAndEdgesFromState(_state);
 
+      // Accumulate the view across REMOVAL steps. ReactFlow batches
+      // multi-select-delete (and a node's cascaded edge removals) into ONE
+      // change array with several `remove` entries. Each removal's
+      // `updatedEdges`/`updatedNodes` must build on the PRIOR removals'
+      // result, not the original snapshot — otherwise `applyPlan`'s per-step
+      // wholesale overwrite resurrects all-but-the-last removed edge and drops
+      // the earlier inference reverts (dangling edges, wrong types). The last
+      // removal step therefore carries the complete cumulative result.
+      let accumulatedNodes = currentView.nodes;
+      let accumulatedEdges = currentView.edges;
+
       for (const change of action.payload.changes) {
         if (change.type !== 'remove') {
           steps.push({ kind: 'passthrough', change });
         } else {
-          // Find the edge being removed
-          const edge = currentView.edges.find((e) => e.id === change.id);
+          // Find the edge being removed in the ACCUMULATED view (a prior step
+          // in this same batch may already have removed it).
+          const edge = accumulatedEdges.find((e) => e.id === change.id);
           if (!edge) {
             steps.push({ kind: 'passthrough', change }); // let applyEdgeChanges handle missing
             continue;
@@ -461,9 +478,13 @@ function validateAction<
           // removeEdgeWithTypeChecking is already PURE — it returns {updatedNodes, updatedEdges, validation}
           const result = removeEdgeWithTypeChecking(
             edge,
-            { ..._state, nodes: currentView.nodes, edges: currentView.edges },
+            { ..._state, nodes: accumulatedNodes, edges: accumulatedEdges },
             change,
           );
+          if (result.validation.isValid) {
+            accumulatedNodes = result.updatedNodes;
+            accumulatedEdges = result.updatedEdges;
+          }
           steps.push({
             kind: 'removal',
             updatedNodes: result.updatedNodes,
@@ -530,6 +551,164 @@ function validateAction<
         nodeId,
         customName: trimmed ? trimmed : undefined,
       });
+    }
+
+    case actionTypesMap.UPDATE_NODE_PREVIEW_COLLAPSED: {
+      const { nodeId, previewCollapsed } = action.payload;
+      const view = getCurrentNodesAndEdgesFromState(_state);
+      const node = view.nodes.find((n) => n.id === nodeId);
+      if (!node) {
+        return err({
+          code: 'MISSING_ENDPOINT' as const,
+          which: 'target' as const,
+          detail: 'Node not found for preview-collapse update',
+        });
+      }
+      // No system-node guard: a preview may be registered for ANY node type. NOOP
+      // when the VISIBLE state is unchanged — `undefined` (absent) and `false` are
+      // both "expanded", so normalize before comparing (prevents a spurious,
+      // undoable history entry from a programmatic/import `{previewCollapsed:false}`
+      // on a node that was never collapsed).
+      if (Boolean(node.data.previewCollapsed) === previewCollapsed) {
+        return err({
+          code: 'NOOP' as const,
+          reason: 'Preview collapse state unchanged',
+        });
+      }
+      return ok({
+        kind: 'UPDATE_NODE_PREVIEW_COLLAPSED' as const,
+        nodeId,
+        previewCollapsed,
+      });
+    }
+
+    case actionTypesMap.UPDATE_RUNNER_VIEW_PREFERENCE: {
+      const { preference, enabled } = action.payload;
+      // NOOP an out-of-contract key — `Object.hasOwn`, NOT `in` (which is
+      // prototype-inclusive and would let `toString`/`__proto__` through) — or a
+      // set to the value the preference already holds (avoids a phantom
+      // applied-event + canvas reconcile on an unchanged toggle).
+      if (!Object.hasOwn(DEFAULT_RUNNER_VIEW_PREFERENCES, preference)) {
+        return err({
+          code: 'NOOP' as const,
+          reason: 'Unknown runner view preference',
+        });
+      }
+      if (getRunnerViewPreferences(_state)[preference] === enabled) {
+        return err({
+          code: 'NOOP' as const,
+          reason: 'Runner view preference unchanged',
+        });
+      }
+      return ok({
+        kind: 'UPDATE_RUNNER_VIEW_PREFERENCE' as const,
+        preference,
+        enabled,
+      });
+    }
+
+    case actionTypesMap.ADD_USER_ZONE: {
+      const { nodeIds, name, color } = action.payload;
+      const view = getCurrentNodesAndEdgesFromState(_state);
+      // Dedup (a caller can pass duplicates) and require ≥1 member after dedup.
+      const dedupedNodeIds = [...new Set(nodeIds)];
+      if (dedupedNodeIds.length === 0) {
+        return err({
+          code: 'NOOP' as const,
+          reason: 'A user zone needs at least one node',
+        });
+      }
+      const nodeIdSet = new Set(view.nodes.map((n) => n.id));
+      const missingNodeId = dedupedNodeIds.find((id) => !nodeIdSet.has(id));
+      if (missingNodeId) {
+        return err({
+          code: 'MISSING_ENDPOINT' as const,
+          which: 'source' as const,
+          detail: `Node ${missingNodeId} not in the current scope for the user zone`,
+        });
+      }
+      // Defaults for name/color are applied in applyPlan (createUserZone). Color
+      // is canonicalized here so ADD and UPDATE agree (a programmatic add can't
+      // store an unrenderable frame color); undefined falls back to the default.
+      return ok({
+        kind: 'ADD_USER_ZONE' as const,
+        nodeIds: dedupedNodeIds,
+        name,
+        color: normalizeZoneColor(color),
+      });
+    }
+
+    case actionTypesMap.UPDATE_USER_ZONE: {
+      const { zoneId, name, color } = action.payload;
+      const view = getCurrentNodesAndEdgesFromState(_state);
+      if (!view.userZones || !(zoneId in view.userZones)) {
+        return err({ code: 'NOOP' as const, reason: 'User zone not found' });
+      }
+      // Drop a blank name and canonicalize the color to lowercase hex (the picker
+      // can emit rgb()/oklch()/uppercase-hex); an unparseable color becomes
+      // undefined. Omitted/undefined fields stay unchanged in applyPlan.
+      const trimmedName = name?.trim();
+      const normalizedColor = normalizeZoneColor(color);
+      // Nothing to apply (blank name dropped + no parseable color) → NOOP so no
+      // phantom history entry / applied event is produced (mirrors REORDER).
+      if (!trimmedName && !normalizedColor) {
+        return err({ code: 'NOOP' as const, reason: 'No user-zone change' });
+      }
+      return ok({
+        kind: 'UPDATE_USER_ZONE' as const,
+        zoneId,
+        name: trimmedName ? trimmedName : undefined,
+        color: normalizedColor,
+      });
+    }
+
+    case actionTypesMap.UPDATE_USER_ZONE_MEMBERS: {
+      const { zoneId, nodeIds, mode } = action.payload;
+      const view = getCurrentNodesAndEdgesFromState(_state);
+      if (!view.userZones || !(zoneId in view.userZones)) {
+        return err({ code: 'NOOP' as const, reason: 'User zone not found' });
+      }
+      const zone = view.userZones[zoneId];
+      const currentIds =
+        zone && Array.isArray(zone.nodeIds) ? zone.nodeIds : [];
+      const dedupedNodeIds = [...new Set(nodeIds)];
+      if (mode === 'add') {
+        // Adding requires the same in-scope check as creation, so a foreign id
+        // can't be authored into membership and then dangle forever.
+        const nodeIdSet = new Set(view.nodes.map((n) => n.id));
+        const missingNodeId = dedupedNodeIds.find((id) => !nodeIdSet.has(id));
+        if (missingNodeId) {
+          return err({
+            code: 'MISSING_ENDPOINT' as const,
+            which: 'source' as const,
+            detail: `Node ${missingNodeId} not in the current scope`,
+          });
+        }
+      }
+      // NOOP if membership wouldn't change (add-only-existing / remove-none) so
+      // no phantom history entry is recorded.
+      const wouldChange =
+        mode === 'add'
+          ? dedupedNodeIds.some((id) => !currentIds.includes(id))
+          : dedupedNodeIds.some((id) => currentIds.includes(id));
+      if (!wouldChange) {
+        return err({ code: 'NOOP' as const, reason: 'No membership change' });
+      }
+      return ok({
+        kind: 'UPDATE_USER_ZONE_MEMBERS' as const,
+        zoneId,
+        nodeIds: dedupedNodeIds,
+        mode,
+      });
+    }
+
+    case actionTypesMap.DELETE_USER_ZONE: {
+      const { zoneId } = action.payload;
+      const view = getCurrentNodesAndEdgesFromState(_state);
+      if (!view.userZones || !(zoneId in view.userZones)) {
+        return err({ code: 'NOOP' as const, reason: 'User zone not found' });
+      }
+      return ok({ kind: 'DELETE_USER_ZONE' as const, zoneId });
     }
 
     case actionTypesMap.UPDATE_NODE_TYPE: {

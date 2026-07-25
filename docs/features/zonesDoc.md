@@ -43,6 +43,85 @@ Key facts:
   `ZoneFrameOverlay`), an SVG overlay inside `FullGraph` that draws a padded
   convex hull per zone in the zone's color.
 
+## User Zones
+
+Beyond the system zones above, the user can create their own **named, colored
+visual zones** by selecting nodes and wrapping them in a frame. User zones are
+**authored** (not derived): membership is the explicit set of nodes the user
+chose, never recomputed. They are purely visual — no execution / codegen /
+connection effect.
+
+- **Storage (separate + authored).** User zones live in a scope-local
+  `userZones` field — at root on `State`
+  (`src/utils/nodeStateManagement/types.ts` › `State`) and inside a group on the
+  subtree (`src/utils/nodeStateManagement/types.ts` › `TypeOfNode`). They reuse
+  the `Zone` type with the system fields ABSENT (`enforced: false`, no
+  `structureLink`, no `boundaryHandles`). Keeping them out of `state.zones`
+  means the derived-zone machinery (`recomputeAllZoneMemberships`,
+  `rehydrateAllZones`) never recomputes or wipes their authored membership.
+  Scope reads/writes go through
+  `src/utils/nodeStateManagement/nodes/constructAndModifyNodes.ts` ›
+  `setCurrentUserZonesToState`.
+- **Actions (4, all undoable).** `src/utils/nodeStateManagement/mainReducer.ts`
+  › `Action`: `ADD_USER_ZONE` (from a selection; the zone is minted by
+  `src/utils/nodeStateManagement/zones/zoneLifecycle.ts` › `createUserZone`),
+  `UPDATE_USER_ZONE` (rename / recolor), `UPDATE_USER_ZONE_MEMBERS` (add /
+  remove; removing the last member auto-deletes the zone), and
+  `DELETE_USER_ZONE`. A deleted member node is pruned from every user zone in
+  `applyPlan`'s `UPDATE_NODES_RF` case — a pure `nodeIds.filter`, a no-op unless
+  a node was actually removed (so a drag / selection change never churns
+  `userZones`).
+- **Affordances.** A context-menu group
+  (`src/components/molecules/ContextMenu/createUserZoneMenuItem.ts` ›
+  `createUserZoneMenuItem`): "Create Zone from Selection", "Add / Remove
+  Selection to/from Zone", and a "Delete Zone" list (always reachable) — every
+  per-zone submenu entry carries a color dot so same-named zones stay
+  distinguishable. Default names are NUMBERED per scope ("Zone", "Zone 2", … =
+  max existing suffix + 1, so deletions never cause a duplicate default) and the
+  default color is the first palette entry no existing user zone uses — both
+  derived in `src/utils/nodeStateManagement/zones/zoneLifecycle.ts` ›
+  `createUserZone`. (One documented exception: the import repair
+  `src/utils/importExport/validation.ts` › `coerceUserZones` defaults a
+  malformed imported name to bare `Zone`, unnumbered.)
+- **The frame label.** At REST it renders as a lightweight caption in the zone's
+  own color, bottom-anchored just ABOVE the hull — optically a sibling of the
+  system-zone SVG labels (a display-only OKLCH lightness floor keeps a
+  near-black zone's caption readable; the stored color, the swatch, and the
+  frame keep the true color). On HOVER it expands into a pill with a
+  select-members button (selects exactly the zone's nodes so its authored
+  membership is legible — an exclusive selection that replaces the current one;
+  the selected nodes are then Delete-armed like any selection), a color swatch
+  (opens the OKLCH picker; the recolor is committed ONCE when the picker closes,
+  via `onOpenChange`), and a delete button — the controls trail the name so the
+  caption never shifts, and they stay mounted while the picker or the inline
+  editor is open even if the mouse leaves. DOUBLE-CLICK anywhere on the label
+  renames it in place (`src/components/atoms/EditableText/EditableText.tsx` ›
+  `EditableText`). The label stacks above ReactFlow's selected-node elevation,
+  so it stays visible while its members are selected (e.g. immediately after
+  creation); labels sharing an anchor (two zones over the same nodes, or a user
+  zone wrapping a loop/switch's exact node set) stagger upward so each stays
+  independently editable.
+- **Rendering split.** `ZoneFrameOverlay` still draws the dashed polygon but
+  SUPPRESSES a user zone's label; the interactive label is rendered by
+  `src/components/molecules/ZoneFrameOverlay/UserZoneLabelLayer.tsx` ›
+  `UserZoneLabelLayer` — an HTML layer rendered via `createPortal` into
+  ReactFlow's `react-flow__viewport-portal` (inheriting the viewport transform)
+  with an inner `scale(1 / zoom)` for constant visual size. Frame geometry (the
+  padded convex hull for both the polygon and the label) is computed ONCE in
+  `FullGraph` via `src/components/molecules/ZoneFrameOverlay/useZoneFrames.ts` ›
+  `computeZoneFrames` and passed to both overlays; it falls back to a bounding
+  box if a hull degenerates so a user zone is never invisible.
+- **Persistence (visual-only, but PERSISTED).** Unlike system zones, user zones
+  are NOT stripped on export and NOT rehydrated on import — they ride `...rest`
+  through `REPLACE_STATE` verbatim (an additive, backward-compatible export
+  field). A malformed `userZones` from a hand-edited / version-skewed file can
+  never crash the canvas: `src/utils/importExport/validation.ts` ›
+  `coerceUserZones` runs on EVERY import (always-on — it also canonicalizes each
+  zone's id≡key and color and drops empties), and
+  `src/utils/importExport/validation.ts` › `normalizeUserZones` (enabled by the
+  studio's import) prunes ghost member ids from root AND each group subtree,
+  pruning each container against its own nodes.
+
 ## Entity-Relationship Diagram
 
 ```
@@ -678,12 +757,13 @@ Zones are **UI-only** and never serialized:
 
 ## Limitations and Future Work
 
-- **System zones only (today).** All zones currently carry a `structureLink` and
-  `boundaryHandles` and are created by `ADD_LOOP`/`ADD_SWITCH`. The `Zone` type
-  reserves `structureLink?` / `boundaryHandles?` as optional to support future
-  **user-created** zones: visual-only frames with no boundary enforcement
-  (`getBoundaryNodeIds` and `discoverZoneNodesFromHandles` already return empty
-  for zones without `boundaryHandles`).
+- **System vs user zones.** `state.zones` holds the SYSTEM zones (created by
+  `ADD_LOOP`/`ADD_SWITCH`, with a `structureLink` + `boundaryHandles`,
+  recomputed / stripped / rehydrated). User-created zones are now SHIPPED in a
+  separate `state.userZones` field (authored membership, persisted, no
+  enforcement) — see the **User Zones** section above. `getBoundaryNodeIds` /
+  `discoverZoneNodesFromHandles` return empty for any zone without
+  `boundaryHandles`.
 - **`enforced` is set but read indirectly.** System zones are created with
   `enforced: true`. Today the boundary rules are applied through switch
   validation (`isSwitchConnectionValid`) reading `zone.nodeIds`, rather than a

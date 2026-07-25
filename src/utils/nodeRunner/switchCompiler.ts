@@ -167,6 +167,8 @@ function compileSwitchStructures<
             nodeId,
             nodeTypeId,
             nodeTypeName: typeOfNode?.name ?? nodeTypeId,
+            // Custom name must ride the branch step too (Phase-5 path sets it).
+            customName: node.data.customName,
             concurrencyLevel: levelIdx,
           });
         }

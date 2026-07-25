@@ -261,6 +261,8 @@ ConfigurableNodeProps<
 | `runnerVisualState`                 | `NodeVisualState?`                                         | `undefined` | Runner execution visual state. When defined, the node content is wrapped with `NodeStatusIndicator`.                                                                 |
 | `runnerErrors`                      | `ReadonlyArray<GraphError>?`                               | `undefined` | Errors from the runner for this node. Shown as a tooltip on the error icon overlay.                                                                                  |
 | `runnerWarnings`                    | `ReadonlyArray<string>?`                                   | `undefined` | Warning messages from the runner. Shown as a tooltip on the warning icon overlay.                                                                                    |
+| `customName`                        | `string?`                                                  | `undefined` | User-assigned instance name (standard nodes). When set, the header shows `Custom : Type`; also threaded into runner timeline / step records.                         |
+| `previewCollapsed`                  | `boolean?`                                                 | `undefined` | Whether this instance's `nodePreviews` panel is collapsed (absent = expanded). Toggled by the eye header action; persisted on `node.data`, undoable.                 |
 | `...HTMLAttributes<HTMLDivElement>` | —                                                          | —           | All standard div attributes (`className`, `style`, `onClick`, etc.) are spread onto the root element.                                                                |
 
 > **Removed prop:** Earlier versions had a `showNodeOpenButton?: boolean` prop
@@ -451,6 +453,22 @@ The header is a colored bar (`headerColor` background, `rounded-t-md`) with:
   `FullGraphContext`.
 - A right-aligned (`ml-auto`) cluster rendering `ContextAwareNodeHeaderActions`
   for the computed `headerActions` array.
+
+### Node Preview Panel (NodePreviewPanel)
+
+When a preview component is registered for this node's type via the FullGraph
+`nodePreviews` prop, a `NodePreviewPanel`
+(`src/components/organisms/ConfigurableNode/SupportingSubcomponents/NodePreviewPanel.tsx`
+› `NodePreviewPanel`) renders ON TOP of the node — outside the node container
+and outside the runner status border, width-matched to the node — fed the node's
+live / at-step runner values. Because the panel is the wrapper's first child,
+`node.position` anchors the PANEL's top edge (the node body sits below it, and
+toggling the preview shifts the body vertically; handles/edges stay correct as
+they are DOM-measured). It self-hides when no preview is registered, when
+`data.previewCollapsed` is set, or when there is no `nodeId`, so it is safe to
+mount unconditionally. A header eye action toggles the persisted
+`previewCollapsed` flag. See [Node Previews](nodePreviewDoc.md) for the full
+contract.
 
 ### Outputs section
 

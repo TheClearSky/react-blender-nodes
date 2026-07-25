@@ -4,6 +4,8 @@ import {
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
+  CornerDownRight,
+  CornerRightUp,
   Play,
   Square,
   ZoomOut,
@@ -22,6 +24,10 @@ import { useRecordingViewState } from '@/components/organisms/FullGraph/Recordin
 import { SliderNumberInput } from '@/components/molecules/SliderNumberInput/SliderNumberInput';
 import { Tooltip } from '@/components/atoms/Tooltip';
 import { ButtonToggle } from '@/components/molecules/ButtonToggle';
+import {
+  findStepOverTarget,
+  findStepOutTarget,
+} from '@/utils/nodeRunner/stepNavigation';
 import { useTimelineZoomPan } from './useTimelineZoomPan';
 import { useTimelineScrub } from './useTimelineScrub';
 import { useTimelineAutoplay } from './useTimelineAutoplay';
@@ -56,6 +62,13 @@ type ExecutionTimelineProps = {
   selectedStepIndex: number | null;
   /** Called when the user navigates to a node via prev/next buttons. */
   onNavigateToNode?: (nodeId: string) => void;
+  /** Follow-into-groups: the viewport opens/closes group scopes to follow the
+   *  scrub head's instance path. Backed by the document-level graph-`State`
+   *  preference `runnerViewPreferences.followIntoGroups` (persisted on export,
+   *  toggled via UPDATE_RUNNER_VIEW_PREFERENCE); rendered only when the callback is
+   *  provided. */
+  followIntoGroups?: boolean;
+  onFollowIntoGroupsChange?: (enabled: boolean) => void;
 };
 
 // ─────────────────────────────────────────────────────
@@ -69,6 +82,8 @@ function ExecutionTimeline({
   onStepClick,
   selectedStepIndex,
   onNavigateToNode,
+  followIntoGroups,
+  onFollowIntoGroupsChange,
 }: ExecutionTimelineProps) {
   const {
     autoScroll,
@@ -85,6 +100,16 @@ function ExecutionTimeline({
 
   // ── Adjusted steps (subtract pause time in execution mode) ──
   const hasPauseData = (record?.totalPauseDuration ?? 0) > 0;
+
+  // Step-over/out jump targets over instancePath depth (null = disabled).
+  const stepOverTargetIndex = useMemo(
+    () => (record ? findStepOverTarget(record.steps, currentStepIndex) : null),
+    [record, currentStepIndex],
+  );
+  const stepOutTargetIndex = useMemo(
+    () => (record ? findStepOutTarget(record.steps, currentStepIndex) : null),
+    [record, currentStepIndex],
+  );
 
   const adjustedSteps = useMemo<readonly ExecutionStepRecord[]>(() => {
     if (!record) return [];
@@ -389,6 +414,49 @@ function ExecutionTimeline({
               </button>
             </div>
 
+            {/* Step over / step out — replay jumps over the instancePath depth
+                of the flat step list (group-aware debugger navigation). */}
+            <div className='flex items-center'>
+              <button
+                type='button'
+                data-testid='timeline-step-over'
+                aria-label='Step over'
+                disabled={stepOverTargetIndex === null}
+                onClick={() =>
+                  stepOverTargetIndex !== null && onScrubTo(stepOverTargetIndex)
+                }
+                className={cn(
+                  'btn-press rounded-l-md border border-secondary-dark-gray/80 px-1 py-0.5 transition-colors',
+                  stepOverTargetIndex !== null
+                    ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
+                    : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                  theme?.timeline?.navButton,
+                )}
+                title='Step over (skip past the group/structure the next step descends into)'
+              >
+                <CornerDownRight className='h-3.5 w-3.5' />
+              </button>
+              <button
+                type='button'
+                data-testid='timeline-step-out'
+                aria-label='Step out'
+                disabled={stepOutTargetIndex === null}
+                onClick={() =>
+                  stepOutTargetIndex !== null && onScrubTo(stepOutTargetIndex)
+                }
+                className={cn(
+                  'btn-press rounded-r-md border border-l-0 border-secondary-dark-gray/80 px-1 py-0.5 transition-colors',
+                  stepOutTargetIndex !== null
+                    ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
+                    : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                  theme?.timeline?.navButton,
+                )}
+                title='Step out (jump to the first step after the enclosing group scope)'
+              >
+                <CornerRightUp className='h-3.5 w-3.5' />
+              </button>
+            </div>
+
             {/* Autoplay interval (moves into the ⋯ menu below `@max-[832px]`) */}
             <Tooltip
               className='@max-[832px]/runnerpanel:hidden'
@@ -420,6 +488,26 @@ function ExecutionTimeline({
                 <span className='text-primary-white'>Auto-scroll</span>
               </label>
             </Tooltip>
+
+            {/* Follow-into-groups toggle (only when the host provides it) */}
+            {onFollowIntoGroupsChange && (
+              <Tooltip
+                className='@max-[832px]/runnerpanel:hidden'
+                content='Open/close group scopes so the canvas follows the scrub head into the group instance that executed'
+              >
+                <label className='flex cursor-pointer items-center gap-1 text-[12px] text-secondary-light-gray select-none'>
+                  <input
+                    type='checkbox'
+                    data-testid='follow-into-groups'
+                    aria-label='Follow into groups'
+                    checked={followIntoGroups ?? true}
+                    onChange={(e) => onFollowIntoGroupsChange(e.target.checked)}
+                    className='h-3 w-3 cursor-pointer rounded-sm accent-primary-blue'
+                  />
+                  <span className='text-primary-white'>Follow groups</span>
+                </label>
+              </Tooltip>
+            )}
           </div>
         </div>
 

@@ -516,7 +516,10 @@ The header (`h-12`) is always visible (even when collapsed) and contains:
   `Play`/`Square` (autoplay toggle), `ChevronRight` (next), `ChevronsRight`
   (end). Disabled buttons render in a muted style.
 - **Autoplay interval** — `SliderNumberInput` (`Interval`, 0.5–30s, small).
-- **Auto-scroll** — checkbox bound to `autoScroll`.
+- **Auto-scroll** — checkbox bound to `autoScroll`; now backed by the
+  document-level graph preference `state.runnerViewPreferences.autoScroll`
+  (toggled via the non-undoable `UPDATE_RUNNER_VIEW_PREFERENCE` action, and
+  still snapshotted into the recording `viewState`).
 - **Time-mode toggle** — `ButtonToggle` over `TIME_MODE_OPTIONS` (`Execution` /
   `Wall Clock`), rendered **only** when
   `hasPauseData = (record?.totalPauseDuration ?? 0) > 0`.

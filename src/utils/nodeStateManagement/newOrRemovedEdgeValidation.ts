@@ -302,6 +302,38 @@ function inferTypesAfterEdgeAddition<
   };
 }
 
+/**
+ * Two resolved handle data types denote the SAME complex type when their
+ * data-type ids match, OR when two DIFFERENT ids deliberately share ONE
+ * complex schema OBJECT (an aliased complex type — the legitimate use of
+ * reference identity, "data types are immutable singletons"). Absent schemas
+ * (`undefined`, produced by the export-strip on a raw `REPLACE_STATE`) never
+ * count as same — ids stay the primary key.
+ *
+ * Shared by the complex-compatibility check AND the conversion check so the
+ * two can't disagree: without this, an aliased pair passes the complex check
+ * but the conversion check (id-equality only) rejected it as
+ * `CONVERSION_NOT_ALLOWED` the moment a conversion table merely EXISTED (even
+ * `{}`).
+ */
+function areComplexTypesSame(
+  source: {
+    dataTypeUniqueId: string;
+    dataTypeObject: { complexSchema?: unknown };
+  },
+  target: {
+    dataTypeUniqueId: string;
+    dataTypeObject: { complexSchema?: unknown };
+  },
+): boolean {
+  if (source.dataTypeUniqueId === target.dataTypeUniqueId) return true;
+  const sourceSchema = source.dataTypeObject.complexSchema;
+  return (
+    sourceSchema !== undefined &&
+    sourceSchema === target.dataTypeObject.complexSchema
+  );
+}
+
 function checkComplexTypeCompatibilityAfterEdgeAddition<
   DataTypeUniqueId extends string = string,
   NodeTypeUniqueId extends string = string,
@@ -399,15 +431,10 @@ function checkComplexTypeCompatibilityAfterEdgeAddition<
 
   //Both are complex
   if (isSourceHandleComplex && isTargetHandleComplex) {
-    //Check if they are the same type
-    //Either the data type IDs match, or the complex schema references are identical
-    //(data types are immutable singletons defined once in state, so reference
-    //equality is sufficient — two handles sharing a data type point to the same object)
-    const areTheComplexTypesSame =
-      resultantSourceHandleDataType.dataTypeUniqueId ===
-        resultantTargetHandleDataType.dataTypeUniqueId ||
-      resultantSourceHandleDataType.dataTypeObject.complexSchema ===
-        resultantTargetHandleDataType.dataTypeObject.complexSchema;
+    const areTheComplexTypesSame = areComplexTypesSame(
+      resultantSourceHandleDataType,
+      resultantTargetHandleDataType,
+    );
     if (!areTheComplexTypesSame) {
       return {
         validation: {
@@ -496,9 +523,13 @@ function checkTypeConversionCompatibilityAfterEdgeAddition<
     };
   }
 
-  const areTheTypesTheSame =
-    resultantSourceHandleDataType.dataTypeUniqueId ===
-    resultantTargetHandleDataType.dataTypeUniqueId;
+  // Same-type short-circuit uses the SHARED sameness rule (ids OR aliased
+  // complex schema) so an aliased complex pair is never forced through the
+  // conversion machinery just because a conversion table exists.
+  const areTheTypesTheSame = areComplexTypesSame(
+    resultantSourceHandleDataType,
+    resultantTargetHandleDataType,
+  );
 
   if (areTheTypesTheSame) {
     return {

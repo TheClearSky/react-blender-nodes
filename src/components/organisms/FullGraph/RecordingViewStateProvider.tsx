@@ -1,4 +1,11 @@
-import { useState, useCallback, useMemo, type ReactNode } from 'react';
+import {
+  useState,
+  useCallback,
+  useMemo,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from 'react';
 import type { RecordingViewState } from '@/utils/nodeRunner/types';
 import {
   RecordingViewStateContext,
@@ -9,7 +16,17 @@ import {
 // Provider
 // ─────────────────────────────────────────────────────
 
-function RecordingViewStateProvider({ children }: { children: ReactNode }) {
+function RecordingViewStateProvider({
+  children,
+  autoScroll,
+  onAutoScrollChange,
+}: {
+  children: ReactNode;
+  /** Controlled auto-scroll preference (document-level; graph state authoritative). */
+  autoScroll: boolean;
+  /** Called with the new value when the timeline auto-scroll checkbox is toggled. */
+  onAutoScrollChange: (enabled: boolean) => void;
+}) {
   // Panel-level state
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(
     null,
@@ -17,8 +34,16 @@ function RecordingViewStateProvider({ children }: { children: ReactNode }) {
   const [edgeValuesAnimated, setEdgeValuesAnimated] = useState(true);
   const [isRunnerPanelOpen, setIsRunnerPanelOpen] = useState(true);
 
-  // Timeline-level state
-  const [autoScroll, setAutoScroll] = useState(true);
+  // Timeline-level state. `autoScroll` is a CONTROLLED document preference (graph
+  // state, via props); the wrapper resolves the SetStateAction updater form against
+  // the current prop before forwarding the concrete boolean to the graph dispatch.
+  const setAutoScroll = useCallback<Dispatch<SetStateAction<boolean>>>(
+    (value) =>
+      onAutoScrollChange(
+        typeof value === 'function' ? value(autoScroll) : value,
+      ),
+    [onAutoScrollChange, autoScroll],
+  );
   const [timeMode, setTimeMode] = useState<'execution' | 'wallClock'>(
     'execution',
   );
@@ -58,7 +83,8 @@ function RecordingViewStateProvider({ children }: { children: ReactNode }) {
     if (vs.edgeValuesAnimated !== undefined)
       setEdgeValuesAnimated(vs.edgeValuesAnimated);
     if (vs.panelOpen !== undefined) setIsRunnerPanelOpen(vs.panelOpen);
-    if (vs.autoScroll !== undefined) setAutoScroll(vs.autoScroll);
+    // D2: `autoScroll` is a graph-document preference now; a loaded recording does
+    // NOT override it (the recording's captured value is informational only).
     if (vs.timeMode !== undefined) setTimeMode(vs.timeMode);
     if (vs.timelineCollapsed !== undefined)
       setTimelineCollapsed(vs.timelineCollapsed);
@@ -107,6 +133,7 @@ function RecordingViewStateProvider({ children }: { children: ReactNode }) {
       autoplayIntervalSec,
       getViewState,
       restoreViewState,
+      setAutoScroll,
     ],
   );
 

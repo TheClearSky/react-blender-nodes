@@ -1,6 +1,8 @@
 import type { ValidationIssue } from './types';
 import { standardNodeTypeNamesMap } from '../nodeStateManagement/standardNodes';
 import { compareFanIn } from '../connectionOrder';
+import { normalizeZoneColor } from '../nodeStateManagement/zones/zoneColor';
+import { DEFAULT_RUNNER_VIEW_PREFERENCES } from '../nodeStateManagement/runnerViewPreferences';
 
 // ─────────────────────────────────────────────────────
 // Helpers
@@ -806,11 +808,215 @@ function isCanonicalConnectionOrder(orders: (number | undefined)[]): boolean {
   return true;
 }
 
+/**
+ * ALWAYS-ON structural safety for the authored `userZones` field (root AND each
+ * group subtree). A passive, visual-only field a hand-edited / version-skewed file
+ * could carry as garbage must never be able to crash the canvas: the overlay does
+ * `zone.nodeIds.length` / `for…of zone.nodeIds` and renders `zone.name`/`zone.color`.
+ * This drops non-object `userZones` and non-object zones, coerces `nodeIds` to a
+ * string array, and replaces a non-string `name`/`color` with a default. Runs on
+ * EVERY import (NOT gated on a repair flag) because REPLACE_STATE bypasses the
+ * editor and `handleImportState` spreads the imported state wholesale. Mutates in
+ * place; pushes ONE summary warning if it dropped anything.
+ */
+function coerceUserZones(
+  state: Record<string, unknown>,
+  warnings: ValidationIssue[],
+): void {
+  let dropped = 0;
+  const coerceContainer = (container: Record<string, unknown>): void => {
+    if (!('userZones' in container) || container.userZones === undefined)
+      return;
+    if (!isObject(container.userZones)) {
+      delete container.userZones;
+      dropped += 1;
+      return;
+    }
+    const userZones = container.userZones;
+    for (const zoneId of Object.keys(userZones)) {
+      const zone = userZones[zoneId];
+      if (!isObject(zone)) {
+        delete userZones[zoneId];
+        dropped += 1;
+        continue;
+      }
+      // The map KEY is the authoritative id — every edit path is keyed on it, so
+      // a file with id ≠ key would render a zone that can't be edited or deleted.
+      zone.id = zoneId;
+      const coercedNodeIds = Array.isArray(zone.nodeIds)
+        ? [
+            ...new Set(
+              zone.nodeIds.filter((id): id is string => typeof id === 'string'),
+            ),
+          ]
+        : [];
+      zone.nodeIds = coercedNodeIds;
+      // An authored zone always has ≥1 member (ADD requires it; both removal
+      // paths auto-delete at 0), so an empty one is illegitimate — drop it.
+      if (coercedNodeIds.length === 0) {
+        delete userZones[zoneId];
+        dropped += 1;
+        continue;
+      }
+      if (typeof zone.name !== 'string') zone.name = 'Zone';
+      // Canonicalize the color to the stored lowercase-hex form so a no-change
+      // recolor of an imported zone compares equal; unparseable → default.
+      zone.color =
+        (typeof zone.color === 'string'
+          ? normalizeZoneColor(zone.color)
+          : undefined) ?? '#888888';
+      // User zones are visual-only — never carry system enforcement fields.
+      zone.enforced = false;
+      delete zone.boundaryHandles;
+      delete zone.structureLink;
+    }
+  };
+  coerceContainer(state);
+  if (isObject(state.typeOfNodes)) {
+    for (const ntId of Object.keys(state.typeOfNodes)) {
+      const nodeType = state.typeOfNodes[ntId];
+      if (isObject(nodeType) && isObject(nodeType.subtree)) {
+        coerceContainer(nodeType.subtree);
+      }
+    }
+  }
+  if (dropped > 0) {
+    warnings.push(
+      issue(
+        'state.userZones',
+        `Dropped ${dropped} malformed user zone(s)`,
+        'warning',
+      ),
+    );
+  }
+}
+
+/**
+ * Coerce the document-level `runnerViewPreferences` on import. Runs on EVERY import
+ * (REPLACE_STATE bypasses the editor). GLOBAL — root container ONLY (no subtree walk,
+ * unlike `coerceUserZones`). An ABSENT or `null` field is left untouched
+ * (byte-preserving — the read accessor `getRunnerViewPreferences` supplies the default
+ * per-field). A PRESENT value is repaired to exactly `{ autoScroll, followIntoGroups }`
+ * (both booleans; unknown keys dropped). Warns ONLY when a present value was actually
+ * malformed (a non-object, or a non-boolean field); silent for filling a missing
+ * sub-field or dropping junk keys. Mutates in place.
+ */
+function coerceRunnerViewPreferences(
+  state: Record<string, unknown>,
+  warnings: ValidationIssue[],
+): void {
+  // Absent OR null → leave as-is (the accessor defaults per-field at read).
+  if (
+    !('runnerViewPreferences' in state) ||
+    state.runnerViewPreferences == null
+  ) {
+    return;
+  }
+  const raw = state.runnerViewPreferences;
+  if (!isObject(raw)) {
+    // Present but not a plain object (string / number / array) — a real corruption.
+    state.runnerViewPreferences = { ...DEFAULT_RUNNER_VIEW_PREFERENCES };
+    warnings.push(
+      issue(
+        'state.runnerViewPreferences',
+        'Replaced a malformed runnerViewPreferences with defaults',
+        'warning',
+      ),
+    );
+    return;
+  }
+  // Present object → rebuild to exactly the two known boolean keys.
+  let corrected = false;
+  const coerceField = (key: 'autoScroll' | 'followIntoGroups'): boolean => {
+    const value = raw[key];
+    if (typeof value === 'boolean') return value;
+    // A present non-boolean is a real correction; an absent sub-field is a benign fill.
+    if (value !== undefined) corrected = true;
+    return DEFAULT_RUNNER_VIEW_PREFERENCES[key];
+  };
+  state.runnerViewPreferences = {
+    autoScroll: coerceField('autoScroll'),
+    followIntoGroups: coerceField('followIntoGroups'),
+  };
+  if (corrected) {
+    warnings.push(
+      issue(
+        'state.runnerViewPreferences',
+        'Corrected a malformed runnerViewPreferences field',
+        'warning',
+      ),
+    );
+  }
+}
+
+/**
+ * OPT-IN cleanup for `userZones` (root AND each group subtree): prunes member ids
+ * that don't reference a node in the SAME container's `nodes` (ghosts from
+ * hand-edits or node-removal paths that bypass the reducer prune) and drops any
+ * zone left with no real members. Assumes `coerceUserZones` already ran. Each
+ * container's ghost set is built from its OWN `nodes` — a subtree zone references
+ * `subtree.nodes`, never root, so reusing a root set here would wrongly prune
+ * every subtree member. Mutates in place; pushes ONE summary warning.
+ */
+function normalizeUserZones(
+  state: Record<string, unknown>,
+  warnings: ValidationIssue[],
+): void {
+  let changed = 0;
+  const normalizeContainer = (container: Record<string, unknown>): void => {
+    if (!isObject(container.userZones)) return;
+    const nodeIdSet = new Set<string>();
+    if (Array.isArray(container.nodes)) {
+      for (const node of container.nodes) {
+        if (isObject(node) && typeof node.id === 'string') {
+          nodeIdSet.add(node.id);
+        }
+      }
+    }
+    const userZones = container.userZones;
+    for (const zoneId of Object.keys(userZones)) {
+      const zone = userZones[zoneId];
+      if (!isObject(zone) || !Array.isArray(zone.nodeIds)) continue;
+      const kept = zone.nodeIds.filter(
+        (id): id is string => typeof id === 'string' && nodeIdSet.has(id),
+      );
+      if (kept.length === zone.nodeIds.length) continue;
+      changed += 1;
+      if (kept.length === 0) {
+        delete userZones[zoneId];
+      } else {
+        zone.nodeIds = kept;
+      }
+    }
+  };
+  normalizeContainer(state);
+  if (isObject(state.typeOfNodes)) {
+    for (const ntId of Object.keys(state.typeOfNodes)) {
+      const nodeType = state.typeOfNodes[ntId];
+      if (isObject(nodeType) && isObject(nodeType.subtree)) {
+        normalizeContainer(nodeType.subtree);
+      }
+    }
+  }
+  if (changed > 0) {
+    warnings.push(
+      issue(
+        'state.userZones',
+        `Pruned ghost node ids from ${changed} user zone(s)`,
+        'warning',
+      ),
+    );
+  }
+}
+
 export {
   validateGraphStateStructure,
   validateExecutionRecordStructure,
   checkRootGraphIo,
   repairRootGraphIo,
   normalizeConnectionOrder,
+  coerceUserZones,
+  coerceRunnerViewPreferences,
+  normalizeUserZones,
   isObject,
 };

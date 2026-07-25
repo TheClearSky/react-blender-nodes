@@ -37,10 +37,12 @@ mutating reducer pass. On edge addition:
 - Complex-type and conversion checks then run against a **projected**
   post-inference state built by `applyInferencePlanToProjection` (a shallow copy
   with replaced node data).
-- `applyPlan` (the `ADD_EDGE` case) mints the edge id, deep-`structuredClone`s
-  the replacement node data into the Immer draft, deduplicates handle names,
-  runs handle **duplication** for loops/switches/groups, applies switch
-  zone-prefix renaming, pushes the edge, and recomputes zone memberships.
+- `applyPlan` (the `ADD_EDGE` case) mints the edge id, deep-copies the
+  replacement node data into the Immer draft with
+  `cloneDeepPreservingNonPlainObjects` (plain data copied, zod schemas/functions
+  by reference), deduplicates handle names, runs handle **duplication** for
+  loops/switches/groups, applies switch zone-prefix renaming, pushes the edge,
+  and recomputes zone memberships.
 
 The legacy mutating entry point `addEdgeWithTypeChecking`
 (`src/utils/nodeStateManagement/constructAndModifyHandles.ts` ›
@@ -124,7 +126,7 @@ applyPlan (planApply/applyPlan.ts) — ADD_EDGE case
   |
   +-- mint edge id (generateRandomString(20))
   +-- capture PRE-inference handles (for group duplication detection)
-  +-- structuredClone newData into draft for each nodeDataReplacement
+  +-- cloneDeepPreservingNonPlain newData into draft for each nodeDataReplacement
   +-- ensureAllHandleNamesUnique (skips switch nodes here)
   +-- addDuplicateHandlesToLoopNodesAfterInference   (loops/loopHandleSync.ts)
   +-- addDuplicateHandlesToSwitchNodesAfterInference (switches/switchHandleSync.ts)
@@ -192,7 +194,7 @@ Connection: Handle A (output) ----edge----> Handle B (input)
               -> InferencePlan.nodeDataReplacements
 
 (Handle DUPLICATION is NOT done here. It runs later in applyPlan,
- on the Immer draft, after structuredClone of newData.)
+ on the Immer draft, after cloneDeepPreservingNonPlain of newData.)
 
 
 EDGE REMOVAL FLOW (inferTypesAfterEdgeRemoval)
@@ -254,13 +256,13 @@ removeEdgeWithTypeChecking(removedEdge, state, change)
 +-----------------------------------------------------------------------+
 
 EDGE-ADDITION PIPELINE (validateAddEdge, then applyPlan):
-+----------------+   +----------------+   +----------------+   +----------------+
-| 1. structural  |-->| 2. inference   |-->| 3. complex +   |-->| 4. apply       |
-|    validation   |   |    PLANNING    |   |    conversion  |   |    (mutating)  |
-| cycle / loop / |   | planInference- |   | checks on      |   | structuredClone|
-|   switch        |   |   ForEdge...   |   | PROJECTED state|   | + duplication  |
-| (validateAddEdge)|  | (mutate=false) |   |                |   | + push edge    |
-+----------------+   +----------------+   +----------------+   +----------------+
++----------------+   +----------------+   +----------------+   +----------------------------+
+| 1. structural  |-->| 2. inference   |-->| 3. complex +   |-->| 4. apply                   |
+|    validation   |   |    PLANNING    |   |    conversion  |   |    (mutating)              |
+| cycle / loop / |   | planInference- |   | checks on      |   | cloneDeepPreservingNonPlain|
+|   switch        |   |   ForEdge...   |   | PROJECTED state|   | + duplication              |
+| (validateAddEdge)|  | (mutate=false) |   |                |   | + push edge                |
++----------------+   +----------------+   +----------------+   +----------------------------+
 ```
 
 ## How Inference Works
@@ -337,11 +339,14 @@ actual mutation on the Immer draft:
 2. **Captures pre-inference handles** for the source/target so group duplication
    can still detect which side was originally `inferFromConnection` (after
    `overrideDataType`, the handle's `dataType` is no longer infer).
-3. **Applies inference**: for each `nodeDataReplacement`, it
-   **`structuredClone`s** `newData` before assigning into the draft. This is
-   required because the prior committed state is Immer-frozen; assigning the
-   frozen `newData` directly would make the subsequent splice-based handle
-   duplication throw "object is not extensible".
+3. **Applies inference**: for each `nodeDataReplacement`, it deep-copies
+   `newData` with **`cloneDeepPreservingNonPlainObjects`** before assigning into
+   the draft. This is required because the prior committed state is
+   Immer-frozen; assigning the frozen `newData` directly would make the
+   subsequent splice-based handle duplication throw "object is not extensible".
+   The helper copies PLAIN data but passes functions and zod `complexSchema`s by
+   reference, so it avoids `structuredClone`'s `DataCloneError` and lodash
+   `cloneDeep`'s identity-break.
 4. **Deduplicates handle names** via `ensureAllHandleNamesUnique` on each
    replaced node (switch nodes are skipped at this step; they are deduped later,
    after zone prefixes are applied).
@@ -429,8 +434,11 @@ handle and a connected handle's info, it:
 3. Copies non-id/name/dataType/inferredDataType properties (e.g. `allowInput`,
    `maxConnections`) from the connected handle when it has a full `dataType`
 4. If `overrideName` is true and the connected handle has a name, copies `name`
-5. Builds the update object with `_.cloneDeep`, then either `Object.assign`s it
-   onto the handle (mutate) or returns an Immer `produce`d copy (immutable)
+5. Builds the update object with `cloneDeepPreservingNonPlainObjects` (plain
+   data copied so `Object.assign` grafts a mutable tree; zod schemas passed by
+   reference to keep their singleton identity, which lodash `cloneDeep` would
+   rebuild), then either `Object.assign`s it onto the handle (mutate) or returns
+   an Immer `produce`d copy (immutable)
 
 ### inferTypeAcrossTheNodeForHandleOfDataType
 
@@ -840,6 +848,6 @@ The `enableTypeInference` flag on `State` gates inference. Inference is part of
 the pure validate → plan → apply pipeline: planning is side-effect-free
 (`mutate=false`, returns an `InferencePlan`), and mutation happens only in
 `applyPlan` inside Immer's `produce`, where the replacement node data is
-`structuredClone`d into the draft before handle duplication. The legacy mutating
-functions (`addEdgeWithTypeChecking`, `inferTypesAfterEdgeAddition`) remain for
-tests only.
+deep-copied into the draft with `cloneDeepPreservingNonPlainObjects` before
+handle duplication. The legacy mutating functions (`addEdgeWithTypeChecking`,
+`inferTypesAfterEdgeAddition`) remain for tests only.

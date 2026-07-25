@@ -25,7 +25,10 @@ Two facts drive the whole design:
 - **UI-only state is stripped on export.** `StateSerializer.serialize` deletes
   `activeDrawer`, `zones`, `zoneIndex`, and `history` from the cloned state, in
   addition to stripping non-serializable handle fields. None of these belong in
-  a portable graph definition.
+  a portable graph definition. **Exceptions:** `userZones` (authored,
+  visual-only frames) and `runnerViewPreferences` (document-level runner-panel
+  prefs) ARE persisted — not stripped, not rehydrated — see the persisted-fields
+  note below and `zonesDoc.md` §Persistence.
 - **Zones are rebuilt on import, not carried.** Because `zones`/`zoneIndex` are
   stripped, importing a state via `REPLACE_STATE` re-derives them from scratch:
   `applyPlan`'s `REPLACE_STATE` case calls `rehydrateAllZones(imported)` and
@@ -346,6 +349,13 @@ After deep-cloning, the serializer removes two categories of data.
 | `subtree.zones`     | `typeOfNodes[id].subtree.zones`     | Derived (group-node subtree)                 |
 | `subtree.zoneIndex` | `typeOfNodes[id].subtree.zoneIndex` | Derived (group-node subtree)                 |
 
+> **`userZones` / `subtree.userZones` and `runnerViewPreferences` are the
+> exceptions — PERSISTED, not stripped.** Unlike derived system `zones`, the
+> authored user zones (named, colored frames) carry real user intent, and
+> `runnerViewPreferences` is a document-level runner-panel preference, so the
+> serializer does NOT delete them; they round-trip verbatim and are never
+> rehydrated. See `zonesDoc.md` §Persistence.
+
 **Non-serializable handle/dataType fields (deleted per object):**
 
 | Field           | Location                                               | Action                 |
@@ -646,6 +656,10 @@ After repair, the record is narrowed via `isSerializedExecutionRecord` (checks
   round-tripped.
 - `viewState` is carried only when present.
 
+> A recording's `viewState.autoScroll` is informational and is NOT applied on
+> load — the document-level graph-state `runnerViewPreferences.autoScroll` is
+> authoritative (the document preference wins).
+
 ---
 
 ## Serialization Helpers
@@ -877,9 +891,12 @@ export handlers pass `{ pretty: true }`.
 
 ## Limitations and Deprecated Patterns
 
-1. **UI-only state never round-trips.** `activeDrawer`, `zones`, `zoneIndex`,
-   and `history` are deleted on export. Zones are rebuilt on import
-   (`rehydrateAllZones`); history starts empty.
+1. **Most UI-only state never round-trips.** `activeDrawer`, `zones`,
+   `zoneIndex`, and `history` are deleted on export. Zones are rebuilt on import
+   (`rehydrateAllZones`); history starts empty. The two exceptions are
+   `userZones` (authored, visual-only frames) and `runnerViewPreferences`
+   (document-level runner-panel prefs), which ARE persisted and round-trip
+   verbatim.
 
 2. **Non-serializable handle fields are lost during export.** `complexSchema`
    (Zod instances) and `onChange` callbacks are stripped. On import they are

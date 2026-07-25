@@ -80,7 +80,7 @@ Parameters:
 - **docs.theme**: A dark docs theme created via `create({ base: 'dark' })` from
   `storybook/theming`
 - **options.storySort**: Explicit sidebar order
-  `['Interactive Fun🎉', 'Atoms', 'Molecules', 'Organisms', '*']`
+  `['Interactive Fun🎉', 'Advanced Graph Examples', 'Atoms', 'Molecules', 'Organisms', '*']`
 - **controls.matchers**: Auto-detects color and date controls via regex
   (`color: /(background|color)$/i`, `date: /Date$/i`)
 - **a11y.test**: Set to `'todo'` (shows violations in UI only, does not fail CI)
@@ -424,7 +424,8 @@ self-contained.
 |                                                      |
 |  Most components have a co-located .stories.tsx file  |
 |  (+1 Interactive Fun🎉/Logo Customizer story file)    |
-|  Total: 24 story files, ~205 individual stories      |
+|  (+1 Advanced Graph Examples/SDF Shape Studio file)   |
+|  Total: 27 story files (as of 2026-07)               |
 +------------------------------------------------------+
          |                    |
          v                    v

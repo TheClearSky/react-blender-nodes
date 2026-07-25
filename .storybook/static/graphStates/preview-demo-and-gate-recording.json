@@ -1,0 +1,192 @@
+{
+  "version": 1,
+  "exportedAt": "2026-07-10T18:06:01.637Z",
+  "record": {
+    "id": "6dc07a59-f8b9-44b2-b579-095944780239",
+    "startTime": 73813.30000019073,
+    "endTime": 73814.60000014305,
+    "totalDuration": 1.2999999523162842,
+    "warmupDuration": 6.900000095367432,
+    "totalPauseDuration": 0,
+    "status": "completed",
+    "steps": [
+      {
+        "stepIndex": 0,
+        "nodeId": "thi62rt7o4jladkcd73g",
+        "nodeTypeId": "bitConstant",
+        "nodeTypeName": "Bit Input",
+        "concurrencyLevel": 0,
+        "startTime": 0.5,
+        "endTime": 0.7999999523162842,
+        "duration": 0.2999999523162842,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Value": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": true,
+            "defaultValue": true
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        }
+      },
+      {
+        "stepIndex": 1,
+        "nodeId": "ac9xdtqh14anhoqobgwe",
+        "nodeTypeId": "bitConstant",
+        "nodeTypeName": "Bit Input",
+        "concurrencyLevel": 0,
+        "startTime": 0.6999998092651367,
+        "endTime": 0.8999998569488525,
+        "duration": 0.20000004768371582,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Value": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": true,
+            "defaultValue": true
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        }
+      },
+      {
+        "stepIndex": 2,
+        "nodeId": "taqb3dmsggqg2tlj4kxz",
+        "nodeTypeId": "andGate",
+        "nodeTypeName": "AND Gate",
+        "concurrencyLevel": 1,
+        "startTime": 0.9029998569603777,
+        "endTime": 1.0999999046325684,
+        "duration": 0.1970000476721907,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "A": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "thi62rt7o4jladkcd73g",
+                "sourceNodeName": "Bit Input",
+                "sourceHandleId": "3bwkxy80aqe0qbdk8jvi",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          },
+          "B": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "ac9xdtqh14anhoqobgwe",
+                "sourceNodeName": "Bit Input",
+                "sourceHandleId": "fmwetitj1zj9zgwpxaqq",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        }
+      },
+      {
+        "stepIndex": 3,
+        "nodeId": "p3k07i6s04v9wf5i15pw",
+        "nodeTypeId": "bitDisplay",
+        "nodeTypeName": "Bit Output",
+        "concurrencyLevel": 2,
+        "startTime": 1.1029999046440935,
+        "endTime": 1.1039999046479352,
+        "duration": 0.0010000000038417056,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "In": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "taqb3dmsggqg2tlj4kxz",
+                "sourceNodeName": "AND Gate",
+                "sourceHandleId": "aw35td88d6lr36luv47k",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {},
+        "estimatedTiming": true
+      }
+    ],
+    "errors": [],
+    "concurrencyLevels": [
+      {
+        "level": 0,
+        "startTime": 0.09999990463256836,
+        "endTime": 0.9009998569526942,
+        "duration": 0.8009999523201259,
+        "nodeIds": ["thi62rt7o4jladkcd73g", "ac9xdtqh14anhoqobgwe"]
+      },
+      {
+        "level": 1,
+        "startTime": 0.901999856956536,
+        "endTime": 1.10099990463641,
+        "duration": 0.19900004767987411,
+        "nodeIds": ["taqb3dmsggqg2tlj4kxz"]
+      },
+      {
+        "level": 2,
+        "startTime": 1.1019999046402518,
+        "endTime": 1.1049999046517769,
+        "duration": 0.003000000011525117,
+        "nodeIds": ["p3k07i6s04v9wf5i15pw"]
+      }
+    ],
+    "loopRecords": {},
+    "switchRecords": {},
+    "groupRecords": {},
+    "finalValues": {
+      "thi62rt7o4jladkcd73g:3bwkxy80aqe0qbdk8jvi": true,
+      "ac9xdtqh14anhoqobgwe:fmwetitj1zj9zgwpxaqq": true,
+      "taqb3dmsggqg2tlj4kxz:aw35td88d6lr36luv47k": true
+    },
+    "viewState": {
+      "selectedStepIndex": null,
+      "edgeValuesAnimated": true,
+      "panelOpen": true,
+      "autoScroll": true,
+      "timeMode": "execution",
+      "timelineCollapsed": false,
+      "selectedIterations": {},
+      "autoplayIntervalSec": 2,
+      "runMode": "instant",
+      "maxLoopIterations": 100
+    }
+  }
+}

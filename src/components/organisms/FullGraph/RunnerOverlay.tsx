@@ -13,13 +13,21 @@ import { cn } from '@/utils';
 import type { ExecutionRecord } from '@/utils/nodeRunner/types';
 import {
   useNodeRunner,
+  computeVisualStatesAtStep,
   type UseNodeRunnerReturn,
 } from '@/utils/nodeRunner/useNodeRunner';
+import { actionTypesMap } from '@/utils/nodeStateManagement/mainReducer';
+import { getRunnerViewPreferences } from '@/utils/nodeStateManagement/runnerViewPreferences';
 import { NodeRunnerPanel } from '@/components/organisms/NodeRunnerPanel';
 import type { FullGraphProps } from './FullGraph';
 import type { SupportedUnderlyingTypes } from '@/utils/nodeStateManagement/types';
 import type { RunTarget } from '@/utils/nodeRunner/runTargets/types';
 import { useRunTargets } from './useRunTargets';
+import { useNodePreviewRegistry } from './NodePreviewRegistryContext';
+import {
+  computeNodePreviewValues,
+  EMPTY_NODE_PREVIEW_VALUES,
+} from '@/utils/nodeRunner/computeNodePreviewValues';
 
 // ─────────────────────────────────────────────────────
 // RunnerOverlay: manages execution lifecycle and renders
@@ -50,6 +58,7 @@ function RunnerOverlay<
   runTargets,
   defaultRunTargetId,
   rootInputs,
+  dispatch,
 }: {
   state: FullGraphProps<
     DataTypeUniqueId,
@@ -57,6 +66,15 @@ function RunnerOverlay<
     UnderlyingType,
     ComplexSchemaType
   >['state'];
+  /** Graph dispatch — used by follow-into-groups to sync `openedNodeGroupStack`
+   *  with the scrub head's instance path (OPEN/CLOSE_NODE_GROUP are
+   *  non-undoable view actions). */
+  dispatch: FullGraphProps<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['dispatch'];
   functionImplementations: NonNullable<
     FullGraphProps<
       DataTypeUniqueId,
@@ -122,6 +140,13 @@ function RunnerOverlay<
   const panelRef = useRef<HTMLDivElement>(null);
   const theme = useGraphTheme();
 
+  // Per-node PREVIEW registry (consumer `nodePreviews`). When empty, the value
+  // derivation below is skipped so idle / no-preview graphs pay zero cost and the
+  // RunnerContext value keeps its stable identity (R1).
+  const nodePreviewRegistry = useNodePreviewRegistry();
+  const hasNodePreviews =
+    !!nodePreviewRegistry && Object.values(nodePreviewRegistry).some(Boolean);
+
   const viewState = useRecordingViewState();
   const {
     selectedStepIndex,
@@ -178,12 +203,150 @@ function RunnerOverlay<
     restoreViewState,
   ]);
 
+  // The open scope's INSTANCE path — the `openedNodeGroupStack` nodeId chain.
+  // Header-opens carry `nodeId` per level (the chain IS the recorder's
+  // instancePath format). `undefined` ⇔ root view OR a TEMPLATE open via the
+  // selector (any level without a nodeId) — both deliberately unfiltered (S2).
+  const openedNodeGroupStack = state.openedNodeGroupStack;
+  const openInstancePath = useMemo(() => {
+    if (!openedNodeGroupStack || openedNodeGroupStack.length === 0) {
+      return undefined;
+    }
+    const path: string[] = [];
+    for (const stackEntry of openedNodeGroupStack) {
+      if (!('nodeId' in stackEntry) || stackEntry.nodeId === undefined) {
+        return undefined;
+      }
+      path.push(stackEntry.nodeId);
+    }
+    return path;
+  }, [openedNodeGroupStack]);
+
+  // ── Follow into groups (D2: default ON; scrub-clicks + stepping + autoplay
+  // all move `currentStepIndex`, so ONE head-driven effect covers them all).
+  // When the head step's instancePath differs from the open scope, sync the
+  // `openedNodeGroupStack` via non-undoable OPEN/CLOSE_NODE_GROUP dispatches,
+  // then center the head node once the new scope has rendered. Toggle OFF
+  // restores the pre-feature behavior exactly.
+  // `followIntoGroups` is a CONTROLLED document preference (graph state): read via
+  // the per-field accessor, written via a non-undoable UPDATE_RUNNER_VIEW_PREFERENCE.
+  const followIntoGroups = getRunnerViewPreferences(state).followIntoGroups;
+  const setFollowIntoGroups = useCallback(
+    (enabled: boolean) =>
+      dispatch({
+        type: actionTypesMap.UPDATE_RUNNER_VIEW_PREFERENCE,
+        payload: { preference: 'followIntoGroups', enabled },
+      }),
+    [dispatch],
+  );
+  // Follow reacts to HEAD MOVEMENT only. The effect also re-runs when the
+  // user navigates manually (stack deps) — without this guard it would
+  // instantly revert any manual group open back to the head's path.
+  const lastFollowedStepIndexRef = useRef<number | null>(null);
+  const centerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const followExecutionRecord = runner.executionRecord;
+  const followCurrentStepIndex = runner.currentStepIndex;
+  useEffect(() => {
+    if (!followIntoGroups) {
+      lastFollowedStepIndexRef.current = null;
+      return;
+    }
+    const record = followExecutionRecord;
+    if (!record || record.steps.length === 0) return;
+    if (lastFollowedStepIndexRef.current === followCurrentStepIndex) return;
+    const headStep = record.steps.find(
+      (step) => step.stepIndex === followCurrentStepIndex,
+    );
+    if (!headStep) return;
+    lastFollowedStepIndexRef.current = followCurrentStepIndex;
+    const targetPath = headStep.instancePath ?? [];
+
+    // Diff against the CURRENT stack. A template-open (no nodeId at some
+    // level) has no instance identity — close everything and reopen.
+    const currentStack = openedNodeGroupStack ?? [];
+    let closes: number;
+    let opens: readonly string[];
+    if (openInstancePath !== undefined) {
+      let common = 0;
+      while (
+        common < openInstancePath.length &&
+        common < targetPath.length &&
+        openInstancePath[common] === targetPath[common]
+      ) {
+        common++;
+      }
+      closes = openInstancePath.length - common;
+      opens = targetPath.slice(common);
+    } else if (currentStack.length > 0) {
+      closes = currentStack.length;
+      opens = targetPath;
+    } else {
+      closes = 0;
+      opens = targetPath;
+    }
+    if (closes === 0 && opens.length === 0) return; // already in sync (F6 guard)
+
+    for (let i = 0; i < closes; i++) {
+      dispatch({ type: actionTypesMap.CLOSE_NODE_GROUP });
+    }
+    for (const instanceNodeId of opens) {
+      dispatch({
+        type: actionTypesMap.OPEN_NODE_GROUP,
+        payload: { nodeId: instanceNodeId },
+      });
+    }
+    // Center the head node after the new scope renders (getNode resolves only
+    // post-commit; a short defer is enough and purely cosmetic on miss). Held
+    // in a REF, not an effect cleanup: the dispatches above re-render and
+    // re-run this effect (which early-returns at the ref guard), and a cleanup
+    // would cancel the pending center before it ever fired (review M1).
+    const nodeIdToCenter = headStep.nodeId;
+    if (centerTimerRef.current !== null) clearTimeout(centerTimerRef.current);
+    centerTimerRef.current = setTimeout(() => {
+      centerTimerRef.current = null;
+      handleNavigateToNode(nodeIdToCenter);
+    }, 80);
+  }, [
+    followIntoGroups,
+    followExecutionRecord,
+    followCurrentStepIndex,
+    openInstancePath,
+    openedNodeGroupStack,
+    dispatch,
+    handleNavigateToNode,
+  ]);
+  // Unmount-only cleanup for the pending center defer.
+  useEffect(
+    () => () => {
+      if (centerTimerRef.current !== null) clearTimeout(centerTimerRef.current);
+    },
+    [],
+  );
+
+  // Standing inside a group INSTANCE, the hook's visual states are
+  // instance-blind (keyed by shared template node ids) — recompute them
+  // filtered to the open instance so another instance's execution doesn't
+  // light this scope's nodes.
+  const instanceCorrectedVisualStates = useMemo(
+    () =>
+      openInstancePath && runner.executionRecord
+        ? computeVisualStatesAtStep(
+            runner.executionRecord,
+            runner.currentStepIndex,
+            openInstancePath,
+          )
+        : undefined,
+    [openInstancePath, runner.executionRecord, runner.currentStepIndex],
+  );
+
   // Build combined nodeRunnerStates for FullGraphContext
+  const effectiveVisualStates =
+    instanceCorrectedVisualStates ?? runner.nodeVisualStates;
   const nodeRunnerStates = useMemo(() => {
     const combined = new Map<string, NodeRunnerState>();
 
     // Add visual states
-    for (const [nodeId, vs] of runner.nodeVisualStates) {
+    for (const [nodeId, vs] of effectiveVisualStates) {
       combined.set(nodeId, { visualState: vs });
     }
 
@@ -208,7 +371,7 @@ function RunnerOverlay<
     }
 
     return combined;
-  }, [runner.nodeVisualStates, runner.nodeWarnings, runner.nodeErrors]);
+  }, [effectiveVisualStates, runner.nodeWarnings, runner.nodeErrors]);
 
   const handleModeChange = useCallback(
     (m: 'instant' | 'stepByStep') => {
@@ -276,11 +439,44 @@ function RunnerOverlay<
     runner.maxLoopIterations,
   ]);
 
+  // Per-node preview snapshots (live + at-the-current-step) for `nodePreviews`.
+  // Gated on `hasNodePreviews` so it's a stable EMPTY reference (never rebuilds)
+  // when no preview is registered. Sourced from `currentStepIndex` — the scrub/
+  // replay head that also drives `nodeVisualStates` — so status + values stay
+  // coherent when the timeline is scrubbed. Single O(n) pass over `record.steps`
+  // (already the flat, complete list of every step at every depth).
+  const nodePreviewValues = useMemo(
+    () =>
+      hasNodePreviews && runner.executionRecord
+        ? computeNodePreviewValues(
+            runner.executionRecord,
+            runner.currentStepIndex,
+            openInstancePath,
+          )
+        : EMPTY_NODE_PREVIEW_VALUES,
+    [
+      hasNodePreviews,
+      runner.executionRecord,
+      runner.currentStepIndex,
+      openInstancePath,
+    ],
+  );
+
   // R1: memoize so the context value stays stable across graph dispatches that
   // don't touch runner state — otherwise every node re-renders on every dispatch.
   const runnerContextValue = useMemo(
-    () => ({ nodeRunnerStates, selectedStepRecord, edgeValuesAnimated }),
-    [nodeRunnerStates, selectedStepRecord, edgeValuesAnimated],
+    () => ({
+      nodeRunnerStates,
+      selectedStepRecord,
+      edgeValuesAnimated,
+      nodePreviewValues,
+    }),
+    [
+      nodeRunnerStates,
+      selectedStepRecord,
+      edgeValuesAnimated,
+      nodePreviewValues,
+    ],
   );
 
   return (
@@ -291,9 +487,12 @@ function RunnerOverlay<
         runnerState={runner.runnerState}
         record={runner.executionRecord}
         currentStepIndex={runner.currentStepIndex}
+        followIntoGroups={followIntoGroups}
+        onFollowIntoGroupsChange={setFollowIntoGroups}
         onRun={handleRun}
         onPause={runner.pause}
         onStep={runner.step}
+        onStepOver={runner.stepOver}
         onStop={runner.stop}
         onReset={runner.reset}
         mode={runner.mode}

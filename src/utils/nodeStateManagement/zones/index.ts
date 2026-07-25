@@ -16,7 +16,9 @@ export {
 export {
   createSwitchZones,
   createLoopZones,
+  createUserZone,
   removeStructureZones,
   recomputeAllZoneMemberships,
   rehydrateAllZones,
+  rehydrateSubtreeZones,
 } from './zoneLifecycle';

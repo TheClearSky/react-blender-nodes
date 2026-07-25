@@ -2,7 +2,13 @@ import { Button, Input } from '@/components/atoms';
 import { cn } from '@/utils/cnHelper';
 import { useDrag } from '@/hooks/useDrag';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { forwardRef, useEffect, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 
 /**
  * Props for the SliderNumberInput component
@@ -120,6 +126,20 @@ const SliderNumberInput = forwardRef<
     // rapid successive changes chain the same way the updater's `prev` did.
     const valueInnerRef = useRef(valueInner);
 
+    // Sync the internal chain state when the CONTROLLED value changes
+    // EXTERNALLY (programmatic UPDATE_INPUT_VALUE — seeded defaults, undo/
+    // redo, collaborative edits). Internal changes are already synced inside
+    // handleChange before onChange fires, so the prop echoing back compares
+    // equal and this is a no-op for them. Without this, the first increment/
+    // decrement after an external change chains off the MOUNT-TIME value
+    // (often 0) and stomps the controlled value (0.4 → 0.04 instead of 0.44).
+    useEffect(() => {
+      if (value !== undefined && value !== valueInnerRef.current) {
+        valueInnerRef.current = value;
+        setValueInner(value);
+      }
+    }, [value]);
+
     //Derived states
     const valueToUse = value ?? valueInner;
     // Compute the effective step for drag/increment operations.
@@ -166,6 +186,25 @@ const SliderNumberInput = forwardRef<
       onClick: handleSwitchFromSliderToInput,
       clickThreshold: 2,
     });
+
+    // Re-anchor the internal chain to the DISPLAYED value at the START of each
+    // drag/click gesture. The [value] sync effect above only fires when the
+    // prop CHANGES, so it cannot observe a parent that CLAMPS or QUANTIZES the
+    // emitted value back to an UNCHANGED prop — e.g. Max Loops
+    // `Math.max(1, round(v))` at the floor: dragging left emits 0.92, 0.84, …
+    // which all quantize back to 1, so the prop never changes while
+    // `valueInnerRef` sinks unboundedly below the floor. The next opposite
+    // drag then shows a multi-second "dead zone" as the chain climbs back.
+    // Anchoring on gesture start makes every gesture begin from what the user
+    // actually sees, without touching the within-gesture accumulation that is
+    // needed to cross a rounding quantum.
+    const wasDraggingRef = useRef(false);
+    useLayoutEffect(() => {
+      if (isDragging && !wasDraggingRef.current) {
+        valueInnerRef.current = valueToUse;
+      }
+      wasDraggingRef.current = isDragging;
+    }, [isDragging, valueToUse]);
 
     //Handlers
     function handleChange(difference: number) {

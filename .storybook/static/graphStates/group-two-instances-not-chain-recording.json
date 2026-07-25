@@ -1,0 +1,369 @@
+{
+  "version": 1,
+  "exportedAt": "2026-07-11T10:26:13.309Z",
+  "record": {
+    "id": "60591a1b-0584-404a-9534-ee8415ae389f",
+    "startTime": 6651.5,
+    "endTime": 6656,
+    "totalDuration": 4.5,
+    "warmupDuration": 12.399999856948853,
+    "totalPauseDuration": 0,
+    "status": "completed",
+    "steps": [
+      {
+        "stepIndex": 0,
+        "nodeId": "rro25st0h6hkyym63s64",
+        "nodeTypeId": "bitConstant",
+        "nodeTypeName": "Bit Input",
+        "concurrencyLevel": 0,
+        "startTime": 1.0999999046325684,
+        "endTime": 1.7999999523162842,
+        "duration": 0.7000000476837158,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "Value": {
+            "connections": [],
+            "dataTypeId": "bit",
+            "isDefault": true,
+            "defaultValue": true
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        }
+      },
+      {
+        "stepIndex": 1,
+        "nodeId": "93cewhqrg5sp5ov19ezv",
+        "nodeTypeId": "notGate",
+        "nodeTypeName": "NOT Gate",
+        "concurrencyLevel": 0,
+        "startTime": 3.0999999046325684,
+        "endTime": 3.299999952316284,
+        "duration": 0.20000004768371582,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "In": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "c1sta43nmjtlsxh6mmmp",
+                "sourceNodeName": "Group Input",
+                "sourceHandleId": "key2vsor3klo6174c0su",
+                "sourceHandleName": "In",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": false,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "groupNodeId": "fd0206dtrb4fw2ns5yr9",
+        "groupDepth": 1,
+        "instancePath": ["fd0206dtrb4fw2ns5yr9"]
+      },
+      {
+        "stepIndex": 2,
+        "nodeId": "fd0206dtrb4fw2ns5yr9",
+        "nodeTypeId": "exmurmltbx4ibokpd69k",
+        "nodeTypeName": "Node Group 1",
+        "concurrencyLevel": 1,
+        "startTime": 3.799999952316284,
+        "endTime": 3.800999952316488,
+        "duration": 0.0010000000002037268,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {},
+        "outputValues": {},
+        "groupNodeId": "fd0206dtrb4fw2ns5yr9",
+        "groupDepth": 1,
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 3,
+        "nodeId": "93cewhqrg5sp5ov19ezv",
+        "nodeTypeId": "notGate",
+        "nodeTypeName": "NOT Gate",
+        "concurrencyLevel": 0,
+        "startTime": 3.9009998569490563,
+        "endTime": 4,
+        "duration": 0.09900014305094373,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "In": {
+            "connections": [
+              {
+                "value": false,
+                "sourceNodeId": "c1sta43nmjtlsxh6mmmp",
+                "sourceNodeName": "Group Input",
+                "sourceHandleId": "key2vsor3klo6174c0su",
+                "sourceHandleName": "In",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {
+          "Out": {
+            "value": true,
+            "dataTypeId": "bit",
+            "targetCount": 1
+          }
+        },
+        "groupNodeId": "n9d76iokegrxse72obuo",
+        "groupDepth": 1,
+        "instancePath": ["n9d76iokegrxse72obuo"]
+      },
+      {
+        "stepIndex": 4,
+        "nodeId": "n9d76iokegrxse72obuo",
+        "nodeTypeId": "exmurmltbx4ibokpd69k",
+        "nodeTypeName": "Node Group 1",
+        "concurrencyLevel": 2,
+        "startTime": 4.100999904632772,
+        "endTime": 4.101999904632976,
+        "duration": 0.0010000000002037268,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {},
+        "outputValues": {},
+        "groupNodeId": "n9d76iokegrxse72obuo",
+        "groupDepth": 1,
+        "estimatedTiming": true
+      },
+      {
+        "stepIndex": 5,
+        "nodeId": "zq0gw64updjfrjdldhyu",
+        "nodeTypeId": "bitDisplay",
+        "nodeTypeName": "Bit Output",
+        "concurrencyLevel": 3,
+        "startTime": 4.2009998092653404,
+        "endTime": 4.299999952316284,
+        "duration": 0.09900014305094373,
+        "pauseAdjustment": 0,
+        "status": "completed",
+        "inputValues": {
+          "In": {
+            "connections": [
+              {
+                "value": true,
+                "sourceNodeId": "n9d76iokegrxse72obuo",
+                "sourceNodeName": "Node Group 1",
+                "sourceHandleId": "lm5df73cnwe5vjjo5g44",
+                "sourceHandleName": "Out",
+                "sourceDataTypeId": "bit"
+              }
+            ],
+            "dataTypeId": "bit",
+            "isDefault": false
+          }
+        },
+        "outputValues": {}
+      }
+    ],
+    "errors": [],
+    "concurrencyLevels": [
+      {
+        "level": 0,
+        "startTime": 0.19999980926513672,
+        "endTime": 1.8999998569488525,
+        "duration": 1.7000000476837158,
+        "nodeIds": ["rro25st0h6hkyym63s64"]
+      },
+      {
+        "level": 1,
+        "startTime": 1.9009998569490563,
+        "endTime": 3.8019999523166916,
+        "duration": 1.9010000953676354,
+        "nodeIds": ["fd0206dtrb4fw2ns5yr9"]
+      },
+      {
+        "level": 2,
+        "startTime": 3.8029999523168954,
+        "endTime": 4.1029999046331795,
+        "duration": 0.2999999523162842,
+        "nodeIds": ["n9d76iokegrxse72obuo"]
+      },
+      {
+        "level": 3,
+        "startTime": 4.199999809265137,
+        "endTime": 4.300999952316488,
+        "duration": 0.10100014305135119,
+        "nodeIds": ["zq0gw64updjfrjdldhyu"]
+      }
+    ],
+    "loopRecords": {},
+    "switchRecords": {},
+    "groupRecords": {
+      "fd0206dtrb4fw2ns5yr9": {
+        "groupNodeId": "fd0206dtrb4fw2ns5yr9",
+        "groupNodeTypeId": "exmurmltbx4ibokpd69k",
+        "innerRecord": {
+          "id": "60591a1b-0584-404a-9534-ee8415ae389f-scope-1",
+          "startTime": 6654.399999856949,
+          "endTime": 6655.199999809265,
+          "totalDuration": 0.7999999523162842,
+          "warmupDuration": 0,
+          "totalPauseDuration": 0,
+          "status": "completed",
+          "steps": [
+            {
+              "stepIndex": 1,
+              "nodeId": "93cewhqrg5sp5ov19ezv",
+              "nodeTypeId": "notGate",
+              "nodeTypeName": "NOT Gate",
+              "concurrencyLevel": 0,
+              "startTime": 3.0999999046325684,
+              "endTime": 3.299999952316284,
+              "duration": 0.20000004768371582,
+              "pauseAdjustment": 0,
+              "status": "completed",
+              "inputValues": {
+                "In": {
+                  "connections": [
+                    {
+                      "value": true,
+                      "sourceNodeId": "c1sta43nmjtlsxh6mmmp",
+                      "sourceNodeName": "Group Input",
+                      "sourceHandleId": "key2vsor3klo6174c0su",
+                      "sourceHandleName": "In",
+                      "sourceDataTypeId": "bit"
+                    }
+                  ],
+                  "dataTypeId": "bit",
+                  "isDefault": false
+                }
+              },
+              "outputValues": {
+                "Out": {
+                  "value": false,
+                  "dataTypeId": "bit",
+                  "targetCount": 1
+                }
+              },
+              "groupNodeId": "fd0206dtrb4fw2ns5yr9",
+              "groupDepth": 1,
+              "instancePath": ["fd0206dtrb4fw2ns5yr9"]
+            }
+          ],
+          "errors": [],
+          "concurrencyLevels": [],
+          "loopRecords": {},
+          "switchRecords": {},
+          "groupRecords": {},
+          "finalValues": {
+            "fd0206dtrb4fw2ns5yr9>c1sta43nmjtlsxh6mmmp:key2vsor3klo6174c0su": true,
+            "fd0206dtrb4fw2ns5yr9>93cewhqrg5sp5ov19ezv:xhhxnlysyrjj1s5pbguz": false
+          }
+        },
+        "inputMapping": {
+          "2kzadsqfemgccvh2sfl1": "key2vsor3klo6174c0su"
+        },
+        "outputMapping": {
+          "26awx5a6a1n6bc6dekmp": "8dnl090dzp346yf4eqer"
+        }
+      },
+      "n9d76iokegrxse72obuo": {
+        "groupNodeId": "n9d76iokegrxse72obuo",
+        "groupNodeTypeId": "exmurmltbx4ibokpd69k",
+        "innerRecord": {
+          "id": "60591a1b-0584-404a-9534-ee8415ae389f-scope-3",
+          "startTime": 6655.399999856949,
+          "endTime": 6655.599999904633,
+          "totalDuration": 0.20000004768371582,
+          "warmupDuration": 0,
+          "totalPauseDuration": 0,
+          "status": "completed",
+          "steps": [
+            {
+              "stepIndex": 3,
+              "nodeId": "93cewhqrg5sp5ov19ezv",
+              "nodeTypeId": "notGate",
+              "nodeTypeName": "NOT Gate",
+              "concurrencyLevel": 0,
+              "startTime": 3.9009998569490563,
+              "endTime": 4,
+              "duration": 0.09900014305094373,
+              "pauseAdjustment": 0,
+              "status": "completed",
+              "inputValues": {
+                "In": {
+                  "connections": [
+                    {
+                      "value": false,
+                      "sourceNodeId": "c1sta43nmjtlsxh6mmmp",
+                      "sourceNodeName": "Group Input",
+                      "sourceHandleId": "key2vsor3klo6174c0su",
+                      "sourceHandleName": "In",
+                      "sourceDataTypeId": "bit"
+                    }
+                  ],
+                  "dataTypeId": "bit",
+                  "isDefault": false
+                }
+              },
+              "outputValues": {
+                "Out": {
+                  "value": true,
+                  "dataTypeId": "bit",
+                  "targetCount": 1
+                }
+              },
+              "groupNodeId": "n9d76iokegrxse72obuo",
+              "groupDepth": 1,
+              "instancePath": ["n9d76iokegrxse72obuo"]
+            }
+          ],
+          "errors": [],
+          "concurrencyLevels": [],
+          "loopRecords": {},
+          "switchRecords": {},
+          "groupRecords": {},
+          "finalValues": {
+            "n9d76iokegrxse72obuo>c1sta43nmjtlsxh6mmmp:key2vsor3klo6174c0su": false,
+            "n9d76iokegrxse72obuo>93cewhqrg5sp5ov19ezv:xhhxnlysyrjj1s5pbguz": true
+          }
+        },
+        "inputMapping": {
+          "19liga9pbd0lk25na80q": "key2vsor3klo6174c0su"
+        },
+        "outputMapping": {
+          "26awx5a6a1n6bc6dekmp": "lm5df73cnwe5vjjo5g44"
+        }
+      }
+    },
+    "finalValues": {
+      "rro25st0h6hkyym63s64:yizd8d3t9y2yxw9z7qxw": true,
+      "fd0206dtrb4fw2ns5yr9:8dnl090dzp346yf4eqer": false,
+      "n9d76iokegrxse72obuo:lm5df73cnwe5vjjo5g44": true
+    },
+    "viewState": {
+      "selectedStepIndex": null,
+      "edgeValuesAnimated": true,
+      "panelOpen": true,
+      "autoScroll": true,
+      "timeMode": "execution",
+      "timelineCollapsed": false,
+      "selectedIterations": {},
+      "autoplayIntervalSec": 2,
+      "runMode": "instant",
+      "maxLoopIterations": 100
+    }
+  }
+}

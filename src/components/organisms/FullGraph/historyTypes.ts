@@ -86,6 +86,15 @@ const NON_UNDOABLE_PLAN_KINDS: ReadonlySet<Plan['kind']> = new Set([
   'REPLACE_STATE',
   'OPEN_DRAWER',
   'CLOSE_DRAWER',
+  // Runner-panel view-preference toggle (auto-scroll / follow-groups) — a VIEW
+  // concern, never on the undo stack.
+  'UPDATE_RUNNER_VIEW_PREFERENCE',
+  // Group navigation is a VIEW concern like SET_VIEWPORT (editor convention;
+  // also lets runner follow-mode sync the open scope on scrub without
+  // flooding the undo stack). Deliberate product decision — see the
+  // group-instance-tracking plan.
+  'OPEN_NODE_GROUP',
+  'CLOSE_NODE_GROUP',
   'UNDO',
   'REDO',
   'BEGIN_BATCH',

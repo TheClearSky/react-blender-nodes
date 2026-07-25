@@ -14,7 +14,14 @@ const preview: Preview = {
     },
     options: {
       storySort: {
-        order: ['Interactive Fun🎉', 'Atoms', 'Molecules', 'Organisms', '*'],
+        order: [
+          'Interactive Fun🎉',
+          'Advanced Graph Examples',
+          'Atoms',
+          'Molecules',
+          'Organisms',
+          '*',
+        ],
       },
     },
     controls: {

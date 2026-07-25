@@ -98,6 +98,80 @@ function removeStructureZones(
   return result;
 }
 
+/**
+ * Default color palette for new user zones. The first palette color not used
+ * by an existing user zone in scope is picked (falling back to count-rotation
+ * once all are taken), so freshly-created zones stay visually distinct even
+ * after deletions. Hex (sRGB) so it round-trips through the ColorPicker and
+ * persists cleanly.
+ */
+// Shared with the label swatch presets (UserZoneLabelLayer) so a default-colored
+// zone's swatch shows as active — one source of truth (no drift).
+export const USER_ZONE_PALETTE = [
+  '#60a5fa',
+  '#f472b6',
+  '#34d399',
+  '#fbbf24',
+  '#a78bfa',
+  '#22d3ee',
+  '#fb923c',
+  '#a3e635',
+];
+
+/** Matches default zone names: bare `Zone` (suffix 1) or `Zone <n>`. Case-sensitive by intent. */
+const DEFAULT_ZONE_NAME_PATTERN = /^Zone(?: (\d+))?$/;
+
+/**
+ * Creates a single USER-AUTHORED zone (a named/colored visual frame the user
+ * wraps around selected nodes). Unlike system zones it has NO `structureLink`
+ * and NO `boundaryHandles`, and `enforced: false` — membership is the authored
+ * `nodeIds`, never recomputed by `recomputeAllZoneMemberships`.
+ *
+ * Defaults are derived from the zones already in scope:
+ * - NAME: `Zone`, then `Zone 2`, `Zone 3`, … — max existing suffix + 1 (a bare
+ *   `Zone` counts as suffix 1; a manually-typed `Zone 7` joins the scan), so a
+ *   default name never duplicates an existing one even after deletions.
+ * - COLOR: the first palette color no existing user zone uses; count-rotation
+ *   once all palette colors are taken.
+ *
+ * @param nodeIds - Member node IDs (already deduped + scope-validated by the validator).
+ * @param existingUserZones - The current scope's user zones (drives the name/color defaults).
+ * @param name - Optional display name; blank falls back to the numbered default.
+ * @param color - Optional CSS hex color; absent falls back to the first unused palette color.
+ * @returns A visual-only `Zone`.
+ */
+function createUserZone(
+  nodeIds: string[],
+  existingUserZones: Record<string, Zone>,
+  name?: string,
+  color?: string,
+): Zone {
+  const existing = Object.values(existingUserZones);
+
+  const trimmedName = name?.trim();
+  let defaultName = 'Zone';
+  const suffixes = existing
+    .map((zone) => DEFAULT_ZONE_NAME_PATTERN.exec(zone.name))
+    .filter((match): match is RegExpExecArray => match !== null)
+    .map((match) => (match[1] ? Number(match[1]) : 1));
+  if (suffixes.length > 0) {
+    defaultName = `Zone ${Math.max(...suffixes) + 1}`;
+  }
+
+  const usedColors = new Set(existing.map((zone) => zone.color));
+  const defaultColor =
+    USER_ZONE_PALETTE.find((paletteColor) => !usedColors.has(paletteColor)) ??
+    USER_ZONE_PALETTE[existing.length % USER_ZONE_PALETTE.length];
+
+  return {
+    id: generateRandomString(ZONE_ID_LENGTH),
+    name: trimmedName ? trimmedName : defaultName,
+    color: color ?? defaultColor,
+    nodeIds: [...nodeIds],
+    enforced: false,
+  };
+}
+
 /** Minimal handle shape needed for zone boundary discovery. */
 type HandleLikeForZone = {
   id?: string;
@@ -429,11 +503,67 @@ function rehydrateAllZones<
   return recomputeAllZoneMemberships({ ...state, zones });
 }
 
+/**
+ * Rebuild the DERIVED `zones`/`zoneIndex` for every group SUBTREE in a state's
+ * `typeOfNodes`, returning a NEW `typeOfNodes`.
+ *
+ * Export strips subtree zones, and `rehydrateAllZones` only walks the ROOT
+ * scope — so without this an imported group's inner loops/switches have no
+ * zones (no frames, and zone-guarded validation branches fall back to BFS).
+ * Groups are flat, id-keyed entries in `typeOfNodes` (no recursion needed:
+ * every group's subtree — including nested ones — is its own top-level key).
+ * Authored `subtree.userZones` is left untouched (never rehydrated).
+ */
+function rehydrateSubtreeZones<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: State<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >,
+): State<
+  DataTypeUniqueId,
+  NodeTypeUniqueId,
+  UnderlyingType,
+  ComplexSchemaType
+>['typeOfNodes'] {
+  const typeOfNodes = state.typeOfNodes;
+  const result = { ...typeOfNodes };
+  for (const key of Object.keys(typeOfNodes) as NodeTypeUniqueId[]) {
+    const nodeType = typeOfNodes[key];
+    const subtree = nodeType.subtree;
+    if (!subtree) continue;
+    const rehydrated = rehydrateAllZones({
+      ...state,
+      nodes: subtree.nodes,
+      edges: subtree.edges,
+    });
+    result[key] = {
+      ...nodeType,
+      subtree: {
+        ...subtree,
+        zones: rehydrated.zones,
+        zoneIndex: rehydrated.zoneIndex,
+      },
+    };
+  }
+  return result;
+}
+
 export {
   createSwitchZones,
   createLoopZones,
+  createUserZone,
   removeStructureZones,
   recomputeAllZoneMemberships,
   rehydrateAllZones,
+  rehydrateSubtreeZones,
   findZoneByStructure,
 };

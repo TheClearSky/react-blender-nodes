@@ -14,6 +14,7 @@ const STORY_EMPTY_RUNNER = 'organisms-fullgraph--empty-runner-playground';
 const STORY_WITH_RUNNER = 'organisms-fullgraph--with-runner';
 const STORY_PLAYGROUND = 'organisms-fullgraph--playground';
 const STORY_CUSTOM_INPUT = 'organisms-fullgraph--custom-input-components';
+const STORY_RUNNER_FIXTURE_DEMOS = 'organisms-fullgraph--runner-fixture-demos';
 
 // ─────────────────────────────────────────────────────
 // Context menu paths (folderPath for addNodeViaContextMenu)
@@ -129,6 +130,7 @@ export {
   STORY_WITH_RUNNER,
   STORY_PLAYGROUND,
   STORY_CUSTOM_INPUT,
+  STORY_RUNNER_FIXTURE_DEMOS,
   MENU_PATH_STANDARD,
   MENU_PATH_LOGIC,
   MENU_PATH_UTILITY,

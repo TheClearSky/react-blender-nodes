@@ -37,6 +37,8 @@ async function executeStandardNode<
       groupNodeId: string;
       groupNodeTypeId: string;
       groupDepth: number;
+      /** Chain of group-instance ids down to this scope (outermost first). */
+      instancePath?: readonly string[];
     };
     loopPhase?: LoopPhase;
     switchContext?: {
@@ -75,6 +77,7 @@ async function executeStandardNode<
     loopStructureId: loopContext?.loopStructureId,
     groupNodeId: groupContext?.groupNodeId,
     groupDepth: groupContext?.groupDepth,
+    instancePath: groupContext?.instancePath,
     loopPhase,
     switchPhase,
     switchStructureId: switchContext?.switchStructureId,

@@ -91,6 +91,13 @@ type StateRepairStrategies = {
    * codegen contract and warns when it had to.
    */
   normalizeConnectionOrder: boolean;
+  /**
+   * Prune `userZones` member ids that don't reference a real node, and drop any
+   * zone left empty. Crash-safety is already always-on (`coerceUserZones` runs
+   * unconditionally); this is the deeper ghost-id cleanup. Walks root AND each
+   * group subtree, pruning each against its OWN nodes.
+   */
+  normalizeUserZones: boolean;
 };
 
 /**

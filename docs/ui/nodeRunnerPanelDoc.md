@@ -414,7 +414,8 @@ wide layout applies — the breakpoint was measured so the wide row, which needs
 
 No JavaScript or media queries are involved — pure CSS container variants.
 Verified by `e2e/tests/loops/runnerUI/responsive.spec.ts` (G8/G9) and the
-`WithRunnerNarrow` story.
+`WithRunner` story's `frame=narrow-390` control (story chrome renders the editor
+in a 390px box).
 
 ## Selected Step Flow
 
@@ -493,7 +494,11 @@ NodeRunnerPanel passes `record`, `currentStepIndex`, `onScrubTo`, `onStepClick`
 (`handleStepClick`), `selectedStepIndex`, and `onNavigateToNode`. The timeline
 reads its own UI preferences (auto-scroll, time mode, collapsed state, selected
 iterations, autoplay interval) from `RecordingViewStateContext` and manages
-zoom/pan and scrub state via its internal hooks.
+zoom/pan and scrub state via its internal hooks. The auto-scroll toggle is now
+backed by the document-level graph preference
+`state.runnerViewPreferences.autoScroll` (toggled via the non-undoable
+`UPDATE_RUNNER_VIEW_PREFERENCE` action; the recording's `viewState` still
+snapshots it for informational round-trip).
 
 ### -> [ExecutionStepInspector](executionStepInspectorDoc.md)
 

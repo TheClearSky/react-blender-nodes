@@ -34,10 +34,21 @@ async function executeOneStep<
     loopStructureId: string;
   },
   afterStep?: () => Promise<void>,
+  groupContext?: {
+    groupNodeId: string;
+    groupNodeTypeId: string;
+    groupDepth: number;
+    instancePath: readonly string[];
+  },
 ): Promise<void> {
   switch (step.kind) {
     case 'standard':
-      await executeStandardNode(step, env, valueStore);
+      await executeStandardNode(
+        step,
+        env,
+        valueStore,
+        groupContext ? { groupContext } : undefined,
+      );
       await afterStep?.();
       return;
 
@@ -49,19 +60,30 @@ async function executeOneStep<
         erroredNodes,
         parentLoopContext,
         afterStep,
+        groupContext,
       );
 
     case 'switch':
-      return executeSwitchBlock(step, env, valueStore, erroredNodes, afterStep);
+      return executeSwitchBlock(
+        step,
+        env,
+        valueStore,
+        erroredNodes,
+        afterStep,
+        groupContext,
+      );
 
     case 'group':
+      // Inherit the enclosing scope's depth/path (a group nested inside a
+      // loop/switch body which is itself inside a group must not reset to 1).
       return executeGroupScope(
         step,
         env,
         valueStore,
         erroredNodes,
-        undefined, // groupDepth
+        groupContext ? groupContext.groupDepth + 1 : undefined,
         afterStep,
+        groupContext?.instancePath ?? [],
       );
     default:
       throw new Error('Unreachable');

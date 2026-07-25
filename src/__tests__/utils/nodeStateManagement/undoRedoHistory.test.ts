@@ -94,6 +94,50 @@ describe('undo/redo history — integration via mainReducer', () => {
     expect(s4.nodes[0].data.customName).toBe('Summer');
   });
 
+  it('a preview-collapse toggle is ONE undoable entry; UNDO expands, REDO re-collapses (decision D2)', () => {
+    const s1 = addNode(createTestState());
+    const nodeId = s1.nodes[0].id;
+    const undoBefore = s1.history?.undoStack.length ?? 0;
+
+    const s2 = mainReducer<TestDataTypeId, TestNodeTypeId>(s1, {
+      type: actionTypesMap.UPDATE_NODE_PREVIEW_COLLAPSED,
+      payload: { nodeId, previewCollapsed: true },
+    });
+    expect(s2.nodes[0].data.previewCollapsed).toBe(true);
+    expect(s2.history?.undoStack).toHaveLength(undoBefore + 1);
+
+    // UNDO → expanded (absent = expanded, not an explicit false)
+    const s3 = mainReducer<TestDataTypeId, TestNodeTypeId>(s2, {
+      type: actionTypesMap.UNDO,
+    });
+    expect(s3.nodes[0].data.previewCollapsed).toBeUndefined();
+
+    // REDO → collapsed again
+    const s4 = mainReducer<TestDataTypeId, TestNodeTypeId>(s3, {
+      type: actionTypesMap.REDO,
+    });
+    expect(s4.nodes[0].data.previewCollapsed).toBe(true);
+  });
+
+  it('UNDO of an EXPAND restores the collapsed state', () => {
+    const s1 = addNode(createTestState());
+    const nodeId = s1.nodes[0].id;
+    const collapsed = mainReducer<TestDataTypeId, TestNodeTypeId>(s1, {
+      type: actionTypesMap.UPDATE_NODE_PREVIEW_COLLAPSED,
+      payload: { nodeId, previewCollapsed: true },
+    });
+    const expanded = mainReducer<TestDataTypeId, TestNodeTypeId>(collapsed, {
+      type: actionTypesMap.UPDATE_NODE_PREVIEW_COLLAPSED,
+      payload: { nodeId, previewCollapsed: false },
+    });
+    expect(expanded.nodes[0].data.previewCollapsed).toBeUndefined();
+
+    const undone = mainReducer<TestDataTypeId, TestNodeTypeId>(expanded, {
+      type: actionTypesMap.UNDO,
+    });
+    expect(undone.nodes[0].data.previewCollapsed).toBe(true);
+  });
+
   it('re-applies the action on REDO', () => {
     const s1 = addNode(createTestState());
     const s2 = mainReducer<TestDataTypeId, TestNodeTypeId>(s1, {
@@ -116,6 +160,33 @@ describe('undo/redo history — integration via mainReducer', () => {
     const s3 = addNode(s2, { x: 100, y: 100 });
     expect(s3.history?.redoStack).toHaveLength(0);
     expect(s3.history?.undoStack).toHaveLength(1);
+  });
+
+  it('does not record group navigation (OPEN/CLOSE_NODE_GROUP) in history — view concern, like SET_VIEWPORT', () => {
+    // Deliberate product decision: navigation must not pollute Ctrl+Z, and the
+    // runner's follow-into-groups mode dispatches these on every scrub.
+    let s = createTestState();
+    s = mainReducer<TestDataTypeId, TestNodeTypeId>(s, {
+      type: actionTypesMap.ADD_NODE_GROUP,
+    });
+    // ADD_NODE_GROUP creates the type AND enters it; leave it again.
+    s = mainReducer<TestDataTypeId, TestNodeTypeId>(s, {
+      type: actionTypesMap.CLOSE_NODE_GROUP,
+    });
+    const groupTypeId = Object.keys(s.typeOfNodes).find(
+      (typeId) => s.typeOfNodes[typeId as TestNodeTypeId]?.subtree,
+    ) as TestNodeTypeId;
+    expect(groupTypeId).toBeDefined();
+
+    const undoLenBefore = s.history?.undoStack.length ?? 0;
+    s = mainReducer<TestDataTypeId, TestNodeTypeId>(s, {
+      type: actionTypesMap.OPEN_NODE_GROUP,
+      payload: { nodeType: groupTypeId },
+    });
+    s = mainReducer<TestDataTypeId, TestNodeTypeId>(s, {
+      type: actionTypesMap.CLOSE_NODE_GROUP,
+    });
+    expect(s.history?.undoStack.length ?? 0).toBe(undoLenBefore);
   });
 
   it('does not record non-undoable actions (SET_VIEWPORT) in history', () => {

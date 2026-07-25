@@ -3,6 +3,7 @@ import type { Nodes, Edges } from '@/components/organisms/FullGraph/types';
 import type { HandleShape } from '@/components/organisms/ConfigurableNode';
 import type { Viewport } from '@xyflow/react';
 import type { Zone, ZoneIndex } from './zones/types';
+import type { RunnerViewPreferences } from './runnerViewPreferences';
 import type { Patch } from 'immer';
 import type {
   HistoryEntry,
@@ -175,6 +176,15 @@ type TypeOfInput<DataTypeUniqueId extends string = string> = {
   allowInput?: boolean;
   /** Maximum number of connections for this input */
   maxConnections?: number;
+  /**
+   * Initial value seeded onto a freshly-constructed node's input handle
+   * (`node.data.inputs[].value`). Copied at construction only for
+   * `number`/`string`/`boolean` underlying types whose runtime value matches;
+   * ignored for `complex`/`inferFromConnection`/`noEquivalent`. Lets a node
+   * type declare its own defaults instead of the consumer seeding them via
+   * `UPDATE_INPUT_VALUE` after every add.
+   */
+  defaultValue?: string | number | boolean;
 };
 
 /**
@@ -253,6 +263,14 @@ type TypeOfNode<
     zones?: Record<string, Zone>;
     /** Reverse index from boundary handle IDs to zone IDs for this subtree. UI-only — stripped on export. */
     zoneIndex?: ZoneIndex;
+    /**
+     * Scope-local USER-AUTHORED zones for this subtree (named/colored visual frames
+     * the user wraps around selected nodes). Unlike `zones` (derived from loop/switch
+     * structures, recomputed/stripped/rehydrated), these are AUTHORED: membership is an
+     * explicit `nodeIds` set, never recomputed. Persisted (NOT stripped on export, NOT
+     * rehydrated on import). Visual-only — `enforced: false`, no boundaryHandles/structureLink.
+     */
+    userZones?: Record<string, Zone>;
   };
 };
 
@@ -579,6 +597,30 @@ type State<
    * @default undefined
    */
   zoneIndex?: ZoneIndex;
+
+  /**
+   * Root-level USER-AUTHORED zones (named/colored visual frames the user creates
+   * around selected nodes). Unlike `zones` (derived from loop/switch structures,
+   * recomputed/stripped/rehydrated), these are AUTHORED: membership is an explicit
+   * `nodeIds` set, never recomputed. Persisted in export (NOT stripped) and forwarded
+   * on import (NOT rehydrated). Visual-only — `enforced: false`, no
+   * boundaryHandles/structureLink. Scope-local like `zones` (root vs subtree).
+   * @default undefined
+   */
+  userZones?: Record<string, Zone>;
+
+  /**
+   * Document-level runner-panel view preferences: `autoScroll` (auto-scroll the
+   * timeline/canvas to the selected step) and `followIntoGroups` (follow the scrub
+   * head into executing group instances). Toggled by UPDATE_RUNNER_VIEW_PREFERENCE.
+   * Persisted on export and forwarded on import (NOT stripped, NOT rehydrated) like
+   * `userZones`; GLOBAL (root-only, not scope-local — no subtree copy). The
+   * per-recording snapshot lives in `RecordingViewState`; `autoScroll` is mirrored
+   * there with graph state authoritative and NOT restored on load. Inner fields
+   * REQUIRED — read via `getRunnerViewPreferences`, which defaults per-field.
+   * @default undefined → read as { autoScroll: true, followIntoGroups: true }
+   */
+  runnerViewPreferences?: RunnerViewPreferences;
 
   /**
    * Undo/redo history. Stores Immer patches for each undoable action.

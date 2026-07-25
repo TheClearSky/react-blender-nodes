@@ -28,6 +28,60 @@ describe('importExport/stateImport', () => {
 });
 
 // ---------------------------------------------------------------------------
+// User zones are a visual-only authored field; a malformed userZones from a
+// hand-edited / version-skewed file must NEVER crash the canvas. The always-on
+// `coerceUserZones` runs on every import (not gated on a repair flag).
+// ---------------------------------------------------------------------------
+
+describe('importExport — userZones always-on coerce', () => {
+  function envelopeWithUserZones(userZones: unknown): string {
+    return JSON.stringify({
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      state: {
+        dataTypes: {},
+        typeOfNodes: {},
+        nodes: [],
+        edges: [],
+        userZones,
+      },
+    });
+  }
+
+  it('drops a non-object userZones without failing (no char-spread crash)', () => {
+    const result = importGraphState(envelopeWithUserZones('garbage'), options);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.userZones).toBeUndefined();
+    }
+  });
+
+  it('drops malformed zone entries and coerces nodeIds, keeping valid zones', () => {
+    const result = importGraphState(
+      envelopeWithUserZones({
+        good: {
+          id: 'good',
+          name: 'Keep',
+          color: '#60a5fa',
+          nodeIds: ['n1', 5, 'n2'],
+        },
+        bad: 'not-an-object',
+      }),
+      options,
+    );
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const userZones = result.data.userZones as Record<
+        string,
+        { nodeIds: unknown[] }
+      >;
+      expect(userZones.bad).toBeUndefined();
+      expect(userZones.good.nodeIds).toEqual(['n1', 'n2']);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // E1 — root Graph I/O invariants are enforced on import (REPLACE_STATE bypasses
 // the editor; the runtime keys root I/O by name, so dup/empty names collapse).
 // ---------------------------------------------------------------------------

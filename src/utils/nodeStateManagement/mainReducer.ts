@@ -5,6 +5,7 @@ import {
   type TypeOfInput,
   type TypeOfInputPanel,
 } from './types';
+import type { RunnerViewPreferenceKey } from './runnerViewPreferences';
 import { z } from 'zod';
 import { type Connection, type XYPosition, type Viewport } from '@xyflow/react';
 import type { EdgeChanges, NodeChanges } from '@/components';
@@ -46,6 +47,12 @@ const actionTypes = [
   'UPDATE_GRAPH_IO_HANDLES',
   'REORDER_INPUT_CONNECTIONS',
   'UPDATE_NODE_CUSTOM_NAME',
+  'ADD_USER_ZONE',
+  'UPDATE_USER_ZONE',
+  'UPDATE_USER_ZONE_MEMBERS',
+  'DELETE_USER_ZONE',
+  'UPDATE_NODE_PREVIEW_COLLAPSED',
+  'UPDATE_RUNNER_VIEW_PREFERENCE',
 ] as const;
 
 /** Map of action types for type-safe action dispatching */
@@ -79,6 +86,12 @@ const actionTypesMap = {
   [actionTypes[26]]: actionTypes[26],
   [actionTypes[27]]: actionTypes[27],
   [actionTypes[28]]: actionTypes[28],
+  [actionTypes[29]]: actionTypes[29],
+  [actionTypes[30]]: actionTypes[30],
+  [actionTypes[31]]: actionTypes[31],
+  [actionTypes[32]]: actionTypes[32],
+  [actionTypes[33]]: actionTypes[33],
+  [actionTypes[34]]: actionTypes[34],
 } as const;
 
 /**
@@ -175,6 +188,77 @@ type Action<
         nodeId: string;
         /** New custom name, or `undefined` to clear it (revert to the type name). */
         customName: string | undefined;
+      };
+    }
+  | {
+      /** Collapse/expand a node instance's preview panel (persisted on `node.data`;
+       *  visibility-only, undoable). The flag is always valid to set; it takes
+       *  VISIBLE effect only when a `nodePreviews` component is registered for that
+       *  node type. */
+      type: typeof actionTypesMap.UPDATE_NODE_PREVIEW_COLLAPSED;
+      payload: {
+        /** ID of the node whose preview panel to collapse/expand. */
+        nodeId: string;
+        /** `true` = collapse (hide the preview); `false` = expanded. */
+        previewCollapsed: boolean;
+      };
+    }
+  | {
+      /** Set a document-level runner view preference (auto-scroll / follow-into-
+       *  groups). Non-undoable VIEW state; the validator NOOPs an unchanged set or
+       *  an unknown key. */
+      type: typeof actionTypesMap.UPDATE_RUNNER_VIEW_PREFERENCE;
+      payload: {
+        /** Which preference to set (`'autoScroll' | 'followIntoGroups'`). */
+        preference: RunnerViewPreferenceKey;
+        /** The new on/off value. */
+        enabled: boolean;
+      };
+    }
+  | {
+      /** Create a user-authored visual zone (a named/colored frame) wrapping the
+       *  given nodes. Visual-only — never affects execution/codegen/validation. */
+      type: typeof actionTypesMap.ADD_USER_ZONE;
+      payload: {
+        /** IDs of the nodes to wrap (the current selection). */
+        nodeIds: string[];
+        /** Optional display name; defaults to "Zone" in applyPlan when absent/blank. */
+        name?: string;
+        /** Optional CSS hex color; defaults to a rotating preset in applyPlan. */
+        color?: string;
+      };
+    }
+  | {
+      /** Rename and/or recolor a user zone (partial — omitted fields unchanged). */
+      type: typeof actionTypesMap.UPDATE_USER_ZONE;
+      payload: {
+        /** ID of the user zone to update. */
+        zoneId: string;
+        /** New display name (blank is dropped by the validator). */
+        name?: string;
+        /** New CSS hex color (invalid is dropped by the validator). */
+        color?: string;
+      };
+    }
+  | {
+      /** Add or remove nodes from a user zone's authored membership. A `'remove'`
+       *  that empties the zone auto-deletes it. */
+      type: typeof actionTypesMap.UPDATE_USER_ZONE_MEMBERS;
+      payload: {
+        /** ID of the user zone to mutate. */
+        zoneId: string;
+        /** Node IDs to add or remove. */
+        nodeIds: string[];
+        /** Whether to add to or remove from the membership. */
+        mode: 'add' | 'remove';
+      };
+    }
+  | {
+      /** Delete a user zone. */
+      type: typeof actionTypesMap.DELETE_USER_ZONE;
+      payload: {
+        /** ID of the user zone to delete. */
+        zoneId: string;
       };
     }
   | {

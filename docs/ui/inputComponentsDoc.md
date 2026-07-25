@@ -187,6 +187,13 @@ to an `Input` field (with `allowOnlyNumbers`) for precise entry. Exported from
 The displayed decimals (`displayDecimals = decimals ?? (isSmall ? 1 : 4)`) are
 also passed to the `Input` as `numberOfDecimals` while in input mode.
 
+The internal chaining state (`valueInner` + its ref) re-syncs whenever the
+CONTROLLED `value` prop changes **externally** (a programmatic
+`UPDATE_INPUT_VALUE`, undo/redo) — internal changes already sync before
+`onChange` fires, so the prop echo is a no-op. Without this, the first
+increment/decrement after an external change chained off the mount-time value
+and stomped the controlled one (`0.4` → `0.04` instead of `0.44`).
+
 ### Two-Mode UI
 
 ```

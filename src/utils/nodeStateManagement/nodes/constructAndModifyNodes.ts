@@ -95,6 +95,15 @@ function constructInputOrOutputOfType<
     typeOfDataTypeInNode.maxConnections ??
     matchingDataTypeFromAllDataTypes.maxConnections;
 
+  // A declared input default (`TypeOfInput.defaultValue`) is copied into the
+  // constructed handle's `value` when the runtime type matches — so a node
+  // type can ship its own defaults instead of the consumer dispatching an
+  // `UPDATE_INPUT_VALUE` after every add. Only present on inputs (not outputs).
+  const providedDefaultValue =
+    'defaultValue' in typeOfDataTypeInNode
+      ? typeOfDataTypeInNode.defaultValue
+      : undefined;
+
   if (matchingDataTypeFromAllDataTypes.underlyingType === 'number') {
     return {
       id: generateRandomString(lengthOfIds),
@@ -104,6 +113,10 @@ function constructInputOrOutputOfType<
       maxConnections: resultantMaxConnections,
       type: 'number' as const,
       handleShape: matchingDataTypeFromAllDataTypes.shape,
+      value:
+        typeof providedDefaultValue === 'number'
+          ? providedDefaultValue
+          : undefined,
       dataType: {
         dataTypeObject: matchingDataTypeFromAllDataTypes,
         dataTypeUniqueId: typeOfDataTypeInNode.dataType,
@@ -119,6 +132,10 @@ function constructInputOrOutputOfType<
       type: 'string' as const,
       handleShape: matchingDataTypeFromAllDataTypes.shape,
       allowedStrings: matchingDataTypeFromAllDataTypes.allowedStrings,
+      value:
+        typeof providedDefaultValue === 'string'
+          ? providedDefaultValue
+          : undefined,
       dataType: {
         dataTypeObject: matchingDataTypeFromAllDataTypes,
         dataTypeUniqueId: typeOfDataTypeInNode.dataType,
@@ -133,6 +150,10 @@ function constructInputOrOutputOfType<
       maxConnections: resultantMaxConnections,
       type: 'boolean' as const,
       handleShape: matchingDataTypeFromAllDataTypes.shape,
+      value:
+        typeof providedDefaultValue === 'boolean'
+          ? providedDefaultValue
+          : undefined,
       dataType: {
         dataTypeObject: matchingDataTypeFromAllDataTypes,
         dataTypeUniqueId: typeOfDataTypeInNode.dataType,
@@ -446,6 +467,7 @@ function getCurrentNodesAndEdgesFromState<
   outputNodeId?: string;
   zones?: Record<string, Zone>;
   zoneIndex?: ZoneIndex;
+  userZones?: Record<string, Zone>;
 } {
   const topOpenedNodeGroup =
     state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
@@ -455,6 +477,7 @@ function getCurrentNodesAndEdgesFromState<
       edges: state.edges,
       zones: state.zones,
       zoneIndex: state.zoneIndex,
+      userZones: state.userZones,
     };
   }
   const subtree = state.typeOfNodes[topOpenedNodeGroup.nodeType]?.subtree;
@@ -464,6 +487,7 @@ function getCurrentNodesAndEdgesFromState<
       edges: state.edges,
       zones: state.zones,
       zoneIndex: state.zoneIndex,
+      userZones: state.userZones,
     };
   }
   return {
@@ -473,6 +497,7 @@ function getCurrentNodesAndEdgesFromState<
     outputNodeId: subtree.outputNodeId,
     zones: subtree.zones,
     zoneIndex: subtree.zoneIndex,
+    userZones: subtree.userZones,
   };
 }
 
@@ -596,6 +621,55 @@ function setCurrentZonesToState<
   }
   subtree.zones = zones;
   subtree.zoneIndex = zoneIndex;
+}
+
+/**
+ * Writes USER-AUTHORED zones to the correct scope (root or subtree), mirroring
+ * `setCurrentZonesToState` — symmetric with `getCurrentNodesAndEdgesFromState`'s
+ * read scope (subtree when a group is open, root otherwise). There is NO `references`
+ * guard (a user zone co-locates with the subtree nodes the getter reads) and NO
+ * userZoneIndex (user zones have no boundary handles).
+ *
+ * NOTE: the UPDATE_NODES_RF deletion-prune assumes node writes and this user-zone
+ * write target the SAME scope. The node setter has a `numberOfReferences !== 0`
+ * guard that can route node writes to root; that branch is dormant today
+ * (`numberOfReferences` is never incremented anywhere), so the scopes never diverge
+ * in practice. If that guard ever goes live, mirror it here.
+ *
+ * @param state - The mutable state (Immer draft) to write to.
+ * @param userZones - The updated user-zones record for the current scope.
+ */
+function setCurrentUserZonesToState<
+  DataTypeUniqueId extends string = string,
+  NodeTypeUniqueId extends string = string,
+  UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
+  ComplexSchemaType extends UnderlyingType extends 'complex'
+    ? z.ZodType
+    : never = never,
+>(
+  state: Pick<
+    State<
+      DataTypeUniqueId,
+      NodeTypeUniqueId,
+      UnderlyingType,
+      ComplexSchemaType
+    >,
+    'userZones' | 'typeOfNodes' | 'openedNodeGroupStack'
+  >,
+  userZones: Record<string, Zone>,
+): void {
+  const topOpenedNodeGroup =
+    state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
+  if (!topOpenedNodeGroup) {
+    state.userZones = userZones;
+    return;
+  }
+  const subtree = state.typeOfNodes[topOpenedNodeGroup.nodeType]?.subtree;
+  if (!subtree) {
+    state.userZones = userZones;
+    return;
+  }
+  subtree.userZones = userZones;
 }
 
 function getDependencyGraphBetweenNodeTypes<
@@ -849,6 +923,7 @@ export {
   getCurrentNodesAndEdgesFromState,
   setCurrentNodesAndEdgesToStateWithMutatingState,
   setCurrentZonesToState,
+  setCurrentUserZonesToState,
   getDependencyGraphBetweenNodeTypes,
   getDirectDependentsOfNodeType,
   getDirectDependenciesOfNodeType,

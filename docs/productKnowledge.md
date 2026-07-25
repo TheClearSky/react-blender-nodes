@@ -225,25 +225,26 @@ When an edge is removed:
 
 The complete graph state is a single object containing:
 
-| Field                                | What It Holds                                                         |
-| ------------------------------------ | --------------------------------------------------------------------- |
-| `dataTypes`                          | Registry of all data type definitions                                 |
-| `typeOfNodes`                        | Registry of all node type definitions (including groups)              |
-| `nodes`                              | Array of node instances on the current canvas                         |
-| `edges`                              | Array of edges on the current canvas                                  |
-| `viewport`                           | Current pan/zoom position                                             |
-| `openedNodeGroupStack`               | Navigation stack when editing inside node groups                      |
-| `zones`                              | First-class regions (loop/switch bodies). UI-only; stripped on export |
-| `zoneIndex`                          | Handle->zone lookup index. UI-only; stripped on export                |
-| `activeDrawer`                       | Which edit drawer is open (loop/switch/node-type). UI-only            |
-| `history`                            | Undo/redo stacks of Immer patches. UI-only; stripped on export        |
-| `allowedConversionsBetweenDataTypes` | Type conversion rules (optional)                                      |
-| `enableTypeInference`                | Whether polymorphic type resolution is active                         |
-| `enableComplexTypeChecking`          | Whether Zod schema compatibility is checked                           |
-| `enableCycleChecking`                | Whether cycles are prevented                                          |
-| `enableRecursionChecking`            | Whether recursive group nesting is prevented                          |
-| `nodeCountConstraints`               | Per-scope min/max limits on node types (optional)                     |
-| `enableDebugMode`                    | Whether debug overlays are shown                                      |
+| Field                                | What It Holds                                                                                                                                  |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dataTypes`                          | Registry of all data type definitions                                                                                                          |
+| `typeOfNodes`                        | Registry of all node type definitions (including groups)                                                                                       |
+| `nodes`                              | Array of node instances on the current canvas                                                                                                  |
+| `edges`                              | Array of edges on the current canvas                                                                                                           |
+| `viewport`                           | Current pan/zoom position                                                                                                                      |
+| `openedNodeGroupStack`               | Navigation stack when editing inside node groups                                                                                               |
+| `zones`                              | First-class regions (loop/switch bodies). UI-only; stripped on export                                                                          |
+| `zoneIndex`                          | Handle->zone lookup index. UI-only; stripped on export                                                                                         |
+| `activeDrawer`                       | Which edit drawer is open (loop/switch/node-type). UI-only                                                                                     |
+| `history`                            | Undo/redo stacks of Immer patches. UI-only; stripped on export                                                                                 |
+| `runnerViewPreferences`              | Document-level runner-panel prefs (autoScroll, followIntoGroups); persisted on export like userZones; toggled by UPDATE_RUNNER_VIEW_PREFERENCE |
+| `allowedConversionsBetweenDataTypes` | Type conversion rules (optional)                                                                                                               |
+| `enableTypeInference`                | Whether polymorphic type resolution is active                                                                                                  |
+| `enableComplexTypeChecking`          | Whether Zod schema compatibility is checked                                                                                                    |
+| `enableCycleChecking`                | Whether cycles are prevented                                                                                                                   |
+| `enableRecursionChecking`            | Whether recursive group nesting is prevented                                                                                                   |
+| `nodeCountConstraints`               | Per-scope min/max limits on node types (optional)                                                                                              |
+| `enableDebugMode`                    | Whether debug overlays are shown                                                                                                               |
 
 State is managed by an external Redux-style store (`createGraphStore`, consumed
 through `useFullGraph`). Every dispatch runs a **validate -> plan -> apply**
@@ -256,39 +257,45 @@ pipeline:
 2. **apply** (`applyPlan`) is the only mutator. It runs inside Immer, mints all
    ids, and performs the actual node/edge/zone changes.
 
-There are 29 action types:
+There are 35 action types:
 
-| Action                       | What It Does                                                              |
-| ---------------------------- | ------------------------------------------------------------------------- |
-| `ADD_NODE`                   | Creates a new node instance from a TypeOfNode                             |
-| `ADD_NODE_AND_SELECT`        | Creates and selects a new node                                            |
-| `UPDATE_NODE_BY_REACT_FLOW`  | Applies position/dimension/selection changes from ReactFlow               |
-| `UPDATE_EDGES_BY_REACT_FLOW` | Applies edge selection/removal changes from ReactFlow                     |
-| `ADD_EDGE_BY_REACT_FLOW`     | Creates a new edge (with validation)                                      |
-| `UPDATE_INPUT_VALUE`         | Updates a node input's inline value (undoable)                            |
-| `OPEN_NODE_GROUP`            | Navigates into a node group's subtree                                     |
-| `CLOSE_NODE_GROUP`           | Navigates back out of a node group                                        |
-| `ADD_NODE_GROUP`             | Creates a new empty node group and opens it                               |
-| `SET_VIEWPORT`               | Updates pan/zoom                                                          |
-| `REPLACE_STATE`              | Replaces the entire state (used by import; rehydrates zones)              |
-| `UPDATE_NODE_TYPE`           | Reorders/re-panels a node type's handles across instances                 |
-| `ADD_LOOP`                   | Adds a loop triplet + bind edges + pre/post-stop zones                    |
-| `UPDATE_LOOP`                | Reorders/renames data channels across a loop triplet                      |
-| `OPEN_DRAWER`                | Opens an edit drawer (loop / switch / node-type)                          |
-| `CLOSE_DRAWER`               | Closes the open drawer                                                    |
-| `ADD_SWITCH`                 | Adds a switch pair + bind edge + true/false zones                         |
-| `UPDATE_SWITCH`              | Reorders/renames data channels across a switch pair                       |
-| `UNDO`                       | Reverts the most recent undoable action                                   |
-| `REDO`                       | Re-applies the most recently undone action                                |
-| `BEGIN_BATCH`                | Starts grouping dispatches into one undo entry (e.g. drag)                |
-| `END_BATCH`                  | Collapses the active batch into a single undo entry                       |
-| `CLEAR_HISTORY`              | Empties the undo/redo stacks                                              |
-| `DELETE_NODE_TYPE_HANDLES`   | Deletes node-type inputs/outputs and cascades broken edges                |
-| `DELETE_LOOP_CHANNELS`       | Deletes data channels from a loop triplet and cascades edges              |
-| `DELETE_SWITCH_CHANNELS`     | Deletes data channels from a switch pair and cascades edges               |
-| `UPDATE_GRAPH_IO_HANDLES`    | Edits a root Graph Input/Output node's handles (the `runGraph` signature) |
-| `REORDER_INPUT_CONNECTIONS`  | Reorders a fan-in input handle's incoming connections (undoable)          |
-| `UPDATE_NODE_CUSTOM_NAME`    | Sets/clears a standard node's custom display name (undoable)              |
+| Action                          | What It Does                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `ADD_NODE`                      | Creates a new node instance from a TypeOfNode                                                    |
+| `ADD_NODE_AND_SELECT`           | Creates and selects a new node                                                                   |
+| `UPDATE_NODE_BY_REACT_FLOW`     | Applies position/dimension/selection changes from ReactFlow                                      |
+| `UPDATE_EDGES_BY_REACT_FLOW`    | Applies edge selection/removal changes from ReactFlow                                            |
+| `ADD_EDGE_BY_REACT_FLOW`        | Creates a new edge (with validation)                                                             |
+| `UPDATE_INPUT_VALUE`            | Updates a node input's inline value (undoable)                                                   |
+| `OPEN_NODE_GROUP`               | Navigates into a node group's subtree                                                            |
+| `CLOSE_NODE_GROUP`              | Navigates back out of a node group                                                               |
+| `ADD_NODE_GROUP`                | Creates a new empty node group and opens it                                                      |
+| `SET_VIEWPORT`                  | Updates pan/zoom                                                                                 |
+| `REPLACE_STATE`                 | Replaces the entire state (used by import; rehydrates zones)                                     |
+| `UPDATE_NODE_TYPE`              | Reorders/re-panels a node type's handles across instances                                        |
+| `ADD_LOOP`                      | Adds a loop triplet + bind edges + pre/post-stop zones                                           |
+| `UPDATE_LOOP`                   | Reorders/renames data channels across a loop triplet                                             |
+| `OPEN_DRAWER`                   | Opens an edit drawer (loop / switch / node-type)                                                 |
+| `CLOSE_DRAWER`                  | Closes the open drawer                                                                           |
+| `ADD_SWITCH`                    | Adds a switch pair + bind edge + true/false zones                                                |
+| `UPDATE_SWITCH`                 | Reorders/renames data channels across a switch pair                                              |
+| `UNDO`                          | Reverts the most recent undoable action                                                          |
+| `REDO`                          | Re-applies the most recently undone action                                                       |
+| `BEGIN_BATCH`                   | Starts grouping dispatches into one undo entry (e.g. drag)                                       |
+| `END_BATCH`                     | Collapses the active batch into a single undo entry                                              |
+| `CLEAR_HISTORY`                 | Empties the undo/redo stacks                                                                     |
+| `DELETE_NODE_TYPE_HANDLES`      | Deletes node-type inputs/outputs and cascades broken edges                                       |
+| `DELETE_LOOP_CHANNELS`          | Deletes data channels from a loop triplet and cascades edges                                     |
+| `DELETE_SWITCH_CHANNELS`        | Deletes data channels from a switch pair and cascades edges                                      |
+| `UPDATE_GRAPH_IO_HANDLES`       | Edits a root Graph Input/Output node's handles (the `runGraph` signature)                        |
+| `REORDER_INPUT_CONNECTIONS`     | Reorders a fan-in input handle's incoming connections (undoable)                                 |
+| `UPDATE_NODE_CUSTOM_NAME`       | Sets/clears a standard node's custom display name (undoable)                                     |
+| `UPDATE_NODE_PREVIEW_COLLAPSED` | Collapses/expands a node's preview panel; persisted on `node.data` (undoable)                    |
+| `UPDATE_RUNNER_VIEW_PREFERENCE` | Toggle a document-level runner view preference (auto-scroll / follow-into-groups). Non-undoable. |
+| `ADD_USER_ZONE`                 | Wraps selected nodes in a named/colored user zone (visual-only)                                  |
+| `UPDATE_USER_ZONE`              | Renames and/or recolors a user zone                                                              |
+| `UPDATE_USER_ZONE_MEMBERS`      | Adds/removes nodes from a user zone (empty ⇒ auto-deleted)                                       |
+| `DELETE_USER_ZONE`              | Deletes a user zone                                                                              |
 
 All mutations go through `dispatch`. The store uses Immer for immutable updates
 and `produceWithPatches` to capture the patches that power undo/redo. Note:
@@ -752,6 +759,8 @@ The main editing surface. Built on ReactFlow. Provides:
 - Delete with Backspace/Delete/X keys
 - Undo/redo via Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl/Cmd+Y)
 - Node group navigation (double-click to enter, breadcrumb to exit)
+- Optional per-node-type preview components (`nodePreviews`) rendered on the
+  node
 - Zone frames drawn around loop bodies and switch branches
 - In-place editing of loops, switches, and node types via slide-out drawers
 
@@ -775,6 +784,20 @@ provided. Contains:
    time, with zoom/pan, scrubber, and click-to-inspect
 3. **Execution Step Inspector**: Detail panel showing the selected step's input
    values, output values, errors, and metadata
+
+### Showcase stories
+
+Beyond per-component stories, Storybook carries an `Advanced Graph Examples`
+section: the **SDF Shape Studio** (`src/advancedGraphExamples/`) builds 2D
+vector art from signed-distance-field nodes — shapes, boolean/smooth operators,
+domain transforms, black/white threshold masks, and pixel-measurement nodes that
+emit numbers — with every node's preview rendering its recorded value after a
+manual Run. It is both the `nodePreviews` flagship demo and a working example of
+complex closure-valued data types. It also carries two enum-driven number nodes
+in the "Math Nodes" context-menu folder — **Math** (arithmetic) and **Compare**
+(comparisons) — each with an `Op` dropdown (a `string` data type with
+`allowedStrings`) covering ~30 operations, where `Compare`'s boolean `condition`
+output drives loop conditions (e.g. `Compare(i < N)` on a counter loop).
 
 ---
 
@@ -833,6 +856,9 @@ automatically.
   Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y keyboard shortcuts.
 - `<FullGraph inputComponents={...}>` registers custom inline input widgets for
   data types whose underlying type isn't directly supported.
+- `<FullGraph nodePreviews={...}>` registers optional per-node-type preview
+  components that render on the node and receive its live / at-step runner
+  values.
 
 ### Auto-Infer Helpers
 

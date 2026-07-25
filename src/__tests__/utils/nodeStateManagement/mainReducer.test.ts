@@ -369,6 +369,72 @@ describe('UPDATE_EDGES_BY_REACT_FLOW', () => {
     // Edge should be removed
     expect(next.edges.find((e) => e.id === 'edge-rm')).toBeUndefined();
   });
+
+  it('removes ALL edges in a multi-remove batch (regression: NS-1 clobber)', () => {
+    // ReactFlow batches multi-select-delete (and a node's cascaded edge
+    // removals) into ONE change array. Before the accumulator fix, the
+    // validator computed every removal against the same original snapshot and
+    // applyPlan's per-step overwrite resurrected all-but-the-last edge.
+    const state = createStateWithNodes();
+    const nodeC = constructNodeOfType(
+      state.dataTypes,
+      'testProcessor' as TestNodeTypeId,
+      state.typeOfNodes,
+      'node-c',
+      { x: 600, y: 0 },
+    );
+    const nodeA = state.nodes.find((n) => n.id === 'node-a')!;
+    const nodeB = state.nodes.find((n) => n.id === 'node-b')!;
+    const aOut = nodeA.data.outputs![0].id;
+    const bIn = (nodeB.data.inputs![0] as { id: string }).id;
+    const bOut = nodeB.data.outputs![0].id;
+    const cIn = (nodeC.data.inputs![0] as { id: string }).id;
+
+    const stateWithEdges: State<TestDataTypeId, TestNodeTypeId> = {
+      ...state,
+      // `constructNodeOfType` widens ComplexSchemaType (never → ZodType); cast
+      // the mixed array back to the closed test-state node type.
+      nodes: [...state.nodes, nodeC] as State<
+        TestDataTypeId,
+        TestNodeTypeId
+      >['nodes'],
+      edges: [
+        {
+          id: 'edge-1',
+          source: 'node-a',
+          target: 'node-b',
+          sourceHandle: aOut,
+          targetHandle: bIn,
+          type: 'configurableEdge' as const,
+          data: {},
+        },
+        {
+          id: 'edge-2',
+          source: 'node-b',
+          target: 'node-c',
+          sourceHandle: bOut,
+          targetHandle: cIn,
+          type: 'configurableEdge' as const,
+          data: {},
+        },
+      ],
+    };
+
+    const next = mainReducer(stateWithEdges, {
+      type: actionTypesMap.UPDATE_EDGES_BY_REACT_FLOW,
+      payload: {
+        changes: [
+          { type: 'remove', id: 'edge-1' },
+          { type: 'remove', id: 'edge-2' },
+        ],
+      },
+    });
+
+    // BOTH edges gone — neither resurrected by the later removal's overwrite.
+    expect(next.edges.find((e) => e.id === 'edge-1')).toBeUndefined();
+    expect(next.edges.find((e) => e.id === 'edge-2')).toBeUndefined();
+    expect(next.edges).toHaveLength(0);
+  });
 });
 
 // ====================================================================
@@ -606,6 +672,79 @@ describe('OPEN_NODE_GROUP / CLOSE_NODE_GROUP', () => {
     )!;
     expect(subtreeNode.data.customName).toBe('Summer');
     expect(renamed.nodes.find((n) => n.id === innerNode.id)).toBeUndefined();
+  });
+
+  it('UPDATE_NODE_PREVIEW_COLLAPSED on a node inside an OPEN group lands on the shared subtree (scope-locality)', () => {
+    const opened = mainReducer(createTestState(), {
+      type: actionTypesMap.ADD_NODE_GROUP,
+    });
+    const groupTypeKey = Object.keys(opened.typeOfNodes).find(
+      (k) =>
+        opened.typeOfNodes[k as TestNodeTypeId].subtree !== undefined &&
+        !Object.keys(standardNodeTypes).includes(k),
+    ) as TestNodeTypeId;
+
+    // Add a standard node while the group is open → it lands in the subtree.
+    const withInner = mainReducer(opened, {
+      type: actionTypesMap.ADD_NODE,
+      payload: {
+        type: 'testProcessor' as TestNodeTypeId,
+        position: { x: 0, y: 0 },
+      },
+    });
+    const innerNode = withInner.typeOfNodes[groupTypeKey].subtree!.nodes.find(
+      (n) => n.data.nodeTypeUniqueId === 'testProcessor',
+    )!;
+    expect(innerNode).toBeTruthy();
+
+    // Collapse its preview while the group is open.
+    const collapsed = mainReducer(withInner, {
+      type: actionTypesMap.UPDATE_NODE_PREVIEW_COLLAPSED,
+      payload: { nodeId: innerNode.id, previewCollapsed: true },
+    });
+
+    // The flag lands on the SHARED subtree definition, NOT at root (scope-aware).
+    const subtreeNode = collapsed.typeOfNodes[groupTypeKey].subtree!.nodes.find(
+      (n) => n.id === innerNode.id,
+    )!;
+    expect(subtreeNode.data.previewCollapsed).toBe(true);
+    expect(collapsed.nodes.find((n) => n.id === innerNode.id)).toBeUndefined();
+  });
+
+  it('ADD_USER_ZONE inside an OPEN group lands on the shared subtree, not at root (scope-locality)', () => {
+    const opened = mainReducer(createTestState(), {
+      type: actionTypesMap.ADD_NODE_GROUP,
+    });
+    const groupTypeKey = Object.keys(opened.typeOfNodes).find(
+      (k) =>
+        opened.typeOfNodes[k as TestNodeTypeId].subtree !== undefined &&
+        !Object.keys(standardNodeTypes).includes(k),
+    ) as TestNodeTypeId;
+
+    // Add a standard node while the group is open → it lands in the subtree.
+    const withInner = mainReducer(opened, {
+      type: actionTypesMap.ADD_NODE,
+      payload: {
+        type: 'testProcessor' as TestNodeTypeId,
+        position: { x: 0, y: 0 },
+      },
+    });
+    const innerNode = withInner.typeOfNodes[groupTypeKey].subtree!.nodes.find(
+      (n) => n.data.nodeTypeUniqueId === 'testProcessor',
+    )!;
+
+    // Wrap the inner node in a user zone while the group is open.
+    const withZone = mainReducer(withInner, {
+      type: actionTypesMap.ADD_USER_ZONE,
+      payload: { nodeIds: [innerNode.id], name: 'Inner Zone' },
+    });
+
+    // The zone co-locates with the subtree nodes it references — NOT at root.
+    const subtreeUserZones =
+      withZone.typeOfNodes[groupTypeKey].subtree!.userZones ?? {};
+    expect(Object.values(subtreeUserZones)).toHaveLength(1);
+    expect(Object.values(subtreeUserZones)[0].nodeIds).toEqual([innerNode.id]);
+    expect(withZone.userZones ?? {}).toEqual({});
   });
 
   it('OPEN_NODE_GROUP with nodeId pushes instance entry', () => {

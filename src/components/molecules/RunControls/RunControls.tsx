@@ -1,4 +1,11 @@
-import { Play, Pause, SkipForward, Square, RotateCcw } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  SkipForward,
+  CornerDownRight,
+  Square,
+  RotateCcw,
+} from 'lucide-react';
 import { cn } from '@/utils';
 import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { SliderNumberInput } from '@/components/molecules/SliderNumberInput/SliderNumberInput';
@@ -28,6 +35,8 @@ type RunControlsProps = {
   onPause: () => void;
   /** Execute one step forward (starts step-by-step if idle) */
   onStep: () => void;
+  /** Live step-over (drains through the structure the next step descends into). */
+  onStepOver?: () => void;
   /** Stop and cancel execution */
   onStop: () => void;
   /** Reset runner back to idle */
@@ -141,6 +150,7 @@ function RunControls({
   onRun,
   onPause,
   onStep,
+  onStepOver,
   onStop,
   onReset,
   mode,
@@ -171,6 +181,9 @@ function RunControls({
     runnerState === 'errored';
   const canStop = runnerState === 'running' || runnerState === 'paused';
   const canReset = runnerState === 'completed' || runnerState === 'errored';
+  // Step-over drains an EXISTING generator; from idle there is none (plain
+  // Step starts the run), so the button only makes sense while paused.
+  const canStepOver = runnerState === 'paused';
 
   return (
     <div
@@ -262,6 +275,14 @@ function RunControls({
           disabled={!canStep || !steppingAvailable}
           title='Step'
         />
+        {onStepOver && (
+          <ActionButton
+            icon={<CornerDownRight className='h-4 w-4 text-primary-white' />}
+            onClick={onStepOver}
+            disabled={!canStepOver || !steppingAvailable}
+            title='Step over (execute through the group the next step enters)'
+          />
+        )}
         <ActionButton
           icon={<Square className='h-4 w-4 text-primary-white' />}
           onClick={onStop}

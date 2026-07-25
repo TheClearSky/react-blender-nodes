@@ -33,12 +33,12 @@ Key participants:
 | `State<D,N,U,C>`         | `src/utils/nodeStateManagement/types.ts` › `State`                               | Complete graph state type                                     |
 | `validateAction`         | `src/utils/nodeStateManagement/planApply/validators.ts` › `validateAction`       | Pure validator -> `Result<Plan, ValidationError> \| null`     |
 | `validateAddEdge`        | `src/utils/nodeStateManagement/planApply/validateAddEdge.ts` › `validateAddEdge` | 13-step edge-connection gauntlet                              |
-| `Plan`                   | `src/utils/nodeStateManagement/planApply/types.ts` › `Plan`                      | Non-generic discriminated union of intended mutations (28)    |
+| `Plan`                   | `src/utils/nodeStateManagement/planApply/types.ts` › `Plan`                      | Non-generic discriminated union of intended mutations (32)    |
 | `ValidationError`        | `src/utils/nodeStateManagement/planApply/types.ts` › `ValidationError`           | Machine-readable rejection taxonomy (13 codes)                |
 | `applyValidatedAction`   | `src/utils/nodeStateManagement/applyWithHistory.ts` › `applyValidatedAction`     | 3-path routing; patch capture + history recording             |
-| `applyPlan`              | `src/utils/nodeStateManagement/planApply/applyPlan.ts` › `applyPlan`             | The ONLY mutator; mints ids; 28 plan kinds                    |
+| `applyPlan`              | `src/utils/nodeStateManagement/planApply/applyPlan.ts` › `applyPlan`             | The ONLY mutator; mints ids; 34 plan kinds                    |
 | `mainReducer`            | `src/utils/nodeStateManagement/mainReducer.ts` › `mainReducer`                   | `useReducer` entry; delegates to `applyValidatedAction`       |
-| `Action`                 | `src/utils/nodeStateManagement/mainReducer.ts` › `Action`                        | Discriminated union of all 29 action payloads                 |
+| `Action`                 | `src/utils/nodeStateManagement/mainReducer.ts` › `Action`                        | Discriminated union of all 35 action payloads                 |
 | `actionTypesMap`         | `src/utils/nodeStateManagement/mainReducer.ts` › `actionTypesMap`                | String-constant map for type-safe dispatch                    |
 | `createGraphStore`       | `src/components/organisms/FullGraph/graphStore.ts` › `createGraphStore`          | External Redux-style store (recommended dispatch path)        |
 | `useFullGraph`           | `src/components/organisms/FullGraph/FullGraphState.ts` › `useFullGraph`          | Store + `useSyncExternalStore` wrapper -> `{state, dispatch}` |
@@ -247,21 +247,30 @@ is generic over four type parameters:
   [Switches](../features/switchesDoc.md) docs.
 - **`history?`** — undo/redo history. See
   [History subsystem](#history-subsystem).
+- **`runnerViewPreferences?: { autoScroll: boolean; followIntoGroups: boolean }`**
+  — document-level runner-panel view preferences (auto-scroll the
+  timeline/canvas to the active step; follow the scrub head into group
+  instances). Persisted on export and forwarded on import like `userZones` (not
+  stripped, not rehydrated); GLOBAL/root-only. Toggled by the non-undoable
+  `UPDATE_RUNNER_VIEW_PREFERENCE` action.
 
 ---
 
 ## Action Types
 
-All actions are a discriminated union on `type`. There are **29** action types,
+All actions are a discriminated union on `type`. There are **35** action types,
 declared in the `actionTypes` array
-(`src/utils/nodeStateManagement/mainReducer.ts` › `actionTypes`, indices 0–28)
+(`src/utils/nodeStateManagement/mainReducer.ts` › `actionTypes`, indices 0–34)
 and mirrored into the `actionTypesMap` constant. Indices 18–22 (`UNDO`, `REDO`,
 `BEGIN_BATCH`, `END_BATCH`, `CLEAR_HISTORY`) are the history additions; indices
 23–26 (`DELETE_NODE_TYPE_HANDLES`, `DELETE_LOOP_CHANNELS`,
 `DELETE_SWITCH_CHANNELS`, `UPDATE_GRAPH_IO_HANDLES`) are the handle-deletion and
 root Graph I/O additions; index 27 (`REORDER_INPUT_CONNECTIONS`) reorders a
 fan-in input handle's connections; index 28 (`UPDATE_NODE_CUSTOM_NAME`)
-sets/clears a standard node's custom display name.
+sets/clears a standard node's custom display name. Indices 29–33 add the
+node-preview-collapse and four user-zone actions; index 34
+(`UPDATE_RUNNER_VIEW_PREFERENCE`) toggles a document-level runner view
+preference (auto-scroll / follow-into-groups) and is non-undoable.
 
 | #   | Action Type                  | Payload                                                               | Description                                                                                                                                                                                                                                                  |
 | --- | ---------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -350,10 +359,12 @@ The single function that both `mainReducer` and `createGraphStore` delegate to
 after validation. Routing is keyed off `isUndoable(action, plan)`:
 
 - **Non-undoable** (`SET_VIEWPORT`, `REPLACE_STATE`, `OPEN_DRAWER`,
-  `CLOSE_DRAWER`, `UNDO`, `REDO`, `BEGIN_BATCH`, `END_BATCH`, `CLEAR_HISTORY`):
-  plain `produce`. `applyPlan` may **return** a value (`REPLACE_STATE` returns
-  the imported state), which Immer uses to replace the draft. `UNDO`/`REDO`
-  mutate via `applyPatchesToDraft`; batch ops mutate `draft.history` directly.
+  `CLOSE_DRAWER`, `UPDATE_RUNNER_VIEW_PREFERENCE`, `OPEN_NODE_GROUP`,
+  `CLOSE_NODE_GROUP`, `UNDO`, `REDO`, `BEGIN_BATCH`, `END_BATCH`,
+  `CLEAR_HISTORY`): plain `produce`. `applyPlan` may **return** a value
+  (`REPLACE_STATE` returns the imported state), which Immer uses to replace the
+  draft. `UNDO`/`REDO` mutate via `applyPatchesToDraft`; batch ops mutate
+  `draft.history` directly.
 - **Undoable** (everything else): `produceWithPatches` captures forward +
   inverse patches. If `next === state`, short-circuit and return `state`. Else
   filter out any patch whose `path[0] === 'history'` (`filterHistoryPatches`, to
@@ -381,10 +392,11 @@ Notable cases:
 
 - **`ADD_NODE`**: mints node id, builds via `constructNodeOfType`, appends to
   the current scope; if `selectExclusively`, deselects all others.
-- **`ADD_EDGE`**: mints edge id, deep-clones inference `newData`
-  (`structuredClone`) to avoid mutating frozen prior state, deduplicates handle
-  names, runs loop/switch/group handle duplication, applies switch zone
-  prefixes, then pushes the edge and recomputes zones.
+- **`ADD_EDGE`**: mints edge id, deep-copies inference `newData` with
+  `cloneDeepPreservingNonPlainObjects` (plain data copied to avoid mutating
+  frozen prior state; functions and zod schemas passed by reference),
+  deduplicates handle names, runs loop/switch/group handle duplication, applies
+  switch zone prefixes, then pushes the edge and recomputes zones.
 - **`UPDATE_NODE_TYPE`**: 3-tier instance reconstruction — Tier 1 updates the
   `TypeOfNode` definition; `reconstructAllInstances` rebuilds instances in
   dependent subtrees (Tier 2) and root nodes (Tier 3), preserving handle ids by
@@ -547,9 +559,10 @@ type HistoryEntry = {
 
 ### `isUndoable` (`src/components/organisms/FullGraph/historyTypes.ts` › `isUndoable`)
 
-Rejects the 9 `NON_UNDOABLE_PLAN_KINDS` (`SET_VIEWPORT`, `REPLACE_STATE`,
-`OPEN_DRAWER`, `CLOSE_DRAWER`, `UNDO`, `REDO`, `BEGIN_BATCH`, `END_BATCH`,
-`CLEAR_HISTORY`). Two conditional cases:
+Rejects the 12 `NON_UNDOABLE_PLAN_KINDS` (`SET_VIEWPORT`, `REPLACE_STATE`,
+`OPEN_DRAWER`, `CLOSE_DRAWER`, `UPDATE_RUNNER_VIEW_PREFERENCE`,
+`OPEN_NODE_GROUP`, `CLOSE_NODE_GROUP`, `UNDO`, `REDO`, `BEGIN_BATCH`,
+`END_BATCH`, `CLEAR_HISTORY`). Two conditional cases:
 
 - `UPDATE_NODES_RF` is undoable only if the payload contains at least one
   `position` or `remove` change (`hasNonSelectionChanges`) — `select`,
@@ -939,8 +952,9 @@ gauntlet before `applyPlan` mints the edge id.
 ### -> [Type Inference](typeInferenceDoc.md)
 
 When `enableTypeInference` is true, inference plans are precomputed in
-`validateAddEdge` and applied (with deep-cloned node data) in `applyPlan`. Types
-reset when edges are removed.
+`validateAddEdge` and applied (with node data deep-copied via
+`cloneDeepPreservingNonPlainObjects`) in `applyPlan`. Types reset when edges are
+removed.
 
 ### -> [Zones](../features/zonesDoc.md) & [Switches](../features/switchesDoc.md)
 

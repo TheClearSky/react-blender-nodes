@@ -10,6 +10,7 @@ import {
   getCurrentNodesAndEdgesFromState,
   setCurrentNodesAndEdgesToStateWithMutatingState,
   setCurrentZonesToState,
+  setCurrentUserZonesToState,
   getDirectDependentsOfNodeType,
 } from '../nodes/constructAndModifyNodes';
 import { removeEdgeWithTypeChecking } from '../constructAndModifyHandles';
@@ -24,9 +25,13 @@ import {
 import {
   createSwitchZones,
   createLoopZones,
+  createUserZone,
   recomputeAllZoneMemberships,
   rehydrateAllZones,
+  rehydrateSubtreeZones,
 } from '../zones';
+import { cloneDeepPreservingNonPlainObjects } from '../cloneDeepPreservingNonPlainObjects';
+import { DEFAULT_RUNNER_VIEW_PREFERENCES } from '../runnerViewPreferences';
 
 const ZERO_WIDTH_SPACE = '​';
 
@@ -448,14 +453,23 @@ function applyPlan<
         ComplexSchemaType
       >;
       const rehydrated = rehydrateAllZones(imported);
+      // Rebuild DERIVED zones for every group SUBTREE too — export strips them
+      // and `rehydrateAllZones` only walks the root, so imported group-internal
+      // loops/switches would otherwise have no zones (no frames; zone-guarded
+      // validation falls back to BFS).
+      const rehydratedTypeOfNodes = rehydrateSubtreeZones(imported);
       // Reducer purity: return a fresh tree instead of mutating the dispatched
       // action payload. Drop `history` and attach the rehydrated zones without
       // touching `imported`. (The merged dataTypes/typeOfNodes still alias the
       // live type definitions by design, so immer freezes them — harmless today
       // as nothing mutates those schemas, only compares identity.)
       const { history: _history, ...rest } = imported;
+      // `imported.userZones` (root) and each `subtree.userZones` (in typeOfNodes)
+      // ride UNCHANGED — they are authored, never rehydrated. Only the DERIVED
+      // `zones`/`zoneIndex` (root and per-subtree) are rebuilt.
       return {
         ...rest,
+        typeOfNodes: rehydratedTypeOfNodes,
         zones: rehydrated.zones,
         zoneIndex: rehydrated.zoneIndex,
       };
@@ -553,6 +567,36 @@ function applyPlan<
               zones: cleanedZones,
             });
             setCurrentZonesToState(draft, zr.zones, zr.zoneIndex);
+          }
+        }
+      }
+
+      // Prune deleted nodes from USER zones (authored membership — a pure
+      // nodeIds.filter, NEVER routed through recomputeAllZoneMemberships). This
+      // case also fires on position / select / dimension changes (every drag), so
+      // gate on an ACTUAL node removal first (O(changes)) before building any set.
+      if (changes.some((change) => change.type === 'remove')) {
+        const userZonesView = getCurrentNodesAndEdgesFromState(draft);
+        const scopedUserZones = userZonesView.userZones;
+        if (scopedUserZones && Object.keys(scopedUserZones).length > 0) {
+          const survivingNodeIds = new Set(updatedNodes.map((n) => n.id));
+          let userZonesChanged = false;
+          const nextUserZones = { ...scopedUserZones };
+          for (const zoneId of Object.keys(nextUserZones)) {
+            const zone = nextUserZones[zoneId];
+            // Defensive: a raw REPLACE_STATE can bypass coerceUserZones.
+            const ids = Array.isArray(zone.nodeIds) ? zone.nodeIds : [];
+            const filtered = ids.filter((id) => survivingNodeIds.has(id));
+            if (filtered.length === ids.length) continue;
+            userZonesChanged = true;
+            if (ids.length > 0 && filtered.length === 0) {
+              delete nextUserZones[zoneId]; // auto-delete: last member removed
+            } else {
+              nextUserZones[zoneId] = { ...zone, nodeIds: filtered };
+            }
+          }
+          if (userZonesChanged) {
+            setCurrentUserZonesToState(draft, nextUserZones);
           }
         }
       }
@@ -662,14 +706,16 @@ function applyPlan<
       // which splices into `data.outputs`/`data.inputs`) would fail with
       // "Cannot add property X, object is not extensible".
       //
-      // `structuredClone` is the right tool: it produces a mutable deep
-      // copy that Immer can subsequently track as a fresh subtree.
+      // NOT `structuredClone`: it throws `DataCloneError` on zod
+      // `complexSchema` internals (functions) the moment a COMPLEX data type
+      // is wired into an infer slot, and schemas must keep REFERENCE identity
+      // anyway — see `cloneDeepPreservingNonPlainObjects`.
       for (const { nodeId, newData } of plan.inference.nodeDataReplacements) {
         const idx = view.nodes.findIndex((n) => n.id === nodeId);
         if (idx !== -1) {
           view.nodes[idx] = {
             ...view.nodes[idx],
-            data: structuredClone(
+            data: cloneDeepPreservingNonPlainObjects(
               newData,
             ) as (typeof view.nodes)[number]['data'],
           };
@@ -906,10 +952,15 @@ function applyPlan<
         finalView.edges,
       );
 
-      // 6. Recompute zone memberships for all switch structures
-      if (draft.zones && Object.keys(draft.zones).length > 0) {
-        {
-          const cv = getCurrentNodesAndEdgesFromState(draft);
+      // 6. Recompute zone memberships for all switch structures. Gate on the
+      // CURRENT scope's zones, not root `draft.zones`: a loop/switch created
+      // inside an open group stores its zones only on the subtree, so gating
+      // on root zones would skip membership recompute for every in-group edge
+      // change and leave `zone.nodeIds` stale (wrong pre/post-stop, wrong
+      // frames).
+      {
+        const cv = getCurrentNodesAndEdgesFromState(draft);
+        if (cv.zones && Object.keys(cv.zones).length > 0) {
           const zr = recomputeAllZoneMemberships({
             ...draft,
             nodes: cv.nodes,
@@ -945,10 +996,11 @@ function applyPlan<
         }
       }
 
-      // Recompute zone memberships after edge changes
-      if (draft.zones && Object.keys(draft.zones).length > 0) {
-        {
-          const cv = getCurrentNodesAndEdgesFromState(draft);
+      // Recompute zone memberships after edge changes — scoped, per the
+      // ADD_EDGE step-6 rationale above (root gate would miss in-group edits).
+      {
+        const cv = getCurrentNodesAndEdgesFromState(draft);
+        if (cv.zones && Object.keys(cv.zones).length > 0) {
           const zr = recomputeAllZoneMemberships({
             ...draft,
             nodes: cv.nodes,
@@ -1110,6 +1162,76 @@ function applyPlan<
         );
       }
 
+      return;
+    }
+
+    case 'ADD_USER_ZONE': {
+      const view = getCurrentNodesAndEdgesFromState(draft);
+      const existing = view.userZones ?? {};
+      // Name ("Zone", "Zone 2", …) and color (first unused palette entry)
+      // default off the scope-correct existing zones — see createUserZone.
+      const zone = createUserZone(
+        plan.nodeIds,
+        existing,
+        plan.name,
+        plan.color,
+      );
+      setCurrentUserZonesToState(draft, { ...existing, [zone.id]: zone });
+      return;
+    }
+
+    case 'UPDATE_USER_ZONE': {
+      const view = getCurrentNodesAndEdgesFromState(draft);
+      const existing = view.userZones;
+      const zone = existing?.[plan.zoneId];
+      if (!existing || !zone) return;
+      const updated = {
+        ...zone,
+        ...(plan.name !== undefined ? { name: plan.name } : {}),
+        ...(plan.color !== undefined ? { color: plan.color } : {}),
+      };
+      setCurrentUserZonesToState(draft, {
+        ...existing,
+        [plan.zoneId]: updated,
+      });
+      return;
+    }
+
+    case 'UPDATE_USER_ZONE_MEMBERS': {
+      const view = getCurrentNodesAndEdgesFromState(draft);
+      const existing = view.userZones;
+      const zone = existing?.[plan.zoneId];
+      if (!existing || !zone) return;
+      // Defensive: a raw REPLACE_STATE can bypass coerceUserZones.
+      const ids = Array.isArray(zone.nodeIds) ? zone.nodeIds : [];
+      let nextNodeIds: string[];
+      if (plan.mode === 'add') {
+        nextNodeIds = [...new Set([...ids, ...plan.nodeIds])];
+      } else {
+        const toRemove = new Set(plan.nodeIds);
+        nextNodeIds = ids.filter((id) => !toRemove.has(id));
+      }
+      const nextUserZones = { ...existing };
+      if (
+        plan.mode === 'remove' &&
+        ids.length > 0 &&
+        nextNodeIds.length === 0
+      ) {
+        delete nextUserZones[plan.zoneId]; // auto-delete: last member removed
+      } else {
+        nextUserZones[plan.zoneId] = { ...zone, nodeIds: nextNodeIds };
+      }
+      setCurrentUserZonesToState(draft, nextUserZones);
+      return;
+    }
+
+    case 'DELETE_USER_ZONE': {
+      const view = getCurrentNodesAndEdgesFromState(draft);
+      const existing = view.userZones;
+      if (!existing || !existing[plan.zoneId]) return;
+      const nextUserZones = { ...existing };
+      delete nextUserZones[plan.zoneId];
+      setCurrentUserZonesToState(draft, nextUserZones);
       return;
     }
 
@@ -1412,12 +1534,35 @@ function applyPlan<
       return;
     }
 
+    case 'UPDATE_NODE_PREVIEW_COLLAPSED': {
+      const previewView = getCurrentNodesAndEdgesFromState(draft);
+      const targetNode = previewView.nodes.find((n) => n.id === plan.nodeId);
+      if (!targetNode) return;
+      // Write `undefined` (delete) for the expanded state — keeps the clean
+      // "absent = expanded" form instead of accumulating explicit `false`s (the
+      // tightest UPDATE_NODE_CUSTOM_NAME clone; validator already NOOPs no-ops).
+      targetNode.data.previewCollapsed = plan.previewCollapsed || undefined;
+      return;
+    }
+
     case 'OPEN_DRAWER':
       draft.activeDrawer = plan.activeDrawer;
       return;
 
     case 'CLOSE_DRAWER':
       draft.activeDrawer = undefined;
+      return;
+
+    case 'UPDATE_RUNNER_VIEW_PREFERENCE':
+      // Self-healing per-field write: spread the frozen defaults first (fills any
+      // absent sibling), then the current field, then the one key being set. Reads
+      // the frozen DEFAULT, never mutates it. The validator's Object.hasOwn guard
+      // guarantees `plan.preference` is a known key.
+      draft.runnerViewPreferences = {
+        ...DEFAULT_RUNNER_VIEW_PREFERENCES,
+        ...(draft.runnerViewPreferences ?? {}),
+        [plan.preference]: plan.enabled,
+      };
       return;
 
     case 'UNDO': {

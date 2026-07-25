@@ -50,4 +50,21 @@ export type {
   FunctionImplementations,
   ExecutionContext,
 } from '../types';
+// Recorded value + error types named by `ExecutionStepRecord.inputValues` /
+// `outputValues` / `error` — surfaced so consumers can annotate helpers against the
+// recorded IR (e.g. per-node-type preview components, `NodePreviewProps`).
+export type {
+  RecordedInputHandleValue,
+  RecordedInputConnection,
+  RecordedOutputHandleValue,
+  ExecutionStepRecordStatus,
+  GraphError,
+  GraphErrorPathEntry,
+} from '../types';
+// `NodePreviewValueEntry` — the per-node `{ live, atStep }` snapshot pair that
+// `RunnerContextValue.nodePreviewValues` maps by node id (consumed by
+// `nodePreviews` components). Surfaced so consumers typing against that context
+// slice can name the entry type.
+export type { NodePreviewValueEntry } from '../computeNodePreviewValues';
+export { formatGraphError } from '../errors';
 export { ExecutionRecorder } from '../executionRecorder';

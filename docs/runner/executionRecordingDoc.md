@@ -58,6 +58,11 @@ ExecutionRecord
 |   |-- parentLoopStructureId?, parentLoopIteration?   (@deprecated)
 |   |-- switchPhase?, switchStructureId?, branchTaken?
 |   |-- groupNodeId?, groupDepth?
+|   |-- instancePath?   (chain of group-INSTANCE ids, outermost first; absent
+|   |                    at root. Unlike groupNodeId — a shared TEMPLATE id
+|   |                    below depth 1 — the chain uniquely identifies which
+|   |                    instance path executed the step. A group's OWN
+|   |                    structural step carries its PARENT scope's path.)
 |
 |-- errors[]: GraphError
 |

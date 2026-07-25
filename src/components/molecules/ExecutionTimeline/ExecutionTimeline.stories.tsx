@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { fn } from 'storybook/test';
 
 import {
@@ -11,6 +11,20 @@ import type {
   ExecutionRecord,
   ExecutionStepRecord,
 } from '@/utils/nodeRunner/types';
+
+/** Decorator wrapper: owns the (now controlled) autoScroll preference locally so the
+ *  isolated story's auto-scroll checkbox stays interactive. */
+function AutoScrollStoryProvider({ children }: { children: ReactNode }) {
+  const [autoScroll, setAutoScroll] = useState(true);
+  return (
+    <RecordingViewStateProvider
+      autoScroll={autoScroll}
+      onAutoScrollChange={setAutoScroll}
+    >
+      {children}
+    </RecordingViewStateProvider>
+  );
+}
 
 // ─────────────────────────────────────────────────────
 // Mock data helpers
@@ -345,9 +359,9 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <RecordingViewStateProvider>
+      <AutoScrollStoryProvider>
         <Story />
-      </RecordingViewStateProvider>
+      </AutoScrollStoryProvider>
     ),
   ],
   tags: ['autodocs'],

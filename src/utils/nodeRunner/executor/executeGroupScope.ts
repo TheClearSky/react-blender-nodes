@@ -41,6 +41,7 @@ async function executeGroupScope<
   erroredNodes: Set<string>,
   groupDepth: number = 1,
   afterStep?: () => Promise<void>,
+  parentInstancePath: readonly string[] = [],
 ): Promise<void> {
   const {
     recorder,
@@ -52,6 +53,12 @@ async function executeGroupScope<
   } = env;
 
   const { groupNodeId, groupNodeTypeId, groupNodeTypeName, innerPlan } = scope;
+
+  // Instance path for steps INSIDE this scope (mirrors the ValueStore prefix
+  // chain). The group's OWN structural/error steps carry the PARENT path.
+  const instancePath: readonly string[] = [...parentInstancePath, groupNodeId];
+  const parentPathOrUndefined =
+    parentInstancePath.length > 0 ? parentInstancePath : undefined;
 
   onNodeStateChange(groupNodeId, 'running');
 
@@ -76,6 +83,7 @@ async function executeGroupScope<
       concurrencyLevel: scope.concurrencyLevel,
       groupNodeId,
       groupDepth,
+      instancePath: parentPathOrUndefined,
     });
     recorder.errorStep(errIdx, error, new Map());
     onNodeStateChange(groupNodeId, 'errored');
@@ -105,6 +113,7 @@ async function executeGroupScope<
       concurrencyLevel: scope.concurrencyLevel,
       groupNodeId,
       groupDepth,
+      instancePath: parentPathOrUndefined,
     });
     recorder.errorStep(errIdx, error, new Map());
     onNodeStateChange(groupNodeId, 'errored');
@@ -226,6 +235,7 @@ async function executeGroupScope<
         concurrencyLevel: step.concurrencyLevel,
         groupNodeId,
         groupDepth,
+        instancePath,
       });
       recorder.skipStep(skipIdx);
       await afterStep?.();
@@ -242,7 +252,12 @@ async function executeGroupScope<
         try {
           if (step.kind === 'standard') {
             await executeStandardNode(step, innerEnv, scopedStore, {
-              groupContext: { groupNodeId, groupNodeTypeId, groupDepth },
+              groupContext: {
+                groupNodeId,
+                groupNodeTypeId,
+                groupDepth,
+                instancePath,
+              },
             });
             await afterStep();
           } else if (step.kind === 'group') {
@@ -253,6 +268,7 @@ async function executeGroupScope<
               innerErroredNodes,
               groupDepth + 1,
               afterStep,
+              instancePath,
             );
           } else {
             await executeOneStep(
@@ -262,6 +278,7 @@ async function executeGroupScope<
               innerErroredNodes,
               undefined,
               afterStep,
+              { groupNodeId, groupNodeTypeId, groupDepth, instancePath },
             );
           }
         } catch (e) {
@@ -275,7 +292,12 @@ async function executeGroupScope<
         toExecute.map((step) => {
           if (step.kind === 'standard') {
             return executeStandardNode(step, innerEnv, scopedStore, {
-              groupContext: { groupNodeId, groupNodeTypeId, groupDepth },
+              groupContext: {
+                groupNodeId,
+                groupNodeTypeId,
+                groupDepth,
+                instancePath,
+              },
             });
           }
           if (step.kind === 'group') {
@@ -285,9 +307,19 @@ async function executeGroupScope<
               scopedStore,
               innerErroredNodes,
               groupDepth + 1,
+              undefined,
+              instancePath,
             );
           }
-          return executeOneStep(step, innerEnv, scopedStore, innerErroredNodes);
+          return executeOneStep(
+            step,
+            innerEnv,
+            scopedStore,
+            innerErroredNodes,
+            undefined,
+            undefined,
+            { groupNodeId, groupNodeTypeId, groupDepth, instancePath },
+          );
         }),
       );
 
@@ -345,6 +377,9 @@ async function executeGroupScope<
     concurrencyLevel: scope.concurrencyLevel,
     groupNodeId,
     groupDepth,
+    // The group's OWN step belongs to the PARENT scope (see F4): keying it
+    // self-inclusively would corrupt extent detection + range overrides.
+    instancePath: parentPathOrUndefined,
   };
 
   if (innerHasErrors) {
@@ -372,6 +407,12 @@ async function executeGroupScope<
     });
     onNodeStateChange(groupNodeId, 'completed');
   }
+
+  // Step-by-step: surface the group's own structural step as a pause point
+  // (loop triplet steps already yield; without this, live step-over can never
+  // observe the return to the parent depth and would drain through whatever
+  // structure follows).
+  await afterStep?.();
 }
 
 export { executeGroupScope };

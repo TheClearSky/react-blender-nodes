@@ -40,6 +40,7 @@ function runInProcess<
     onNodeStateChange: context.onNodeStateChange,
     abortSignal: context.abortSignal,
     rootInputs: context.rootInputs,
+    onRecorderWarning: context.onRecorderWarning,
   });
 }
 
@@ -70,6 +71,7 @@ function runInProcessStepwise<
     onNodeStateChange: context.onNodeStateChange,
     abortSignal: context.abortSignal,
     rootInputs: context.rootInputs,
+    onRecorderWarning: context.onRecorderWarning,
   });
 }
 

@@ -14,6 +14,11 @@ import type {
   ExecutionPlan,
 } from './types';
 import { compile, DEFAULT_MAX_LOOP_ITERATIONS } from './compiler';
+import {
+  resolveStructureRecord,
+  emitRecorderWarningToConsole,
+} from './executionRecorder';
+import type { RecorderWarning } from './executionRecorder';
 import { inProcessRunTarget } from './runTargets/inProcessRunTarget';
 import type {
   ArtifactRunContext,
@@ -54,6 +59,13 @@ type UseNodeRunnerParams<
   functionImplementations: FunctionImplementations<NodeTypeUniqueId>;
   options?: {
     maxLoopIterations?: number;
+    /**
+     * Observer for recorder anomaly warnings (orphan promotion at finalize,
+     * unclosed scopes, key collisions — the salvage backstop's signal).
+     * Threaded into the executor's `ExecutionRecorder`; when absent the
+     * recorder dev-`console.warn`s and stays silent in production.
+     */
+    onRecorderWarning?: (warning: RecorderWarning) => void;
   };
   /** Controlled execution record. When provided, useNodeRunner uses this instead of internal state. */
   executionRecord?: ExecutionRecord | null;
@@ -209,7 +221,10 @@ function computeVisualStatesAtStep(
   if (openInstancePath === undefined) {
     // Root / template view: the top-level groupRecords are keyed by REAL
     // instance ids, so this is instance-correct as-is.
-    for (const [groupNodeId, groupRec] of record.groupRecords) {
+    // Map keys are opaque identity keys, NOT node ids — the node id lives
+    // on the record itself.
+    for (const groupRec of record.groupRecords.values()) {
+      const groupNodeId = groupRec.groupNodeId;
       const innerSteps = groupRec.innerRecord.steps;
       if (innerSteps.length === 0) continue;
 
@@ -231,12 +246,25 @@ function computeVisualStatesAtStep(
     // recursive walk would light the wrong instance), then apply the range
     // override to the nested group template nodes visible at this level.
     let scopeRecord: ExecutionRecord | undefined = record;
+    const walkedPath: string[] = [];
     for (const pathSegment of openInstancePath) {
-      scopeRecord = scopeRecord?.groupRecords.get(pathSegment)?.innerRecord;
+      // Group records key by full-path identity, so the walk addresses the
+      // exact instance at each level (a bare id would be ambiguous for a
+      // template subgroup instantiated more than once).
+      scopeRecord = scopeRecord
+        ? resolveStructureRecord(
+            scopeRecord.groupRecords,
+            pathSegment,
+            walkedPath,
+          )?.record.innerRecord
+        : undefined;
+      walkedPath.push(pathSegment);
       if (!scopeRecord) break;
     }
     if (scopeRecord) {
-      for (const [groupNodeId, groupRec] of scopeRecord.groupRecords) {
+      // Map keys are opaque identity keys, NOT node ids.
+      for (const groupRec of scopeRecord.groupRecords.values()) {
+        const groupNodeId = groupRec.groupNodeId;
         const innerSteps = groupRec.innerRecord.steps;
         if (innerSteps.length === 0) continue;
 
@@ -483,6 +511,43 @@ function useNodeRunner<
   // seed the current values without re-creating on every value change.
   const rootInputsRef = useRef(rootInputs);
   rootInputsRef.current = rootInputs;
+  // Latest recorder-warning observer via the same ref pattern (a consumer
+  // passing an inline callback must not re-create the run callbacks).
+  const onRecorderWarningRef = useRef(options?.onRecorderWarning);
+  onRecorderWarningRef.current = options?.onRecorderWarning;
+  /**
+   * Stable TRAMPOLINE handed to the executor, so the recorder calls whatever
+   * the consumer's LATEST render supplied rather than the function value that
+   * happened to be current when the run started.
+   *
+   * Dereferencing the ref at run start instead (`onRecorderWarningRef.current`)
+   * silently freezes a closure for the whole run — worst in step-by-step mode,
+   * where the generator can outlive many renders — so a handler like
+   * `(w) => setWarnings([...warnings, w])` would read a stale `warnings`.
+   *
+   * Why the call sites still pass `undefined` when nothing is registered: it
+   * keeps `ExecuteRunContext.onRecorderWarning` ABSENT, which a custom run
+   * target can legitimately branch on to skip building diagnostics nobody is
+   * listening for — the field is optional for exactly that reason. It is NOT
+   * what selects the console fallback any more: the trampoline below emits
+   * the recorder's own line either way, so an unconditional trampoline would
+   * behave identically except that it would also deliver a handler registered
+   * MID-RUN. Consequence of keeping the conditional: such a handler still
+   * does nothing until the next run.
+   */
+  const recorderWarningTrampoline = useCallback((warning: RecorderWarning) => {
+    const handler = onRecorderWarningRef.current;
+    if (handler) {
+      handler(warning);
+      return;
+    }
+    // The handler was registered when the run STARTED and has since been
+    // removed (a `cond ? fn : undefined` toggle flipped mid-run). The recorder
+    // still sees a registered observer — this trampoline — so it has already
+    // skipped its own dev fallback; a bare `?.()` here would drop the warning
+    // on every channel at once. Emit the recorder's own line instead.
+    emitRecorderWarningToConsole(warning);
+  }, []);
   const setExecutionRecord = useCallback((record: ExecutionRecord | null) => {
     lastSetRecordRef.current = record;
     if (!isControlledRef.current) setInternalRecord(record);
@@ -730,6 +795,9 @@ function useNodeRunner<
         options: { maxLoopIterations },
         abortSignal: controller.signal,
         onNodeStateChange: handleNodeStateChange,
+        onRecorderWarning: onRecorderWarningRef.current
+          ? recorderWarningTrampoline
+          : undefined,
         rootInputs: rootInputsRef.current,
         runWithInProcessExecutor: () => inProcessRunTarget.run(executeContext),
       };
@@ -796,6 +864,9 @@ function useNodeRunner<
       options: { maxLoopIterations },
       abortSignal: controller.signal,
       onNodeStateChange: handleNodeStateChange,
+      onRecorderWarning: onRecorderWarningRef.current
+        ? recorderWarningTrampoline
+        : undefined,
       rootInputs: rootInputsRef.current,
       runWithInProcessExecutor: () => inProcessRunTarget.run(stepwiseContext),
     };

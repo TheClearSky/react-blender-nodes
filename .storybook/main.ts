@@ -19,7 +19,6 @@ const config: StorybookConfig = {
   },
   async viteFinal(config) {
     config.plugins = await withoutVitePlugins(config.plugins, ['vite:dts']);
-
     return config;
   },
 };

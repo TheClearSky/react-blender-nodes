@@ -231,15 +231,15 @@ used across the entire codebase, see
 
 ### Making Nodes Executable (Runner Integration)
 
-| Doc                                                           | Why                                                                                                                  |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [runnerCompilerDoc.md](./runner/runnerCompilerDoc.md)         | How nodes become ExecutionSteps                                                                                      |
-| [runnerExecutorDoc.md](./runner/runnerExecutorDoc.md)         | FunctionImplementation interface, ValueStore                                                                         |
-| [runnerHookDoc.md](./runner/runnerHookDoc.md)                 | useNodeRunner API, state machine                                                                                     |
-| [executionRecordingDoc.md](./runner/executionRecordingDoc.md) | Step records, replay support                                                                                         |
-| [runTargetsDoc.md](./runner/runTargetsDoc.md)                 | Pluggable run targets, split Run button, codegen / export, self-contained artifact (`emitImplementations: 'source'`) |
-| [nodeStatusIndicatorDoc.md](./ui/nodeStatusIndicatorDoc.md)   | Visual feedback during execution                                                                                     |
-| [nodePreviewDoc.md](./ui/nodePreviewDoc.md)                   | Optional per-node-type preview components fed live / at-step runner values                                           |
+| Doc                                                           | Why                                                                                                                                                           |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [runnerCompilerDoc.md](./runner/runnerCompilerDoc.md)         | How nodes become ExecutionSteps                                                                                                                               |
+| [runnerExecutorDoc.md](./runner/runnerExecutorDoc.md)         | FunctionImplementation interface, ValueStore                                                                                                                  |
+| [runnerHookDoc.md](./runner/runnerHookDoc.md)                 | useNodeRunner API, state machine                                                                                                                              |
+| [executionRecordingDoc.md](./runner/executionRecordingDoc.md) | Step records, replay support                                                                                                                                  |
+| [runTargetsDoc.md](./runner/runTargetsDoc.md)                 | Pluggable run targets, split Run button, the React-free `/contract` subpath (codegen / export moved to the `@theclearsky/react-blender-nodes-codegen` plugin) |
+| [nodeStatusIndicatorDoc.md](./ui/nodeStatusIndicatorDoc.md)   | Visual feedback during execution                                                                                                                              |
+| [nodePreviewDoc.md](./ui/nodePreviewDoc.md)                   | Optional per-node-type preview components fed live / at-step runner values                                                                                    |
 
 ### Building a Node Group
 
@@ -383,13 +383,13 @@ used across the entire codebase, see
 
 ### Runner Systems
 
-| #   | Feature             | Doc                                                           | Description                                                                                                                                         |
-| --- | ------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 13  | Runner Compiler     | [runnerCompilerDoc.md](./runner/runnerCompilerDoc.md)         | 5-phase pipeline: State -> ExecutionPlan (loop/switch/group)                                                                                        |
-| 14  | Runner Executor     | [runnerExecutorDoc.md](./runner/runnerExecutorDoc.md)         | Async execution engine, ValueStore, concurrent level execution                                                                                      |
-| 15  | Runner Hook         | [runnerHookDoc.md](./runner/runnerHookDoc.md)                 | useNodeRunner hook: run/pause/resume/step/stop/reset/replayTo                                                                                       |
-| 16  | Execution Recording | [executionRecordingDoc.md](./runner/executionRecordingDoc.md) | ExecutionRecord, step records, value snapshots, replay support                                                                                      |
-| 17  | Run Targets         | [runTargetsDoc.md](./runner/runTargetsDoc.md)                 | Pluggable execution: RunTarget contract, in-process/json-ir/codegen-js, self-contained artifact (`emitImplementations: 'source'`), split Run button |
+| #   | Feature             | Doc                                                           | Description                                                                                                                                                                                         |
+| --- | ------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 13  | Runner Compiler     | [runnerCompilerDoc.md](./runner/runnerCompilerDoc.md)         | 5-phase pipeline: State -> ExecutionPlan (loop/switch/group)                                                                                                                                        |
+| 14  | Runner Executor     | [runnerExecutorDoc.md](./runner/runnerExecutorDoc.md)         | Async execution engine, ValueStore, concurrent level execution                                                                                                                                      |
+| 15  | Runner Hook         | [runnerHookDoc.md](./runner/runnerHookDoc.md)                 | useNodeRunner hook: run/pause/resume/step/stop/reset/replayTo                                                                                                                                       |
+| 16  | Execution Recording | [executionRecordingDoc.md](./runner/executionRecordingDoc.md) | ExecutionRecord, step records, value snapshots, replay support                                                                                                                                      |
+| 17  | Run Targets         | [runTargetsDoc.md](./runner/runTargetsDoc.md)                 | Pluggable execution: RunTarget contract, built-in in-process/json-ir, the React-free `/contract` subpath (codegen ships as the `@theclearsky/react-blender-nodes-codegen` plugin), split Run button |
 
 ### UI Components
 

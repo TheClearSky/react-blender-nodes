@@ -1,4 +1,5 @@
 import { X, Package } from 'lucide-react';
+import { resolveStructureRecord } from '@/utils/nodeRunner/executionRecorder';
 import { cn } from '@/utils';
 import {
   Accordion,
@@ -371,9 +372,17 @@ function ExecutionStepInspector({
           <div className='flex flex-col gap-2'>
             {stepRecord.loopIteration !== undefined &&
               (() => {
+                // Resolve by IDENTITY (owning instance path + structure
+                // id): two instances of one group template share the
+                // template's loop id, so a bare lookup would show a
+                // namesake instance's iteration totals.
                 const loopRecord =
                   stepRecord.loopStructureId && loopRecords
-                    ? loopRecords.get(stepRecord.loopStructureId)
+                    ? resolveStructureRecord(
+                        loopRecords,
+                        stepRecord.loopStructureId,
+                        stepRecord.instancePath,
+                      )?.record
                     : undefined;
                 const iterationRecord =
                   loopRecord?.iterations[stepRecord.loopIteration];

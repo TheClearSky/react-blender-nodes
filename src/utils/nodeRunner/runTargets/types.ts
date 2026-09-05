@@ -11,6 +11,7 @@ import type {
   FunctionImplementations,
   NodeVisualState,
 } from '../types';
+import type { RecorderWarning } from '../executionRecorder';
 
 /**
  * Pluggable run targets — the Strategy pattern for graph execution.
@@ -82,6 +83,13 @@ type ExecuteRunContext<
   functionImplementations: FunctionImplementations<NodeTypeUniqueId>;
   /** Optional live per-node visual feedback the target may drive. */
   onNodeStateChange: (nodeId: string, visualState: NodeVisualState) => void;
+  /**
+   * Optional observer for recorder anomaly warnings (orphan promotion at
+   * finalize, unclosed scopes, key collisions). The in-process executor
+   * threads it into its `ExecutionRecorder`; without it the recorder
+   * dev-`console.warn`s and stays silent in production.
+   */
+  onRecorderWarning?: (warning: RecorderWarning) => void;
   /**
    * Easy path: delegate to the built-in in-process executor and return its
    * record. Advanced authors hand-build a record with the public

@@ -7,9 +7,10 @@
 // It is a codegen-RECOGNIZED intrinsic: an implementation whose inputs are read
 // only through `readInput(inputs, '<handle>')[0]` (and is otherwise
 // self-contained) is AUTO-EMITTED inline by the codegen run target
-// (`analyzeImplementations`), instead of being threaded — see
-// `runTargets/codegen/analyze/autoEmit.ts`. The in-process executor runs the
-// exact same function, so parity holds in either path.
+// (`analyzeImplementations`), instead of being threaded — see the auto-emit
+// analysis in the `@theclearsky/react-blender-nodes-codegen` plugin. The
+// in-process executor runs the exact same function, so parity holds in either
+// path.
 
 /** Minimal structural shape of one input handle's value (matches the runner). */
 type ReadableInputHandle = {

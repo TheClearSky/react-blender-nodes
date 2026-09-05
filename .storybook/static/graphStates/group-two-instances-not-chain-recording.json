@@ -211,8 +211,9 @@
     "loopRecords": {},
     "switchRecords": {},
     "groupRecords": {
-      "fd0206dtrb4fw2ns5yr9": {
+      "[\"fd0206dtrb4fw2ns5yr9\"]": {
         "groupNodeId": "fd0206dtrb4fw2ns5yr9",
+        "ownerInstancePath": [],
         "groupNodeTypeId": "exmurmltbx4ibokpd69k",
         "innerRecord": {
           "id": "60591a1b-0584-404a-9534-ee8415ae389f-scope-1",
@@ -279,8 +280,9 @@
           "26awx5a6a1n6bc6dekmp": "8dnl090dzp346yf4eqer"
         }
       },
-      "n9d76iokegrxse72obuo": {
+      "[\"n9d76iokegrxse72obuo\"]": {
         "groupNodeId": "n9d76iokegrxse72obuo",
+        "ownerInstancePath": [],
         "groupNodeTypeId": "exmurmltbx4ibokpd69k",
         "innerRecord": {
           "id": "60591a1b-0584-404a-9534-ee8415ae389f-scope-3",

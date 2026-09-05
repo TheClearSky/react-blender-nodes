@@ -20,7 +20,6 @@ import type { MinimalNodeData } from '../valueStore';
 import { qualifiedId } from '../valueStore';
 import type { ValueStore } from '../valueStore';
 import { ExecutionRecorder } from '../executionRecorder';
-import { standardDataTypeNamesMap } from '../../nodeStateManagement/standardNodes';
 import { getCurrentNodesAndEdgesFromState } from '../../nodeStateManagement/nodes/constructAndModifyNodes';
 
 // ─────────────────────────────────────────────────────
@@ -377,6 +376,16 @@ function handleCatchError(
   e: unknown,
   step: ExecutionStep,
   env: Pick<ExecutionEnv, 'recorder' | 'onNodeStateChange'>,
+  stepFields?: {
+    groupNodeId?: string;
+    groupDepth?: number;
+    instancePath?: readonly string[];
+    loopStructureId?: string;
+    loopIteration?: number;
+    parentLoopStructureId?: string;
+    parentLoopIteration?: number;
+    switchStructureId?: string;
+  },
 ): void {
   const { recorder, onNodeStateChange } = env;
   const isGraphError =
@@ -390,7 +399,10 @@ function handleCatchError(
     onNodeStateChange(getStepNodeId(step), 'errored');
     return;
   }
-  // Unexpected error — record it properly
+  // Unexpected error — record it properly. Attribution fields (group
+  // identity/instance path, enclosing loop/switch context) are passed by the
+  // catching structure so the step routes into the right scoped/iteration
+  // records — the recorder consults only explicit step fields.
   const nodeId = getStepNodeId(step);
   onNodeStateChange(nodeId, 'errored');
   const stepIndex = recorder.beginStep({
@@ -399,6 +411,7 @@ function handleCatchError(
     nodeTypeName: getStepTypeName(step),
     customName: getStepCustomName(step),
     concurrencyLevel: step.concurrencyLevel,
+    ...stepFields,
   });
   const error = createGraphError({
     error: e,
@@ -443,54 +456,11 @@ function initializeDefaultValues<
 // Loop-specific helpers
 // ─────────────────────────────────────────────────────
 
-/** Data type IDs that are structural (not user data) on structural nodes. */
-const STRUCTURAL_HANDLE_TYPES: ReadonlySet<string> = new Set([
-  standardDataTypeNamesMap.bindLoopNodes,
-  standardDataTypeNamesMap.loopInfer,
-  standardDataTypeNamesMap.bindSwitchNodes,
-  standardDataTypeNamesMap.switchInfer,
-  standardDataTypeNamesMap.condition,
-]);
-
-/** Get the resolved dataTypeUniqueId from a handle, considering inferred types. */
-function resolveHandleDataTypeId(handle: {
-  dataType?: { dataTypeUniqueId?: string };
-  inferredDataType?: { dataTypeUniqueId?: string } | null;
-}): string | undefined {
-  return (
-    handle.inferredDataType?.dataTypeUniqueId ??
-    handle.dataType?.dataTypeUniqueId
-  );
-}
-
-/** Extract handle IDs for user data handles (not bindLoopNodes, loopInfer, or condition). */
-function getDataHandleIds(
-  handles: ReadonlyArray<{
-    id?: string;
-    dataType?: { dataTypeUniqueId?: string };
-    inferredDataType?: { dataTypeUniqueId?: string } | null;
-  }>,
-): string[] {
-  return handles
-    .filter((h) => {
-      const dtId = resolveHandleDataTypeId(h);
-      return h.id && dtId && !STRUCTURAL_HANDLE_TYPES.has(dtId);
-    })
-    .map((h) => h.id!);
-}
-
-/** Find the condition input handle on Loop Stop (the one with dataType 'condition'). */
-function findConditionInputId(
-  handles: ReadonlyArray<{
-    id?: string;
-    dataType?: { dataTypeUniqueId?: string };
-    inferredDataType?: { dataTypeUniqueId?: string } | null;
-  }>,
-): string | undefined {
-  return handles.find(
-    (h) => resolveHandleDataTypeId(h) === standardDataTypeNamesMap.condition,
-  )?.id;
-}
+// `getDataHandleIds` / `findConditionInputId` (+ their private helpers
+// `resolveHandleDataTypeId` / `STRUCTURAL_HANDLE_TYPES`) were leaf-extracted to
+// `./handleClassifiers` — a React-free module, so they can cross the codegen
+// `/contract` boundary without dragging in the node-construction core. Re-exported
+// below (see the export block) for back-compat with existing importers.
 
 function resolveConditionValue(
   nodeId: string,
@@ -600,9 +570,9 @@ export {
   getStepCustomName,
   handleCatchError,
   initializeDefaultValues,
-  getDataHandleIds,
-  findConditionInputId,
   resolveConditionValue,
   buildInnerState,
 };
+// Back-compat re-export of the leaf-extracted classifiers (React-free).
+export { getDataHandleIds, findConditionInputId } from './handleClassifiers';
 export type { ExecutionEnv, NodeInfo, Subtree };

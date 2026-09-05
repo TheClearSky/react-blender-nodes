@@ -29,11 +29,6 @@
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
-const bundlePath = fileURLToPath(
-  new URL('../dist/index.d.ts', import.meta.url),
-);
-const normalizedBundlePath = bundlePath.replace(/\\/g, '/');
-
 // Consumer-like compilation. `skipLibCheck: false` is the crux: it makes the
 // compiler report unresolved imports that live INSIDE a .d.ts (which a normal
 // consumer build silences into `any`).
@@ -48,55 +43,59 @@ const compilerOptions: ts.CompilerOptions = {
   types: [],
 };
 
-const program = ts.createProgram([bundlePath], compilerOptions);
+const formatHost: ts.FormatDiagnosticsHost = {
+  getCanonicalFileName: (fileName) => fileName,
+  getCurrentDirectory: ts.sys.getCurrentDirectory,
+  getNewLine: () => ts.sys.newLine,
+};
 
-// Only diagnostics whose file IS the bundle matter; errors inside third-party
-// node_modules declarations (now visited because skipLibCheck is off) are not
-// this gate's concern and are dropped.
-const bundleDiagnostics = ts
-  .getPreEmitDiagnostics(program)
-  .filter(
-    (diagnostic) =>
-      diagnostic.file !== undefined &&
-      diagnostic.file.fileName.replace(/\\/g, '/') === normalizedBundlePath,
+/**
+ * Type-check one rolled `.d.ts` bundle the way a consumer compiles against it and
+ * report only the diagnostics that originate IN that bundle (third-party
+ * node_modules `.d.ts` noise, now visited because `skipLibCheck` is off, is
+ * dropped). Returns true when the bundle is a clean, self-contained surface.
+ */
+function checkBundleSelfContained(relativePath: string): boolean {
+  const bundlePath = fileURLToPath(
+    new URL(`../${relativePath}`, import.meta.url),
   );
-
-if (bundleDiagnostics.length > 0) {
-  const formatHost: ts.FormatDiagnosticsHost = {
-    getCanonicalFileName: (fileName) => fileName,
-    getCurrentDirectory: ts.sys.getCurrentDirectory,
-    getNewLine: () => ts.sys.newLine,
-  };
-  process.stderr.write(
-    '[check-dist-types] dist/index.d.ts does not type-check as a standalone published bundle:\n\n',
-  );
-  process.stderr.write(
-    ts.formatDiagnosticsWithColorAndContext(bundleDiagnostics, formatHost) +
-      '\n',
-  );
-  process.stderr.write(
-    '[check-dist-types] A TS2307 here means an inferred public type pulled a module path into the rollup that resolves OUTSIDE the package — consumers see `any` under skipLibCheck. Fix: give the exported declaration an explicit type the file imports (see useFullGraph / standardDataTypes).\n',
-  );
-  process.exit(1);
+  const normalized = bundlePath.replace(/\\/g, '/');
+  const program = ts.createProgram([bundlePath], compilerOptions);
+  const diagnostics = ts
+    .getPreEmitDiagnostics(program)
+    .filter(
+      (diagnostic) =>
+        diagnostic.file !== undefined &&
+        diagnostic.file.fileName.replace(/\\/g, '/') === normalized,
+    );
+  if (diagnostics.length > 0) {
+    process.stderr.write(
+      `[check-dist-types] ${relativePath} does not type-check as a standalone published bundle:\n\n`,
+    );
+    process.stderr.write(
+      ts.formatDiagnosticsWithColorAndContext(diagnostics, formatHost) + '\n',
+    );
+    process.stderr.write(
+      '[check-dist-types] A TS2307 here means an inferred public type pulled a module path into the rollup that resolves OUTSIDE the package — consumers see `any` under skipLibCheck. Fix: give the exported declaration an explicit type the file imports (see useFullGraph / standardDataTypes).\n',
+    );
+    return false;
+  }
+  return true;
 }
 
-// Encapsulation guard: the source-emission analysis wire types (`SourceEmissionPlan`,
-// `EmittedFunction`) are INTERNAL — `emitJs` keeps them off the public `EmitJsOptions`
-// via the `EmitJsOptionsInternal` split (review H-1). They must never reach the
-// published bundle; re-adding `sourceEmission?` to the PUBLIC type would re-pull them
-// and STILL type-check clean (they resolve — they're just re-exposed), so type-checking
-// alone can't catch the regression. Guard the surface text explicitly.
-const bundleText = ts.sys.readFile(bundlePath) ?? '';
-const leakedInternalTypes = ['SourceEmissionPlan', 'EmittedFunction'].filter(
-  (name) => bundleText.includes(name),
-);
-if (leakedInternalTypes.length > 0) {
-  process.stderr.write(
-    `[check-dist-types] internal codegen analysis type(s) leaked into the published bundle: ${leakedInternalTypes.join(', ')}. These belong to analyze/sourceEmit.ts and must stay OFF the public EmitJsOptions (use EmitJsOptionsInternal) — see the H-1 split.\n`,
-  );
-  process.exit(1);
-}
+// Both published bundles must be self-contained: the root entry (`dist/index.d.ts`)
+// and the React-free codegen contract subpath (`dist/contract.d.ts`, exposed as
+// `@theclearsky/react-blender-nodes/contract`).
+const bundlesOk = ['dist/index.d.ts', 'dist/contract.d.ts']
+  .map(checkBundleSelfContained)
+  .every(Boolean);
+if (!bundlesOk) process.exit(1);
+
+// NOTE: the codegen source-emission encapsulation guard (the `SourceEmissionPlan` /
+// `EmittedFunction` internal-leak tripwire, review H-1) moved WITH the codegen
+// surface into the `@theclearsky/react-blender-nodes-codegen` plugin — those types
+// no longer exist in this library, so there is nothing here to guard.
 
 process.stdout.write(
-  '[check-dist-types] OK — dist/index.d.ts type-checks as a standalone bundle (no escaping imports).\n',
+  '[check-dist-types] OK — dist/index.d.ts + dist/contract.d.ts type-check as standalone bundles (no escaping imports).\n',
 );

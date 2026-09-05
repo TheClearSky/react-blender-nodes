@@ -58,6 +58,7 @@ function RunnerOverlay<
   runTargets,
   defaultRunTargetId,
   rootInputs,
+  onRecorderWarning,
   dispatch,
 }: {
   state: FullGraphProps<
@@ -101,6 +102,18 @@ function RunnerOverlay<
   >;
   defaultRunTargetId?: string;
   rootInputs?: Record<string, unknown>;
+  /** Recorder bookkeeping diagnostics — see `FullGraphProps.onRecorderWarning`
+   *  for the kinds and the capture semantics. Passed straight through:
+   *  `useNodeRunner` keeps it in a ref and calls it through a stable
+   *  trampoline that dereferences that ref at emit time, so a new inline
+   *  function each render neither restarts a run nor re-creates the runner,
+   *  and never goes stale mid-run. */
+  onRecorderWarning?: FullGraphProps<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['onRecorderWarning'];
 }) {
   const {
     executionRecord: controlledRecord,
@@ -120,6 +133,12 @@ function RunnerOverlay<
     onExecutionRecordChange,
     activeRunTarget,
     rootInputs,
+    // A fresh object literal is deliberate and safe: `useNodeRunner` reads
+    // `options` only to seed one `useState` and to refresh a ref it calls at
+    // emit time — `options` never enters a dependency array, so neither the
+    // object's identity nor an inline `onRecorderWarning` can restart a run
+    // or re-create the runner (RE-01).
+    options: { onRecorderWarning },
   });
   // Stepping (pause/step) is available only for an execute target that provides
   // `runStepwise` — the built-in default does; artifact targets do not.

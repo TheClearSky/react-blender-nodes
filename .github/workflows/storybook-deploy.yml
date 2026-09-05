@@ -14,8 +14,6 @@ jobs:
     steps:
       - name: Checkout to repo in current branch
         uses: actions/checkout@v6
-        with:
-          node-version: '24.x'
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -32,7 +30,6 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: storybook-static
-          node-version: '24.x'
 
   # Deployment job
   deploy-storybook:
@@ -46,9 +43,14 @@ jobs:
       id-token: write
       pages: write
     steps:
+      # `id` is load-bearing: the job's `environment.url` above reads
+      # `steps.deployment.outputs.page_url`, which silently resolves to an
+      # empty string without it — leaving the Environments UI with no link to
+      # what was published.
+      #
+      # No `env: GITHUB_TOKEN` — `deploy-pages@v4` takes a `token` INPUT that
+      # already defaults to `github.token`; the env var was inert and implied a
+      # dependency this job does not have.
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          node-version: '24.x'

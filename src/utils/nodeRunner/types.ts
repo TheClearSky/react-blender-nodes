@@ -543,9 +543,16 @@ type ExecutionStepRecord = {
   loopIteration?: number;
   /** Loop structure identifier (only when inside a loop body) */
   loopStructureId?: string;
-  /** @deprecated Use hierarchical LoopIterationRecord.nestedLoopRecords instead */
+  /**
+   * The ENCLOSING loop's structure id for steps recorded inside a nested
+   * structure (nested-loop steps via `parentFields`, group-in-loop wrapper
+   * steps via `executeGroupScope`). Load-bearing: the recorder's
+   * `addStepToPendingIteration` uses it as the fallback route to file a step
+   * into the parent iteration when the step's own `loopStructureId` has no
+   * pending iteration.
+   */
   parentLoopStructureId?: string;
-  /** @deprecated Use hierarchical LoopIterationRecord.nestedLoopRecords instead */
+  /** The enclosing loop's iteration number (pairs with parentLoopStructureId). */
   parentLoopIteration?: number;
   /** Group node instance ID (only when inside a group scope) */
   groupNodeId?: string;
@@ -604,6 +611,14 @@ type LoopIterationRecord = {
  */
 type LoopRecord = {
   loopStructureId: string;
+  /**
+   * Instance path of the group instance that OWNS this loop (`[]` at root).
+   * Loop structure ids are template node ids, shared by every instance of a
+   * group type — this field is what distinguishes one instance's loop from
+   * another's, and it survives export/import (unlike the map key, which
+   * should be treated as opaque; build it with `structureRecordKey`).
+   */
+  ownerInstancePath: readonly string[];
   loopStartNodeId: string;
   loopStopNodeId: string;
   loopEndNodeId: string;
@@ -619,6 +634,9 @@ type LoopRecord = {
  */
 type SwitchRecord = {
   switchStructureId: string;
+  /** Instance path of the owning group instance (`[]` at root) — see
+   *  `LoopRecord.ownerInstancePath`. */
+  ownerInstancePath: readonly string[];
   switchStartNodeId: string;
   switchEndNodeId: string;
   branchTaken: boolean;
@@ -636,6 +654,9 @@ type SwitchRecord = {
  */
 type GroupRecord = {
   groupNodeId: string;
+  /** Instance path of the scope CONTAINING this group (`[]` at root); the
+   *  group's own instance path is `[...ownerInstancePath, groupNodeId]`. */
+  ownerInstancePath: readonly string[];
   groupNodeTypeId: string;
   innerRecord: ExecutionRecord;
   inputMapping: ReadonlyMap<string, unknown>;
@@ -688,11 +709,30 @@ type ExecutionRecord = {
   errors: ReadonlyArray<GraphError>;
   /** Timing data per concurrency level */
   concurrencyLevels: ReadonlyArray<ConcurrencyLevelRecord>;
-  /** Loop execution recordings, keyed by loop structure ID */
+  /**
+   * Loop execution recordings, keyed by IDENTITY — the structure's full path
+   * (`[...ownerInstancePath, loopStructureId]`) serialized as a JSON array:
+   * `["L"]` at root, `["g2","L"]` inside instance `g2`, `["g2","s1","L"]` at
+   * depth 2. A structure id is a NODE id, and every instance of a node group
+   * shares its template's node ids, so a bare-id key would make two instances
+   * of one group collide.
+   *
+   * There is a SECOND shape: when the finalize salvage promotes residue whose
+   * identity key is already taken, it appends a trailing integer ordinal —
+   * `["g2","L",1]` — so a healthy record and its salvage duplicate can coexist
+   * rather than one overwriting the other.
+   *
+   * Keys are OPAQUE — build them with `structureRecordKey` and look records up
+   * with `resolveStructureRecord(map, structureId, step.instancePath)`, which
+   * finds both shapes; never parse one. Each record also carries its identity
+   * structurally as `ownerInstancePath`.
+   */
   loopRecords: ReadonlyMap<string, LoopRecord>;
-  /** Group execution recordings, keyed by group node instance ID */
+  /** Group execution recordings, keyed by identity exactly like `loopRecords`
+   *  — for a group that is the instance's own full path
+   *  (`[...ownerInstancePath, groupNodeId]`). */
   groupRecords: ReadonlyMap<string, GroupRecord>;
-  /** Switch execution recordings, keyed by switch structure ID */
+  /** Switch execution recordings, keyed by identity exactly like `loopRecords`. */
   switchRecords: ReadonlyMap<string, SwitchRecord>;
   /** Complete ValueStore snapshot at end of execution ("nodeId:handleId" -> value) */
   finalValues: ReadonlyMap<string, unknown>;

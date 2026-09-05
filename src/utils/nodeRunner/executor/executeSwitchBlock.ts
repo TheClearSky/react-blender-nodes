@@ -69,10 +69,14 @@ async function executeSwitchBlock<
   } = block;
 
   const switchStructureId = switchStartNodeId;
+  // Owner identity: template node ids collide across instances of one group
+  // type — the owning instance path disambiguates the recorder's bookkeeping.
+  const ownerInstancePath: readonly string[] = groupContext?.instancePath ?? [];
   recorder.beginSwitchStructure(
     switchStructureId,
     switchStartNodeId,
     switchEndNodeId,
+    ownerInstancePath,
   );
 
   const startInfo = nodeInfoMap.get(switchStartNodeId);
@@ -308,7 +312,10 @@ async function executeSwitchBlock<
           }
         } catch (e) {
           branchErroredNodes.add(getStepNodeId(step));
-          handleCatchError(e, step, env);
+          handleCatchError(e, step, env, {
+            ...groupStepFields,
+            switchStructureId,
+          });
         }
       }
     } else {
@@ -335,6 +342,7 @@ async function executeSwitchBlock<
             (results[i] as PromiseRejectedResult).reason,
             toExecute[i],
             env,
+            { ...groupStepFields, switchStructureId },
           );
         }
       }
@@ -401,7 +409,11 @@ async function executeSwitchBlock<
     await afterStep?.();
   }
 
-  recorder.completeSwitchStructure(switchStructureId, conditionValue);
+  recorder.completeSwitchStructure(
+    switchStructureId,
+    conditionValue,
+    ownerInstancePath,
+  );
 
   onNodeStateChange(switchStartNodeId, 'completed');
   onNodeStateChange(switchEndNodeId, 'completed');

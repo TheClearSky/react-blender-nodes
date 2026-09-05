@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { structureRecordKey } from '@/utils/nodeRunner/executionRecorder';
 import { fn } from 'storybook/test';
 
 import type {
@@ -210,6 +211,7 @@ const iterRecords: LoopIterationRecord[] = [
 
 const mockLoopRecord: LoopRecord = {
   loopStructureId: 'loop-1',
+  ownerInstancePath: [],
   loopStartNodeId: 'loopStart-1',
   loopStopNodeId: 'loopStop-1',
   loopEndNodeId: 'loopEnd-1',
@@ -222,7 +224,9 @@ const mockLoopRecord: LoopRecord = {
 
 const mockLoopSegment: LoopSegment = {
   kind: 'loop',
-  loopStructureId: 'loop-1',
+  // A segment is keyed by the loop record's identity KEY (what `buildSegments`
+  // produces), not by the bare structure id.
+  loopStructureId: structureRecordKey([], 'loop-1'),
   loopRecord: mockLoopRecord,
   adjustedIterations: iterRecords.map((iter) => ({
     ...iter,

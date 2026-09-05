@@ -6,6 +6,7 @@ import type {
   LoopPhase,
   SwitchRecord,
 } from '@/utils/nodeRunner/types';
+import { resolveStructureRecord } from '@/utils/nodeRunner/executionRecorder';
 
 // ─────────────────────────────────────────────────────
 // Constants
@@ -289,13 +290,29 @@ export function buildSegments(
     const isLoopBody =
       step.loopStructureId !== undefined && step.loopIteration !== undefined;
 
-    // Switch steps have switchStructureId set
-    const isSwitchStep =
-      step.switchStructureId !== undefined &&
-      switchRecords.has(step.switchStructureId);
+    // Structure records are keyed by full-path identity, so a step is
+    // matched to the record of the instance that actually ran it (two
+    // instances of one group template share their template's structure ids).
+    const switchHit =
+      step.switchStructureId !== undefined
+        ? resolveStructureRecord(
+            switchRecords,
+            step.switchStructureId,
+            step.instancePath,
+          )
+        : undefined;
+    const loopHit =
+      step.loopStructureId !== undefined
+        ? resolveStructureRecord(
+            loopRecords,
+            step.loopStructureId,
+            step.instancePath,
+          )
+        : undefined;
+    const isSwitchStep = switchHit !== undefined;
 
     if (isSwitchStep) {
-      const switchId = step.switchStructureId!;
+      const switchId = switchHit.key;
 
       // Flush flat steps before the switch
       if (!switchSegmentMap.has(switchId) && currentFlat.length > 0) {
@@ -305,7 +322,7 @@ export function buildSegments(
 
       // Create switch segment on first encounter
       if (!switchSegmentMap.has(switchId)) {
-        const switchRec = switchRecords.get(switchId)!;
+        const switchRec = switchHit.record;
         const switchSeg = buildSwitchSegment(
           switchId,
           switchRec,
@@ -318,16 +335,13 @@ export function buildSegments(
     } else if (!isLoopBody) {
       // Check if this is a structural step for a nested loop we don't own —
       // skip it so it doesn't appear as a flat block at this level
-      if (
-        step.loopStructureId !== undefined &&
-        !loopRecords.has(step.loopStructureId)
-      ) {
+      if (step.loopStructureId !== undefined && !loopHit) {
         continue;
       }
       currentFlat.push(step);
     } else {
-      const loopId = step.loopStructureId!;
-      const loopRec = loopRecords.get(loopId);
+      const loopId = loopHit?.key ?? step.loopStructureId!;
+      const loopRec = loopHit?.record;
 
       if (!loopRec) {
         // Step belongs to a deeper-nested loop — skip it at this level

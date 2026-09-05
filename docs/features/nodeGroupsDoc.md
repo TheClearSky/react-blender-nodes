@@ -775,7 +775,7 @@ mapping points rather than executable nodes.
    a. plan.inputResolutionMap[qualifiedId(groupNodeId, outerHandleId)] -> source entries.
    b. value = parent valueStore.get(entries[0].sourceNodeId, entries[0].sourceHandleId).
    c. scopedStore.set(subtree.inputNodeId, innerHandleId, value).
-6. recorder.beginGroup + beginScope; execute inner plan levels:
+6. recorder.beginGroup + scopeToken = beginScope(instancePath); execute inner plan levels:
    - 'standard' -> executeStandardNode; 'group' -> recurse (groupDepth+1);
      loop/switch -> executeOneStep. Sequential when step-by-step (afterStep present),
      else Promise.allSettled per level.
@@ -783,7 +783,8 @@ mapping points rather than executable nodes.
    a. innerPlan.inputResolutionMap[qualifiedId(subtree.outputNodeId, innerHandleId)].
    b. value = scopedStore.get(entries[0].sourceNodeId, entries[0].sourceHandleId).
    c. parent valueStore.set(groupNodeId, outerHandleId, value).
-8. recorder.endScope(...) -> innerSnapshot; recorder.completeGroup(...) -> GroupRecord.
+8. recorder.endScope(scopeToken, status, values) -> innerSnapshot (ownership-filtered);
+   recorder.completeGroup(...) -> GroupRecord.
 9. recordStructuralNodeCompletion for the group node (timeline visibility).
 10. onNodeStateChange(groupNodeId, 'completed' | 'errored').
 ```

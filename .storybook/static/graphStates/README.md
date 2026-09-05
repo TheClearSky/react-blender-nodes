@@ -21,6 +21,28 @@ zones, group subtrees, recording step shapes).
 | `group-two-instances-not-chain-{state,recording}.json` | TWO instances of one group type (subtree = NOT gate) chained `BitInput → G1 → G2 → BitOutput`. State carries the full `typeOfNodes` incl. the group type + subtree — load it FULL-STATE (`{...state, dataTypes, typeOfNodes, nodes, edges}`), not nodes/edges-only. The `RunnerFixtureDemos` `group-two-instances` entry; the regression fixture for group execution-path/instance tracking.                                                                                                                                                                                                                         |
 | `sdf-shape-studio-state.json`                          | The SDF Shape Studio `Showcase` graph: Heart → Translate → Radial Repeat, smooth-unioned onto a Circle, split two ways — Render, and Less Than → Measure Mask (8 nodes / 7 edges, slider values tuned via the real arrow buttons: Size 0.7·0.9⁴, X 0.4·1.1³). STATE ONLY — sdf/mask values are closures, so recordings lose them by design; the Showcase runs ONCE after load so it opens rendered. Loaded through the REAL import pipeline (`importGraphState` with the story module's `dataTypes`/`typeOfNodes`) so handle `complexSchema`s rehydrate to the module singletons (export strips `z.custom` schemas). |
 
+## Provenance caveat — the two RECORDING fixtures (2026-08-25)
+
+`adder-state-with-inner-noop-loop-instant.json` and
+`group-two-instances-not-chain-recording.json` were **migrated in place** to the
+identity-key format rather than re-recorded: every structure-record map key
+became `structureRecordKey(ownerInstancePath, structureId)` and every record
+gained `ownerInstancePath`, derived from each record's own step evidence and
+verified against it. The rest of each file is still at its original vintage, so
+two artifacts remain that the CURRENT pipeline would not produce:
+
+- `adder-…-instant.json` carried `compilationDuration` where the serializer
+  emits `warmupDuration`; the field has been renamed so the value survives
+  import (it was being silently discarded as `warmupDuration ?? 0`).
+- `group-two-instances-…-recording.json`'s inner-record ids end `-scope-1` /
+  `-scope-3`. Those are the OLD `-scope-{startStepIndex}` encoding; `endScope`
+  now builds the suffix from the scope token's serial, which for two scopes in
+  one run can only be 1 and 2.
+
+Neither affects what the fixtures are loaded for, and the identity keys in both
+are correct. Re-record them through the UI flow below when convenient, and this
+section goes away.
+
 ## Producing a new fixture
 
 1. Build the graph in a running story (`EmptyRunnerPlayground` is the usual

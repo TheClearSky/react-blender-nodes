@@ -38,6 +38,23 @@ const DEFAULT_MAX_LOOP_ITERATIONS = 100;
  * 3. Loop Compilation — compile loop structures into LoopExecutionBlocks
  * 4. Group Compilation — compile node groups into GroupExecutionScopes
  * 5. Topological Sort — sort remaining nodes into concurrency levels
+ *
+ * Call it with THREE arguments. Root Graph Input / Graph Output are detected,
+ * and running with a node group open re-scopes to that subtree and surfaces a
+ * plan warning.
+ *
+ * @param state - the graph to compile
+ * @param functionImplementations - the implementation for every node type
+ * @param options - `maxLoopIterations`: loop safety cap (default
+ *   `DEFAULT_MAX_LOOP_ITERATIONS`)
+ * @param depth - **`@internal` — DO NOT PASS.** The loop/switch/group recursion
+ *   counter the sub-compilers thread when they re-enter `compile` for a nested
+ *   body (`depth + 1`). The root-scope behaviours — open-group subtree
+ *   re-scoping, root Graph I/O detection, and the open-group warning — apply
+ *   only at depth 0; a nested body legitimately has none of them. A nonzero
+ *   value from outside therefore yields a quietly WRONG plan: `rootInputs` are
+ *   ignored, `rootOutputs` is `undefined`, and no warning is raised. Carries no
+ *   compatibility guarantee.
  */
 function compile<
   DataTypeUniqueId extends string = string,
@@ -55,6 +72,7 @@ function compile<
   >,
   functionImplementations: FunctionImplementations<NodeTypeUniqueId>,
   options?: { maxLoopIterations?: number },
+  /** @internal Recursion counter threaded by the sub-compilers — do not pass. */
   depth?: number,
 ): ExecutionPlan {
   const maxLoopIterations =

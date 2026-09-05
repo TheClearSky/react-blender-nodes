@@ -23,10 +23,9 @@ export default defineConfig({
     include: ['src/__tests__/**/*.test.{ts,tsx}'],
     environment: 'node',
     setupFiles: ['./src/__tests__/setup.ts'],
-    // The codegen eval-parity cases lazily load the TypeScript compiler (~8 MB) +
-    // Prettier; under worker-pool CPU contention the first-touch loads can push the
-    // heaviest case past the 5 s default and flake the gate RED. Generous timeout so
-    // a pass/fail is a real signal (does not weaken any assertion).
+    // Under worker-pool CPU contention a first-touch load can push the heaviest
+    // case past the 5 s default and flake the gate RED. Generous timeout so a
+    // pass/fail is a real signal (does not weaken any assertion).
     testTimeout: 20000,
   },
 });

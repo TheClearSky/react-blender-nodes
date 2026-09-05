@@ -1,4 +1,5 @@
 import type { ValidationIssue } from './types';
+import { isStructureRecordKey } from '../nodeRunner/executionRecorder';
 import { standardNodeTypeNamesMap } from '../nodeStateManagement/standardNodes';
 import { compareFanIn } from '../connectionOrder';
 import { normalizeZoneColor } from '../nodeStateManagement/zones/zoneColor';
@@ -426,6 +427,119 @@ const validRecordStatuses = ['completed', 'errored', 'cancelled'];
 const validStepStatuses = ['completed', 'errored', 'skipped'];
 
 /**
+ * Validate one serialized structure-record map (`loopRecords`,
+ * `switchRecords`, `groupRecords`).
+ *
+ * Its KEYS are identity keys (`executionRecorder` › `structureRecordKey` — a
+ * JSON array holding the structure's full path, e.g. `["g2","L7"]`), and each
+ * value carries the same identity structurally as `ownerInstancePath`.
+ * Recordings exported before that format existed carry bare structure ids and
+ * no `ownerInstancePath`; they still import and still resolve, through
+ * `resolveStructureRecord`'s legacy scan. A legacy key is therefore a
+ * staleness WARNING, never an error — and it is reported once per map rather
+ * than once per key, so an old recording yields one actionable line instead
+ * of a flood.
+ */
+function validateStructureRecordMap(
+  value: unknown,
+  path: string,
+  issues: ValidationIssue[],
+): void {
+  if (value === undefined) return;
+  if (!isObject(value)) {
+    issues.push(
+      issue(path, `Expected ${path.split('.').pop()} object`, 'warning'),
+    );
+    return;
+  }
+
+  const keys = Object.keys(value);
+  let legacyKeyCount = 0;
+  for (const key of keys) {
+    if (!isStructureRecordKey(key)) legacyKeyCount++;
+    const entry = value[key];
+    if (!isObject(entry)) {
+      // ERROR, not warning. A legacy KEY is staleness — the record is fine and
+      // still resolves. A non-object VALUE is structural corruption: the
+      // deserializers spread `{...obj}` with no guard, so letting this through
+      // hands the timeline and inspector a value typed `LoopRecord` whose
+      // every required field is `undefined`, and the failure then surfaces far
+      // from the import that caused it.
+      issues.push(
+        issue(`${path}[${JSON.stringify(key)}]`, 'Expected record object'),
+      );
+      continue;
+    }
+    const owner = entry.ownerInstancePath;
+    if (
+      owner !== undefined &&
+      !(
+        Array.isArray(owner) &&
+        owner.every((segment) => typeof segment === 'string')
+      )
+    ) {
+      issues.push(
+        issue(
+          `${path}[${JSON.stringify(key)}].ownerInstancePath`,
+          'Expected an array of group-instance ids',
+          'warning',
+        ),
+      );
+    }
+
+    // RECURSE. The maps most likely to hold aliased pre-v3 keys are the nested
+    // ones — AU-01 and AU-02 were a group-inner and a nested-loop bug — and a
+    // top-level-only sweep reports nothing about them. Each nested map is
+    // aggregated on its own path, so the "one actionable line per map" property
+    // survives: a file gets one line per map that actually has legacy keys.
+    const entryPath = `${path}[${JSON.stringify(key)}]`;
+    const innerRecord = entry.innerRecord;
+    if (isObject(innerRecord)) {
+      validateStructureRecordMap(
+        innerRecord.loopRecords,
+        `${entryPath}.innerRecord.loopRecords`,
+        issues,
+      );
+      validateStructureRecordMap(
+        innerRecord.switchRecords,
+        `${entryPath}.innerRecord.switchRecords`,
+        issues,
+      );
+      validateStructureRecordMap(
+        innerRecord.groupRecords,
+        `${entryPath}.innerRecord.groupRecords`,
+        issues,
+      );
+    }
+    if (Array.isArray(entry.iterations)) {
+      entry.iterations.forEach((iteration, index) => {
+        if (!isObject(iteration)) return;
+        validateStructureRecordMap(
+          iteration.nestedLoopRecords,
+          `${entryPath}.iterations[${index}].nestedLoopRecords`,
+          issues,
+        );
+        validateStructureRecordMap(
+          iteration.nestedSwitchRecords,
+          `${entryPath}.iterations[${index}].nestedSwitchRecords`,
+          issues,
+        );
+      });
+    }
+  }
+
+  if (legacyKeyCount > 0) {
+    issues.push(
+      issue(
+        path,
+        `${legacyKeyCount} of ${keys.length} record keys use the pre-identity-key format (a bare structure id). They still resolve, but two instances of one node group share their template's structure ids and cannot be told apart — re-export the recording to upgrade it.`,
+        'warning',
+      ),
+    );
+  }
+}
+
+/**
  * Validate the structure of an exported execution record envelope.
  * Returns all issues found — both errors and warnings.
  */
@@ -544,17 +658,19 @@ function validateExecutionRecordStructure(data: unknown): ValidationIssue[] {
     );
   }
 
-  // loopRecords, groupRecords, finalValues — should be objects (serialized Maps)
-  if (record.loopRecords !== undefined && !isObject(record.loopRecords)) {
-    issues.push(
-      issue('record.loopRecords', 'Expected loopRecords object', 'warning'),
-    );
-  }
-  if (record.groupRecords !== undefined && !isObject(record.groupRecords)) {
-    issues.push(
-      issue('record.groupRecords', 'Expected groupRecords object', 'warning'),
-    );
-  }
+  // Structure-record maps (serialized Maps) — shape, key format and identity
+  validateStructureRecordMap(record.loopRecords, 'record.loopRecords', issues);
+  validateStructureRecordMap(
+    record.switchRecords,
+    'record.switchRecords',
+    issues,
+  );
+  validateStructureRecordMap(
+    record.groupRecords,
+    'record.groupRecords',
+    issues,
+  );
+
   if (record.finalValues !== undefined && !isObject(record.finalValues)) {
     issues.push(
       issue('record.finalValues', 'Expected finalValues object', 'warning'),

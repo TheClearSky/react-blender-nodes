@@ -1,4 +1,4 @@
-import { type State, type SupportedUnderlyingTypes } from '@/utils';
+import type { State, SupportedUnderlyingTypes } from '@/utils';
 import type { z } from 'zod';
 import { handleIteratorIncludingIndices } from './handleIterators';
 import type {

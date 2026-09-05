@@ -12,6 +12,7 @@ import type {
 } from '../types';
 import { ValueStore } from '../valueStore';
 import { ExecutionRecorder } from '../executionRecorder';
+import type { RecorderWarning } from '../executionRecorder';
 import {
   buildNodeInfoMap,
   shouldSkipNode,
@@ -60,11 +61,16 @@ async function execute<
      *  Fed into the root Graph Input node's output handles (mirrors codegen's
      *  `runGraph` parameters). Ignored when the graph has no root Graph Input. */
     rootInputs?: Record<string, unknown>;
+    /** Structured recorder-anomaly channel (orphan promotion, key
+     *  collisions, unclosed scopes). Unregistered ⇒ dev-only console.warn. */
+    onRecorderWarning?: (warning: RecorderWarning) => void;
   },
 ): Promise<ExecutionRecord> {
   const { onNodeStateChange, abortSignal, rootInputs } = options;
   const valueStore = new ValueStore();
-  const recorder = new ExecutionRecorder();
+  const recorder = new ExecutionRecorder({
+    onRecorderWarning: options.onRecorderWarning,
+  });
   const erroredNodes = new Set<string>();
   const nodeInfoMap = buildNodeInfoMap(plan, state);
 

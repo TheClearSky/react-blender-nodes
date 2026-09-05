@@ -1,4 +1,4 @@
-import { type SupportedUnderlyingTypes } from '@/utils';
+import type { SupportedUnderlyingTypes } from '@/utils';
 import type { z } from 'zod';
 import { transformHandlesInNodeDataInPlace } from '@/utils/nodeStateManagement/handles/handleSetters';
 import type { InstantiatedNodeData } from '../nodes/types';

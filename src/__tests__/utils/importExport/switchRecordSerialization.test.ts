@@ -37,6 +37,7 @@ function makeSwitch(
 ): SwitchRecord {
   return {
     switchStructureId: id,
+    ownerInstancePath: [],
     switchStartNodeId: `${id}-start`,
     switchEndNodeId: `${id}-end`,
     branchTaken: true,
@@ -55,6 +56,7 @@ function makeLoop(
 ): LoopRecord {
   return {
     loopStructureId: id,
+    ownerInstancePath: [],
     loopStartNodeId: `${id}-start`,
     loopStopNodeId: `${id}-stop`,
     loopEndNodeId: `${id}-end`,

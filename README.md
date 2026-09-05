@@ -19,8 +19,8 @@
 
 ## How these projects fit together
 
-This library is the engine at the centre of a small family: two plugins extend
-it, and one application proves it in anger.
+This library sits at the heart of a small family of projects: two plugins build
+on it, and a full application shows what it can do.
 
 ```text
                 react-blender-nodes  ·  MIT  ·  published
@@ -34,7 +34,7 @@ it, and one application proves it in anger.
      └──────┬──────────────────────┬────────────────────────┬─────┘
             │                      │                        │
             │ peerDependency       │ peerDependency         │ file:
-            │ >=0.0.13 <1          │ >=0.0.13 <1            │ dependency
+            │ >=0.0.14 <1          │ >=0.0.14 <1            │ dependency
             │                      │ (via /contract —       │
             ▼                      ▼  React-free)           │
   ┌──────────────────────┐  ┌──────────────────────┐        │
@@ -52,7 +52,7 @@ it, and one application proves it in anger.
              └───────────────────┬──────────────────────────┘
                                  ▼
      ┌────────────────────────────────────────────────────────────┐
-     │  react-blender-nodes-sound  ·  AGPL-3.0  ·  private app    │
+     │  react-blender-nodes-sound  ·  AGPL-3.0  ·  app            │
      │                  T H E   A P P L I C A T I O N             │
      ├────────────────────────────────────────────────────────────┤
      │  Here the nodes ARE the audio graph (Tone.js / Web Audio): │

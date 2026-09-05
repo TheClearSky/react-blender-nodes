@@ -390,7 +390,7 @@ on an already-published version.
 
 Code generation lives in a SEPARATE package,
 `@theclearsky/react-blender-nodes-codegen`, which peer-depends on THIS library
-(`>=0.0.13 <1`) and imports only its React-free
+(`>=0.0.14 <1`) and imports only its React-free
 `@theclearsky/react-blender-nodes/contract` subpath at runtime. The dependency
 is strictly one-way: **this library does not depend on the plugin** — no `file:`
 link, no devDependency, no imports. The plugin owns its Storybook (the

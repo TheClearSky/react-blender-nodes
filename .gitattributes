@@ -1,0 +1,18 @@
+# Line endings: LF in the repository AND in every working copy, on every OS.
+# `eol=lf` overrides a developer's `core.autocrlf`, so git, prettier (which
+# emits LF) and the Linux CI runners all agree on the same bytes — no
+# "LF will be replaced by CRLF" warnings, no hook churn.
+* text=auto eol=lf
+
+# Never normalize binaries.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary

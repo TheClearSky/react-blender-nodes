@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.0.14 — 2026-09-06
+
+No code changes since 0.0.13.
+
+### Changed
+
+- Line endings are normalized to LF in the repository and in every working copy
+  (`.gitattributes`: `* text=auto eol=lf`, binaries marked as such), so git,
+  prettier and CI agree on the same bytes.
+- README: friendlier framing of the project family; the sound application is
+  described as an app (it is not published to npm, but it is not private).
+
 ## 0.0.13 — 2026-09-05
 
 > Versions 0.0.9 through 0.0.11 throw an import-time `ReferenceError` in both

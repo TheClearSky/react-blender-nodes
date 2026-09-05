@@ -1,4 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import {
+  resolveStructureRecord,
+  structureRecordKey,
+} from '@/utils/nodeRunner/executionRecorder';
 import type {
   ExecutionRecord,
   ExecutionStepRecord,
@@ -155,16 +159,27 @@ function useTimelineAutoplay({
         step.loopStructureId !== undefined &&
         step.loopIteration !== undefined
       ) {
+        // Selection is keyed by the loop record's identity key (what the
+        // segments carry), never the bare structure id — same-template
+        // siblings share that id.
+        const segmentKey =
+          (record
+            ? resolveStructureRecord(
+                record.loopRecords,
+                step.loopStructureId,
+                step.instancePath,
+              )?.key
+            : undefined) ??
+          structureRecordKey(step.instancePath ?? [], step.loopStructureId);
         setSelectedIterations((prev) => {
-          if (prev.get(step.loopStructureId!) === step.loopIteration!)
-            return prev;
+          if (prev.get(segmentKey) === step.loopIteration!) return prev;
           const next = new Map(prev);
-          next.set(step.loopStructureId!, step.loopIteration!);
+          next.set(segmentKey, step.loopIteration!);
           return next;
         });
       }
     },
-    [setSelectedIterations],
+    [setSelectedIterations, record],
   );
 
   // ── Step navigation callbacks ──

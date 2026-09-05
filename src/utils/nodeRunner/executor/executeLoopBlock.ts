@@ -73,6 +73,21 @@ async function executeLoopBlock<
       }
     : {};
 
+  // Spread into every step this loop records: the enclosing group's identity
+  // plus the enclosing LOOP's nesting fields. Built HERE — above the early
+  // validation-error steps — so a malformed NESTED loop's error step still
+  // carries the routing that files it into the parent's iteration record
+  // (without it the step exists only in the flat list).
+  const parentFields = {
+    ...groupStepFields,
+    ...(parentLoopContext
+      ? {
+          parentLoopStructureId: parentLoopContext.loopStructureId,
+          parentLoopIteration: parentLoopContext.loopIteration,
+        }
+      : {}),
+  };
+
   const {
     loopStartNodeId,
     loopStopNodeId,
@@ -105,7 +120,7 @@ async function executeLoopBlock<
       nodeTypeId: 'loop',
       nodeTypeName: 'Loop',
       concurrencyLevel: block.concurrencyLevel,
-      ...groupStepFields,
+      ...parentFields,
     });
     recorder.errorStep(errIdx, error, new Map());
     onNodeStateChange(loopStartNodeId, 'errored');
@@ -167,7 +182,7 @@ async function executeLoopBlock<
       nodeTypeId: loopStartInfo.nodeTypeId,
       nodeTypeName: loopStartInfo.nodeTypeName,
       concurrencyLevel: block.concurrencyLevel,
-      ...groupStepFields,
+      ...parentFields,
     });
     recorder.errorStep(errIdx, error, new Map());
     onNodeStateChange(loopStartNodeId, 'errored');
@@ -195,25 +210,25 @@ async function executeLoopBlock<
   }
 
   // ── Begin loop recording ───────────────────────────
+  // Identity is EXPLICIT: the owning group instance path (template node ids
+  // collide across instances of one group type) and, for nested loops, the
+  // enclosing loop's declared context — never ambient recorder state.
+  const ownerInstancePath: readonly string[] = groupContext?.instancePath ?? [];
+  const structureParentContext = parentLoopContext
+    ? {
+        kind: 'loop' as const,
+        loopStructureId: parentLoopContext.loopStructureId,
+        iteration: parentLoopContext.loopIteration,
+      }
+    : undefined;
   recorder.beginLoopStructure(
     loopStructureId,
     loopStartNodeId,
     loopStopNodeId,
     loopEndNodeId,
+    ownerInstancePath,
+    structureParentContext,
   );
-
-  // Build parent context fields for structural/body step recordings
-  // Spread into every step this loop records: parent-loop nesting fields plus
-  // the enclosing group's identity/path (empty objects when not applicable).
-  const parentFields = {
-    ...groupStepFields,
-    ...(parentLoopContext
-      ? {
-          parentLoopStructureId: parentLoopContext.loopStructureId,
-          parentLoopIteration: parentLoopContext.loopIteration,
-        }
-      : {}),
-  };
 
   // Pre-compute output info (doesn't change per iteration)
   const startOutputInfo = valueStore.buildOutputInfo(
@@ -324,7 +339,11 @@ async function executeLoopBlock<
             }
           } catch (e) {
             bodyErroredNodes.add(getStepNodeId(step));
-            handleCatchError(e, step, env);
+            handleCatchError(e, step, env, {
+              ...parentFields,
+              loopStructureId,
+              loopIteration: iteration,
+            });
           }
         }
       } else {
@@ -357,7 +376,11 @@ async function executeLoopBlock<
           const result = results[i];
           if (result.status === 'rejected') {
             bodyErroredNodes.add(getStepNodeId(toExecute[i]));
-            handleCatchError(result.reason, toExecute[i], env);
+            handleCatchError(result.reason, toExecute[i], env, {
+              ...parentFields,
+              loopStructureId,
+              loopIteration: iteration,
+            });
           }
         }
       }
@@ -370,7 +393,7 @@ async function executeLoopBlock<
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     if (abortSignal.aborted) break;
 
-    recorder.beginLoopIteration(loopStructureId, iteration);
+    recorder.beginLoopIteration(loopStructureId, iteration, ownerInstancePath);
 
     // ── PHASE: loopStart ──────────────────────────────
     // Set all LoopStart data outputs (data into the body)
@@ -579,7 +602,12 @@ async function executeLoopBlock<
     }
 
     lastConditionValue = conditionValue;
-    recorder.completeLoopIteration(loopStructureId, iteration, conditionValue);
+    recorder.completeLoopIteration(
+      loopStructureId,
+      iteration,
+      conditionValue,
+      ownerInstancePath,
+    );
 
     if (!conditionValue) {
       break;
@@ -631,7 +659,7 @@ async function executeLoopBlock<
     erroredNodes.add(loopStartNodeId);
     erroredNodes.add(loopStopNodeId);
     erroredNodes.add(loopEndNodeId);
-    recorder.completeLoopStructure(loopStructureId);
+    recorder.completeLoopStructure(loopStructureId, ownerInstancePath);
     throw error;
   }
 
@@ -640,7 +668,7 @@ async function executeLoopBlock<
   onNodeStateChange(loopStopNodeId, 'completed');
   onNodeStateChange(loopEndNodeId, 'completed');
 
-  recorder.completeLoopStructure(loopStructureId);
+  recorder.completeLoopStructure(loopStructureId, ownerInstancePath);
 }
 
 export { executeLoopBlock };

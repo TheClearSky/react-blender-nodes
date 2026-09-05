@@ -1026,14 +1026,17 @@ GroupOutput nodes; mapping is skipped if either is absent.
 1. An `innerEnv` is derived from `env` with `plan = innerPlan`,
    `state = innerState`, `nodeInfoMap = innerNodeInfoMap` (recorder,
    abortSignal, onNodeStateChange, functionImplementations are shared).
-2. `recorder.beginGroup(...)` then `recorder.beginScope()` capture the current
-   step/error/record counts and isolate the loop-nesting stack.
+2. `recorder.beginGroup(...)` then `recorder.beginScope(instancePath)` — the
+   latter returns a single-use scope token capturing the owner's instance path
+   plus the current step/error/record counts.
 3. Inner levels execute exactly like the outer plan — partition skip/execute,
    then `Promise.allSettled` (instant) or sequential `afterStep` (debug). Nested
    `'group'` steps recurse into `executeGroupScope(..., groupDepth + 1)`; other
    nested blocks go through `executeOneStep`.
-4. `recorder.endScope(status, scopedStore.snapshot())` slices out **only** the
-   entries created within the scope, producing a clean inner `ExecutionRecord`
+4. `recorder.endScope(scopeToken, status, scopedStore.snapshot())` filters out
+   **only** the entries the scope's OWNER created (window + instance-path
+   ownership — concurrent sibling scopes interleave in the shared arrays, so the
+   window alone is not ownership), producing a clean inner `ExecutionRecord`
    (the "BUG #3 / DC-2" fix) which is attached via `recorder.completeGroup(...)`
    alongside the input/output mappings.
 5. A structural step for the group node is recorded **after** `endScope()` (so
@@ -1349,8 +1352,9 @@ compiled by `src/utils/nodeRunner/switchCompiler.ts` ›
 `executeGroupScope()` handles group nodes by recursively executing their inner
 plan. It builds an `innerState` (subtree nodes/edges, shared type definitions),
 a scoped `ValueStore`, and an `innerNodeInfoMap`, and uses
-`recorder.beginScope()`/`endScope()` for isolated recording. Handle mappings
-come from `GroupExecutionScope.inputMapping` / `outputMapping`, compiled by
+`recorder.beginScope(instancePath)`/`endScope(token, …)` for isolated,
+ownership-filtered recording. Handle mappings come from
+`GroupExecutionScope.inputMapping` / `outputMapping`, compiled by
 `src/utils/nodeRunner/groupCompiler.ts` › `compileGroupScopes`.
 
 ### -> Function Implementations (user-provided)

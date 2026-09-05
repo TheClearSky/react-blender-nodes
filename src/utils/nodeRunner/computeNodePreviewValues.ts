@@ -22,8 +22,10 @@ const EMPTY_NODE_PREVIEW_VALUES: ReadonlyMap<string, NodePreviewValueEntry> =
  * `record.steps` is ALREADY the complete, flat, globally-monotonic list of EVERY
  * step at every nesting depth: the recorder appends all steps (top-level, loop
  * body, switch branch, group inner) to one array with a global `stepIndex`,
- * `endScope` slices non-destructively, and the nested loop/switch/group records
- * hold duplicate references — so no recursion is needed to reach nested nodes.
+ * `endScope` filters an ownership-scoped COPY non-destructively (window +
+ * instance-path ownership; the flat array is never spliced), and the nested
+ * loop/switch/group records hold duplicate references — so no recursion is
+ * needed to reach nested nodes.
  *
  * - `live` = the step with the max `stepIndex` for each node (its latest
  *   occurrence). A recorded step's value maps hold its COMPLETE values, and

@@ -76,6 +76,9 @@ async function executeOneStep<
     case 'group':
       // Inherit the enclosing scope's depth/path (a group nested inside a
       // loop/switch body which is itself inside a group must not reset to 1).
+      // Forward the enclosing LOOP context too — the group's wrapper step
+      // needs it to route into the loop's iteration records (the recorder
+      // consults only explicit step fields, never ambient state).
       return executeGroupScope(
         step,
         env,
@@ -84,6 +87,7 @@ async function executeOneStep<
         groupContext ? groupContext.groupDepth + 1 : undefined,
         afterStep,
         groupContext?.instancePath ?? [],
+        parentLoopContext,
       );
     default:
       throw new Error('Unreachable');

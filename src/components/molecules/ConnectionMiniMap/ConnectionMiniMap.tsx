@@ -5,7 +5,10 @@ import {
   type Node,
   type Edge,
 } from '@xyflow/react';
-import { ConfigurableNodeReactFlowWrapper } from '@/components';
+// Deep import — pulling this from the root components barrel forms a circular
+// dependency that crashed BOTH dist bundles at import time (IN-41 TDZ); the
+// same rule as FullGraphCustomNodesAndEdges.ts, now lint-enforced.
+import { ConfigurableNodeReactFlowWrapper } from '@/components/organisms/ConfigurableNode/SupportingSubcomponents/ConfigurableNodeReactFlowWrapper';
 import { ConfigurableEdge } from '@/components/atoms/ConfigurableEdge/ConfigurableEdge';
 import { cn } from '@/utils';
 import { useGraphTheme } from '@/utils/theme/GraphThemeContext';

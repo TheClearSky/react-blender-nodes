@@ -12,6 +12,7 @@ import type {
 } from '../types';
 import { ValueStore } from '../valueStore';
 import { ExecutionRecorder } from '../executionRecorder';
+import type { RecorderWarning } from '../executionRecorder';
 import { StepChannel } from '../stepChannel';
 import {
   buildNodeInfoMap,
@@ -61,6 +62,9 @@ async function* executeStepByStep<
      *  Seeded into the root Graph Input node's output handles, identically to
      *  `execute()` (mirrors codegen's `runGraph` parameters). */
     rootInputs?: Record<string, unknown>;
+    /** Structured recorder-anomaly channel (orphan promotion, key
+     *  collisions, unclosed scopes). Unregistered ⇒ dev-only console.warn. */
+    onRecorderWarning?: (warning: RecorderWarning) => void;
   },
 ): AsyncGenerator<
   {
@@ -71,7 +75,9 @@ async function* executeStepByStep<
 > {
   const { onNodeStateChange, abortSignal, rootInputs } = options;
   const valueStore = new ValueStore();
-  const recorder = new ExecutionRecorder();
+  const recorder = new ExecutionRecorder({
+    onRecorderWarning: options.onRecorderWarning,
+  });
   const erroredNodes = new Set<string>();
   const nodeInfoMap = buildNodeInfoMap(plan, state);
 

@@ -56,6 +56,7 @@ import type {
   ExecutionRecord,
 } from '@/utils/nodeRunner/types';
 import type { RunTarget } from '@/utils/nodeRunner/runTargets/types';
+import type { RecorderWarning } from '@/utils/nodeRunner/executionRecorder';
 import { RunnerOverlay } from './RunnerOverlay';
 import { canRemoveStructuredNodesAndEdges } from '@/utils/nodeStateManagement/nodes/loops';
 import { standardNodeTypeNamesMap } from '@/utils/nodeStateManagement/standardNodes';
@@ -189,6 +190,35 @@ type FullGraphProps<
    */
   onExecutionRecordChange?: (record: ExecutionRecord | null) => void;
   /**
+   * Called when the execution recorder compensates for an anomaly it
+   * observed while recording — residue salvaged into the record, residue
+   * discarded, a scope left unclosed, or a begin call that superseded a
+   * still-pending entry of the same identity. See `RecorderWarningKind` for
+   * the four kinds.
+   *
+   * These are BOOKKEEPING diagnostics, not graph errors: they never appear
+   * in `record.errors`, and a run that emits them still produces a usable
+   * record. On a healthy run the stream is empty — a warning means either a
+   * library bug worth reporting or (for hand-driven recorders) API misuse.
+   *
+   * Registering this callback also SILENCES the recorder's dev-only
+   * `console.warn` fallback: you own the channel once you take it.
+   *
+   * Capture semantics: the callback is invoked through a stable trampoline
+   * that dereferences a ref AT EMIT TIME, so passing a new inline function
+   * each render is safe — it neither restarts a run nor re-creates the runner,
+   * and the handler always runs with the LATEST render's closure rather than
+   * the one that happened to be current when the run started.
+   *
+   * One edge remains: whether an observer is registered AT ALL is decided when
+   * the run starts, because that is when the observer is handed to the
+   * executor. Mounting a handler mid-run therefore takes effect from the NEXT
+   * run. UN-registering mid-run is safe — from that point the recorder's
+   * dev-only `console.warn` fallback takes over, exactly as if you had never
+   * registered one.
+   */
+  onRecorderWarning?: (warning: RecorderWarning) => void;
+  /**
    * Unified observability stream — fires for every UI lifecycle moment
    * that bypasses the reducer (drag end, delete-attempt verdict, import
    * outcomes). Pair with `useFullGraph(initial, { onGraphEvent })` (the
@@ -285,6 +315,7 @@ function FullGraphWithReactFlowProvider<
   onStateImported,
   onRecordingImported,
   onImportError,
+  onRecorderWarning,
   onGraphEvent,
   inputComponents,
   nodePreviews,
@@ -1232,6 +1263,7 @@ function FullGraphWithReactFlowProvider<
                     runTargets={runTargets}
                     defaultRunTargetId={defaultRunTargetId}
                     rootInputs={rootInputs}
+                    onRecorderWarning={onRecorderWarning}
                     onExecutionRecordRef={executionRecordRef}
                     loadRecordRef={loadRecordRef}
                   >
@@ -1407,6 +1439,7 @@ function FullGraph<
   onImportError,
   executionRecord,
   onExecutionRecordChange,
+  onRecorderWarning,
   onGraphEvent,
   inputComponents,
   nodePreviews,
@@ -1486,6 +1519,7 @@ function FullGraph<
             onStateImported={onStateImported}
             onRecordingImported={onRecordingImported}
             onImportError={onImportError}
+            onRecorderWarning={onRecorderWarning}
             onGraphEvent={onGraphEvent}
             inputComponents={inputComponents}
             nodePreviews={nodePreviews}

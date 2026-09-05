@@ -353,6 +353,9 @@ function serializeLoopRecord(rec: LoopRecord): SerializedLoopRecord {
 function deserializeLoopRecord(obj: SerializedLoopRecord): LoopRecord {
   return {
     ...obj,
+    // Recordings exported before the full-path key format carry no
+    // ownership field; default it so the (required) shape always holds.
+    ownerInstancePath: obj.ownerInstancePath ?? [],
     iterations: (obj.iterations ?? []).map((i: SerializedLoopIterationRecord) =>
       deserializeLoopIterationRecord(i),
     ),
@@ -397,6 +400,9 @@ function deserializeSwitchRecord(obj: SerializedSwitchRecord): SwitchRecord {
   }
   return {
     ...obj,
+    // Recordings exported before the full-path key format carry no
+    // ownership field; default it so the (required) shape always holds.
+    ownerInstancePath: obj.ownerInstancePath ?? [],
     stepRecords: (obj.stepRecords ?? []).map((s: SerializedStepRecord) =>
       deserializeStepRecord(s),
     ),
@@ -421,6 +427,9 @@ function serializeGroupRecord(rec: GroupRecord): SerializedGroupRecord {
 function deserializeGroupRecord(obj: SerializedGroupRecord): GroupRecord {
   return {
     ...obj,
+    // Recordings exported before the full-path key format carry no
+    // ownership field; default it so the (required) shape always holds.
+    ownerInstancePath: obj.ownerInstancePath ?? [],
     innerRecord: deserializeExecutionRecord(obj.innerRecord),
     inputMapping: recordToReadonlyMap(obj.inputMapping ?? {}),
     outputMapping: recordToReadonlyMap(obj.outputMapping ?? {}),

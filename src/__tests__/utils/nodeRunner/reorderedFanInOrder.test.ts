@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { compile } from '@/utils/nodeRunner';
-import { emitGraph } from '@/utils/nodeRunner/runTargets/codegen/emitGraph';
 import { readInput } from '@/utils/nodeRunner/readInput';
 import type { FunctionImplementations } from '@/utils/nodeRunner/types';
 
 // The compiler resolves a fan-in input handle's `connections[]` in the order its
 // edges carry via `data.order` (written by REORDER_INPUT_CONNECTIONS). This is the
-// SINGLE point that fixes the order for both the executor and codegen. These tests
-// pin that behavior end to end.
+// SINGLE point that fixes the order for the executor and for every run target.
+// These tests pin that behaviour at the ROOT scope; the loop / switch / group
+// cases live in `reorderedFanInInStructures.test.ts`.
 //
-// Fixture (mirrors emitGraphFanIn): Graph Input (A, B, B_2) → OR Gate (A, B) →
-// Graph Output (Out), where the OR Gate's `B` input is a FAN-IN — both root inputs
-// `B` (edge e2) and `B_2` (edge e3) wire into `or.B`.
+// Fixture: Graph Input (A, B, B_2) → OR Gate (A, B) → Graph Output (Out), where
+// the OR Gate's `B` input is a FAN-IN — both root inputs `B` (edge e2) and `B_2`
+// (edge e3) wire into `or.B`.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyState = any;
@@ -107,8 +107,8 @@ function fixture(orderById: Record<string, number> = {}): AnyState {
   } as AnyState;
 }
 
-// Reads B as the WHOLE fan-in array, so the emitted body renders B's connections
-// in resolution order (e.g. `[B, B_2]`).
+// Reads B as the WHOLE fan-in array, so B's connections are consumed in
+// resolution order.
 const ARRAY_OR: FunctionImplementations['orGate'] = (inputs) =>
   new Map([
     [
@@ -126,18 +126,6 @@ function fanInEdgeOrder(orderById?: Record<string, number>): string[] {
   return (plan.inputResolutionMap.get('or:or_b') ?? []).map(
     (entry) => entry.edgeId,
   );
-}
-
-async function emitFanInBody(
-  orderById?: Record<string, number>,
-): Promise<string> {
-  const state = fixture(orderById);
-  const plan = compile(state, IMPLS, { maxLoopIterations: 100 });
-  return emitGraph(plan, state, {
-    exportRunGraph: false,
-    analyzeImplementations: true,
-    impls: IMPLS as Readonly<Record<string, (...args: never[]) => unknown>>,
-  });
 }
 
 describe('compiler — fan-in connection order follows per-edge data.order', () => {
@@ -162,17 +150,5 @@ describe('compiler — fan-in connection order follows per-edge data.order', () 
     // e2,e3 pinned 0,1; a hypothetical 3rd unordered edge would trail — modeled
     // here by leaving e3 unordered while e2 is pinned first.
     expect(fanInEdgeOrder({ e2: 0 })).toEqual(['e2', 'e3']);
-  });
-});
-
-describe('codegen — emitted fan-in array reflects data.order', () => {
-  it('default order emits [B, B_2]', async () => {
-    const source = await emitFanInBody();
-    expect(source).toContain('[B, B_2].some((value) => Boolean(value))');
-  });
-
-  it('reversed order emits [B_2, B]', async () => {
-    const source = await emitFanInBody({ e3: 0, e2: 1 });
-    expect(source).toContain('[B_2, B].some((value) => Boolean(value))');
   });
 });

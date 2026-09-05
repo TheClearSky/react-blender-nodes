@@ -111,13 +111,26 @@ BitOutput already fed by loopEnd).
 
 ## Parked (need more investigation)
 
-| Test                               | Blocker                                                                                                                                                                                 |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Nested runnable loops              | `innerEnd.infer-out → outerStop.infer-in` drag silently rejected; root cause is in the two-loop infer branch of `isLoopConnectionValid` — needs deep trace to isolate which check fires |
-| Serial runnable loops              | `loopA.End.infer-out → loopB.Start.infer-in` silently rejected with same symptom                                                                                                        |
-| V4 cross-region same loop          | Requires a body node reachable from loopStop AND a post-stop node — need an infer-wiring helper that disambiguates inferred vs fresh handles across the triplet                         |
-| V5 cross-loop body→body            | Same infer-wiring dependency                                                                                                                                                            |
-| V8 uniform inference type mismatch | Requires driving loopStart.infer with one type and loopStop.infer with a different type; depends on the same infer-handle addressing work                                               |
+| Test                  | Blocker                                                                                                                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nested runnable loops | `innerEnd.infer-out → outerStop.infer-in` drag silently rejected; root cause is in the two-loop infer branch of `isLoopConnectionValid` — needs deep trace to isolate which check fires |
+| Serial runnable loops | `loopA.End.infer-out → loopB.Start.infer-in` silently rejected with same symptom                                                                                                        |
+
+> **Recorder coverage note (2026-08-20).** The RECORDING side of these parked
+> rows is no longer uncovered: concurrent parallel-sibling loops, sibling
+> same-template groups (loop-bearing), abort mid-run, and nested-loop recording
+> are pinned by the unit suites
+> `src/__tests__/utils/nodeRunner/recorderConcurrentSiblings.test.ts` +
+> `recorderSequentialPin.test.ts` (nested loops constructed action-driven via
+> intermediary nodes), and by the flipped regression guards in `e2e/repro/`
+> (`au01-*`, `au02-*`, run via `playwright.repro.config.ts`). Only the WIRING
+> limitation above (the direct two-loop infer drag) remains parked. | V4
+> cross-region same loop | Requires a body node reachable from loopStop AND a
+> post-stop node — need an infer-wiring helper that disambiguates inferred vs
+> fresh handles across the triplet | | V5 cross-loop body→body | Same
+> infer-wiring dependency | | V8 uniform inference type mismatch | Requires
+> driving loopStart.infer with one type and loopStop.infer with a different
+> type; depends on the same infer-handle addressing work |
 
 ## Verification pattern for rejection tests
 

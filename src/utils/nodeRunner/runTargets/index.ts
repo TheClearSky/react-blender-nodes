@@ -7,28 +7,16 @@
 export { runTargetModes, makeRunTargetWithAutoInfer } from './types';
 export { inProcessRunTarget } from './inProcessRunTarget';
 export { jsonIrRunTarget } from './jsonIrRunTarget';
-export {
-  makeCodegenRunTarget,
-  codegenJsRunTarget,
-  codegenTsRunTarget,
-} from './codegenJsRunTarget';
 export { downloadTextArtifact } from './downloadTextArtifact';
-export type { CodegenRunTargetOptions } from './codegenJsRunTarget';
+// Codegen (`emitJs` / `emitGraph` / `makeCodegenRunTarget` / `CodegenMetadata` /
+// the codegen run targets) now lives in the separate
+// `@theclearsky/react-blender-nodes-codegen` package, which consumes this
+// library's React-free `@theclearsky/react-blender-nodes/contract` subpath.
 // `readInput` is the recommended intrinsic for node implementations to read an
-// input (and the keystone of codegen auto-emit); `emitJs` is the low-level
-// codegen entry point. Both are documented as consumer-facing, so they are
-// surfaced through this — the one public runner barrel.
+// input (and the keystone of codegen auto-emit); it stays here as an
+// impl-authoring helper used under the in-process executor.
 export { readInput } from '../readInput';
 export type { ReadableInputHandle } from '../readInput';
-export { emitJs } from './codegen/emitJs';
-export type { EmitJsOptions } from './codegen/emitJs';
-// Codegen metadata (Decision 6) — authored by consumers and passed to the codegen
-// factory / `emitJs`, replacing the removed `TypeOfNode.codegen` / `DataType.codegenTypes`.
-export type {
-  CodegenMetadata,
-  NodeCodegenMetadata,
-  CodegenEmitContext,
-} from './codegen/contract';
 export type {
   RunTargetMode,
   ExecuteRunContext,
@@ -68,3 +56,26 @@ export type {
 export type { NodePreviewValueEntry } from '../computeNodePreviewValues';
 export { formatGraphError } from '../errors';
 export { ExecutionRecorder } from '../executionRecorder';
+// Structure-record identity: `ExecutionRecord.loopRecords` / `switchRecords` /
+// `groupRecords` are keyed by an OPAQUE full-path identity key. Consumers must
+// never build or parse that string by hand — `structureRecordKey` mints one and
+// `resolveStructureRecord` looks a record up from a step's
+// `(structureId, instancePath)` pair. Both are part of the published surface
+// precisely because the key format is opaque.
+export {
+  structureRecordKey,
+  resolveStructureRecord,
+  recorderWarningKinds,
+} from '../executionRecorder';
+// Named by the public `ExecutionRecorder` method signatures (`beginScope`
+// returns a `RecorderScopeToken`; `beginLoopStructure` takes a
+// `StructureParentContext`; the executors' `onRecorderWarning` option takes a
+// `RecorderWarning`) — surfaced so advanced authors hand-driving a recorder
+// can annotate the values they hold.
+export type {
+  RecorderScopeToken,
+  StructureParentContext,
+  RecorderWarning,
+  RecorderWarningKind,
+  ExecutionRecorderOptions,
+} from '../executionRecorder';

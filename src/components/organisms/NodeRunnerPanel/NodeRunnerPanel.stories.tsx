@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { structureRecordKey } from '@/utils/nodeRunner/executionRecorder';
 import { useState, useCallback, useRef, type ReactNode } from 'react';
 import { fn } from 'storybook/test';
 
@@ -1372,9 +1373,10 @@ function buildNestedGroupExecution(): {
     import('@/utils/nodeRunner/types').GroupRecord
   >([
     [
-      'ng-fa-group',
+      structureRecordKey([], 'ng-fa-group'),
       {
         groupNodeId: 'ng-fa-group',
+        ownerInstancePath: [],
         groupNodeTypeId: 'fullAdderGroup',
         innerRecord: faInnerRecord,
         inputMapping: new Map([
@@ -1389,9 +1391,10 @@ function buildNestedGroupExecution(): {
       },
     ],
     [
-      'ng-ha1-group',
+      structureRecordKey([], 'ng-ha1-group'),
       {
         groupNodeId: 'ng-ha1-group',
+        ownerInstancePath: [],
         groupNodeTypeId: 'halfAdderGroup',
         innerRecord: ha1InnerRecord,
         inputMapping: new Map([
@@ -1405,9 +1408,10 @@ function buildNestedGroupExecution(): {
       },
     ],
     [
-      'ng-ha2-group',
+      structureRecordKey([], 'ng-ha2-group'),
       {
         groupNodeId: 'ng-ha2-group',
+        ownerInstancePath: [],
         groupNodeTypeId: 'halfAdderGroup',
         innerRecord: ha2InnerRecord,
         inputMapping: new Map([
@@ -1604,9 +1608,10 @@ function buildLoopWithError(): {
     import('@/utils/nodeRunner/types').LoopRecord
   >([
     [
-      'le-loop',
+      structureRecordKey([], 'le-loop'),
       {
         loopStructureId: 'le-loop',
+        ownerInstancePath: [],
         loopStartNodeId: 'le-loop-start',
         loopStopNodeId: 'le-loop-stop',
         loopEndNodeId: 'le-loop-end',
@@ -1775,9 +1780,12 @@ function buildLoopInsideGroupExecution(): {
     import('@/utils/nodeRunner/types').LoopRecord
   >([
     [
-      'lig-inner-loop',
+      // Identity key = the loop's full path (it lives inside the group
+      // instance below), built the way the recorder builds it.
+      structureRecordKey(['lig-acc-group'], 'lig-inner-loop'),
       {
         loopStructureId: 'lig-inner-loop',
+        ownerInstancePath: ['lig-acc-group'],
         loopStartNodeId: 'lig-loop-start',
         loopStopNodeId: 'lig-loop-stop',
         loopEndNodeId: 'lig-loop-end',
@@ -1800,9 +1808,10 @@ function buildLoopInsideGroupExecution(): {
     import('@/utils/nodeRunner/types').GroupRecord
   >([
     [
-      'lig-acc-group',
+      structureRecordKey([], 'lig-acc-group'),
       {
         groupNodeId: 'lig-acc-group',
+        ownerInstancePath: [],
         groupNodeTypeId: 'accumulatorGroup',
         innerRecord: groupInnerRecord,
         inputMapping: new Map([

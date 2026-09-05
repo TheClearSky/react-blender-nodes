@@ -1,4 +1,7 @@
-import { z } from 'zod';
+// Type-only: `z` is used here solely in type positions (`z.ZodType`), so this
+// must not become a runtime import — the React-free `/contract` bundle
+// transitively includes this module and would otherwise carry `import "zod"`.
+import type { z } from 'zod';
 import type { Nodes, Edges } from '@/components/organisms/FullGraph/types';
 import type { HandleShape } from '@/components/atoms/HandleShapeSwatch/handleShapes';
 import type { Viewport } from '@xyflow/react';

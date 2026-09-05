@@ -1,13 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import { execute, executeStepByStep } from '@/utils/nodeRunner/executor';
 import { compile } from '@/utils/nodeRunner';
-import { emitJs } from '@/utils/nodeRunner/runTargets/codegen/emitJs';
 import type {
   ExecutionPlan,
   FunctionImplementations,
   InputResolutionEntry,
   StandardExecutionStep,
 } from '@/utils/nodeRunner/types';
+
+// Root Graph I/O — the host runner's own behaviour, independent of any run
+// target: `compile` detects the root Graph Input / Graph Output pair,
+// `seedRootInputs` feeds `rootInputs` into the Input's handles (keyed by name,
+// falling back to id), and `collectRootOutputs` reads the Output's handles into
+// `record.rootOutputs` (fan-in ⇒ array). Both executor entry points share the
+// helpers in `executor/rootIo.ts`; this file is the oracle that keeps them in
+// lockstep. Codegen's `runGraph` parity with these values is asserted in the
+// codegen plugin's own suite.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyState = any;
@@ -63,7 +71,7 @@ async function runStep(
   return result.value;
 }
 
-describe('runner — root Graph I/O (E1)', () => {
+describe('runner — root Graph I/O', () => {
   // Graph Input (output "x") → Doubler → Graph Output (input "out").
   function fixtureNodes() {
     return [
@@ -92,7 +100,9 @@ describe('runner — root Graph I/O (E1)', () => {
       new Map([['Out', Number(inputs.get('In')?.connections[0]?.value) * 2]]),
   };
 
-  it('executor seeds rootInputs into the Graph Input and collects rootOutputs', async () => {
+  // A hand-built plan for the fixture: exercises the executor's seeding and
+  // collection without going through `compile`.
+  function fixturePlan(): ExecutionPlan {
     const inputResolutionMap = new Map<
       string,
       ReadonlyArray<InputResolutionEntry>
@@ -106,7 +116,7 @@ describe('runner — root Graph I/O (E1)', () => {
         [{ edgeId: 'e2', sourceNodeId: 'doubler', sourceHandleId: 'd_out' }],
       ],
     ]);
-    const plan: ExecutionPlan = {
+    return {
       levels: [
         [step('gi', 'groupInput', 'Graph Input', 0)],
         [step('doubler', 'doubler', 'Doubler', 1)],
@@ -119,7 +129,9 @@ describe('runner — root Graph I/O (E1)', () => {
       rootInputNodeId: 'gi',
       rootOutputNodeId: 'go',
     };
-    const state = {
+  }
+  const fixtureState = () =>
+    ({
       nodes: fixtureNodes(),
       edges: [],
       typeOfNodes: {
@@ -128,57 +140,37 @@ describe('runner — root Graph I/O (E1)', () => {
         doubler: { name: 'Doubler' },
       },
       dataTypes: {},
-    } as AnyState;
+    }) as AnyState;
 
-    const record = await run(plan, state, impls, { x: 5 });
+  it('executor seeds rootInputs into the Graph Input and collects rootOutputs', async () => {
+    const record = await run(fixturePlan(), fixtureState(), impls, { x: 5 });
     expect(record.status).toBe('completed');
     // 5 → doubler → 10, collected as the named graph output.
     expect(record.rootOutputs).toEqual({ out: 10 });
   });
 
   it('seeds rootInputs by handle ID when the name key is absent (name-or-id, rename-proof)', async () => {
-    const inputResolutionMap = new Map<
-      string,
-      ReadonlyArray<InputResolutionEntry>
-    >([
-      [
-        'doubler:d_in',
-        [{ edgeId: 'e1', sourceNodeId: 'gi', sourceHandleId: 'gi_x' }],
-      ],
-      [
-        'go:go_out',
-        [{ edgeId: 'e2', sourceNodeId: 'doubler', sourceHandleId: 'd_out' }],
-      ],
-    ]);
-    const plan: ExecutionPlan = {
-      levels: [
-        [step('gi', 'groupInput', 'Graph Input', 0)],
-        [step('doubler', 'doubler', 'Doubler', 1)],
-        [step('go', 'groupOutput', 'Graph Output', 2)],
-      ],
-      inputResolutionMap,
-      outputDistributionMap: new Map(),
-      nodeCount: 3,
-      warnings: [],
-      rootInputNodeId: 'gi',
-      rootOutputNodeId: 'go',
-    };
-    const state = {
-      nodes: fixtureNodes(),
-      edges: [],
-      typeOfNodes: {
-        groupInput: { name: 'Graph Input' },
-        groupOutput: { name: 'Graph Output' },
-        doubler: { name: 'Doubler' },
-      },
-      dataTypes: {},
-    } as AnyState;
-
     // Key by the stable handle ID `gi_x` instead of the name `x`. A caller who
     // keys by id is immune to rename-on-connect; the name `x` is NOT present.
-    const record = await run(plan, state, impls, { gi_x: 5 });
+    const record = await run(fixturePlan(), fixtureState(), impls, {
+      gi_x: 5,
+    });
     expect(record.status).toBe('completed');
     expect(record.rootOutputs).toEqual({ out: 10 });
+  });
+
+  it('an explicit `undefined` under the NAME key is an intentional seed and wins over the id key', async () => {
+    // `seedRootInputs` decides the key with a membership (`in`) test, NOT `??`:
+    // the name `x` is present (with value undefined), so it is used and the id
+    // key `gi_x` is never consulted. A `??` "simplification" would fall through
+    // to 99 and yield 198 — this case makes that regression visible.
+    const record = await run(fixturePlan(), fixtureState(), impls, {
+      x: undefined,
+      gi_x: 99,
+    });
+    expect(record.status).toBe('completed');
+    // Number(undefined) * 2 — the doubler received the explicit undefined.
+    expect(record.rootOutputs?.out).toBeNaN();
   });
 
   it('no rootOutputs when the graph has no Graph Output node', async () => {
@@ -208,8 +200,9 @@ describe('runner — root Graph I/O (E1)', () => {
     expect(record.rootOutputs).toBeUndefined();
   });
 
-  it('compile detects the root Graph Input / Output nodes and the pipeline runs end-to-end', async () => {
-    const state = {
+  // The compiled fixture: the same three nodes, wired by real edges.
+  const compiledFixtureState = () =>
+    ({
       nodes: fixtureNodes(),
       edges: [
         {
@@ -245,8 +238,10 @@ describe('runner — root Graph I/O (E1)', () => {
         },
       },
       dataTypes: {},
-    } as AnyState;
+    }) as AnyState;
 
+  it('compile detects the root Graph Input / Output nodes and the pipeline runs end-to-end', async () => {
+    const state = compiledFixtureState();
     const plan = compile(state, impls, { maxLoopIterations: 100 });
     expect(plan.rootInputNodeId).toBe('gi');
     expect(plan.rootOutputNodeId).toBe('go');
@@ -255,45 +250,38 @@ describe('runner — root Graph I/O (E1)', () => {
     expect(record.rootOutputs).toEqual({ out: 14 });
   });
 
-  it('step-by-step seeds rootInputs and collects rootOutputs identically to instant (A2)', async () => {
+  it('a graph with no Graph I/O nodes compiles with both root ids undefined', () => {
     const state = {
-      nodes: fixtureNodes(),
-      edges: [
-        {
-          id: 'e1',
-          source: 'gi',
-          sourceHandle: 'gi_x',
-          target: 'doubler',
-          targetHandle: 'd_in',
-        },
-        {
-          id: 'e2',
-          source: 'doubler',
-          sourceHandle: 'd_out',
-          target: 'go',
-          targetHandle: 'go_out',
-        },
+      nodes: [
+        node(
+          'a',
+          'producer',
+          [],
+          [{ id: 'a_out', name: 'Out', dataType: number }],
+        ),
       ],
+      edges: [],
       typeOfNodes: {
-        groupInput: {
-          name: 'Graph Input',
+        producer: {
+          name: 'Producer',
           inputs: [],
-          outputs: [{ name: 'x', dataType: 'number' }],
-        },
-        groupOutput: {
-          name: 'Graph Output',
-          inputs: [{ name: 'out', dataType: 'number' }],
-          outputs: [],
-        },
-        doubler: {
-          name: 'Doubler',
-          inputs: [{ name: 'In', dataType: 'number' }],
           outputs: [{ name: 'Out', dataType: 'number' }],
         },
       },
       dataTypes: {},
     } as AnyState;
+    const plan = compile(
+      state,
+      { producer: () => new Map([['Out', 1]]) },
+      { maxLoopIterations: 100 },
+    );
+    expect(plan.rootInputNodeId).toBeUndefined();
+    expect(plan.rootOutputNodeId).toBeUndefined();
+    expect(plan.warnings).toEqual([]);
+  });
 
+  it('step-by-step seeds rootInputs and collects rootOutputs identically to instant', async () => {
+    const state = compiledFixtureState();
     const plan = compile(state, impls, { maxLoopIterations: 100 });
 
     const instant = await run(plan, state, impls, { x: 6 });
@@ -304,7 +292,7 @@ describe('runner — root Graph I/O (E1)', () => {
     expect(stepped.rootOutputs).toEqual(instant.rootOutputs);
   });
 
-  it('warns and ignores root Graph I/O when compiling with a node group open (G2)', () => {
+  it('warns and ignores root Graph I/O when compiling with a node group open', () => {
     // Root program has a Graph Input + Output, but a node group "adder" is open,
     // so the compiler reads the SUBTREE and isRootScope is false.
     const state = {
@@ -356,7 +344,7 @@ describe('runner — root Graph I/O (E1)', () => {
     );
   });
 
-  it('fan-in into a Graph Output handle returns an ARRAY (executor + codegen parity)', async () => {
+  it('fan-in into a Graph Output handle returns an ARRAY of all connected values', async () => {
     // Graph Input (x) → Doubler1 ┐
     //                 → Doubler2 ┴→ Graph Output.out   (TWO edges into `out`)
     const state = {
@@ -438,18 +426,9 @@ describe('runner — root Graph I/O (E1)', () => {
 
     const plan = compile(state, impls, { maxLoopIterations: 100 });
 
-    // Executor: the fan-in handle collects BOTH values as an array.
+    // The fan-in handle collects BOTH values as an array.
     const record = await run(plan, state, impls, { x: 5 });
     expect(record.rootOutputs).toEqual({ out: [10, 10] });
-
-    // Codegen: `runGraph` returns the same array — parity.
-    const source = emitJs(plan, state, { exportRunGraph: false });
-    expect(source).toMatch(/return \{ "out": \[/);
-    const runGraph = new Function(`${source}\nreturn runGraph;`)() as (
-      impls: FunctionImplementations,
-      x: number,
-    ) => Promise<Record<string, unknown>>;
-    expect(await runGraph(impls, 5)).toEqual({ out: [10, 10] });
   });
 
   it('fan-in array ORDER follows edge order (asymmetric values lock it)', async () => {
@@ -543,122 +522,5 @@ describe('runner — root Graph I/O (E1)', () => {
     // d1 doubles x=5 → 10 (first edge into `out`); d2 doubles y=8 → 16 (second).
     const record = await run(plan, state, impls, { x: 5, y: 8 });
     expect(record.rootOutputs).toEqual({ out: [10, 16] });
-
-    // Codegen parity: same ordered array.
-    const source = emitJs(plan, state, { exportRunGraph: false });
-    const runGraph = new Function(`${source}\nreturn runGraph;`)() as (
-      impls: FunctionImplementations,
-      x: number,
-      y: number,
-    ) => Promise<Record<string, unknown>>;
-    expect(await runGraph(impls, 5, 8)).toEqual({ out: [10, 16] });
-  });
-});
-
-describe('codegen — root Graph I/O function signature (E4)', () => {
-  const bit = { dataTypeUniqueId: 'bit' };
-  // Graph Input (a, b) → AND Gate (emitCode) → Graph Output (out).
-  const state = {
-    nodes: [
-      node(
-        'gi',
-        'groupInput',
-        [],
-        [
-          { id: 'gi_a', name: 'a', dataType: bit },
-          { id: 'gi_b', name: 'b', dataType: bit },
-        ],
-      ),
-      node(
-        'and',
-        'andGate',
-        [
-          { id: 'and_a', name: 'A', dataType: bit },
-          { id: 'and_b', name: 'B', dataType: bit },
-        ],
-        [{ id: 'and_out', name: 'Out', dataType: bit }],
-      ),
-      node(
-        'go',
-        'groupOutput',
-        [{ id: 'go_out', name: 'out', dataType: bit }],
-        [],
-      ),
-    ],
-    edges: [
-      {
-        id: 'e1',
-        source: 'gi',
-        sourceHandle: 'gi_a',
-        target: 'and',
-        targetHandle: 'and_a',
-      },
-      {
-        id: 'e2',
-        source: 'gi',
-        sourceHandle: 'gi_b',
-        target: 'and',
-        targetHandle: 'and_b',
-      },
-      {
-        id: 'e3',
-        source: 'and',
-        sourceHandle: 'and_out',
-        target: 'go',
-        targetHandle: 'go_out',
-      },
-    ],
-    typeOfNodes: {
-      groupInput: { name: 'Graph Input' },
-      groupOutput: { name: 'Graph Output' },
-      andGate: { name: 'AND Gate' },
-    },
-    dataTypes: {},
-  } as AnyState;
-  const andImpl: FunctionImplementations = {
-    andGate: (inputs) =>
-      new Map([
-        [
-          'Out',
-          Boolean(inputs.get('A')?.connections[0]?.value) &&
-            Boolean(inputs.get('B')?.connections[0]?.value),
-        ],
-      ]),
-  };
-  const metadata = {
-    nodeTypeMetadata: {
-      andGate: {
-        emit: ({ inputs }: { inputs: Record<string, string> }) => ({
-          Out: `Boolean(${inputs.A}) && Boolean(${inputs.B})`,
-        }),
-      },
-    },
-  };
-
-  it('emits a clean `function runGraph(a, b)` (no impls/async) for an emitCode graph', () => {
-    const plan = compile(state, andImpl, { maxLoopIterations: 100 });
-    const source = emitJs(plan, state, { metadata, exportRunGraph: false });
-    // Graph Input handles are the parameters; no functionImplementations / async.
-    expect(source).toContain('function runGraph(a, b) {');
-    expect(source).not.toContain('functionImplementations');
-    expect(source).not.toContain('async function runGraph');
-    // The emitCode gate reads the parameters directly.
-    expect(source).toContain('Boolean(a) && Boolean(b)');
-    // The return is the Graph Output handle, keyed by name.
-    expect(source).toContain('return { "out":');
-  });
-
-  it('the emitted runGraph(a, b) runs and matches the executor', async () => {
-    const plan = compile(state, andImpl, { maxLoopIterations: 100 });
-    const source = emitJs(plan, state, { metadata, exportRunGraph: false });
-    const runGraph = new Function(`${source}\nreturn runGraph;`)() as (
-      a: boolean,
-      b: boolean,
-    ) => Record<string, unknown>;
-    expect(runGraph(true, true)).toEqual({ out: true });
-    expect(runGraph(true, false)).toEqual({ out: false });
-    // Parity with the in-process executor (rootInputs ≡ runGraph args).
-    const record = await run(plan, state, andImpl, { a: true, b: true });
-    expect(record.rootOutputs).toEqual(runGraph(true, true));
   });
 });

@@ -42,6 +42,10 @@ async function executeGroupScope<
   groupDepth: number = 1,
   afterStep?: () => Promise<void>,
   parentInstancePath: readonly string[] = [],
+  parentLoopContext?: {
+    loopIteration: number;
+    loopStructureId: string;
+  },
 ): Promise<void> {
   const {
     recorder,
@@ -59,6 +63,17 @@ async function executeGroupScope<
   const instancePath: readonly string[] = [...parentInstancePath, groupNodeId];
   const parentPathOrUndefined =
     parentInstancePath.length > 0 ? parentInstancePath : undefined;
+
+  // When this group sits in a LOOP body, every step it records on its own
+  // behalf (the wrapper step AND the early validation-error steps) carries the
+  // enclosing loop's routing fields — otherwise the error exists only in the
+  // flat step list and never reaches the parent's iteration record.
+  const parentLoopFields = parentLoopContext
+    ? {
+        parentLoopStructureId: parentLoopContext.loopStructureId,
+        parentLoopIteration: parentLoopContext.loopIteration,
+      }
+    : {};
 
   onNodeStateChange(groupNodeId, 'running');
 
@@ -84,6 +99,7 @@ async function executeGroupScope<
       groupNodeId,
       groupDepth,
       instancePath: parentPathOrUndefined,
+      ...parentLoopFields,
     });
     recorder.errorStep(errIdx, error, new Map());
     onNodeStateChange(groupNodeId, 'errored');
@@ -114,6 +130,7 @@ async function executeGroupScope<
       groupNodeId,
       groupDepth,
       instancePath: parentPathOrUndefined,
+      ...parentLoopFields,
     });
     recorder.errorStep(errIdx, error, new Map());
     onNodeStateChange(groupNodeId, 'errored');
@@ -194,7 +211,7 @@ async function executeGroupScope<
 
   // ── Execute inner plan levels ──────────────────────
   recorder.beginGroup(groupNodeId, groupNodeTypeId);
-  recorder.beginScope();
+  const scopeToken = recorder.beginScope(instancePath);
 
   let innerHasErrors = false;
   const innerErroredNodes = new Set<string>();
@@ -284,7 +301,11 @@ async function executeGroupScope<
         } catch (e) {
           innerHasErrors = true;
           innerErroredNodes.add(getStepNodeId(step));
-          handleCatchError(e, step, innerEnv);
+          handleCatchError(e, step, innerEnv, {
+            groupNodeId,
+            groupDepth,
+            instancePath,
+          });
         }
       }
     } else {
@@ -328,7 +349,11 @@ async function executeGroupScope<
         if (result.status === 'rejected') {
           innerHasErrors = true;
           innerErroredNodes.add(getStepNodeId(toExecute[i]));
-          handleCatchError(result.reason, toExecute[i], innerEnv);
+          handleCatchError(result.reason, toExecute[i], innerEnv, {
+            groupNodeId,
+            groupDepth,
+            instancePath,
+          });
         }
       }
     }
@@ -357,6 +382,7 @@ async function executeGroupScope<
   // endScope() returns only the steps/errors recorded within this scope,
   // not the entire recorder history (fixes BUG #3 / DC-2).
   const innerSnapshot = recorder.endScope(
+    scopeToken,
     innerHasErrors ? 'errored' : 'completed',
     scopedStore.snapshot(),
   );
@@ -366,10 +392,14 @@ async function executeGroupScope<
     innerSnapshot,
     scope.inputMapping,
     scope.outputMapping,
+    parentInstancePath,
   );
 
   // ── Record structural step for the group node (replay/timeline visibility) ──
   // This is recorded AFTER endScope() so it belongs to the outer scope.
+  // When this group sits in a LOOP BODY, the parent-loop fields route the
+  // wrapper step into the enclosing LoopIterationRecord.stepRecords — the
+  // recorder consults ONLY explicit step fields, never ambient state.
   const groupStepBase = {
     nodeId: groupNodeId,
     nodeTypeId: groupNodeTypeId,
@@ -380,6 +410,7 @@ async function executeGroupScope<
     // The group's OWN step belongs to the PARENT scope (see F4): keying it
     // self-inclusively would corrupt extent detection + range overrides.
     instancePath: parentPathOrUndefined,
+    ...parentLoopFields,
   };
 
   if (innerHasErrors) {

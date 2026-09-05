@@ -1,5 +1,9 @@
 import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import {
+  resolveStructureRecord,
+  structureRecordKey,
+} from '@/utils/nodeRunner/executionRecorder';
+import {
   ChevronRight,
   ChevronLeft,
   ChevronsLeft,
@@ -157,9 +161,23 @@ function ExecutionTimeline({
       step?.loopStructureId !== undefined &&
       step.loopIteration !== undefined
     ) {
+      // Selection is keyed by the loop record's MAP key (a full-path
+      // identity), which is what the segments carry — writing the bare
+      // structure id would select a same-template sibling's segment.
+      // Nested loops are not in the top-level map — their segments come from
+      // `iteration.nestedLoopRecords`, keyed by the same full-path identity.
+      // So resolve for the legacy/bare-key case, else mint the identity key,
+      // which is correct at every depth.
+      const segmentKey =
+        resolveStructureRecord(
+          record.loopRecords,
+          step.loopStructureId,
+          step.instancePath,
+        )?.key ??
+        structureRecordKey(step.instancePath ?? [], step.loopStructureId);
       setSelectedIterations((prev) => {
         const next = new Map(prev);
-        next.set(step.loopStructureId!, step.loopIteration!);
+        next.set(segmentKey, step.loopIteration!);
         return next;
       });
     }

@@ -32,24 +32,26 @@ export default defineConfig({
       entry: ['src/index.ts'],
       name: 'react-blender-nodes',
       //We are not using the second parameter (entryName) because this is a single entry library
-      fileName: (format) => `react-blender-nodes.${format}.js`,
+      // The UMD artifact must carry the `.cjs` extension the manifest's `main` /
+      // `exports["."].require` declare (`"type": "module"` makes a `.js` file ESM
+      // to Node — the 0.0.x line shipped an unresolvable `require()` this way).
+      fileName: (format) =>
+        format === 'umd'
+          ? 'react-blender-nodes.umd.cjs'
+          : `react-blender-nodes.${format}.js`,
       cssFileName: 'react-blender-nodes',
       // We are building both ES and UMD formats, as a single entry library, check https://vite.dev/guide/build.html#library-mode for more info
       formats: ['es', 'umd'],
     },
     rollupOptions: {
       // externalize react and react-dom to avoid bundling them with the library, check peerDependencies in package.json.
-      // `typescript` is a runtime dependency used ONLY by the opt-in codegen run
-      // target (lazy `import('typescript')`); externalize it so the ~8MB compiler
-      // is never bundled into the library — consumers get it via the dependency.
-      external: ['react', 'react-dom', 'typescript'],
+      external: ['react', 'react-dom'],
       output: {
         // Provide global variables to use in the UMD build
         // for externalized deps
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
-          typescript: 'ts',
         },
       },
     },

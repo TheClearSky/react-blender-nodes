@@ -337,17 +337,73 @@ npm run build
 
 This creates the `dist/` folder with:
 
-- `react-blender-nodes.es.js` - ES module build
-- `react-blender-nodes.umd.js` - UMD/CommonJS build
-- `react-blender-nodes.css` - Compiled styles
-- `index.d.ts` - TypeScript declarations
+- `react-blender-nodes.es.js` - ES module build (`exports["."].import`)
+- `react-blender-nodes.umd.cjs` - UMD/CommonJS build (`main` /
+  `exports["."].require`)
+- `react-blender-nodes-contract.es.js` / `react-blender-nodes-contract.cjs` -
+  the React-free `/contract` subpath bundles
+- `react-blender-nodes.css` - Compiled styles (`exports["./style.css"]`)
+- `index.d.ts` - TypeScript declarations (rolled, self-contained)
+- `contract.d.ts` - TypeScript declarations for `/contract` (rolled,
+  self-contained)
+
+### Build gates
+
+`npm run build` is more than compile-and-bundle — it ends with two
+artifact-level gates that run on every build (locally and in CI, and therefore
+on the exact workspace the deploy job publishes from):
+
+- **`scripts/check-dist-types.ts`** — re-type-checks the rolled
+  `dist/index.d.ts` + `dist/contract.d.ts` with `skipLibCheck: false`, the way a
+  consumer compiles against them. Catches import specifiers that escape the
+  published package (which silently degrade exported types to `any` for
+  consumers).
+- **`scripts/check-dist-loads.ts`** — verifies every file the manifest points at
+  exists in `dist/`, that `main`/`module` cohere with `exports["."]`, then
+  EXECUTES all four entry bundles (root + `/contract`, CJS + ESM) in isolated
+  child processes and checks export sentinels. Catches manifest/filename
+  mismatches (a `require()` that cannot resolve) and import-time crashes such as
+  circular-import TDZ `ReferenceError`s — classes of breakage that type-checking
+  and unit tests never touch.
+
+If a gate fails, fix the cause — never weaken or skip the gate.
 
 ### Publishing (Maintainers Only)
 
-```bash
-npm version patch|minor|major
-npm publish
-```
+Publishing is **CI-only**. Pushing to `main` runs the deploy workflow, which
+re-runs `npm ci` + `npm run build` (including both gates above) in a clean
+environment and publishes that same workspace to npm under OIDC trusted
+publishing (`npm publish --provenance`, no long-lived token). There is no manual
+publish path: bump the version in `package.json`, land the change on `main`, and
+CI publishes. Never push `main` without a version bump — the publish step fails
+on an already-published version.
+
+### Codegen plugin — how the two packages relate
+
+Code generation lives in a SEPARATE package,
+`@theclearsky/react-blender-nodes-codegen`, which peer-depends on THIS library
+(`>=0.0.13 <1`) and imports only its React-free
+`@theclearsky/react-blender-nodes/contract` subpath at runtime. The dependency
+is strictly one-way: **this library does not depend on the plugin** — no `file:`
+link, no devDependency, no imports. The plugin owns its Storybook (the
+CodegenStudio) and its host-contract tests; this library's Storybook embeds the
+studio by URL (an `<iframe>` into the plugin's own GitHub Pages site), so no
+AGPL code enters this MIT artifact.
+
+For that, this library exports `compile` and `serializeExecutionPlan` from its
+root barrel (`src/utils/index.ts`) — the plugin's studio compiles a graph and
+inspects the resulting `ExecutionPlan` through public API, never internals.
+
+Release order (every step is an ordinary single-checkout CI publish; nothing is
+bootstrapped):
+
+1. **This library publishes first** — it has no upstream. `npm run build` ends
+   by EXECUTING both dist bundles (`scripts/check-dist-loads.ts`), so an
+   import-time barrel-cycle `ReferenceError` cannot ship again (0.0.9–0.0.11
+   did, and are deprecated on the registry).
+2. **The plugin publishes second**, resolving this library from the registry.
+3. A later change to the contract surface is an additive publish here, then a
+   peer-range bump there.
 
 ## 🎨 Design System
 

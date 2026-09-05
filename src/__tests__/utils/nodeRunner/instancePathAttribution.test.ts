@@ -11,6 +11,7 @@ import {
   standardNodeTypeNamesMap,
 } from '@/utils/nodeStateManagement/standardNodes';
 import { getCurrentNodesAndEdgesFromState } from '@/utils/nodeStateManagement/nodes/constructAndModifyNodes';
+import { structureRecordKey } from '@/utils/nodeRunner/executionRecorder';
 import { compile } from '@/utils/nodeRunner/compiler';
 import { execute } from '@/utils/nodeRunner/executor';
 import type { ExecutionRecord } from '@/utils/nodeRunner/types';
@@ -372,7 +373,9 @@ describe('instancePath attribution — recorder thread-through', () => {
     }
     // groupRecords keyed by BOTH real instance ids (tree disambiguator intact).
     for (const instanceId of instanceIds) {
-      expect(record.groupRecords.has(instanceId)).toBe(true);
+      expect(record.groupRecords.has(structureRecordKey([], instanceId))).toBe(
+        true,
+      );
     }
   });
 

@@ -10,8 +10,11 @@ jobs:
   build-library:
     runs-on: ubuntu-22.04
     permissions:
+      # No `id-token: write` here on purpose — this job only builds and tests.
+      # The OIDC token is minted solely for `npm publish --provenance`, which
+      # runs in `deploy-library`; granting it to a job that never publishes
+      # widens the blast radius of any compromised build step for no benefit.
       contents: read
-      id-token: write
     concurrency: ci-${{github.ref}}
 
     steps:
@@ -41,9 +44,17 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-22.04
     needs: build-library
+    # A publish must never race another publish: two pushes landing on main in
+    # quick succession would otherwise run `npm publish` concurrently, and the
+    # loser fails on an already-taken version (or, worse, publishes out of
+    # order). Its own group — NOT the build's `ci-<ref>` — so a queued deploy
+    # does not block unrelated builds.
+    concurrency: deploy-npm-${{github.ref}}
     environment:
       name: npm
     permissions:
+      # Required by `npm publish --provenance`: npm exchanges this OIDC token
+      # with Sigstore to attest the build.
       id-token: write
       contents: read
     steps:

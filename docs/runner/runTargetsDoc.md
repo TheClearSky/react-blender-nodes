@@ -15,9 +15,11 @@ There are two first-class modes:
 - **`artifact`** — returns or downloads a file/string (e.g. generated code, the
   plan as JSON) and skips the timeline.
 
-The library ships three built-in targets — the in-process executor (default,
-`execute`), `json-ir` and `codegen-js` (both `artifact`). Consumers register
-more via `FullGraphProps.runTargets`.
+The library ships two built-in targets — the in-process executor (default,
+`execute`) and `json-ir` (`artifact`). Code generation (`codegen-js` /
+`codegen-ts`) now ships as a SEPARATE plugin package,
+`@theclearsky/react-blender-nodes-codegen`, which registers exactly like any
+other target. Consumers register more via `FullGraphProps.runTargets`.
 
 **Source files:** `src/utils/nodeRunner/runTargets/types.ts` › `RunTarget`,
 `src/components/organisms/FullGraph/FullGraph.tsx` › `FullGraphProps`.
@@ -40,19 +42,49 @@ the IR types. The curated barrel `src/utils/nodeRunner/runTargets/index.ts` ›
 - the contexts `src/utils/nodeRunner/runTargets/types.ts` › `ExecuteRunContext`
   and `src/utils/nodeRunner/runTargets/types.ts` › `ArtifactRunContext`;
 - the built-in values `src/utils/nodeRunner/runTargets/inProcessRunTarget.ts` ›
-  `inProcessRunTarget`, `src/utils/nodeRunner/runTargets/jsonIrRunTarget.ts` ›
-  `jsonIrRunTarget`, `src/utils/nodeRunner/runTargets/codegenJsRunTarget.ts` ›
-  `codegenJsRunTarget`, and the delivery helper
+  `inProcessRunTarget` and `src/utils/nodeRunner/runTargets/jsonIrRunTarget.ts`
+  › `jsonIrRunTarget`, plus the delivery helper
   `src/utils/nodeRunner/runTargets/downloadTextArtifact.ts` ›
-  `downloadTextArtifact`;
+  `downloadTextArtifact` and the `src/utils/nodeRunner/readInput.ts` ›
+  `readInput` intrinsic (both also re-exported on the `/contract` subpath, for
+  the codegen plugin);
 - the stable IR/record types the contract references (`ExecutionPlan`,
   `ExecutionRecord`, `ExecutionStepRecord`, `NodeVisualState`,
   `FunctionImplementations`, `ExecutionContext`) plus
-  `src/utils/nodeRunner/executionRecorder.ts` › `ExecutionRecorder` for advanced
-  authors who hand-build records.
+  `src/utils/nodeRunner/executionRecorder.ts` › `ExecutionRecorder` — with its
+  signature types `RecorderScopeToken`, `StructureParentContext`, and
+  `RecorderWarning` — for advanced authors who hand-build records.
 
 Basic authoring needs none of the type names — `makeRunTargetWithAutoInfer`
 infers them.
+
+### The `/contract` subpath — a React-free codegen surface
+
+The library publishes a SECOND entry point,
+`@theclearsky/react-blender-nodes/contract` (source: `src/contract.ts` ›
+`getDataHandleIds`), built separately as `dist/react-blender-nodes-contract.*`.
+It re-exports ONLY the runner IR / graph-state types plus the handful of pure
+runtime helpers a headless codegen consumer needs — the four executor
+classifiers/value helpers (`src/contract.ts` › `findConditionInputId`,
+`src/contract.ts` › `qualifiedId`, `src/contract.ts` › `flattenInputs`), the
+`src/contract.ts` › `readInput` intrinsic, and `src/contract.ts` ›
+`downloadTextArtifact` — and NOTHING from the React/editor surface. Its
+value-import graph is React- and `@xyflow/react`-free by construction: the two
+handle classifiers are leaf-extracted into
+`src/utils/nodeRunner/executor/handleClassifiers.ts` › `getDataHandleIds`
+(re-exported from `src/utils/nodeRunner/executor/executionHelpers.ts` ›
+`getDataHandleIds` for back-compat), so reaching them never drags in the
+node-construction core. The subpath exists so the out-of-tree codegen plugin (or
+any headless codegen tool) can consume the runner types + executor classifiers
+without depending on React; the built `dist/contract.d.ts` imports
+`@xyflow/react` / `immer` / `react` / `zod` as TYPES only (erased at runtime).
+
+This subpath is the ONLY runtime coupling between this library and the
+`@theclearsky/react-blender-nodes-codegen` plugin: the plugin peer-depends on
+this package and its shipped code imports exclusively from `/contract`, so the
+two version and publish independently while staying behavior-compatible. (The
+plugin's own Storybook and host-contract tests — dev-time only — additionally
+use the root barrel's `compile` / `serializeExecutionPlan`.)
 
 ---
 
@@ -79,7 +111,8 @@ Context segregation (Interface Segregation):
 - `src/utils/nodeRunner/runTargets/types.ts` › `ArtifactRunContext` carries the
   read-only base: `state` (escape hatch), `executionPlan` (the stable IR — the
   default input), `options.maxLoopIterations`, and `abortSignal`. It has **no**
-  `functionImplementations` — no artifact target needs the impl closures.
+  `functionImplementations` — no artifact target needs the impl closures. This
+  is exactly the context the codegen plugin consumes.
 - `src/utils/nodeRunner/runTargets/types.ts` › `ExecuteRunContext` adds
   `functionImplementations`, `onNodeStateChange`, and
   `runWithInProcessExecutor()` (the easy path — delegate to the built-in
@@ -105,236 +138,58 @@ targets without it (and for all `artifact` targets) — see
   `ExecutionPlan` to JSON (lossless; the plan is pure structure) via
   `src/utils/nodeRunner/runTargets/serializeExecutionPlan.ts` ›
   `serializeExecutionPlan` and downloads it.
-- **`codegenJsRunTarget`** (`id: 'codegen-js'`, `artifact`) — emits a
-  standalone, dependency-free, human-readable JavaScript module via
-  `src/utils/nodeRunner/runTargets/codegen/emitJs.ts` › `emitJs` and downloads
-  it.
-- **`codegenTsRunTarget`** (`id: 'codegen-ts'`, `artifact`) — the same compiler
-  with `target: 'typescript'`: a typed `runGraph` whose stored values are cast
-  from the codegen metadata registry's
-  `src/utils/nodeRunner/runTargets/codegen/contract.ts` › `CodegenMetadata`
-  `dataTypeToTsType` map. Both targets come from the
-  `src/utils/nodeRunner/runTargets/codegenJsRunTarget.ts` ›
-  `makeCodegenRunTarget` factory — call it directly for a custom `id` / `label`
-  / `filename`, the TypeScript target, or the opt-in `optimize` /
-  `analyzeImplementations` codegen-v2 passes.
 
-### codegen-js: the emitted code
+### Code generation — the `@theclearsky/react-blender-nodes-codegen` plugin
 
-`emitJs(plan, state)` produces:
+Code generation is no longer built into this library. The `codegen-js` /
+`codegen-ts` artifact targets — `codegenJsRunTarget`, `codegenTsRunTarget`, and
+the `makeCodegenRunTarget` factory, plus the programmatic `emitGraph` / `emitJs`
+entry points and the `CodegenMetadata` registry — moved to the separate plugin
+package `@theclearsky/react-blender-nodes-codegen`. Install it alongside this
+library and register its targets exactly like any other:
 
-```js
-async function runGraph(functionImplementations, options = {}) { … }
+```tsx
+import {
+  codegenJsRunTarget,
+  codegenTsRunTarget,
+} from '@theclearsky/react-blender-nodes-codegen';
+
+<FullGraph … runTargets={[codegenJsRunTarget, codegenTsRunTarget, jsonIrRunTarget]} />
 ```
 
-Nodes become implementation calls, loops become `for`, switches become
-`if/else`, and groups become nested scoped blocks (inner value keys prefixed
-`groupNodeId>`). It is **value-API fidelity**: emitted `inputs` carry
-`connections[].value`, `isDefault`, and `defaultValue` (the compute API
-implementations use — unconnected handles bake their current state value
-inline); inspector-only provenance (source node/handle names, edge ids) and
-`context.state` are omitted for readability.
+The plugin compiles a graph to a standalone, dependency-free `runGraph`
+JavaScript/TypeScript module (nodes → implementation calls, loops → `for`,
+switches → `if/else`, groups → nested scoped blocks), with opt-in codegen-v2
+optimization passes (dead-code elimination, auto-emit of self-contained
+value-API nodes) and an `emitImplementations: 'source'` mode that bakes the node
+implementations into the artifact so `runGraph()` runs with no arguments. It
+reaches this library only through the React-free `/contract` subpath above.
 
-**v1 boundaries (documented):** success-path parity (a throwing implementation
-makes `runGraph` throw rather than record-and-skip — use the in-process target
-for erroring graphs); concurrency is flattened to sequential `await`
-(value-equivalent); input defaults must be JSON-able. Correctness is pinned by
-parity tests that evaluate the emitted function and compare its value store to
-the in-process executor across std / levels / loop / switch / group / defaults /
-multi-input fixtures.
-
-**Output shape.** `emitJs` lowers the plan to a small language-neutral IR
-(`src/utils/nodeRunner/runTargets/codegen/ir.ts` › `CgModule`) and renders it
-per language (`src/utils/nodeRunner/runTargets/codegen/printJs.ts` ›
-`printSource`). The output reads like hand-written code: each value is a
-READABLE local variable named from its node + handle (e.g. `bitInputOut`,
-deduped, reserved-word-safe) by
-`src/utils/nodeRunner/runTargets/codegen/nameRegistry.ts` ›
-`createNameRegistry`, rather than a `values["nodeId:handleId"]` map entry. A
-top-level single-output node declares its value inline
-(`const sum = (await functionImplementations["add"](…)).get("Sum")`); values
-that escape a structure are hoisted `let`s. Loops render as a real `for` whose
-terminal is a single `if (!condition) { …; break }`. A one-time `makeInput` /
-`makeOutputs` / `makeContext` helper prelude builds the value-API arguments.
-`runGraph` still RETURNS an object keyed by the stable `nodeId:handleId`
-(parity + a steady public contract). `target: 'typescript'`
-(`codegenTsRunTarget`) adds a typed signature, a `NodeImplementation` alias, and
-per-store `as <type>` casts resolved from the codegen metadata registry's
-`src/utils/nodeRunner/runTargets/codegen/contract.ts` › `CodegenMetadata`
-`dataTypeToTsType` map (data-type id → TS type string, e.g.
-`{ numberType: 'number' }`; absent ⇒ `unknown`). All forms stay value-identical
-to the in-process executor.
-
-**Inline node templates (`emit`).** Codegen metadata is supplied to the codegen
-factory / `emitJs` (NOT on the core `TypeOfNode` / `DataType`) via the
-`src/utils/nodeRunner/runTargets/codegen/contract.ts` › `CodegenMetadata`
-registry: `nodeTypeMetadata` keyed by node-type id (each a
-`src/utils/nodeRunner/runTargets/codegen/contract.ts` › `NodeCodegenMetadata`
-with an optional `src/utils/nodeRunner/runTargets/codegen/contract.ts` ›
-`CodegenEmitContext`-shaped `emit` hook) and `dataTypeToTsType` keyed by
-data-type id. A node type's `emit` renders it as a source EXPRESSION instead of
-a value-API call — e.g. an AND gate emitting `Boolean(a) && Boolean(b)` yields
-`const gateOut = Boolean(bitInputOut) && Boolean(bitInput2Out);`. The hook
-receives each input's source expression (keyed by handle name) and returns an
-expression per output handle name; it must cover every output to opt in, and a
-throwing or partial `emit` safely falls back to the call form. This is the only
-way to inline a node's logic — implementations are otherwise opaque to the
-generator (it can call them, not read them). The context also carries
-`inputsAll` — each input's array-literal of ALL its fan-in connection
-expressions (`[a, b]`) — so a fan-in-aware hook renders the whole array while a
-scalar hook uses `inputs` (the first connection). An OPAQUE author hook that
-sources an input from `inputs` only is forced to the threaded call form when
-that input has a fan-in (codegen cannot prove the hook ignores the rest); a hook
-flagged `emitFanInSafe` (set by auto-emit derivation) inlines even under fan-in.
-
-### Codegen v2 — `emitGraph`, optimization passes, auto-emit
-
-`src/utils/nodeRunner/runTargets/codegen/emitGraph.ts` › `emitGraph` is the v2
-entry point (async): it runs the `emitJs` string emit above, then opt-in
-`ts.transform` optimization passes over the generated TypeScript AST, then
-Prettier. `typescript` is a runtime dependency used as the AST substrate, loaded
-lazily by `src/utils/nodeRunner/runTargets/codegen/tsLoader.ts` › `loadTs` and
-externalized from the library bundle (so the ~8MB compiler is never bundled and
-loads only on codegen use).
-
-- **Inline defaults.** An unconnected input handle bakes its current state value
-  INLINE (`src/utils/nodeRunner/runTargets/codegen/emitHelpers.ts` ›
-  `defaultValueExpression`); there is no `initialInputValues` override object.
-- **Dead-code elimination** (`optimize.deadCode`, with
-  `assumePureImplementations`):
-  `src/utils/nodeRunner/runTargets/codegen/ast/deadCode.ts` ›
-  `eliminateDeadCode` drops bindings/blocks no returned value depends on
-  (including dead loop/switch/group blocks) via a def-use + liveness fixpoint,
-  then cleans the signature — removes unreferenced parameters and `async` when
-  no `await` survives.
-- **Auto-emit** (`analyzeImplementations: true` + `impls`):
-  `src/utils/nodeRunner/runTargets/codegen/analyze/autoEmit.ts` ›
-  `deriveAutoEmit` recognizes a self-contained value-API implementation that
-  reads inputs via the `src/utils/nodeRunner/readInput.ts` › `readInput`
-  intrinsic and returns `new Map([[name, pureExpr]])`, and synthesizes an inline
-  `emit` hook for it (so the node inlines instead of threading). An input read
-  as `readInput(inputs, "X")[0]` maps to its first-connection expression; the
-  whole `readInput(inputs, "X")` maps to the array of ALL its connections, so a
-  node that genuinely consumes a fan-in (e.g.
-  `readInput(inputs,"In").some(Boolean)`) STILL inlines (rendered
-  `[a, b, …].some(Boolean)`) rather than deopting the whole module to the
-  threaded harness. A non-`[0]` indexed read (`[1]`, dynamic) is not
-  scalarizable and threads. Derived hooks are `emitFanInSafe` by construction
-  (they mirror exactly how the impl reads each input). Recognition is AST-based
-  and robust to Vite/esbuild transpilation; author `emit` hooks win; anything
-  not provably self-contained threads (the safe floor).
-- **Loops** emit ONE named variable per loop variable (`let loopValue = …`,
-  registry-unique, hoisted) instead of a `currentValues[i]` array
-  (`src/utils/nodeRunner/runTargets/codegen/lower.ts` › `lowerLoop`); these
-  carries are internal state, excluded from the compat keyed return
-  (`src/utils/nodeRunner/runTargets/codegen/ir.ts` › `CgModule`
-  `loopCarryNames`).
-
-With root Graph I/O present, `runGraph(<inputs>)` takes the Graph Input handle
-names as parameters and returns the Graph Output handles by name (the compiler
-detects the root `groupInput` / `groupOutput` and the executor seeds/collects
-them as `rootInputs` / `rootOutputs`). The removed legacy variants
-(`emitStyle: 'functions'`, per-type `valueApiStyle` / `embed`) stay removed —
-the tier model (author `emit` › auto-emit › thread) replaces them.
-
-**Optional optimization (off by default).** Pass
-`returnValues: ["nodeId:handleId", …]` to make `runGraph` return only those keys
-instead of the whole `values` map; add `assumePureImplementations: true` to also
-run dead-code elimination (`src/utils/nodeRunner/runTargets/codegen/passes.ts` ›
-`dropDead`), which drops every pure top-level node no returned value depends on
-(transitively, to a fixpoint). DCE is sound only when implementations are
-side-effect free — the caller asserts that — and is inert with an un-narrowed
-return (every key is then a live root). Both options are exposed through
-`makeCodegenRunTarget`.
-
-### Self-contained artifact (`emitImplementations: 'source'`)
-
-By default the emitted `runGraph` takes `functionImplementations` as a
-parameter. With `emitImplementations: 'source'` + a `knownFunctions` registry,
-codegen BAKES the consumer's node implementations and their helper dependencies
-into the module as real `const` definitions and calls them by name, so the
-artifact runs standalone — `runGraph()` needs no implementations argument.
-
-```ts
-makeCodegenRunTarget({
-  emitImplementations: 'source',
-  knownFunctions: { andGate, xorGate, bitDisplay, firstVal /* a helper */ },
-});
-```
-
-`knownFunctions` is one object: keys matching a node-type id are that type's
-impl; every other key is a helper referenced by name inside bodies — so a helper
-must NOT be named after a node type (a key's role is decided purely by whether
-it equals a node-type id). Its impl subset also feeds auto-emit, so a
-self-contained kernel still inlines while a helper-using impl source-emits.
-Coverage is decided by
-`src/utils/nodeRunner/runTargets/codegen/analyze/sourceEmit.ts` ›
-`planSourceEmission`; the options live on
-`src/utils/nodeRunner/runTargets/codegenJsRunTarget.ts` ›
-`CodegenRunTargetOptions` and
-`src/utils/nodeRunner/runTargets/codegen/emitGraph.ts` › `emitGraph`.
-
-**The coverage contract.** A node type is "source-emittable" only when BOTH hold
-(the predicate proves the impl BEHAVES like the executor, not merely that the
-module links):
-
-- **name closure** — every free identifier resolves to a safe global, the
-  `src/utils/nodeRunner/readInput.ts` › `readInput` intrinsic (auto-emitted into
-  the module when referenced), another registered function, or a local;
-- **value-API surface** — every use of the impl's positional params
-  (`inputs`/`outputs`/`context`) stays within what the emitted
-  `makeInput`/`makeOutputs`/`makeContext` prelude provides. The guard is
-  INTER-PROCEDURAL: passing a value-API param to a registered helper propagates
-  the role into that helper's parameter and checks its body too (so the
-  universal value-extraction pattern `firstVal(inputs, name)` is covered).
-  Reading executor-only state (`context.state` / `.loopIteration` /
-  `.groupDepth`), a connection field other than `.value`, handle metadata, the
-  `outputs` param, or via a dynamic/bracket key ⇒ NOT emittable.
-
-**Graceful mixed.** A REGISTERED node type that fails either half keeps its
-threaded `functionImplementations[typeId](…)` call and a `// warning:` line
-names the reason; the `functionImplementations` parameter is dropped only when
-EVERY node is covered (via the statement-preserving signature cleanup). The
-artifact is therefore always runnable. Scope: only node types you list in
-`knownFunctions` are analyzed — a node type the graph uses but you did NOT
-register simply stays threaded (no `// warning:`) and its impl must still be
-supplied at run time.
-
-**Boundaries.** Source-emission relies on `Function.prototype.toString()`, so it
-covers BARE identifier references — a bundler/minifier that rewrites an imported
-`readInput`/helper to a namespaced `ns.readInput` (an unresolvable `ns`) makes
-that node thread; author impls so their intrinsic/helper references survive
-`toString()` as bare names, or accept the mixed fallback. Native/bound functions
-(incl. all `.bind()` results), method-shorthand impls, mutual recursion via the
-registry key, and impls reading the un-reconstructable value-API surface (above)
-thread by design. `this` (in an impl OR a baked helper) and `globalThis["x"]`
-are not whitelisted, and a generator (`function*`) impl threads. Use
-`additionalGlobals` for genuine ambient globals only: a non-identifier entry is
-ignored with a `// warning:`, and a name listed but NOT actually present at run
-time bakes its referencing impl and then throws `ReferenceError` with no codegen
-warning (ambient availability is undecidable at codegen time — the consumer owns
-it). **TS target:** baked bodies are emitted UNTYPED — `toString()` yields
-runtime JavaScript, so the inlined `const` definitions carry no types even
-though the surrounding scaffold is typed; for a fully-typed module use
-codegen-ts WITHOUT source-emission, and use codegen-js for a self-contained
-artifact. Inlining baked bodies / specializing them is a future layer — v1 emits
-each function once and calls it.
+**For the full codegen reference** — the emitted code shape, the inline-node
+`emit` templates, the codegen-v2 passes, and the self-contained-artifact
+coverage contract — see the plugin repo's own `codegenDoc.md`. It carries the
+source citations for the emitter internals (which now live in that package).
 
 ---
 
 ## Registering targets & the split Run button
 
 Pass targets to the graph; the runner renders a compact picker next to Run when
-more than one target is available:
+more than one target is available. Built-in and plugin targets compose freely:
 
 ```tsx
+import {
+  codegenJsRunTarget,
+  codegenTsRunTarget,
+} from '@theclearsky/react-blender-nodes-codegen';
+
 <FullGraph
   state={state}
   dispatch={dispatch}
   functionImplementations={implementations}
   runTargets={[codegenJsRunTarget, codegenTsRunTarget, jsonIrRunTarget]}
   defaultRunTargetId='in-process'
-/>
+/>;
 ```
 
 `src/components/organisms/FullGraph/FullGraph.tsx` › `FullGraphProps` exposes
@@ -353,7 +208,22 @@ idle).
 ## Authoring a custom execute target
 
 An `execute` target can delegate to the built-in executor and post-process, or
-hand-build a record with the public `ExecutionRecorder`:
+hand-build a record with the public `ExecutionRecorder`. Hand-driving
+invariants: one recorder instance per run (instances are fully isolated — no
+shared or global state); pair every `begin*` with its `complete*`; call
+`finalize()` once (leftover pending state is salvaged into the record and
+reported through the `onRecorderWarning` constructor option); scope tokens are
+single-use — `beginScope(ownerInstancePath)` returns a `RecorderScopeToken` that
+`endScope(token, status, values)` consumes (a reused or foreign token throws).
+Example:
+
+```ts
+const recorder = new ExecutionRecorder();
+recorder.start();
+const token: RecorderScopeToken = recorder.beginScope(['my-group-instance']);
+// ...beginStep/completeStep the inner steps...
+const innerRecord = recorder.endScope(token, 'completed', new Map());
+```
 
 ```ts
 const loggedRun = makeRunTargetWithAutoInfer({
@@ -379,3 +249,5 @@ const loggedRun = makeRunTargetWithAutoInfer({
 - `runnerCompilerDoc.md` — how `State` becomes the `ExecutionPlan` targets
   consume.
 - `runControlsDoc.md` — the transport bar that hosts the split Run button.
+- The `@theclearsky/react-blender-nodes-codegen` plugin's `codegenDoc.md` — the
+  codegen targets, the emitter, and the self-contained-artifact contract.

@@ -24,13 +24,20 @@ so that `ConfigurableNodeReactFlowWrapper` instances can render
 
 > **Packaging note (API surface):** `useNodeRunner` is exported from
 > `src/utils/nodeRunner/index.ts`, but `src/utils/index.ts` (the package's
-> public barrel) does **not** re-export `./nodeRunner`. So `useNodeRunner`,
-> `compile`, `execute`, `ExecutionRecorder`, etc. are **not** importable from
-> `'react-blender-nodes'`. The only supported public path to the runner is
-> `FullGraph`'s optional `functionImplementations` prop, which makes `FullGraph`
-> mount `RunnerOverlay` internally. The `ExecutionRecord` shape is reachable
-> indirectly through `FullGraph`'s `executionRecord` / `onExecutionRecordChange`
-> props and the import/export helpers.
+> public barrel) re-exports only `./nodeRunner/runTargets` plus a few named
+> compiler symbols — so `useNodeRunner` and `execute` are **not** importable
+> from `'react-blender-nodes'`, while `compile`, `serializeExecutionPlan` and
+> `DEFAULT_MAX_LOOP_ITERATIONS` **are**. Call `compile` with three arguments —
+> its trailing `depth` parameter is `@internal` (the recursion counter the
+> sub-compilers thread) and must not be passed. The run-target surface IS:
+> `ExecutionRecorder` (with its `RecorderScopeToken` / `StructureParentContext`
+> / `RecorderWarning` types), `formatGraphError`, the run-target values, and the
+> IR/record types are all root-importable via the runTargets barrel (see
+> `src/utils/nodeRunner/runTargets/index.ts`). The supported UI path to the
+> runner remains `FullGraph`'s optional `functionImplementations` prop, which
+> makes `FullGraph` mount `RunnerOverlay` internally; the `ExecutionRecord`
+> shape is also reachable through `FullGraph`'s `executionRecord` /
+> `onExecutionRecordChange` props and the import/export helpers.
 
 **Source file:** `src/utils/nodeRunner/useNodeRunner.ts` › `useNodeRunner`
 
@@ -389,6 +396,17 @@ type UseNodeRunnerParams = {
   functionImplementations: FunctionImplementations<NodeTypeUniqueId>;
   options?: {
     maxLoopIterations?: number; // default DEFAULT_MAX_LOOP_ITERATIONS (100)
+    /** Observer for recorder bookkeeping warnings — the four
+     *  `recorderWarningKinds`: 'orphan-promoted', 'orphan-dropped',
+     *  'unclosed-scope', 'key-collision'. Threaded into the executor's
+     *  ExecutionRecorder via the ExecuteRunContext; when absent the recorder
+     *  dev-console.warns and stays silent in production.
+     *
+     *  Read from a ref at emit time, so a new inline function each render is
+     *  safe (it neither restarts a run nor re-creates the runner) — but the
+     *  handler runs with the LATEST render's closure, not the one from when
+     *  the run started. `FullGraph` exposes the same callback as a prop. */
+    onRecorderWarning?: (warning: RecorderWarning) => void;
   };
   /** Controlled execution record. When provided (even null), useNodeRunner
    *  treats the record as controlled and reads it instead of internal state. */

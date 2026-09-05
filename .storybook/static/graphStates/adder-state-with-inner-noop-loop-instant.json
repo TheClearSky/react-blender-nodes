@@ -6,7 +6,7 @@
     "startTime": 339445.89999997616,
     "endTime": 339448.70300004765,
     "totalDuration": 2.803000071493443,
-    "compilationDuration": 18.90000009536743,
+    "warmupDuration": 18.90000009536743,
     "totalPauseDuration": 0,
     "status": "completed",
     "steps": [
@@ -1385,8 +1385,9 @@
       }
     ],
     "loopRecords": {
-      "kiiy4cvqmbnl9l5lj57n": {
+      "[\"kiiy4cvqmbnl9l5lj57n\"]": {
         "loopStructureId": "kiiy4cvqmbnl9l5lj57n",
+        "ownerInstancePath": [],
         "loopStartNodeId": "kiiy4cvqmbnl9l5lj57n",
         "loopStopNodeId": "4fuwxnj86u035u8z6lbi",
         "loopEndNodeId": "x32hrrjo7uc8mvdwtpty",

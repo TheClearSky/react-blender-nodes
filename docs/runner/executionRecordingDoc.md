@@ -55,7 +55,7 @@ ExecutionRecord
 |   |   |-- value, dataTypeId, targetCount
 |   |-- error?: GraphError
 |   |-- loopIteration?, loopStructureId?, loopPhase?, inputSource?
-|   |-- parentLoopStructureId?, parentLoopIteration?   (@deprecated)
+|   |-- parentLoopStructureId?, parentLoopIteration?   (parent routing)
 |   |-- switchPhase?, switchStructureId?, branchTaken?
 |   |-- groupNodeId?, groupDepth?
 |   |-- instancePath?   (chain of group-INSTANCE ids, outermost first; absent
@@ -69,24 +69,32 @@ ExecutionRecord
 |-- concurrencyLevels[]: ConcurrencyLevelRecord
 |   |-- level, startTime, endTime, duration, nodeIds[]
 |
-|-- loopRecords: Map<loopStructureId, LoopRecord>
-|   |-- loopStructureId, loopStartNodeId, loopStopNodeId, loopEndNodeId
+|-- loopRecords: Map<identityKey, LoopRecord>
+|   |                 (identityKey = JSON.stringify([...ownerInstancePath,
+|   |                  loopStructureId]) — e.g. ["L"], ["g2","L"],
+|   |                  ["g2","s1","L"]. OPAQUE: build with structureRecordKey,
+|   |                  read with resolveStructureRecord, never parse.)
+|   |-- loopStructureId, ownerInstancePath   (the same identity, structurally)
+|   |-- loopStartNodeId, loopStopNodeId, loopEndNodeId
 |   |-- totalIterations, startTime, endTime, duration
 |   |-- iterations[]: LoopIterationRecord
 |       |-- iteration, startTime, endTime, duration
 |       |-- conditionValue: boolean
 |       |-- stepRecords[]: ExecutionStepRecord
-|       |-- nestedLoopRecords: Map<childLoopId, LoopRecord>   (hierarchical)
+|       |-- nestedLoopRecords: Map<identityKey, LoopRecord>   (hierarchical)
 |       |-- nestedSwitchRecords: Map<...>   (always empty — see note)
 |
-|-- switchRecords: Map<switchStructureId, SwitchRecord>
-|   |-- switchStructureId, switchStartNodeId, switchEndNodeId
+|-- switchRecords: Map<identityKey, SwitchRecord>
+|   |-- switchStructureId, ownerInstancePath
+|   |-- switchStartNodeId, switchEndNodeId
 |   |-- branchTaken: boolean, startTime, endTime, duration
 |   |-- stepRecords[]: ExecutionStepRecord  (only the taken branch)
 |   |-- nestedLoopRecords / nestedSwitchRecords   (always empty)
 |
-|-- groupRecords: Map<groupNodeId, GroupRecord>
-|   |-- groupNodeId, groupNodeTypeId
+|-- groupRecords: Map<identityKey, GroupRecord>
+|   |-- groupNodeId, ownerInstancePath   (the PARENT path; append groupNodeId
+|   |                                     for this instance's own path)
+|   |-- groupNodeTypeId
 |   |-- innerRecord: ExecutionRecord  (recursive!)
 |   |-- inputMapping: Map<string, unknown>
 |   |-- outputMapping: Map<string, unknown>
@@ -129,10 +137,11 @@ ExecutionRecord
     v              v              v              v              v
  Standard       Loop Block     Switch Block   Group Scope
  Node              |              |              |
- beginStep()    beginLoop-     beginSwitch-   beginScope()
- [resolve         Structure()    Structure()  [execute inner plan]
-  inputs]       beginLoop-     [resolve        endScope()
- [call impl]      Iteration()    condition]    -> inner record
+ beginStep()    beginLoop-     beginSwitch-   beginScope(path)
+ [resolve         Structure()    Structure()   -> scope token
+  inputs]       beginLoop-     [resolve      [execute inner plan]
+ [call impl]      Iteration()    condition]    endScope(token)
+                                               -> inner record
  completeStep()    |            [run taken     completeGroup()
   or errorStep() Per iteration:   branch only]
   or skipStep()   beginStep()   completeSwitch-
@@ -204,7 +213,7 @@ The top-level type representing a complete execution run recording.
 
 | Field                | Type                                    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | -------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                 | `string`                                | Unique identifier for this execution run. Generated via `crypto.randomUUID()` with a fallback to `run-{timestamp}-{random}`. Scoped records (from group inner execution) append `-scope-{startStepIndex}`.                                                                                                                                                                                                                                                          |
+| `id`                 | `string`                                | Unique identifier for this execution run. Generated via `crypto.randomUUID()` with a fallback to `run-{timestamp}-{random}`. Scoped records (from group inner execution) append `-scope-{tokenSerial}` (the scope token's serial — unique even when concurrent sibling scopes start at the same step index).                                                                                                                                                        |
 | `startTime`          | `number`                                | Absolute start time from the monotonic timer (set by `start()`). Used as the reference point for all relative timestamps within the record.                                                                                                                                                                                                                                                                                                                         |
 | `endTime`            | `number`                                | Absolute end time from the monotonic timer. Set when `finalize()`, `snapshot()`, or `endScope()` is called.                                                                                                                                                                                                                                                                                                                                                         |
 | `totalDuration`      | `number`                                | Wall-clock duration in milliseconds (`endTime - startTime`). Includes any pause time in debug mode.                                                                                                                                                                                                                                                                                                                                                                 |
@@ -214,11 +223,86 @@ The top-level type representing a complete execution run recording.
 | `steps`              | `ReadonlyArray<ExecutionStepRecord>`    | All step records in execution order. Each entry represents one node (or structural triplet) execution.                                                                                                                                                                                                                                                                                                                                                              |
 | `errors`             | `ReadonlyArray<GraphError>`             | All errors that occurred during execution, in order.                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `concurrencyLevels`  | `ReadonlyArray<ConcurrencyLevelRecord>` | Per-level timing data. Not tracked for scoped (group inner) records (always empty there).                                                                                                                                                                                                                                                                                                                                                                           |
-| `loopRecords`        | `ReadonlyMap<string, LoopRecord>`       | Loop execution recordings, keyed by loop structure ID (the `loopStartNodeId`). Only **top-level** loops appear here — nested loops live under their parent `LoopIterationRecord.nestedLoopRecords`.                                                                                                                                                                                                                                                                 |
-| `switchRecords`      | `ReadonlyMap<string, SwitchRecord>`     | Switch execution recordings, keyed by switch structure ID (the `switchStartNodeId`).                                                                                                                                                                                                                                                                                                                                                                                |
-| `groupRecords`       | `ReadonlyMap<string, GroupRecord>`      | Group execution recordings, keyed by group node instance ID. Contains recursive `ExecutionRecord` for inner execution.                                                                                                                                                                                                                                                                                                                                              |
+| `loopRecords`        | `ReadonlyMap<string, LoopRecord>`       | Loop execution recordings, keyed by IDENTITY — `structureRecordKey(ownerInstancePath, loopStructureId)` — see [Record keys](#record-keys-identity-not-id). On a healthy run only **top-level** loops appear here and nested loops live under their parent `LoopIterationRecord.nestedLoopRecords` (keyed identically); a finalize salvage can additionally surface an uncollected NESTED loop here, flagged by an `orphan-promoted` warning.                        |
+| `switchRecords`      | `ReadonlyMap<string, SwitchRecord>`     | Switch execution recordings, keyed by identity exactly like `loopRecords`.                                                                                                                                                                                                                                                                                                                                                                                          |
+| `groupRecords`       | `ReadonlyMap<string, GroupRecord>`      | Group execution recordings, keyed by identity — `structureRecordKey(ownerInstancePath, groupNodeId)`, i.e. the instance's own full path. Contains a recursive `ExecutionRecord` for the inner execution. Note: because `endScope` COPIES (never deletes), a group-inner structure's record ALSO appears in the top-level final maps under the same key.                                                                                                             |
 | `finalValues`        | `ReadonlyMap<string, unknown>`          | Complete ValueStore snapshot at end of execution. Keys are qualified handle IDs (`"nodeId:handleId"`).                                                                                                                                                                                                                                                                                                                                                              |
 | `viewState`          | `RecordingViewState \| undefined`       | Optional UI preferences (selected step, run mode, time mode, expanded iterations, etc.) captured when the recording is saved. Not set by the recorder itself; attached by the panel/export layer.                                                                                                                                                                                                                                                                   |
+
+### Record keys: identity, not id
+
+A structure's id is a NODE id — for a loop, its LoopStart node. Every instance
+of a node group shares its template's node ids, so two instances of one group
+running the same template loop produce the **same** structure id. Keying a
+record map by that id makes the two instances collide.
+
+The key is therefore the structure's **full path**: the owning group-instance
+path followed by the structure's own id, serialized as a JSON array by
+`src/utils/nodeRunner/executionRecorder.ts` › `structureRecordKey`.
+
+```
+identity = [...ownerInstancePath, structureId]
+
+  root loop L                       →  ["L"]
+  loop L inside instance g2         →  ["g2","L"]
+  loop L inside g2 → subgroup s1    →  ["g2","s1","L"]     (any depth)
+  group instance g2 itself          →  ["g2"]
+```
+
+One format, every map, every depth — top-level and scoped copies alike.
+`endScope` copies keys verbatim, so a nested record is addressed identically
+from its own scope and from every ancestor scope.
+
+**Why a JSON array rather than a delimited string.** A string key is unavoidable
+at this boundary for two independent reasons: `Map` compares keys with
+SameValueZero, so an array would compare by REFERENCE and could never be used
+for value lookup; and the maps must serialize to JSON objects, whose keys are
+strings by definition. Among string encodings, JSON is _injective_ over string
+arrays — every quote, backslash and delimiter inside an id is escaped — so two
+different identities can never collapse onto one key. A `join('/') + '|'` scheme
+cannot promise that: `(['a'], 'b|c')` and `(['a|b'], 'c')` both produce `a|b|c`.
+The recorder's INTERNAL bookkeeping composes no strings at all; it keys by plain
+structure id into short lists of entries carrying structured `ownerInstancePath`
+values compared by value.
+
+**Keys are OPAQUE.** Build them with `structureRecordKey`, resolve them with
+`resolveStructureRecord`, and never parse one. Identity is available
+structurally on every record as `ownerInstancePath` (alongside `loopStructureId`
+/ `switchStructureId` / `groupNodeId`), and that is what survives export/import
+— the recorder's ownership bookkeeping is private and is not serialized.
+
+```typescript
+import {
+  structureRecordKey,
+  resolveStructureRecord,
+} from '@theclearsky/react-blender-nodes';
+
+// Build:
+record.loopRecords.get(structureRecordKey(step.instancePath ?? [], loopId));
+
+// Resolve (preferred — also reaches salvage duplicates and pre-v3 exports):
+const hit = resolveStructureRecord(
+  record.loopRecords,
+  step.loopStructureId,
+  step.instancePath,
+);
+hit?.record.totalIterations; // the OWNING instance's loop, not a namesake's
+```
+
+`resolveStructureRecord` tries the exact identity first, then the numeric
+salvage ordinal — when the finalize backstop promotes residue whose identity key
+is already taken it appends an ordinal, `["g2","L",1]`, so a salvaged record
+never overwrites a healthy one (see [Recorder warnings](#recorder-warnings)) —
+then, only for records filed under a PRE-identity key, a compatibility scan by
+bare id. A record under a real identity key is never returned for a different
+identity, which is exactly the aliasing this format exists to remove.
+
+**Recordings exported before this format** carry bare (or `owner|id`) keys and
+no `ownerInstancePath`. They still import and still resolve through that final
+scan; import validation reports them once per map as a `warning`-severity issue
+telling you to re-export. Because the deserializers default a missing
+`ownerInstancePath` to `[]` (so an imported record is not a type lie), the
+compatibility test is on the KEY's shape, not on the record's fields.
 
 ### ExecutionRecordStatus
 
@@ -233,34 +317,34 @@ Defined in `src/utils/nodeRunner/types.ts` › `ExecutionRecordStatus`.
 
 Recording of a single node's execution step.
 
-| Field                   | Type                                             | Description                                                                                                                                                                                             |
-| ----------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `stepIndex`             | `number`                                         | Zero-based index in the `steps` array. Assigned at `beginStep()` time.                                                                                                                                  |
-| `nodeId`                | `string`                                         | Runtime node instance ID.                                                                                                                                                                               |
-| `nodeTypeId`            | `string`                                         | Node type ID from the type definitions.                                                                                                                                                                 |
-| `nodeTypeName`          | `string`                                         | Display name of the node type.                                                                                                                                                                          |
-| `customName`            | `string \| undefined`                            | Optional user custom name (standard nodes only); rendered `Custom : Type` in the timeline / inspector / errors. Read from `node.data.customName` at compile time.                                       |
-| `concurrencyLevel`      | `number`                                         | Which concurrency level this step belongs to.                                                                                                                                                           |
-| `startTime`             | `number`                                         | Time relative to execution start (ms). Computed as `timer.now() - recorder.startTime` (monotonic timer, not raw `performance.now()`).                                                                   |
-| `endTime`               | `number`                                         | Time relative to execution start (ms). Set on completion/error/skip.                                                                                                                                    |
-| `duration`              | `number`                                         | Duration of this step in ms (`endTime - startTime`). Set to 0 for skipped steps.                                                                                                                        |
-| `pauseAdjustment`       | `number`                                         | Cumulative pause duration (ms) at the moment this step started. Subtract from `startTime`/`endTime` to get execution-only timestamps. Always 0 in instant (performance) mode.                           |
-| `status`                | `ExecutionStepRecordStatus`                      | `'completed'`, `'errored'`, or `'skipped'`.                                                                                                                                                             |
-| `inputValues`           | `ReadonlyMap<string, RecordedInputHandleValue>`  | Snapshot of resolved input values at execution time. Keyed by handle **name**.                                                                                                                          |
-| `outputValues`          | `ReadonlyMap<string, RecordedOutputHandleValue>` | Snapshot of computed output values. Keyed by handle **name**. Empty for errored/skipped steps.                                                                                                          |
-| `error`                 | `GraphError \| undefined`                        | Error details, only present when `status === 'errored'`.                                                                                                                                                |
-| `estimatedTiming`       | `boolean \| undefined`                           | `true` when the step's real duration was below timer resolution (raw `performance.now()` returned the same value at begin and end). Rendered as "< 0.1ms" in the UI. Set in `completeStep`/`errorStep`. |
-| `loopIteration`         | `number \| undefined`                            | Loop iteration number, only set when executing inside a loop body.                                                                                                                                      |
-| `loopStructureId`       | `string \| undefined`                            | Loop structure identifier, only set when inside a loop body. Used to associate steps with their `LoopRecord`/`LoopIterationRecord`.                                                                     |
-| `loopPhase`             | `LoopPhase \| undefined`                         | Position within the loop iteration lifecycle (`'loopStart'`, `'preStop'`, `'loopStop'`, `'postStop'`, `'loopEnd'`). Drives vertical ordering and edge animation in the timeline.                        |
-| `inputSource`           | `'upstream' \| 'feedback' \| undefined`          | For LoopStart steps: whether inputs came from upstream nodes (iteration 0) or from LoopStop feedback (iteration N > 0). Controls which edges animate.                                                   |
-| `parentLoopStructureId` | `string \| undefined`                            | **@deprecated** — superseded by hierarchical `LoopIterationRecord.nestedLoopRecords`. Still populated by `executeLoopBlock` (via `parentFields`) for nested-loop steps.                                 |
-| `parentLoopIteration`   | `number \| undefined`                            | **@deprecated** — superseded by `LoopIterationRecord.nestedLoopRecords`. Still populated for nested-loop steps.                                                                                         |
-| `switchPhase`           | `SwitchPhase \| undefined`                       | Position within the switch lifecycle (`'switchStart'`, `'trueBranch'`, `'falseBranch'`, `'switchEnd'`).                                                                                                 |
-| `switchStructureId`     | `string \| undefined`                            | Switch structure identifier (the `switchStartNodeId`), only set inside a switch. Associates the step with its `SwitchRecord`.                                                                           |
-| `branchTaken`           | `boolean \| undefined`                           | Which branch the switch took (`true` = condition was true). Set on switch-phase steps.                                                                                                                  |
-| `groupNodeId`           | `string \| undefined`                            | Group node instance ID, only set when executing inside a group scope.                                                                                                                                   |
-| `groupDepth`            | `number \| undefined`                            | Group nesting depth, only set inside a group scope.                                                                                                                                                     |
+| Field                   | Type                                             | Description                                                                                                                                                                                                                                                                                                      |
+| ----------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `stepIndex`             | `number`                                         | Zero-based index in the `steps` array. Assigned at `beginStep()` time.                                                                                                                                                                                                                                           |
+| `nodeId`                | `string`                                         | Runtime node instance ID.                                                                                                                                                                                                                                                                                        |
+| `nodeTypeId`            | `string`                                         | Node type ID from the type definitions.                                                                                                                                                                                                                                                                          |
+| `nodeTypeName`          | `string`                                         | Display name of the node type.                                                                                                                                                                                                                                                                                   |
+| `customName`            | `string \| undefined`                            | Optional user custom name (standard nodes only); rendered `Custom : Type` in the timeline / inspector / errors. Read from `node.data.customName` at compile time.                                                                                                                                                |
+| `concurrencyLevel`      | `number`                                         | Which concurrency level this step belongs to.                                                                                                                                                                                                                                                                    |
+| `startTime`             | `number`                                         | Time relative to execution start (ms). Computed as `timer.now() - recorder.startTime` (monotonic timer, not raw `performance.now()`).                                                                                                                                                                            |
+| `endTime`               | `number`                                         | Time relative to execution start (ms). Set on completion/error/skip.                                                                                                                                                                                                                                             |
+| `duration`              | `number`                                         | Duration of this step in ms (`endTime - startTime`). Set to 0 for skipped steps.                                                                                                                                                                                                                                 |
+| `pauseAdjustment`       | `number`                                         | Cumulative pause duration (ms) at the moment this step started. Subtract from `startTime`/`endTime` to get execution-only timestamps. Always 0 in instant (performance) mode.                                                                                                                                    |
+| `status`                | `ExecutionStepRecordStatus`                      | `'completed'`, `'errored'`, or `'skipped'`.                                                                                                                                                                                                                                                                      |
+| `inputValues`           | `ReadonlyMap<string, RecordedInputHandleValue>`  | Snapshot of resolved input values at execution time. Keyed by handle **name**.                                                                                                                                                                                                                                   |
+| `outputValues`          | `ReadonlyMap<string, RecordedOutputHandleValue>` | Snapshot of computed output values. Keyed by handle **name**. Empty for errored/skipped steps.                                                                                                                                                                                                                   |
+| `error`                 | `GraphError \| undefined`                        | Error details, only present when `status === 'errored'`.                                                                                                                                                                                                                                                         |
+| `estimatedTiming`       | `boolean \| undefined`                           | `true` when the step's real duration was below timer resolution (raw `performance.now()` returned the same value at begin and end). Rendered as "< 0.1ms" in the UI. Set in `completeStep`/`errorStep`.                                                                                                          |
+| `loopIteration`         | `number \| undefined`                            | Loop iteration number, only set when executing inside a loop body.                                                                                                                                                                                                                                               |
+| `loopStructureId`       | `string \| undefined`                            | Loop structure identifier, only set when inside a loop body. Used to associate steps with their `LoopRecord`/`LoopIterationRecord`.                                                                                                                                                                              |
+| `loopPhase`             | `LoopPhase \| undefined`                         | Position within the loop iteration lifecycle (`'loopStart'`, `'preStop'`, `'loopStop'`, `'postStop'`, `'loopEnd'`). Drives vertical ordering and edge animation in the timeline.                                                                                                                                 |
+| `inputSource`           | `'upstream' \| 'feedback' \| undefined`          | For LoopStart steps: whether inputs came from upstream nodes (iteration 0) or from LoopStop feedback (iteration N > 0). Controls which edges animate.                                                                                                                                                            |
+| `parentLoopStructureId` | `string \| undefined`                            | **Load-bearing routing field** — the enclosing loop's structure id, set on steps recorded inside a nested structure (by `executeLoopBlock` via `parentFields`, and by `executeGroupScope` for group-in-loop wrapper steps). `addStepToPendingIteration` uses it as the fallback route into the parent iteration. |
+| `parentLoopIteration`   | `number \| undefined`                            | **Load-bearing routing field** — the enclosing loop's iteration number, paired with `parentLoopStructureId` for the same fallback routing.                                                                                                                                                                       |
+| `switchPhase`           | `SwitchPhase \| undefined`                       | Position within the switch lifecycle (`'switchStart'`, `'trueBranch'`, `'falseBranch'`, `'switchEnd'`).                                                                                                                                                                                                          |
+| `switchStructureId`     | `string \| undefined`                            | Switch structure identifier (the `switchStartNodeId`), only set inside a switch. Associates the step with its `SwitchRecord`.                                                                                                                                                                                    |
+| `branchTaken`           | `boolean \| undefined`                           | Which branch the switch took (`true` = condition was true). Set on switch-phase steps.                                                                                                                                                                                                                           |
+| `groupNodeId`           | `string \| undefined`                            | Group node instance ID, only set when executing inside a group scope.                                                                                                                                                                                                                                            |
+| `groupDepth`            | `number \| undefined`                            | Group nesting depth, only set inside a group scope.                                                                                                                                                                                                                                                              |
 
 ### ExecutionStepRecordStatus
 
@@ -282,45 +366,51 @@ from executing.
 
 Complete recording of a loop structure's entire execution across all iterations.
 
-| Field             | Type                                 | Description                                                                     |
-| ----------------- | ------------------------------------ | ------------------------------------------------------------------------------- |
-| `loopStructureId` | `string`                             | Unique identifier for this loop structure (matches the loop compilation block). |
-| `loopStartNodeId` | `string`                             | Node instance ID of the LoopStart node.                                         |
-| `loopStopNodeId`  | `string`                             | Node instance ID of the LoopStop node.                                          |
-| `loopEndNodeId`   | `string`                             | Node instance ID of the LoopEnd node.                                           |
-| `iterations`      | `ReadonlyArray<LoopIterationRecord>` | Per-iteration recordings in execution order.                                    |
-| `totalIterations` | `number`                             | Total number of iterations executed (`iterations.length`).                      |
-| `startTime`       | `number`                             | Time relative to execution start when the loop began (ms).                      |
-| `endTime`         | `number`                             | Time relative to execution start when the loop completed (ms).                  |
-| `duration`        | `number`                             | Total wall-clock time for all iterations (ms).                                  |
+| Field               | Type                                 | Description                                                                                                                                                                                           |
+| ------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `loopStructureId`   | `string`                             | Unique identifier for this loop structure (matches the loop compilation block). A TEMPLATE id when the loop lives inside a node group — shared by every instance.                                     |
+| `ownerInstancePath` | `readonly string[]`                  | Instance path of the group instance that OWNS this loop (`[]` at root). With `loopStructureId` this is the record's full identity; unlike the map key it survives export/import and needs no parsing. |
+| `loopStartNodeId`   | `string`                             | Node instance ID of the LoopStart node.                                                                                                                                                               |
+| `loopStopNodeId`    | `string`                             | Node instance ID of the LoopStop node.                                                                                                                                                                |
+| `loopEndNodeId`     | `string`                             | Node instance ID of the LoopEnd node.                                                                                                                                                                 |
+| `iterations`        | `ReadonlyArray<LoopIterationRecord>` | Per-iteration recordings in execution order.                                                                                                                                                          |
+| `totalIterations`   | `number`                             | Total number of iterations executed (`iterations.length`).                                                                                                                                            |
+| `startTime`         | `number`                             | Time relative to execution start when the loop began (ms).                                                                                                                                            |
+| `endTime`           | `number`                             | Time relative to execution start when the loop completed (ms).                                                                                                                                        |
+| `duration`          | `number`                             | Total wall-clock time for all iterations (ms).                                                                                                                                                        |
 
 ### LoopIterationRecord
 
 Recording of a single loop iteration.
 
-| Field                 | Type                                 | Description                                                                                                                                                                                                                                                      |
-| --------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `iteration`           | `number`                             | Zero-based iteration index.                                                                                                                                                                                                                                      |
-| `startTime`           | `number`                             | Time relative to execution start (ms).                                                                                                                                                                                                                           |
-| `endTime`             | `number`                             | Time relative to execution start (ms).                                                                                                                                                                                                                           |
-| `duration`            | `number`                             | Duration of this iteration (ms).                                                                                                                                                                                                                                 |
-| `conditionValue`      | `boolean`                            | The boolean condition value evaluated at the end of this iteration. `true` means the loop continues; `false` means the loop exits.                                                                                                                               |
-| `stepRecords`         | `ReadonlyArray<ExecutionStepRecord>` | Step records for all body nodes executed in this iteration. Steps are added to this array as they complete via `completeStep()`/`errorStep()`/`skipStep()`.                                                                                                      |
-| `nestedLoopRecords`   | `ReadonlyMap<string, LoopRecord>`    | Loop records for child loops that executed within this iteration, keyed by child loop structure ID. Populated by `completeLoopIteration()` from `completedNestedLoopRecords`. This is the hierarchical replacement for the deprecated `parentLoop*` step fields. |
-| `nestedSwitchRecords` | `ReadonlyMap<string, SwitchRecord>`  | Always an empty `Map` in the current implementation -- switch records are not nested into loop iterations (a switch executed inside a loop body is recorded as a top-level `switchRecords` entry, not here).                                                     |
+| Field                 | Type                                 | Description                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `iteration`           | `number`                             | Zero-based iteration index.                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `startTime`           | `number`                             | Time relative to execution start (ms).                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `endTime`             | `number`                             | Time relative to execution start (ms).                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `duration`            | `number`                             | Duration of this iteration (ms).                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `conditionValue`      | `boolean`                            | The boolean condition value evaluated at the end of this iteration. `true` means the loop continues; `false` means the loop exits.                                                                                                                                                                                                                                                                                                               |
+| `stepRecords`         | `ReadonlyArray<ExecutionStepRecord>` | Step records for all body nodes executed in this iteration. Steps are added to this array as they complete via `completeStep()`/`errorStep()`/`skipStep()`.                                                                                                                                                                                                                                                                                      |
+| `nestedLoopRecords`   | `ReadonlyMap<string, LoopRecord>`    | Loop records for child loops that executed within this iteration, keyed by the child's IDENTITY (`structureRecordKey(ownerInstancePath, loopStructureId)`) exactly like the top-level maps — resolve with `resolveStructureRecord`, never with a bare `.get(step.loopStructureId)`. Populated by `completeLoopIteration()` from `completedNestedLoopRecords`. This is the hierarchical replacement for the deprecated `parentLoop*` step fields. |
+| `nestedSwitchRecords` | `ReadonlyMap<string, SwitchRecord>`  | Always an empty `Map` in the current implementation -- switch records are not nested into loop iterations. (Latent today: the compiler does not currently emit switch steps into loop bodies, so no switch executes "inside" a loop iteration at all.)                                                                                                                                                                                           |
 
 #### Nested loop hierarchy
 
-Loops nest correctly. The recorder maintains a `loopNestingStack` (top =
-innermost active iteration). When `beginLoopStructure()` is called while that
-stack is non-empty, the structure is stored under a composite key
-`` `${parentLoopId}:${parentIter}:${childLoopId}` `` in
-`pendingNestedLoopStructures` rather than at top level. When the child finishes,
-`completeLoopStructure()` moves it to `completedNestedLoopRecords`; the parent's
-`completeLoopIteration()` then sweeps all completed children whose key matches
-its prefix into that iteration's `nestedLoopRecords`. Therefore
-`record.loopRecords` contains only the outermost loops; deeper loops are
-reachable by walking `iteration.nestedLoopRecords` recursively.
+Loops nest by **explicit, caller-declared parentage** — never by ambient
+recorder state. A nested loop's executor passes its enclosing loop's context (a
+`StructureParentContext`: parent loop structure id + iteration) to
+`beginLoopStructure()`; sibling loops pass none and stay top-level no matter
+what else is executing concurrently. Every pending entry also carries its OWNING
+group instance path, because instances of one group type share their template's
+node ids — the owner path is what keeps two instances' identically- named
+structures apart, concurrently and sequentially. When a child finishes,
+`completeLoopStructure()` parks its record (tagged with the declared parent);
+the parent's `completeLoopIteration()` collects every parked child whose
+declared parent id + iteration + owner path match — a truly-nested child has
+always completed by then, because the parent awaits its body levels before
+completing the iteration. Therefore `record.loopRecords` contains only the
+outermost loops; deeper loops are reachable by walking
+`iteration.nestedLoopRecords` recursively.
 
 ## Switch Recording Types
 
@@ -333,7 +423,8 @@ SwitchEnd inputs to SwitchEnd outputs. Built by `beginSwitchStructure()` /
 
 | Field                 | Type                                 | Description                                                                                                                                                                           |
 | --------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `switchStructureId`   | `string`                             | Unique identifier for this switch structure (the `switchStartNodeId`).                                                                                                                |
+| `switchStructureId`   | `string`                             | Unique identifier for this switch structure (the `switchStartNodeId`). A TEMPLATE id when the switch lives inside a node group.                                                       |
+| `ownerInstancePath`   | `readonly string[]`                  | Instance path of the group instance that OWNS this switch (`[]` at root) — the record's identity, structurally readable and export-safe.                                              |
 | `switchStartNodeId`   | `string`                             | Node instance ID of the SwitchStart node.                                                                                                                                             |
 | `switchEndNodeId`     | `string`                             | Node instance ID of the SwitchEnd node.                                                                                                                                               |
 | `branchTaken`         | `boolean`                            | Which branch executed (`true` = the condition resolved truthy / true branch).                                                                                                         |
@@ -347,10 +438,11 @@ SwitchEnd inputs to SwitchEnd outputs. Built by `beginSwitchStructure()` /
 > Switch is the most recent runner feature (commit
 > `183a098 "Zones first class support"`). The recorder gained `switchRecords`,
 > `pendingSwitchStructures`, `beginSwitchStructure()`, and
-> `completeSwitchStructure()`; `RecorderScope` gained `startSwitchRecordKeys`;
-> and `snapshot()`/`endScope()` now also surface switch records. See
-> [Limitations](#limitations-and-deprecated-patterns) for the serialization
-> caveat.
+> `completeSwitchStructure()`; scope membership for switch records is decided by
+> the same store-serial watermark as loops and groups (the token's key-set
+> snapshots are gone); and `snapshot()`/`endScope()` also surface switch
+> records. Switch records round-trip through export/import via dedicated
+> recursive (de)serializers (`src/utils/importExport/serialization.ts`).
 
 ## Group Recording Types
 
@@ -359,13 +451,14 @@ SwitchEnd inputs to SwitchEnd outputs. Built by `beginSwitchStructure()` /
 Recording of a node group's execution. Contains a recursive `ExecutionRecord`
 representing the inner subtree's execution.
 
-| Field             | Type                           | Description                                                                                                                               |
-| ----------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `groupNodeId`     | `string`                       | The group node's instance ID in the outer graph.                                                                                          |
-| `groupNodeTypeId` | `string`                       | The group's node type ID (key in `typeOfNodes`).                                                                                          |
-| `innerRecord`     | `ExecutionRecord`              | Recursively captured execution record for the group's inner subtree. Built via `beginScope()`/`endScope()` on the same recorder instance. |
-| `inputMapping`    | `ReadonlyMap<string, unknown>` | Map of outer input handle IDs to the values that were injected into the group's `GroupInput` node.                                        |
-| `outputMapping`   | `ReadonlyMap<string, unknown>` | Map of inner `GroupOutput` input handle IDs to the values extracted as the group's outputs.                                               |
+| Field               | Type                           | Description                                                                                                                                                                               |
+| ------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `groupNodeId`       | `string`                       | The group node's instance ID in the outer graph. Below depth 1 this is itself a TEMPLATE id, shared by every instance of the enclosing group.                                             |
+| `ownerInstancePath` | `readonly string[]`            | Instance path of the group instance that CONTAINS this one (`[]` at root) — the PARENT path, matching the group's own wrapper step. Append `groupNodeId` to get this instance's own path. |
+| `groupNodeTypeId`   | `string`                       | The group's node type ID (key in `typeOfNodes`).                                                                                                                                          |
+| `innerRecord`       | `ExecutionRecord`              | Recursively captured execution record for the group's inner subtree. Built via `beginScope()`/`endScope()` on the same recorder instance.                                                 |
+| `inputMapping`      | `ReadonlyMap<string, unknown>` | Map of outer input handle IDs to the values that were injected into the group's `GroupInput` node.                                                                                        |
+| `outputMapping`     | `ReadonlyMap<string, unknown>` | Map of inner `GroupOutput` input handle IDs to the values extracted as the group's outputs.                                                                                               |
 
 The recursive `innerRecord` structure means groups can nest arbitrarily deep,
 and each level has its own complete execution record with its own steps, errors,
@@ -382,22 +475,78 @@ execution.
 
 The recorder holds private arrays/maps that back the final record: `steps[]`,
 `errors[]`, `concurrencyLevels[]`, plus `loopRecords`, `switchRecords`, and
-`groupRecords` Maps. Pending/in-progress structures are tracked separately so
-they can be materialized into snapshots or attached to parents on completion:
-`pendingLoopStructures`, `pendingLoopIterations`, `pendingNestedLoopStructures`,
-`completedNestedLoopRecords`, `pendingSwitchStructures`, the `loopNestingStack`,
-and the `scopeStack`. A private `MonotonicTimer` provides all relative timing,
-and a `rawStartTimes` map of raw `performance.now()` values feeds
-`estimatedTiming` detection.
+`groupRecords` Maps. Each published map has a parallel ownership-metadata map
+recording the plain structure id, the owning instance path, and a monotonic
+**store serial** stamped on every write — the serial is what lets `endScope`
+tell "this scope wrote that record" from "that key already existed", which a
+snapshot of key NAMES cannot do when an instance re-executes and rewrites its
+own record under the same identity.
+
+Pending / in-progress structures are tracked so they can be materialized into
+snapshots or attached to parents on completion: `pendingLoopStructures`
+(top-level AND nested entries in one map — each entry carries its owner instance
+path, structure id, and declared parent context), `pendingLoopIterations`,
+`completedNestedLoopRecords`, and `pendingSwitchStructures`.
+
+**Internal bookkeeping composes no strings.** Each pending map is keyed by the
+PLAIN structure id into a short list of entries — one per concurrently-live
+instance of that template — and every lookup filters by the entry's identity
+FIELDS (`ownerInstancePath` compared element-wise, declared parent context),
+never by parsing a key. With no composed key there is no delimiter, and with no
+delimiter there is no way for two identities to alias.
+
+Active recording scopes live in a SET of branded single-use tokens
+(`activeScopeTokens`) — there is no stack and no ambient nesting state of any
+kind. A private `MonotonicTimer` provides all relative timing, and a
+`rawStartTimes` map of raw `performance.now()` values feeds `estimatedTiming`
+detection.
 
 ### Construction
 
 ```typescript
-const recorder = new ExecutionRecorder();
+const recorder = new ExecutionRecorder({
+  // Optional: the structured warning channel. Unregistered ⇒ dev-only
+  // console.warn; registering it takes ownership and silences that fallback.
+  onRecorderWarning: (warning) =>
+    console.log(warning.kind, warning.key, warning.recordId),
+});
 ```
 
 Generates a unique ID via `crypto.randomUUID()` (with a
 `run-{timestamp}-{random}` fallback when `crypto.randomUUID` is unavailable).
+
+#### Recorder warnings
+
+A warning means the recorder observed an anomaly it could compensate for.
+Warnings are BOOKKEEPING diagnostics: they never enter `record.errors` (status
+is executor-computed before finalize, and a salvage has no step of its own), and
+a run that emits them still produces a usable record. On a healthy run the
+stream is empty.
+
+`recorderWarningKinds` is exported, and `RecorderWarningKind` is derived from
+it, so a consumer can exhaustively switch without hardcoding strings:
+
+| Kind              | Meaning                                                                                                                                            |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `orphan-promoted` | Residue was salvaged INTO the record (a structure that never completed, a parked nested record nobody collected, a step begun but never finished). |
+| `orphan-dropped`  | Residue could not be attached to anything and was discarded — its steps remain in the flat `steps` list.                                           |
+| `unclosed-scope`  | A scope was never ended, so its inner record was not built.                                                                                        |
+| `key-collision`   | A begin call superseded a still-pending entry of the same identity.                                                                                |
+
+Every warning carries `recordId` (the `ExecutionRecord.id` it belongs to), so a
+consumer accumulating warnings across runs can attribute each one even when a
+superseded run finalizes after a new one has started, plus an OPAQUE `key` whose
+shape varies by kind (a `structureRecordKey` string, or a step index) and which
+must never be parsed.
+
+The callback is consumer code called from inside the recorder's own bookkeeping,
+so it is isolated: a throw from it is caught, reported once via `console.error`
+in development, and the recording continues.
+
+Separately, in development only, `endScope` prints a `[ExecutionRecorder:dev]`
+consistency assertion when a scope closes while a structure it owns is still
+pending. That is an internal invariant probe for library developers, not part of
+the four-kind consumer contract, and it never reaches `onRecorderWarning`.
 
 ### Lifecycle Methods
 
@@ -420,8 +569,11 @@ Generates a unique ID via `crypto.randomUUID()` (with a
 `concurrencyLevel`, the optional `customName` (standard nodes only), plus the
 optional context fields `loopIteration`, `loopStructureId`,
 `parentLoopStructureId`, `parentLoopIteration`, `groupNodeId`, `groupDepth`,
-`loopPhase`, `inputSource`, `switchPhase`, `switchStructureId`, and
-`branchTaken`.
+`loopPhase`, `inputSource`, `switchPhase`, `switchStructureId`, `branchTaken`,
+and — load-bearing for identity — `instancePath`, the chain of group-INSTANCE
+ids the step executed under. Any step inside a group scope must carry it: it is
+what separates two instances of one group template, whose inner nodes share the
+template's node ids.
 
 ### Concurrency Level Methods
 
@@ -432,43 +584,42 @@ optional context fields `loopIteration`, `loopStructureId`,
 
 ### Loop Recording Methods
 
-| Method                                                              | Description                                                                                                                                                                                                                                      |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `beginLoopStructure(loopStructureId, startId, stopId, endId)`       | Initializes tracking for a loop structure before iterations begin.                                                                                                                                                                               |
-| `beginLoopIteration(loopStructureId, iteration)`                    | Starts recording a loop iteration. Step records within the loop are automatically associated.                                                                                                                                                    |
-| `completeLoopIteration(loopStructureId, iteration, conditionValue)` | Pops the nesting stack, sweeps any nested child loops that completed within this iteration into the iteration's `nestedLoopRecords`, then finalizes a `LoopIterationRecord` (timing + condition boolean) and pushes it to the pending structure. |
-| `completeLoopStructure(loopStructureId)`                            | Finalizes the loop recording. For a **top-level** loop, pushes the completed `LoopRecord` into `loopRecords`. For a **nested** loop, stores it in `completedNestedLoopRecords` for the parent iteration to collect.                              |
+| Method                                                                                           | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `beginLoopStructure(loopStructureId, startId, stopId, endId, ownerInstancePath, parentContext?)` | Initializes tracking for a loop structure. `ownerInstancePath` is the owning group instance path (`[]` at root); `parentContext` (a `StructureParentContext`) declares the enclosing loop for NESTED loops — passed explicitly by the executor, never inferred from ambient state.                                                                                                                                                                                                          |
+| `beginLoopIteration(loopStructureId, iteration, ownerInstancePath)`                              | Starts recording a loop iteration for that identity. Steps associate via their own `loopStructureId` + `instancePath` fields. If an iteration of the same identity is somehow still pending, it is CLOSED as its own iteration record (not folded into the new one, which would move steps stamped `loopIteration: N` into the record for `N+1` and outside its time window) and a `key-collision` warning fires.                                                                           |
+| `completeLoopIteration(loopStructureId, iteration, conditionValue, ownerInstancePath)`           | Collects every parked nested child whose DECLARED parent id + iteration + owner path match into this iteration's `nestedLoopRecords`, then finalizes a `LoopIterationRecord` (timing + condition boolean) and pushes it to the pending structure.                                                                                                                                                                                                                                           |
+| `completeLoopStructure(loopStructureId, ownerInstancePath)`                                      | Finalizes the loop recording. A **top-level** loop stores into `loopRecords` under its identity key; because the key IS the identity, two different structures can never contest one key and no collision handling is needed (re-completing the SAME identity — a group re-executed per enclosing iteration — legitimately replaces its own earlier record). A **nested** loop (entry carries a declared parent) parks in `completedNestedLoopRecords` for the parent iteration to collect. |
 
-`beginLoopStructure()` and `beginLoopIteration()` push onto the
-`loopNestingStack`; if a parent iteration is active when `beginLoopStructure()`
-runs, the new structure is tracked as nested rather than top-level (see
-[Nested loop hierarchy](#nested-loop-hierarchy)).
+Parentage and ownership are wholly explicit (see
+[Nested loop hierarchy](#nested-loop-hierarchy)); the recorder holds no ambient
+nesting state of any kind.
 
 ### Switch Recording Methods
 
-| Method                                                    | Description                                                                                                                                                    |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `beginSwitchStructure(switchStructureId, startId, endId)` | Initializes a pending switch structure (records start time and an empty `stepRecords` buffer). Called once before the chosen branch runs.                      |
-| `completeSwitchStructure(switchStructureId, branchTaken)` | Finalizes the switch recording. Computes timing and pushes the completed `SwitchRecord` (with `branchTaken` and collected `stepRecords`) into `switchRecords`. |
+| Method                                                                       | Description                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `beginSwitchStructure(switchStructureId, startId, endId, ownerInstancePath)` | Initializes a pending switch structure for that identity (records start time and an empty `stepRecords` buffer). Called once before the chosen branch runs.                                          |
+| `completeSwitchStructure(switchStructureId, branchTaken, ownerInstancePath)` | Finalizes the switch recording. Computes timing and stores the completed `SwitchRecord` (with `branchTaken` and collected `stepRecords`) into `switchRecords` (same collision-safe keying as loops). |
 
 ### Group Recording Methods
 
-| Method                                                                                  | Description                                                                                                |
-| --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `beginGroup(groupNodeId, groupNodeTypeId)`                                              | Placeholder (no-op). Group state is managed via scopes.                                                    |
-| `completeGroup(groupNodeId, groupNodeTypeId, innerRecord, inputMapping, outputMapping)` | Records the completed group execution. Pushes a `GroupRecord` with the recursively captured `innerRecord`. |
+| Method                                                                                                     | Description                                                                                                                                                                                                                              |
+| ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `beginGroup(groupNodeId, groupNodeTypeId)`                                                                 | Placeholder (no-op). Group state is managed via scopes.                                                                                                                                                                                  |
+| `completeGroup(groupNodeId, groupNodeTypeId, innerRecord, inputMapping, outputMapping, ownerInstancePath)` | Records the completed group execution. Stores a `GroupRecord` with the recursively captured `innerRecord` (collision-safe keying: nested template subgroups of concurrently-executing sibling instances no longer overwrite each other). |
 
 ### Scope Methods (for Group Inner Execution)
 
-| Method                           | Description                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `beginScope()`                   | Saves & clears the `loopNestingStack` (so the group's inner execution has an isolated nesting context), then pushes a `RecorderScope` capturing the current `steps`/`errors` lengths and the current key sets of `loopRecords`, `switchRecords`, `groupRecords`, and `completedNestedLoopRecords`, plus the saved nesting stack and a start time. All subsequent recordings belong to this scope.                                      |
-| `endScope(status, scopedValues)` | Pops the scope, restores the saved `loopNestingStack`, and returns an `ExecutionRecord` containing only the steps, errors, loop records, switch records, and group records created within the scope (sliced by index / filtered by "key not present at scope start"). `concurrencyLevels` is empty and `warmupDuration` is 0. Used to produce the `innerRecord` for `GroupRecord`. Throws if called without a matching `beginScope()`. |
+| Method                                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `beginScope(ownerInstancePath)`         | Returns a branded, single-use `RecorderScopeToken` capturing the owner's instance path, the current `steps`/`errors` lengths, the recorder's STORE SERIAL (a watermark: membership is decided by write order, not by key novelty, so an instance that re-executes and rewrites its own record under an unchanged key still counts as this scope's), the committed pause duration, and a start time. Tokens live in a SET — concurrent sibling scopes may end in any order.                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `endScope(token, status, scopedValues)` | Consumes the token and returns an `ExecutionRecord` containing only the entries the scope's OWNER created: steps recorded since scope start whose `instancePath` sits under the owner path (the window alone is not ownership — concurrent siblings interleave in the shared arrays); errors identity-joined to those steps (`step.error === error`; the outer `record.errors` array is never mutated); loop/switch/group records STORED since the scope opened (by store serial, so an instance rewriting its own record under an unchanged key still counts) and owned at/under the owner path, with keys copied VERBATIM — a scoped record uses the same absolute identity keys as the top-level maps, so one `resolveStructureRecord` call works at every depth. `concurrencyLevels` is empty and `warmupDuration` is 0. Throws on an unknown or already-consumed token. |
 
-Scopes nest correctly for recursive group execution -- each `beginScope()`
-pushes onto the stack, and `endScope()` pops the most recent. The executor
-passes `status: 'errored'` when the inner subtree had errors, otherwise
-`'completed'`.
+Scopes nest correctly for recursive group execution — ownership is decided by
+instance-path prefixes, not stack position, so sibling scopes ending in any
+order can never absorb each other's entries. The executor passes
+`status: 'errored'` when the inner subtree had errors, otherwise `'completed'`.
 
 ### Pause Methods (for Debug Mode)
 
@@ -638,17 +789,7 @@ Records timing for a single concurrency level's execution.
    cannot be reconstructed on import -- it remains in its serialized form (an
    object with `name`, `message`, `stack` fields).
 
-4. **Switch records do not survive export/import**: `serializeExecutionRecord()`
-   writes `switchRecords` as a raw `Object.fromEntries([...switchRecords])` --
-   the inner `stepRecords` values are **not** run through `safeSerializeValue()`
-   (so non-serializable inner values can break JSON), and
-   `deserializeExecutionRecord()` hard-codes `switchRecords: new Map()`. Switch
-   recordings are therefore dropped on import. Loop and group records, by
-   contrast, have dedicated recursive (de)serializers. See the "Import/Export
-   System" relationship below and `src/utils/importExport/serialization.ts` ›
-   `serializeExecutionRecord`.
-
-5. **nestedSwitchRecords is never populated**: Both `LoopIterationRecord` and
+4. **nestedSwitchRecords is never populated**: Both `LoopIterationRecord` and
    `SwitchRecord` expose a `nestedSwitchRecords` map, but the recorder always
    assigns it `new Map()`. A switch executed inside a loop body is recorded as a
    top-level `switchRecords` entry, not nested under the loop iteration.
@@ -656,7 +797,7 @@ Records timing for a single concurrency level's execution.
    **loop** structures only -- there is no in-progress materialization for
    switches.
 
-6. **ExecutionRecord has no `plan` field**: The execution plan (`ExecutionPlan`)
+5. **ExecutionRecord has no `plan` field**: The execution plan (`ExecutionPlan`)
    is kept entirely separate from the recording; do not expect to read the
    compiled IR back off an `ExecutionRecord`.
 
@@ -848,8 +989,10 @@ The import/export system handles JSON serialization of `ExecutionRecord`:
   `warmupDuration` (defaulting to 0 on older records). Uses
   `safeSerializeValue()` to handle non-serializable values (functions ->
   `"[Function]"`, symbols -> `"[Symbol: ...]"`, etc.). **Caveat:**
-  `switchRecords` are serialized shallowly and dropped on import (see
-  [Limitations](#limitations-and-deprecated-patterns)).
+  `switchRecords` round-trip FULLY — dedicated recursive (de)serializers carry
+  their `stepRecords` and nested maps in both directions. The only
+  switch-related gap is `nestedSwitchRecords`, which is never populated in the
+  first place (see [Limitations](#limitations-and-deprecated-patterns)).
 
 ### -> [NodeRunnerPanel (`NodeRunnerPanel.tsx`)](../ui/nodeRunnerPanelDoc.md)
 

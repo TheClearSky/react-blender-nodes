@@ -4,6 +4,9 @@ export * from './nodes/constructAndModifyNodes';
 export * from './constructAndModifyHandles';
 export * from './standardNodes';
 export * from './nodeCountHelpers';
+// `setCurrentZonesToState` / `setCurrentUserZonesToState` take these as
+// parameters; a consumer must be able to name them.
+export type { Zone, ZoneIndex } from './zones';
 export type {
   GraphEvent,
   ActionDetail,

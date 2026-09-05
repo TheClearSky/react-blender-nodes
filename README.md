@@ -17,6 +17,57 @@
 
 ![React Blender Nodes Banner](./docs/screenshots/banner.png)
 
+## How these projects fit together
+
+This library is the engine at the centre of a small family: two plugins extend
+it, and one application proves it in anger.
+
+```text
+                react-blender-nodes  ·  MIT  ·  published
+                            T H E   E N G I N E
+     ┌────────────────────────────────────────────────────────────┐
+     │  ◀── this package                                          │
+     │  A Blender-style node-graph editor for React.              │
+     │  Typed handles · validate → plan → apply state · node      │
+     │  groups · loops & switches · graph compiler + runner ·     │
+     │  import / export                                           │
+     └──────┬──────────────────────┬────────────────────────┬─────┘
+            │                      │                        │
+            │ peerDependency       │ peerDependency         │ file:
+            │ >=0.0.13 <1          │ >=0.0.13 <1            │ dependency
+            │                      │ (via /contract —       │
+            ▼                      ▼  React-free)           │
+  ┌──────────────────────┐  ┌──────────────────────┐        │
+  │ …-timeline           │  │ …-codegen            │        │
+  │ AGPL-3.0 · published │  │ AGPL-3.0 · published │        │
+  ├──────────────────────┤  ├──────────────────────┤        │
+  │ Keyframed CURVES and │  │ Compiles a graph into│        │
+  │ a transport. A curve │  │ a standalone,        │        │
+  │ becomes a live signal│  │ dependency-free      │        │
+  │ the running graph    │  │ runGraph module.     │        │
+  │ can read.            │  │ No React at runtime. │        │
+  └──────────┬───────────┘  └──────────────────────┘        │
+             │                                              │
+             │ file: dependency                             │
+             └───────────────────┬──────────────────────────┘
+                                 ▼
+     ┌────────────────────────────────────────────────────────────┐
+     │  react-blender-nodes-sound  ·  AGPL-3.0  ·  private app    │
+     │                  T H E   A P P L I C A T I O N             │
+     ├────────────────────────────────────────────────────────────┤
+     │  Here the nodes ARE the audio graph (Tone.js / Web Audio): │
+     │  draw a waveform and hear it · gate-driven envelopes ·     │
+     │  16-key polyphony · timeline curves automating any         │
+     │  parameter while it plays · a spectrally-modelled          │
+     │  instrument library                                        │
+     └────────────────────────────────────────────────────────────┘
+```
+
+An arrow points from a package **to the package that depends on it**. This
+library stays MIT so anyone can build on it; the plugins and the app are
+AGPL-3.0-only. The two plugins never import each other — the app is the only
+place they meet.
+
 ## Quick Links
 
 - [![Storybook](https://img.shields.io/badge/Storybook-FF4785?style=for-the-badge&logo=storybook&logoColor=white)](https://theclearsky.github.io/react-blender-nodes/?path=/story/organisms-fullgraph--with-runner) -
@@ -39,12 +90,13 @@ connection validation to ensure your node graphs are always type-safe and
 error-free.
 
 Beyond editing, the library can **execute** your graphs with a built-in runner
-and timeline debugger — or **compile them to standalone JavaScript/TypeScript**
-through pluggable run targets — compose reusable **node groups**, build control
-flow with first-class **loops** and **switches** (rendered as visual zones),
-edit those structures and node types through in-canvas **drawers**, and step
-backward and forward through every change with full **undo/redo** history. Graph
-state and execution recordings can be exported to and imported from JSON.
+and timeline debugger — or hand them to pluggable **run targets**, including a
+separate AGPL-3.0-only codegen plugin that compiles them to standalone
+JavaScript/TypeScript — compose reusable **node groups**, build control flow
+with first-class **loops** and **switches** (rendered as visual zones), edit
+those structures and node types through in-canvas **drawers**, and step backward
+and forward through every change with full **undo/redo** history. Graph state
+and execution recordings can be exported to and imported from JSON.
 
 ## Quick Start
 
@@ -246,15 +298,18 @@ your graph into an execution plan and runs it — with full debugging support.
 ![Codegen — generate a standalone runGraph() live from the graph](./docs/screenshots/codegen-export.png)
 
 The in-process runner is just the default **run target**. The Run button is a
-split control: register your own named targets, or use the built-ins to compile
-a graph into a **standalone, dependency-free function** — `runGraph(...)` — in
-JavaScript or typed TypeScript, or export it as a JSON intermediate
-representation.
+split control: register your own named targets, use the built-in
+`jsonIrRunTarget` to export the execution plan as a JSON intermediate
+representation, or install the **separate codegen plugin** to compile a graph
+into a **standalone, dependency-free function** — `runGraph(...)` — in
+JavaScript or typed TypeScript.
 
-- **Export as code**: `codegenJsRunTarget` / `codegenTsRunTarget` emit a
-  self-contained `runGraph()` (TS adds typed parameters, a return type, and
-  value casts); `jsonIrRunTarget` exports the execution plan as JSON. The
-  default `inProcessRunTarget` runs the graph live and feeds the timeline.
+- **Export as code (plugin)**: `codegenJsRunTarget` / `codegenTsRunTarget` from
+  [`@theclearsky/react-blender-nodes-codegen`](https://github.com/TheClearSky/react-blender-nodes-codegen)
+  (AGPL-3.0-only, published separately) emit a self-contained `runGraph()` (TS
+  adds typed parameters, a return type, and value casts). Built into this
+  package: `jsonIrRunTarget` exports the execution plan as JSON, and the default
+  `inProcessRunTarget` runs the graph live and feeds the timeline.
 - **Clean signature from Graph I/O**: declare root **Graph Input** / **Graph
   Output** nodes and their handle names become the function's parameters and
   returned-object keys — an all-inlined graph compiles to a tidy
@@ -274,12 +329,12 @@ representation.
   `runTargets` prop and pick the default with `defaultRunTargetId`.
 
 ```tsx
+import { FullGraph, jsonIrRunTarget } from '@theclearsky/react-blender-nodes';
+// Code generation is a separate, AGPL-3.0-only plugin:
 import {
-  FullGraph,
   codegenJsRunTarget,
   codegenTsRunTarget,
-  jsonIrRunTarget,
-} from '@theclearsky/react-blender-nodes';
+} from '@theclearsky/react-blender-nodes-codegen';
 
 // The Run button becomes a split control listing every registered target.
 <FullGraph
@@ -403,62 +458,53 @@ function MyExecutableGraph() {
 }
 ```
 
-### useNodeRunner Hook
+### Controlling execution
 
-For advanced control over graph execution, use the `useNodeRunner` hook directly
-instead of relying on the built-in runner UI:
+Execution is driven through `FullGraph`'s runner props — the runner hook itself
+(`useNodeRunner`) is internal to `FullGraph` and is not exported. Register run
+targets, pick the default, seed the root Graph Input, and observe or control the
+execution record:
 
 ```tsx
+import { useState } from 'react';
 import {
   FullGraph,
   useFullGraph,
-  useNodeRunner,
+  jsonIrRunTarget,
+  type ExecutionRecord,
 } from '@theclearsky/react-blender-nodes';
 
 function MyExecutableGraph() {
   const { state, dispatch } = useFullGraph(initialState);
-
-  const {
-    // State
-    runnerState, // 'idle' | 'compiling' | 'running' | 'paused' | 'completed' | 'errored'
-    nodeVisualStates, // Map<nodeId, 'idle' | 'running' | 'completed' | 'errored' | 'skipped' | 'warning'>
-    executionRecord, // Full execution recording with per-step timing and I/O snapshots
-    currentStepIndex, // Index of the currently active/viewed step
-
-    // Actions
-    run, // Start execution (mode-aware: instant or step-by-step)
-    pause, // Pause during step-by-step execution
-    resume, // Resume paused step-by-step execution
-    step, // Advance one step (starts a new run if idle)
-    stop, // Abort the current execution
-    reset, // Clear all execution state back to idle
-    replayTo, // Seek to a specific step index in a completed recording
-    loadRecord, // Load an imported ExecutionRecord (validates against current graph)
-
-    // Settings
-    mode, // Current execution mode: 'instant' | 'stepByStep'
-    setMode, // Switch execution mode
-    maxLoopIterations, // Max iterations before a loop is force-stopped
-    setMaxLoopIterations,
-  } = useNodeRunner({
-    state,
-    functionImplementations,
-    options: { maxLoopIterations: 100 },
-  });
+  const [record, setRecord] = useState<ExecutionRecord | undefined>();
 
   return (
-    <div>
-      <button onClick={run}>Run</button>
-      <button onClick={step}>Step</button>
-      <button onClick={pause}>Pause</button>
-      <button onClick={resume}>Resume</button>
-      <button onClick={stop}>Stop</button>
-      <button onClick={reset}>Reset</button>
-      <p>Status: {runnerState}</p>
-      <FullGraph state={state} dispatch={dispatch} />
-    </div>
+    <FullGraph
+      state={state}
+      dispatch={dispatch}
+      functionImplementations={functionImplementations}
+      runTargets={[jsonIrRunTarget]} // the Run button becomes a split control
+      rootInputs={{ a: 2, b: 3 }} // seeds the root Graph Input by handle name (or id)
+      executionRecord={record} // controlled record — you own its lifecycle
+      onExecutionRecordChange={setRecord}
+    />
   );
 }
+```
+
+For headless use — CI checks, tooling, or inspecting what the runner will do —
+compile a graph directly and serialize the plan:
+
+```ts
+import {
+  compile,
+  serializeExecutionPlan,
+} from '@theclearsky/react-blender-nodes';
+
+const plan = compile(state, functionImplementations, {
+  maxLoopIterations: 100,
+});
+console.log(JSON.stringify(serializeExecutionPlan(plan), null, 2));
 ```
 
 ### Import/Export & Automatic Repair

@@ -29,31 +29,31 @@ export default defineConfig({
   build: {
     //Check https://vite.dev/guide/build.html#library-mode for more info
     lib: {
-      entry: ['src/index.ts'],
-      name: 'react-blender-nodes',
-      //We are not using the second parameter (entryName) because this is a single entry library
-      // The UMD artifact must carry the `.cjs` extension the manifest's `main` /
-      // `exports["."].require` declare (`"type": "module"` makes a `.js` file ESM
-      // to Node — the 0.0.x line shipped an unresolvable `require()` this way).
-      fileName: (format) =>
-        format === 'umd'
-          ? 'react-blender-nodes.umd.cjs'
-          : `react-blender-nodes.${format}.js`,
+      // TWO entries, ONE build. `index` is the library; `contract` is the
+      // React-free `@theclearsky/react-blender-nodes/contract` subpath the
+      // codegen plugin consumes. Rollup hoists the modules they share into
+      // chunks both entries import — the contract's transitive graph pulls no
+      // React, so its chunks stay headless-loadable (`check-dist-loads` asserts
+      // this on every build).
+      entry: {
+        index: 'src/index.ts',
+        contract: 'src/contract.ts',
+      },
+      // ESM only. The UMD/CJS artifact was dropped in 0.0.13: React 19 ships no
+      // UMD build (so the browser-global path was already dead), and Node
+      // 20.19+/22.12+ `require()`s ES modules natively via the `default`
+      // export condition. Multi-entry also forbids UMD in Vite lib mode, which
+      // is what previously forced the contract into a second build.
+      formats: ['es'],
+      fileName: (_format, entryName) =>
+        entryName === 'index'
+          ? 'react-blender-nodes.es.js'
+          : `react-blender-nodes-${entryName}.es.js`,
       cssFileName: 'react-blender-nodes',
-      // We are building both ES and UMD formats, as a single entry library, check https://vite.dev/guide/build.html#library-mode for more info
-      formats: ['es', 'umd'],
     },
     rollupOptions: {
       // externalize react and react-dom to avoid bundling them with the library, check peerDependencies in package.json.
       external: ['react', 'react-dom'],
-      output: {
-        // Provide global variables to use in the UMD build
-        // for externalized deps
-        globals: {
-          react: 'React',
-          'react-dom': 'ReactDOM',
-        },
-      },
     },
     sourcemap: false,
     emptyOutDir: true,

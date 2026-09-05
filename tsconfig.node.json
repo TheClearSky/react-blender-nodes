@@ -27,11 +27,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": [
-    "vite.config.ts",
-    "vite.contract.config.ts",
-    "vitest.config.ts",
-    "e2e",
-    "scripts"
-  ]
+  "include": ["vite.config.ts", "vitest.config.ts", "e2e", "scripts"]
 }

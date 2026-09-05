@@ -21,25 +21,22 @@
     "dist",
     "CHANGELOG.md"
   ],
-  "main": "./dist/react-blender-nodes.umd.cjs",
+  "main": "./dist/react-blender-nodes.es.js",
   "module": "./dist/react-blender-nodes.es.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/react-blender-nodes.es.js",
-      "require": "./dist/react-blender-nodes.umd.cjs"
+      "default": "./dist/react-blender-nodes.es.js"
     },
     "./contract": {
       "types": "./dist/contract.d.ts",
-      "import": "./dist/react-blender-nodes-contract.es.js",
-      "require": "./dist/react-blender-nodes-contract.cjs"
+      "default": "./dist/react-blender-nodes-contract.es.js"
     },
     "./style.css": "./dist/react-blender-nodes.css"
   },
   "scripts": {
-    "build": "tsc -b && vite build && npm run build:contract && node --experimental-strip-types scripts/check-dist-types.ts && node --experimental-strip-types scripts/check-dist-loads.ts",
-    "build:contract": "vite build --config vite.contract.config.ts && node --experimental-strip-types scripts/roll-contract-dts.ts",
+    "build": "tsc -b && vite build && node --experimental-strip-types scripts/check-dist-types.ts && node --experimental-strip-types scripts/check-dist-loads.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",

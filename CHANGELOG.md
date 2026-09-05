@@ -6,6 +6,20 @@
 > bundles and are deprecated on the registry; 0.0.12 was never published. This
 > release is the first working build since 0.0.8.
 
+### Changed — ESM-only package (BREAKING for `require()` on Node < 20.19 / 22.12)
+
+- The UMD/CommonJS bundle (`react-blender-nodes.umd.cjs`) is gone. `main`,
+  `module` and `exports["."]` all name the ES module; the `default` export
+  condition serves both `import` and `require`, so Node ≥ 20.19 / 22.12
+  `require()`s the package natively and every bundler resolves it as before.
+  Older Node fails fast with `ERR_REQUIRE_ESM`. No working consumer of the old
+  CJS path existed (0.0.9–0.0.11 threw on import in both formats, and 0.0.11's
+  manifest named a CJS file the build never emitted).
+- The `/contract` subpath is now a second entry of the one `vite build` (ES
+  only, `exports["./contract"].default`) instead of a separate build; the
+  modules the two entries share are emitted as chunks. `check-dist-loads`
+  asserts on every build that the contract entry and its chunks import no React.
+
 ### Added — public compiler surface
 
 - `compile(state, functionImplementations, options?)` and
@@ -132,13 +146,16 @@
   `RecorderScopeToken`, `StructureParentContext`, `RecorderWarning`,
   `RecorderWarningKind`, `ExecutionRecorderOptions` (types).
 
-### Fixed — the package now actually loads (CJS filename + import-time crash)
+### Fixed — the package now actually loads (import-time crash + broken CJS entry)
 
-- **`require('@theclearsky/react-blender-nodes')` resolves again.** The manifest
-  currently declares `main` / `exports["."].require` as
+- **`require('@theclearsky/react-blender-nodes')` resolves again** on Node ≥
+  20.19 / 22.12. 0.0.11's manifest declared `main` / `exports["."].require` as
   `dist/react-blender-nodes.umd.cjs`, but the build emitted
   `react-blender-nodes.umd.js` — every CJS consumer got `ERR_MODULE_NOT_FOUND`.
-  The build now emits the `.umd.cjs` filename the manifest declares.
+  Rather than rename the file, the CJS bundle was dropped altogether (see
+  "ESM-only package" above): `exports["."].default` points every resolver,
+  `import` and `require` alike, at the one ES module, and `check-dist-loads` now
+  fails the build if a manifest target does not exist.
 - **Both bundles no longer throw at import time.** `ConnectionMiniMap` imported
   the ROOT components barrel from inside `src/components`, creating a module
   cycle that surfaced as
@@ -155,10 +172,10 @@
   and EXECUTES all four entry bundles (root + `/contract`, CJS + ESM) in
   isolated child processes with export sentinels — so both failure classes above
   can never ship silently again.
-- For script-tag/CDN consumers loading `dist/` files by path: URLs of
-  `dist/react-blender-nodes.umd.js` must switch to
-  `dist/react-blender-nodes.umd.cjs`. No working consumer of the old path
-  existed — both previous bundles threw at import time (IN-41).
+- For script-tag/CDN consumers loading `dist/` files by path: there is no UMD
+  file any more (see "ESM-only package" above) — load
+  `dist/react-blender-nodes.es.js` as a module. No working consumer of the old
+  path existed — both previous bundles threw at import time (IN-41).
 
 ### Changed — codegen extracted to a separate plugin (BREAKING)
 

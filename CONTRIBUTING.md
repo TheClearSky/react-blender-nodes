@@ -44,7 +44,7 @@ process.
 # Development
 npm run storybook        # Start Storybook (primary dev environment)
 npm run build-storybook  # Build the static Storybook site
-npm run build            # Build the library (tsc -b && vite build)
+npm run build            # Build the library (tsc -b, vite build, then the two dist gates)
 npm run type-check       # Run TypeScript type checking (tsc --noEmit)
 
 # Code Quality
@@ -337,15 +337,22 @@ npm run build
 
 This creates the `dist/` folder with:
 
-- `react-blender-nodes.es.js` - ES module build (`exports["."].import`)
-- `react-blender-nodes.umd.cjs` - UMD/CommonJS build (`main` /
-  `exports["."].require`)
-- `react-blender-nodes-contract.es.js` / `react-blender-nodes-contract.cjs` -
-  the React-free `/contract` subpath bundles
+- `react-blender-nodes.es.js` - the library, ES module (`main` / `module` /
+  `exports["."].default`)
+- `react-blender-nodes-contract.es.js` - the React-free `/contract` subpath
+  (`exports["./contract"].default`)
+- `*-[hash].js` - chunks holding the modules the two entries share (Rollup
+  hoists them; consumers never import these directly)
 - `react-blender-nodes.css` - Compiled styles (`exports["./style.css"]`)
 - `index.d.ts` - TypeScript declarations (rolled, self-contained)
 - `contract.d.ts` - TypeScript declarations for `/contract` (rolled,
   self-contained)
+
+The package is **ESM-only** (since 0.0.13). The `default` export condition
+serves both `import` and `require`: Node ≥ 20.19 / 22.12 `require()`s an ES
+module natively, and older Node gets a clear `ERR_REQUIRE_ESM` rather than a
+silently wrong bundle. Both entries come out of ONE `vite build`; there is no
+separate contract build.
 
 ### Build gates
 
@@ -359,12 +366,13 @@ on the exact workspace the deploy job publishes from):
   published package (which silently degrade exported types to `any` for
   consumers).
 - **`scripts/check-dist-loads.ts`** — verifies every file the manifest points at
-  exists in `dist/`, that `main`/`module` cohere with `exports["."]`, then
-  EXECUTES all four entry bundles (root + `/contract`, CJS + ESM) in isolated
+  exists in `dist/`, that `main`/`module` cohere with the ESM root entry in
+  `exports["."]`, that the `/contract` entry and every chunk it imports stay
+  React-free, then EXECUTES both entry bundles (root + `/contract`) in isolated
   child processes and checks export sentinels. Catches manifest/filename
-  mismatches (a `require()` that cannot resolve) and import-time crashes such as
-  circular-import TDZ `ReferenceError`s — classes of breakage that type-checking
-  and unit tests never touch.
+  mismatches, a React module leaking into the headless surface through a shared
+  chunk, and import-time crashes such as circular-import TDZ `ReferenceError`s —
+  classes of breakage that type-checking and unit tests never touch.
 
 If a gate fails, fix the cause — never weaken or skip the gate.
 

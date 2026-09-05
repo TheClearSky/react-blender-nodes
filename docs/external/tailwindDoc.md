@@ -296,9 +296,9 @@ The Vite build produces a named CSS file via the `cssFileName` option:
 ```typescript
 build: {
   lib: {
-    entry: ['src/index.ts'],
+    entry: { index: 'src/index.ts', contract: 'src/contract.ts' },
     cssFileName: 'react-blender-nodes',  // -> react-blender-nodes.css
-    formats: ['es', 'umd'],
+    formats: ['es'],
   }
 }
 ```

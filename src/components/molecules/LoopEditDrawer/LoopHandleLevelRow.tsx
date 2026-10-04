@@ -52,12 +52,12 @@ function LoopHandleLevelRow({ level, onUpdateLevel }: LoopHandleLevelRowProps) {
       onRenameAll={renameAll}
     >
       {HANDLE_GROUPS.map(({ label, inKey, outKey }) => (
-        <div key={label} className='flex flex-col gap-1'>
-          <span className='text-secondary-light-gray text-[11px] font-main'>
+        <div key={label} className='rbn:flex rbn:flex-col rbn:gap-1'>
+          <span className='rbn:text-secondary-light-gray rbn:text-[11px] rbn:font-main'>
             {label}
           </span>
-          <div className='flex items-center gap-1.5'>
-            <span className='text-secondary-light-gray text-[11px] w-6 shrink-0'>
+          <div className='rbn:flex rbn:items-center rbn:gap-1.5'>
+            <span className='rbn:text-secondary-light-gray rbn:text-[11px] rbn:w-6 rbn:shrink-0'>
               In
             </span>
             <Input
@@ -66,11 +66,11 @@ function LoopHandleLevelRow({ level, onUpdateLevel }: LoopHandleLevelRowProps) {
               onChange={(value: string) => handleSingleNameChange(inKey, value)}
               allowOnlyNumbers={false}
               liveUpdate
-              className={cn('flex-1 min-w-0', theme?.node?.inputField)}
+              className={cn('rbn:flex-1 rbn:min-w-0', theme?.node?.inputField)}
             />
           </div>
-          <div className='flex items-center gap-1.5'>
-            <span className='text-secondary-light-gray text-[11px] w-6 shrink-0'>
+          <div className='rbn:flex rbn:items-center rbn:gap-1.5'>
+            <span className='rbn:text-secondary-light-gray rbn:text-[11px] rbn:w-6 rbn:shrink-0'>
               Out
             </span>
             <Input
@@ -81,7 +81,7 @@ function LoopHandleLevelRow({ level, onUpdateLevel }: LoopHandleLevelRowProps) {
               }
               allowOnlyNumbers={false}
               liveUpdate
-              className={cn('flex-1 min-w-0', theme?.node?.inputField)}
+              className={cn('rbn:flex-1 rbn:min-w-0', theme?.node?.inputField)}
             />
           </div>
         </div>

@@ -8,3 +8,4 @@ export * from './NodeResizerWithMoreControls';
 export * from './NodeStatusIndicator';
 export * from './ScrollableButtonContainer';
 export * from './Tooltip';
+export * from './InfoHint/InfoHint';

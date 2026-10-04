@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@xyflow/react';
-import { BoxSelectIcon, Trash2Icon } from 'lucide-react';
+import { BoxSelectIcon, NotebookPenIcon, Trash2Icon } from 'lucide-react';
 import { cn } from '@/utils/cnHelper';
 import { normalizeZoneColor } from '@/utils/nodeStateManagement/zones/zoneColor';
 import { USER_ZONE_PALETTE } from '@/utils/nodeStateManagement/zones/zoneLifecycle';
@@ -14,6 +14,8 @@ import {
   parseColor,
   formatColor,
 } from '@/components/molecules/ColorPicker';
+import { InfoHint } from '@/components/atoms/InfoHint/InfoHint';
+import { Popover } from '@/components/atoms/Popover';
 import type { ZoneFrame } from './useZoneFrames';
 
 /**
@@ -39,6 +41,8 @@ type UserZoneLabelLayerProps = {
   onRecolor: (zoneId: string, color: string) => void;
   onDelete: (zoneId: string) => void;
   onSelectMembers: (zoneId: string) => void;
+  /** Set (non-empty) or clear (`''`) a zone's description. */
+  onDescribe?: (zoneId: string, description: string) => void;
 };
 
 /**
@@ -57,6 +61,7 @@ function UserZoneLabelLayer({
   onRecolor,
   onDelete,
   onSelectMembers,
+  onDescribe,
 }: UserZoneLabelLayerProps) {
   const zoom = useStore((s) => s.transform[2]);
   const allFrames = frames;
@@ -109,6 +114,7 @@ function UserZoneLabelLayer({
           onRecolor={onRecolor}
           onDelete={onDelete}
           onSelectMembers={onSelectMembers}
+          onDescribe={onDescribe}
         />
       ))}
     </>,
@@ -124,6 +130,7 @@ type UserZoneLabelProps = {
   onRecolor: (zoneId: string, color: string) => void;
   onDelete: (zoneId: string) => void;
   onSelectMembers: (zoneId: string) => void;
+  onDescribe?: (zoneId: string, description: string) => void;
 };
 
 function UserZoneLabel({
@@ -134,6 +141,7 @@ function UserZoneLabel({
   onRecolor,
   onDelete,
   onSelectMembers,
+  onDescribe,
 }: UserZoneLabelProps) {
   // Local color during the picker session; committed once on close so a recolor
   // is ONE history entry (not one per drag tick).
@@ -148,6 +156,12 @@ function UserZoneLabel({
   const [hovered, setHovered] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  // The description draft, committed once when its popover closes (one
+  // history entry, like the recolor); the popover also holds the label open.
+  const [describeOpen, setDescribeOpen] = useState(false);
+  const [draftDescription, setDraftDescription] = useState(
+    frame.description ?? '',
+  );
   // Resync local color from the authored value ONLY while the picker is closed:
   // an external recolor mid-session (undo/redo, a second path) must not clobber
   // the user's in-progress pick. The on-close commit still fires. (Declared after
@@ -156,7 +170,7 @@ function UserZoneLabel({
     if (!pickerOpen) setLocalColor(frame.color);
   }, [frame.color, pickerOpen]);
   const editableTextRef = useRef<EditableTextHandle>(null);
-  const expanded = hovered || pickerOpen || editing;
+  const expanded = hovered || pickerOpen || editing || describeOpen;
 
   const captionColor = useMemo(
     () => toReadableCaptionColor(frame.color),
@@ -184,8 +198,8 @@ function UserZoneLabel({
         // bottom-anchored — any height change across rest/hover/editing would
         // visibly jump the caption's top edge.
         className={cn(
-          'nodrag nopan flex h-[22px] w-max items-center gap-1 rounded px-1.5',
-          expanded && 'bg-primary-black/80',
+          'nodrag nopan rbn:flex rbn:h-[22px] rbn:w-max rbn:items-center rbn:gap-1 rbn:rounded rbn:px-1.5',
+          expanded && 'rbn:bg-primary-black/80',
         )}
         style={{
           // ORDER LOAD-BEARING (CSS composes right-to-left): translateY(-100%)
@@ -224,9 +238,18 @@ function UserZoneLabel({
           }}
           onEditingChange={setEditing}
           placeholder='Zone'
-          className='inline-block max-w-[180px] truncate text-[12px] font-semibold leading-none'
-          inputClassName='text-[12px] leading-none'
+          className='rbn:inline-block rbn:max-w-[180px] rbn:truncate rbn:text-[12px] rbn:font-semibold rbn:leading-none'
+          inputClassName='rbn:text-[12px] rbn:leading-none'
         />
+        {/* Always shown when the zone has a description. */}
+        {frame.description && (
+          <InfoHint
+            text={frame.description}
+            label={`About ${frame.name}`}
+            // Same colour as the caption beside it (inherited).
+            className='rbn:text-[12px]'
+          />
+        )}
         {/* Caption color = the zone's own color (display-only lightness floor);
             controls are TRAILING so their appearance never shifts the name. */}
         {expanded && (
@@ -235,16 +258,16 @@ function UserZoneLabel({
               type='button'
               aria-label='Select zone members'
               title='Select zone members'
-              className='nodrag nopan flex shrink-0 items-center text-primary-white/80 transition-colors hover:text-primary-white'
+              className='nodrag nopan rbn:flex rbn:shrink-0 rbn:items-center rbn:text-primary-white/80 rbn:transition-colors rbn:hover:text-primary-white'
               onClick={(event) => {
                 event.stopPropagation();
                 onSelectMembers(frame.id);
               }}
             >
-              <BoxSelectIcon className='h-3.5 w-3.5' />
+              <BoxSelectIcon className='rbn:h-3.5 rbn:w-3.5' />
             </button>
             <span
-              className='nodrag nopan inline-flex items-center'
+              className='nodrag nopan rbn:inline-flex rbn:items-center'
               onClick={(event) => event.stopPropagation()}
             >
               <PopoverColorPicker
@@ -264,21 +287,66 @@ function UserZoneLabel({
                 showSwatches
                 swatchPresets={USER_ZONE_PALETTE}
                 placement='top-start'
-                triggerClassName='h-3.5 w-3.5 rounded-sm'
+                triggerClassName='rbn:h-3.5 rbn:w-3.5 rbn:rounded-sm'
               />
             </span>
             <button
               type='button'
               aria-label='Delete zone'
               title='Delete zone'
-              className='nodrag nopan flex shrink-0 items-center text-primary-white/80 transition-colors hover:text-status-errored'
+              className='nodrag nopan rbn:flex rbn:shrink-0 rbn:items-center rbn:text-primary-white/80 rbn:transition-colors rbn:hover:text-status-errored'
               onClick={(event) => {
                 event.stopPropagation();
                 onDelete(frame.id);
               }}
             >
-              <Trash2Icon className='h-3.5 w-3.5' />
+              <Trash2Icon className='rbn:h-3.5 rbn:w-3.5' />
             </button>
+            {onDescribe && (
+              <span
+                className='nodrag nopan rbn:inline-flex rbn:items-center'
+                onClick={(event) => event.stopPropagation()}
+                onDoubleClick={(event) => event.stopPropagation()}
+              >
+                <Popover
+                  trigger={<NotebookPenIcon className='rbn:h-3.5 rbn:w-3.5' />}
+                  triggerLabel='Describe zone'
+                  placement='top-start'
+                  triggerClassName={cn(
+                    'rbn:p-0 rbn:hover:bg-transparent',
+                    frame.description
+                      ? 'rbn:text-primary-blue'
+                      : 'rbn:text-primary-white/80',
+                  )}
+                  contentClassName='rbn:w-[280px]'
+                  onOpenChange={(open) => {
+                    setDescribeOpen(open);
+                    if (open) {
+                      setDraftDescription(frame.description ?? '');
+                      return;
+                    }
+                    const next = draftDescription.trim();
+                    if (next !== (frame.description ?? '')) {
+                      onDescribe(frame.id, next);
+                    }
+                  }}
+                >
+                  <label className='rbn:flex rbn:flex-col rbn:gap-1 rbn:text-[12px] rbn:text-secondary-light-gray'>
+                    Description
+                    <textarea
+                      autoFocus
+                      value={draftDescription}
+                      placeholder='What this zone does — shown behind its ⓘ'
+                      onChange={(event) =>
+                        setDraftDescription(event.target.value)
+                      }
+                      onKeyDown={(event) => event.stopPropagation()}
+                      className='rbn:w-full rbn:min-h-[72px] rbn:resize-y rbn:rounded rbn:border rbn:border-secondary-dark-gray rbn:bg-primary-black rbn:px-2 rbn:py-1.5 rbn:text-[13px] rbn:leading-snug rbn:text-primary-white rbn:outline-none rbn:focus:border-primary-blue'
+                    />
+                  </label>
+                </Popover>
+              </span>
+            )}
           </>
         )}
       </div>

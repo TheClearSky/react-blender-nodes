@@ -115,7 +115,7 @@ const EditableText = forwardRef<EditableTextHandle, EditableTextProps>(
       // wrapper catches the bubbled keydown to cancel (mirrors EditableNodeTitle).
       return (
         <span
-          className='nodrag nopan inline-flex min-w-0'
+          className='nodrag nopan rbn:inline-flex rbn:min-w-0'
           onKeyDown={(event) => {
             if (event.key === 'Escape') {
               event.stopPropagation();
@@ -131,7 +131,7 @@ const EditableText = forwardRef<EditableTextHandle, EditableTextProps>(
             onChange={commit}
             placeholder={placeholder}
             className={cn(
-              'nodrag nopan h-auto min-w-0 border-0 bg-transparent px-1 text-[length:inherit] leading-[inherit]',
+              'nodrag nopan rbn:h-auto rbn:min-w-0 rbn:border-0 rbn:bg-transparent rbn:px-1 rbn:text-[length:inherit] rbn:leading-[inherit]',
               inputClassName,
             )}
           />
@@ -141,7 +141,7 @@ const EditableText = forwardRef<EditableTextHandle, EditableTextProps>(
 
     return (
       <span
-        className={cn(isEditable && 'nodrag nopan cursor-text', className)}
+        className={cn(isEditable && 'nodrag nopan rbn:cursor-text', className)}
         onDoubleClick={
           isEditable
             ? (event) => {

@@ -33,15 +33,15 @@ export const TIME_MODE_OPTIONS = [
 // ─────────────────────────────────────────────────────
 
 export const statusBlockClass: Record<ExecutionStepRecordStatus, string> = {
-  completed: 'bg-runner-bar-completed',
-  errored: 'bg-runner-bar-errored',
-  skipped: 'bg-status-skipped',
+  completed: 'rbn:bg-runner-bar-completed',
+  errored: 'rbn:bg-runner-bar-errored',
+  skipped: 'rbn:bg-status-skipped',
 };
 
 export const statusTooltipClass: Record<ExecutionStepRecordStatus, string> = {
-  completed: 'text-status-completed',
-  errored: 'text-status-errored',
-  skipped: 'text-secondary-light-gray',
+  completed: 'rbn:text-status-completed',
+  errored: 'rbn:text-status-errored',
+  skipped: 'rbn:text-secondary-light-gray',
 };
 
 export const statusLabel: Record<ExecutionStepRecordStatus, string> = {

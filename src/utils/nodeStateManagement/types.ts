@@ -188,6 +188,19 @@ type TypeOfInput<DataTypeUniqueId extends string = string> = {
    * `UPDATE_INPUT_VALUE` after every add.
    */
   defaultValue?: string | number | boolean;
+  /**
+   * Optional in-app documentation for this socket — shown behind an ⓘ that
+   * appears when the socket's row is hovered. Read LIVE from the node type at
+   * render time (never copied onto instances), so editing it updates every
+   * node at once.
+   */
+  description?: string;
+  /** Slider floor for a number input (read live, like `description`). */
+  min?: number;
+  /** Slider ceiling for a number input. */
+  max?: number;
+  /** Change for a full-width drag of a number input's slider. */
+  step?: number;
 };
 
 /**
@@ -217,6 +230,11 @@ type TypeOfNode<
 > = {
   /** Display name of the node type */
   name: string;
+  /**
+   * Optional in-app documentation — shown behind an ⓘ beside the title when
+   * a node of this type is hovered (node groups too). Read live at render.
+   */
+  description?: string;
   /** Color used for the node header */
   headerColor?: string;
   /** Array of inputs (can be regular inputs or input panels) */
@@ -621,6 +639,8 @@ type State<
    * per-recording snapshot lives in `RecordingViewState`; `autoScroll` is mirrored
    * there with graph state authoritative and NOT restored on load. Inner fields
    * REQUIRED — read via `getRunnerViewPreferences`, which defaults per-field.
+   * A consumer wanting a different default seeds the field on the documents it
+   * installs.
    * @default undefined → read as { autoScroll: true, followIntoGroups: true }
    */
   runnerViewPreferences?: RunnerViewPreferences;

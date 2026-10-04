@@ -15,7 +15,7 @@ const meta = {
   argTypes: {},
   decorators: [
     (Story) => (
-      <div className='flex justify-center items-center min-h-screen p-8'>
+      <div className='rbn:flex rbn:justify-center rbn:items-center rbn:min-h-screen rbn:p-8'>
         <Story />
       </div>
     ),
@@ -202,8 +202,8 @@ export const WithInputComponents = {
     });
 
     return (
-      <div className='space-y-4'>
-        <div className='text-primary-white text-sm'>
+      <div className='rbn:space-y-4'>
+        <div className='rbn:text-primary-white rbn:text-sm'>
           <p>Text Value: {textValue}</p>
           <p>Number Value: {numberValue}</p>
         </div>
@@ -308,8 +308,8 @@ export const WithInputComponentsInPanels = {
     });
 
     return (
-      <div className='space-y-4'>
-        <div className='text-primary-white text-sm'>
+      <div className='rbn:space-y-4'>
+        <div className='rbn:text-primary-white rbn:text-sm'>
           <p>Direct Value: {directValue}</p>
           <p>Threshold: {thresholdValue}</p>
           <p>Config: {configValue}</p>
@@ -364,12 +364,12 @@ export const AdjustableParentWidthWithFullWidth = {
     return (
       <div
         className={cn(
-          'flex flex-col gap-2 border-5',
-          parentBorder ? 'border-red-900' : 'border-transparent',
+          'rbn:flex rbn:flex-col rbn:gap-2 rbn:border-5',
+          parentBorder ? 'rbn:border-red-900' : 'rbn:border-transparent',
         )}
         style={{ width: parentWidth }}
       >
-        <ConfigurableNode className='w-full' {...args} />
+        <ConfigurableNode className='rbn:w-full' {...args} />
       </div>
     );
   },

@@ -6,6 +6,8 @@ import type {
 } from '../nodeStateManagement/types';
 import type {
   RunnerState,
+  RunEvent,
+  RunHaltInitiator,
   NodeVisualState,
   GraphError,
   ExecutionRecord,
@@ -66,6 +68,16 @@ type UseNodeRunnerParams<
      * recorder dev-`console.warn`s and stays silent in production.
      */
     onRecorderWarning?: (warning: RecorderWarning) => void;
+    /**
+     * Run lifecycle stream — see `RunEvent`.
+     *
+     * Needed because `onExecutionRecordChange` is the controlled record SETTER:
+     * it fires identically for a run starting, a reset, a load and a run
+     * finishing, so a consumer cannot tell them apart. Subscribe here to stamp
+     * "what was actually run", to react to a Reset, or to discard a superseded
+     * run's work.
+     */
+    onRunEvent?: (event: RunEvent) => void;
   };
   /** Controlled execution record. When provided, useNodeRunner uses this instead of internal state. */
   executionRecord?: ExecutionRecord | null;
@@ -116,8 +128,12 @@ type UseNodeRunnerReturn = {
   /** Live step-OVER: drains steps until execution returns to the depth the
    *  head was at (skips through a group's interior); honors pause()/stop(). */
   stepOver: () => void;
-  stop: () => void;
-  reset: () => void;
+  /** Abort the run. `initiator` defaults to `'user'`; pass `'consumer'` when
+   *  the application halts a run for its own reasons (e.g. it is replacing the
+   *  project), so a consumer can tell its own halt from the user's. */
+  stop: (options?: { initiator?: RunHaltInitiator }) => void;
+  /** Return to idle and clear the record. Same `initiator` contract as `stop`. */
+  reset: (options?: { initiator?: RunHaltInitiator }) => void;
   replayTo: (stepIndex: number) => void;
   /** Load an imported execution record, validating it against the current graph. */
   loadRecord: (record: ExecutionRecord) => RecordValidationResult;
@@ -515,6 +531,89 @@ function useNodeRunner<
   // passing an inline callback must not re-create the run callbacks).
   const onRecorderWarningRef = useRef(options?.onRecorderWarning);
   onRecorderWarningRef.current = options?.onRecorderWarning;
+
+  // Latest-value ref, same reason as above: the callback identity may change
+  // every render and must never force a run to be re-created.
+  const onRunEventRef = useRef(options?.onRunEvent);
+  onRunEventRef.current = options?.onRunEvent;
+
+  /** Monotonic run identity. `currentRunIdRef` is the run that owns the state. */
+  const nextRunIdRef = useRef(0);
+  const currentRunIdRef = useRef<number | null>(null);
+  /** The run a user `stop()` ended, so its record can still be shown (the
+   *  documented reason `stop()` lands in `'errored'` rather than `'idle'` is
+   *  "so the user can see which nodes completed"). Cleared once used, and
+   *  forfeited the moment any newer run takes the runner over. */
+  const stoppedRunIdRef = useRef<number | null>(null);
+
+  /** Opens a run: mints its id, marks it current, announces it. */
+  const beginRun = useCallback(() => {
+    nextRunIdRef.current += 1;
+    const runId = nextRunIdRef.current;
+    const superseded = currentRunIdRef.current;
+    if (superseded !== null) {
+      // A previous run never finished; tell the consumer so it can drop
+      // anything it was holding for it rather than waiting forever.
+      onRunEventRef.current?.({
+        kind: 'run:aborted',
+        runId: superseded,
+        reason: 'superseded',
+      });
+    }
+    currentRunIdRef.current = runId;
+    // A new run owns the runner, so any earlier stopped run's pending
+    // post-mortem is forfeit — it must not land on this run's state.
+    stoppedRunIdRef.current = null;
+    onRunEventRef.current?.({ kind: 'run:started', runId });
+    return runId;
+  }, []);
+
+  /** Closes the current run, if any, with the given terminal event. Used by
+   *  `stop()` / `reset()`, which mean "close whatever is open". */
+  const endRun = useCallback((event: (runId: number) => RunEvent) => {
+    const runId = currentRunIdRef.current;
+    if (runId === null) return;
+    currentRunIdRef.current = null;
+    onRunEventRef.current?.(event(runId));
+  }, []);
+
+  /**
+   * Closes ONE SPECIFIC run — the only safe form for anything that resumes
+   * after an `await`.
+   *
+   * By then `currentRunIdRef` may name a DIFFERENT run, so `endRun` would
+   * close the live run on behalf of a dead one: the consumer would be told the
+   * new run finished before it had executed a step, and the new run's own
+   * terminal event would later be swallowed. Silently returning when the run is
+   * no longer current is the correct behaviour — it has nothing to announce.
+   */
+  const endRunFor = useCallback(
+    (forRunId: number | null, event: (runId: number) => RunEvent) => {
+      if (forRunId === null || currentRunIdRef.current !== forRunId) return;
+      currentRunIdRef.current = null;
+      onRunEventRef.current?.(event(forRunId));
+    },
+    [],
+  );
+
+  /**
+   * Does `forRunId` still own the hook's state?
+   *
+   * A run that was superseded, stopped or reset does not, and must write
+   * NOTHING after it resumes — not the record, not the runner state, not the
+   * visual states. Without this every `await` in the executor is a window in
+   * which a dead run can undo a `reset()` or repaint a graph that is no longer
+   * loaded.
+   */
+  const isCurrentRun = useCallback(
+    // A RAW comparison, deliberately including `null === null`. Rejecting a
+    // null identity instead would turn `step()`/`stepOver()`/`resume()` into
+    // silent no-ops whenever a generator outlives its run — which leaves the
+    // runner wedged at `'running'` with nothing able to move it.
+    (forRunId: number | null) => currentRunIdRef.current === forRunId,
+    [],
+  );
+
   /**
    * Stable TRAMPOLINE handed to the executor, so the recorder calls whatever
    * the consumer's LATEST render supplied rather than the function value that
@@ -725,6 +824,11 @@ function useNodeRunner<
   const finalizeRun = useCallback((record: ExecutionRecord) => {
     if (!isMountedRef.current) return;
 
+    // Announce completion BEFORE the record lands, so a consumer listening to
+    // both channels sees "this run finished" and can attribute the record that
+    // follows to the right run.
+    endRun((runId) => ({ kind: 'run:completed', runId }));
+
     setExecutionRecord(record);
     setCurrentStepIndex(Math.max(0, record.steps.length - 1));
 
@@ -757,8 +861,47 @@ function useNodeRunner<
     );
   }, []);
 
+  /**
+   * `finalizeRun` for a run that has just come back from an `await` — the only
+   * form a run callback may use.
+   *
+   * Three outcomes:
+   * - the run still owns the state → finalize normally;
+   * - it was ended by a user `stop()` → install the record but touch neither
+   *   the runner state nor the event stream, so the post-mortem the panel
+   *   shows after a Stop survives while the halt still stands;
+   * - it was superseded or reset → write nothing at all.
+   */
+  const finalizeRunFromRun = useCallback(
+    (record: ExecutionRecord, forRunId: number | null) => {
+      if (!isMountedRef.current) return;
+      if (isCurrentRun(forRunId)) {
+        finalizeRun(record);
+        return;
+      }
+      if (
+        forRunId !== null &&
+        stoppedRunIdRef.current === forRunId &&
+        // …and NOTHING has taken the runner over since. A stopped run drains
+        // over the remainder of its dispatched level — hundreds of ms — which
+        // is ample time for the user to press Run again. Without this the
+        // stopped run's record, step index and errors would land on top of the
+        // live run, which is the exact class of bug this whole guard exists to
+        // remove.
+        currentRunIdRef.current === null
+      ) {
+        stoppedRunIdRef.current = null;
+        setExecutionRecord(record);
+        setCurrentStepIndex(Math.max(0, record.steps.length - 1));
+        setNodeErrors(extractNodeErrors(record));
+      }
+    },
+    [finalizeRun, isCurrentRun, setExecutionRecord],
+  );
+
   // ── RUN (instant mode) ────────────────────────────────
   const runInstant = useCallback(async () => {
+    const forRunId = beginRun();
     // Clear previous state
     liveVisualStatesRef.current = new Map();
     setNodeVisualStates(EMPTY_VISUAL_STATES);
@@ -774,7 +917,16 @@ function useNodeRunner<
     // Compile
     setRunnerState('compiling');
     const plan = compileGraph();
-    if (!plan) return;
+    if (!plan) {
+      // A graph that does not compile still opened a run. Close it, or the
+      // consumer waits forever for a terminal event that never comes.
+      endRunFor(forRunId, (runId) => ({
+        kind: 'run:aborted',
+        runId,
+        reason: 'failed',
+      }));
+      return;
+    }
 
     if (!isMountedRef.current) return;
     setRunnerState('running');
@@ -810,12 +962,21 @@ function useNodeRunner<
       const record = await executeTarget.run(executeContext);
 
       if (!isMountedRef.current) return;
-      finalizeRun(record);
+      finalizeRunFromRun(record, forRunId);
     } catch (e) {
       lastErrorRef.current = e;
       if (process.env.NODE_ENV !== 'production')
         console.error('react-blender-nodes runner error:', e);
-      if (isMountedRef.current) {
+      // Read ownership BEFORE announcing — `endRunFor` clears the current id,
+      // so asking afterwards always says "not mine". A run superseded or reset
+      // while the target was throwing owns nothing here and must stay silent.
+      const owned = isCurrentRun(forRunId);
+      endRunFor(forRunId, (runId) => ({
+        kind: 'run:aborted',
+        runId,
+        reason: 'failed',
+      }));
+      if (isMountedRef.current && owned) {
         flushVisualStates();
         setRunnerState('errored');
       }
@@ -826,11 +987,14 @@ function useNodeRunner<
     compileGraph,
     handleNodeStateChange,
     flushVisualStates,
-    finalizeRun,
+    finalizeRunFromRun,
+    endRunFor,
+    isCurrentRun,
   ]);
 
   // ── RUN (step-by-step mode) ───────────────────────────
   const runStepByStep = useCallback(async () => {
+    const forRunId = beginRun();
     // Clear previous state
     liveVisualStatesRef.current = new Map();
     setNodeVisualStates(EMPTY_VISUAL_STATES);
@@ -846,7 +1010,15 @@ function useNodeRunner<
     // Compile
     setRunnerState('compiling');
     const plan = compileGraph();
-    if (!plan) return;
+    if (!plan) {
+      // Same as instant mode: a run was opened, so it must be closed.
+      endRunFor(forRunId, (runId) => ({
+        kind: 'run:aborted',
+        runId,
+        reason: 'failed',
+      }));
+      return;
+    }
 
     if (!isMountedRef.current) return;
 
@@ -885,6 +1057,8 @@ function useNodeRunner<
     try {
       const result = await gen.next();
       if (!isMountedRef.current) return;
+      // The first step can land after a stop/reset/supersede — see `isCurrentRun`.
+      if (!isCurrentRun(forRunId)) return;
 
       if (!result.done) {
         const { stepRecord, partialRecord } = result.value;
@@ -896,13 +1070,19 @@ function useNodeRunner<
         setRunnerState('paused');
       } else {
         // Graph had zero steps or completed immediately
-        finalizeRun(result.value);
+        finalizeRunFromRun(result.value, forRunId);
       }
     } catch (e) {
       lastErrorRef.current = e;
       if (process.env.NODE_ENV !== 'production')
         console.error('react-blender-nodes runner error:', e);
-      if (isMountedRef.current) {
+      const owned = isCurrentRun(forRunId);
+      endRunFor(forRunId, (runId) => ({
+        kind: 'run:aborted',
+        runId,
+        reason: 'failed',
+      }));
+      if (isMountedRef.current && owned) {
         flushVisualStates();
         setRunnerState('errored');
         terminateGenerator();
@@ -914,7 +1094,9 @@ function useNodeRunner<
     compileGraph,
     handleNodeStateChange,
     flushVisualStates,
-    finalizeRun,
+    finalizeRunFromRun,
+    endRunFor,
+    isCurrentRun,
   ]);
 
   // ── RUN (artifact targets — no record / timeline) ─────
@@ -993,12 +1175,17 @@ function useNodeRunner<
       return;
     }
 
+    // The run this step belongs to. `step`/`stepOver`/`resume` never open a
+    // run, so their identity is whatever is current at CALL time.
+    const forRunId = currentRunIdRef.current;
+
     // Advance generator by one step
     setRunnerState('running');
     void (async () => {
       try {
         const result = await gen.next();
         if (!isMountedRef.current) return;
+        if (!isCurrentRun(forRunId)) return;
 
         if (!result.done) {
           const { stepRecord, partialRecord } = result.value;
@@ -1009,20 +1196,32 @@ function useNodeRunner<
           );
           setRunnerState('paused');
         } else {
-          finalizeRun(result.value);
+          finalizeRunFromRun(result.value, forRunId);
         }
       } catch (e) {
         lastErrorRef.current = e;
         if (process.env.NODE_ENV !== 'production')
           console.error('react-blender-nodes runner error:', e);
-        if (isMountedRef.current) {
+        const owned = isCurrentRun(forRunId);
+        endRunFor(forRunId, (runId) => ({
+          kind: 'run:aborted',
+          runId,
+          reason: 'failed',
+        }));
+        if (isMountedRef.current && owned) {
           flushVisualStates();
           setRunnerState('errored');
           terminateGenerator();
         }
       }
     })();
-  }, [runStepByStep, flushVisualStates, finalizeRun]);
+  }, [
+    runStepByStep,
+    flushVisualStates,
+    finalizeRunFromRun,
+    endRunFor,
+    isCurrentRun,
+  ]);
 
   // ── Public: stepOver() — live drain until execution returns to the depth
   // the head was at (skips THROUGH a group/structure the next step descends
@@ -1040,6 +1239,7 @@ function useNodeRunner<
       executionRecord?.steps[executionRecord.steps.length - 1];
     const baseDepth = lastRecordedStep?.instancePath?.length ?? 0;
 
+    const forRunId = currentRunIdRef.current;
     shouldContinueRef.current = true;
     setRunnerState('running');
 
@@ -1048,10 +1248,14 @@ function useNodeRunner<
         try {
           const result = await gen.next();
           if (!isMountedRef.current) return;
+          // Inside the LOOP, not only at the tail: `shouldContinueRef` and the
+          // generator are hook-global, so a drain belonging to a dead run would
+          // otherwise keep writing the live run's record on every iteration.
+          if (!isCurrentRun(forRunId)) return;
 
           if (result.done) {
             shouldContinueRef.current = false;
-            finalizeRun(result.value);
+            finalizeRunFromRun(result.value, forRunId);
             return;
           }
 
@@ -1066,10 +1270,19 @@ function useNodeRunner<
             shouldContinueRef.current = false;
           }
         } catch (e) {
+          // Ownership FIRST: `shouldContinueRef` and the generator belong to
+          // the hook, not to this run, so a dead drain that clears them stops
+          // the LIVE drain mid-flight.
+          if (!isCurrentRun(forRunId)) return;
           lastErrorRef.current = e;
           if (process.env.NODE_ENV !== 'production')
             console.error('react-blender-nodes runner error:', e);
           shouldContinueRef.current = false;
+          endRunFor(forRunId, (runId) => ({
+            kind: 'run:aborted',
+            runId,
+            reason: 'failed',
+          }));
           if (isMountedRef.current) {
             flushVisualStates();
             setRunnerState('errored');
@@ -1079,16 +1292,18 @@ function useNodeRunner<
         }
       }
 
-      if (isMountedRef.current) {
+      if (isMountedRef.current && isCurrentRun(forRunId)) {
         setRunnerState('paused');
       }
     })();
   }, [
     executionRecord,
     flushVisualStates,
-    finalizeRun,
+    finalizeRunFromRun,
     setExecutionRecord,
     terminateGenerator,
+    endRunFor,
+    isCurrentRun,
   ]);
 
   // ── Public: pause() ───────────────────────────────────
@@ -1105,6 +1320,7 @@ function useNodeRunner<
     const gen = generatorRef.current;
     if (!gen) return;
 
+    const forRunId = currentRunIdRef.current;
     shouldContinueRef.current = true;
     setRunnerState('running');
 
@@ -1113,10 +1329,12 @@ function useNodeRunner<
         try {
           const result = await gen.next();
           if (!isMountedRef.current) return;
+          // See stepOver: the guard belongs in the loop, not only at the tail.
+          if (!isCurrentRun(forRunId)) return;
 
           if (result.done) {
             shouldContinueRef.current = false;
-            finalizeRun(result.value);
+            finalizeRunFromRun(result.value, forRunId);
             return;
           }
 
@@ -1127,10 +1345,19 @@ function useNodeRunner<
             computeVisualStatesAtStep(partialRecord, stepRecord.stepIndex),
           );
         } catch (e) {
+          // Ownership FIRST: `shouldContinueRef` and the generator belong to
+          // the hook, not to this run, so a dead drain that clears them stops
+          // the LIVE drain mid-flight.
+          if (!isCurrentRun(forRunId)) return;
           lastErrorRef.current = e;
           if (process.env.NODE_ENV !== 'production')
             console.error('react-blender-nodes runner error:', e);
           shouldContinueRef.current = false;
+          endRunFor(forRunId, (runId) => ({
+            kind: 'run:aborted',
+            runId,
+            reason: 'failed',
+          }));
           if (isMountedRef.current) {
             flushVisualStates();
             setRunnerState('errored');
@@ -1141,39 +1368,74 @@ function useNodeRunner<
       }
 
       // If we get here, pause() was called during drain
-      if (isMountedRef.current) {
+      if (isMountedRef.current && isCurrentRun(forRunId)) {
         setRunnerState('paused');
       }
     })();
-  }, [flushVisualStates, finalizeRun]);
+  }, [flushVisualStates, finalizeRunFromRun, endRunFor, isCurrentRun]);
 
   // ── Public: stop() ────────────────────────────────────
-  const stop = useCallback(() => {
-    shouldContinueRef.current = false;
-    abortControllerRef.current?.abort();
-    terminateGenerator();
+  const stop = useCallback(
+    (options?: { initiator?: RunHaltInitiator }) => {
+      shouldContinueRef.current = false;
+      abortControllerRef.current?.abort();
+      terminateGenerator();
 
-    if (isMountedRef.current) {
-      flushVisualStates();
-      setRunnerState('errored');
-    }
-  }, [flushVisualStates]);
+      // Remember the run so the record it is still building can be installed
+      // when it drains — `'errored'` exists so the user can see how far the
+      // run got, and that post-mortem would otherwise be lost.
+      stoppedRunIdRef.current = currentRunIdRef.current;
+
+      // The run will never produce a final record; close it so a consumer is not
+      // left holding a pending snapshot for a run that can no longer complete.
+      endRun((runId) => ({
+        kind: 'run:aborted',
+        runId,
+        reason: 'stopped',
+        initiator: options?.initiator ?? 'user',
+      }));
+
+      if (isMountedRef.current) {
+        flushVisualStates();
+        setRunnerState('errored');
+      }
+    },
+    [flushVisualStates, endRun],
+  );
 
   // ── Public: reset() ───────────────────────────────────
-  const reset = useCallback(() => {
-    shouldContinueRef.current = false;
-    abortControllerRef.current?.abort();
-    terminateGenerator();
+  const reset = useCallback(
+    (options?: { initiator?: RunHaltInitiator }) => {
+      const initiator = options?.initiator ?? 'user';
+      shouldContinueRef.current = false;
+      abortControllerRef.current?.abort();
+      terminateGenerator();
 
-    if (isMountedRef.current) {
-      liveVisualStatesRef.current = new Map();
-      setRunnerState('idle');
-      setNodeVisualStates(EMPTY_VISUAL_STATES);
-      setNodeErrors(EMPTY_ERRORS);
-      setExecutionRecord(null);
-      setCurrentStepIndex(0);
-    }
-  }, []);
+      // Unlike `stop()`, a reset wants the record GONE, so no run is recorded
+      // for the post-mortem path.
+      stoppedRunIdRef.current = null;
+
+      // A reset is NOT the start of a run, and the `null` record it produces below
+      // is indistinguishable from the `null` a run start produces. Say so plainly.
+      endRun((runId) => ({
+        kind: 'run:aborted',
+        runId,
+        reason: 'stopped',
+        initiator,
+      }));
+      onRunEventRef.current?.({ kind: 'run:reset', initiator });
+
+      if (isMountedRef.current) {
+        liveVisualStatesRef.current = new Map();
+        setRunnerState('idle');
+        setNodeVisualStates(EMPTY_VISUAL_STATES);
+        setNodeErrors(EMPTY_ERRORS);
+        setExecutionRecord(null);
+        setCurrentStepIndex(0);
+      }
+    },
+    [endRun],
+  );
 
   // ── Public: replayTo() ────────────────────────────────
   const replayTo = useCallback(

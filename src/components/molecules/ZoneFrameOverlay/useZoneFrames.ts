@@ -11,6 +11,8 @@ type ZoneFrame = {
   id: string;
   name: string;
   color: string;
+  /** The zone's in-app description (user zones), shown behind its ⓘ. */
+  description?: string;
   /** SVG polygon points string, in GRAPH coordinates. */
   points: string;
   /** Label anchor (graph coordinates) at the hull's top-left. */
@@ -82,6 +84,8 @@ function computeZoneFrames(
       id: zone.id,
       name: typeof zone.name === 'string' ? zone.name : 'Zone',
       color: typeof zone.color === 'string' ? zone.color : '#888888',
+      ...(typeof zone.description === 'string' &&
+        zone.description !== '' && { description: zone.description }),
       points: hull.map((p) => `${p.x},${p.y}`).join(' '),
       labelX: topLeft.x + 4,
       labelY: topLeft.y - 6,

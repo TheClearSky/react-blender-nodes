@@ -122,12 +122,17 @@ function DeletionReviewModal({
             </ModalDescription>
           </ModalHeader>
           <ModalCloseButton />
-          <ModalBody className={cn('flex flex-col gap-3', theme?.modal?.body)}>
-            <div className='flex flex-col gap-1'>
+          <ModalBody
+            className={cn(
+              'rbn:flex rbn:flex-col rbn:gap-3',
+              theme?.modal?.body,
+            )}
+          >
+            <div className='rbn:flex rbn:flex-col rbn:gap-1'>
               {blastRadii.map((blastRadius, index) => (
                 <label
                   key={index}
-                  className='flex items-center gap-2 cursor-pointer select-none'
+                  className='rbn:flex rbn:items-center rbn:gap-2 rbn:cursor-pointer rbn:select-none'
                 >
                   <Checkbox
                     checked={included[index] ?? true}
@@ -139,10 +144,10 @@ function DeletionReviewModal({
                       )
                     }
                   />
-                  <span className='text-[13px] text-primary-white font-main truncate'>
+                  <span className='rbn:text-[13px] rbn:text-primary-white rbn:font-main rbn:truncate'>
                     Delete "{blastRadius.target.handleName}"
                   </span>
-                  <span className='ml-auto shrink-0 text-[11px] text-primary-white/50 font-main'>
+                  <span className='rbn:ml-auto rbn:shrink-0 rbn:text-[11px] rbn:text-primary-white/50 rbn:font-main'>
                     {blastRadius.totalConnections} connection
                     {blastRadius.totalConnections === 1 ? '' : 's'}
                   </span>
@@ -158,7 +163,7 @@ function DeletionReviewModal({
                 title={`${includedCount} channel${channelPlural} · ${checkedEdgeIds.length} connection${cPlural}`}
               />
             ) : (
-              <div className='text-[13px] text-primary-white/60 font-main py-4 text-center'>
+              <div className='rbn:text-[13px] rbn:text-primary-white/60 rbn:font-main rbn:py-4 rbn:text-center'>
                 No channels selected.
               </div>
             )}
@@ -197,7 +202,7 @@ function DeletionReviewModal({
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody className={theme?.modal?.body}>
-          <label className='flex items-center gap-2 mb-3 cursor-pointer select-none'>
+          <label className='rbn:flex rbn:items-center rbn:gap-2 rbn:mb-3 rbn:cursor-pointer rbn:select-none'>
             <Checkbox
               checked={included[safePage] ?? true}
               onCheckedChange={(checked) =>
@@ -208,12 +213,14 @@ function DeletionReviewModal({
                 )
               }
             />
-            <span className='text-[13px] text-primary-white font-main'>
+            <span className='rbn:text-[13px] rbn:text-primary-white rbn:font-main'>
               Delete "{current.target.handleName}" ({current.target.direction})
             </span>
           </label>
           <div
-            className={included[safePage] === false ? 'opacity-40' : undefined}
+            className={
+              included[safePage] === false ? 'rbn:opacity-40' : undefined
+            }
           >
             <HandleSummaryContent
               blastRadius={current}

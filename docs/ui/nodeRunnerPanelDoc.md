@@ -3,8 +3,12 @@
 ## Overview
 
 NodeRunnerPanel is the unified runner UI for the react-blender-nodes library. It
-is an organism-level component rendered as a bottom drawer that composes three
-children:
+is an organism-level component rendered as a bottom drawer — through the shared
+`BottomDrawerShell` chrome
+(`src/components/molecules/BottomDrawerShell/BottomDrawerShell.tsx` ›
+`BottomDrawerShell`, also used by consumer `bottomDrawers`; see
+[FullGraph › Bottom drawers](fullGraphDoc.md#bottom-drawers-bottomdrawers)) —
+that composes three children:
 
 1. **RunControls** (molecule) - Transport bar with play/pause/step/stop/reset
    buttons, a mode toggle (Instant vs Step-by-Step), and a Max-loops slider
@@ -16,10 +20,11 @@ children:
    right showing a selected step's status, timing, loop/group context, inputs,
    outputs, and errors.
 
-The panel slides up from the bottom of the viewport using `useSlideAnimation`
-and supports vertical resize via `useResizeHandle` (drag the three-dot window
-handle at the top). The inspector has its own independent horizontal slide
-animation (from the right).
+The panel slides up from the bottom of the viewport and supports vertical resize
+(drag the three-dot window handle at the top) — both provided by the shared
+`BottomDrawerShell`, which calls `useSlideAnimation` and `useResizeHandle` on
+the panel's behalf. The inspector has its own independent horizontal slide
+animation (from the right), owned by the panel itself.
 
 **Source:** `src/components/organisms/NodeRunnerPanel/NodeRunnerPanel.tsx` ›
 `NodeRunnerPanel`
@@ -32,9 +37,15 @@ animation (from the right).
 > `useRecordingViewState`). The panel reads `isRunnerPanelOpen`,
 > `selectedStepIndex`, and `edgeValuesAnimated` (plus their setters) from that
 > context. As a result the component **must** be rendered inside a
-> `RecordingViewStateProvider`. The `RunSession` / `NodeRunnerPanelState` types
-> in `src/utils/nodeRunner/types.ts` › `NodeRunnerPanelState` describe a richer
-> multi-session model that is **not** what the current panel consumes — see
+> `RecordingViewStateProvider` — which itself must sit inside a
+> `BottomDrawerProvider`
+> (`src/components/organisms/FullGraph/BottomDrawerProvider.tsx` ›
+> `BottomDrawerProvider`): `isRunnerPanelOpen` is DERIVED from that provider's
+> single open-drawer id (`openDrawerId === 'runner'`), which is what makes the
+> runner and a consumer bottom drawer never open together. The `RunSession` /
+> `NodeRunnerPanelState` types in `src/utils/nodeRunner/types.ts` ›
+> `NodeRunnerPanelState` describe a richer multi-session model that is **not**
+> what the current panel consumes — see
 > [Limitations](#limitations-and-deprecated-patterns).
 
 ## Entity-Relationship Diagram
@@ -78,9 +89,9 @@ animation (from the right).
     +-----------------------------------------------------------------+
     |                       NodeRunnerPanel                           |
     |                                                                 |
-    | local hooks:                                                    |
-    |   useResizeHandle  -> contentHeight (220 / 80..600px)           |
-    |   useSlideAnimation(isRunnerPanelOpen)  -> drawer mount/style   |
+    | hooks (chrome ones run inside BottomDrawerShell):                |
+    |   useResizeHandle  -> contentHeight (220 / 80..600px)  [shell]  |
+    |   useSlideAnimation(isRunnerPanelOpen) -> mount/style  [shell]  |
     |   useSlideAnimation(inspectorOpen, translateX) -> inspector     |
     |                                                                 |
     | derived:                                                        |
@@ -109,6 +120,7 @@ animation (from the right).
 ```
 +----------------------------------------------------------------------+
 | FullGraph                                                            |
+|  <BottomDrawerProvider>  (always; owns the ONE open-drawer id)        |
 |   <RecordingViewStateProvider>  (only when functionImplementations)  |
 |     <ErrorBoundary>                                                  |
 |       <RunnerOverlay>  (provides RunnerContext; wraps canvas + panel)|
@@ -147,7 +159,8 @@ animation (from the right).
 |  |  +------------------------------------+ +--------------------+  |  |
 |  +----------------------------------------------------------------+  |
 |                                                                      |
-|  [ "Runner" reopen button — shown by RunnerOverlay when closed ]     |
+|  [ floating drawer buttons (BottomDrawerButtons, FullGraph root) —    |
+|    "Runner" + one per consumer drawer, shown while ALL are closed ]  |
 +----------------------------------------------------------------------+
 ```
 
@@ -191,18 +204,22 @@ The prop type is declared inline in
 
 The panel destructures the following from the context (not props):
 
-| Context value           | Type                                       | Use in the panel                             |
-| ----------------------- | ------------------------------------------ | -------------------------------------------- |
-| `selectedStepIndex`     | `number \| null`                           | Which step's detail is open in the inspector |
-| `setSelectedStepIndex`  | `Dispatch<SetStateAction<number \| null>>` | Toggles selection on step click / close      |
-| `edgeValuesAnimated`    | `boolean`                                  | Passed to the inspector's "Animate" toggle   |
-| `setEdgeValuesAnimated` | `Dispatch<SetStateAction<boolean>>`        | Updates the edge-animation preference        |
-| `isRunnerPanelOpen`     | `boolean`                                  | Drives `useSlideAnimation` mount/visibility  |
-| `setIsRunnerPanelOpen`  | `Dispatch<SetStateAction<boolean>>`        | Called by the close (X) button               |
+| Context value           | Type                                       | Use in the panel                              |
+| ----------------------- | ------------------------------------------ | --------------------------------------------- |
+| `selectedStepIndex`     | `number \| null`                           | Which step's detail is open in the inspector  |
+| `setSelectedStepIndex`  | `Dispatch<SetStateAction<number \| null>>` | Toggles selection on step click / close       |
+| `edgeValuesAnimated`    | `boolean`                                  | Passed to the inspector's "Animate" toggle    |
+| `setEdgeValuesAnimated` | `Dispatch<SetStateAction<boolean>>`        | Updates the edge-animation preference         |
+| `isRunnerPanelOpen`     | `boolean`                                  | Passed to the shell as `open` (slide + mount) |
+| `setIsRunnerPanelOpen`  | `Dispatch<SetStateAction<boolean>>`        | Called by the close (X) button                |
 
 ## Component Architecture
 
 ### Constants
+
+The content-height constants live in the shared shell
+(`src/components/molecules/BottomDrawerShell/BottomDrawerShell.tsx` ›
+`BottomDrawerShell`), not in the panel:
 
 ```ts
 const DEFAULT_CONTENT_HEIGHT = 220; // initial timeline+inspector area height
@@ -327,7 +344,8 @@ render as type summaries via `typeSummary()` (e.g. `Array(5)`, `Object(3)`,
 
 ### Slide animation (useSlideAnimation)
 
-The panel calls `useSlideAnimation(isRunnerPanelOpen)` with default options:
+The shell (`BottomDrawerShell`, on the panel's behalf) calls
+`useSlideAnimation(isRunnerPanelOpen)` with default options:
 
 - **Duration**: 250ms (`DEFAULT_DURATION_MS`)
 - **Hidden transform**: `translateY(100%)` (below viewport)
@@ -346,6 +364,11 @@ returns `{ mounted, ref, style }`:
 - `style`: Initial inline style (`transform: hiddenTransform`) to prevent a
   flash-of-visible-content before the animation effect runs.
 
+The panel passes the shell `dataSlot='runner-panel'`, `drawerId='runner'` (→
+`data-drawer-id`), and `className='@container/runnerpanel'` — the named
+container the responsive layout below keys on — so the DOM the e2e suite pins is
+unchanged.
+
 A clip wrapper
 (`absolute inset-x-0 bottom-0 ... overflow-hidden pointer-events-none`) contains
 the sliding element so `translateY(100%)` does not create viewport scrollbars;
@@ -358,7 +381,8 @@ The inspector uses a **second** `useSlideAnimation(inspectorOpen, ...)` with
 ### Resize (useResizeHandle)
 
 The content area (timeline + inspector, below RunControls) is resizable via
-`useResizeHandle`:
+`useResizeHandle` (called by the shell; the height persists across open/close
+because the shell stays mounted and only returns `null` while closed):
 
 - **Initial size**: 220px (`DEFAULT_CONTENT_HEIGHT`)
 - **Min size**: 80px (`MIN_CONTENT_HEIGHT`)
@@ -374,14 +398,19 @@ clamping the computed size. During the drag it sets `user-select: none` and
 
 ### Open / close
 
-- **Close**: An `X` button at the right edge of the RunControls row calls
-  `setIsRunnerPanelOpen(false)`.
-- **Open**: Controlled externally by writing `isRunnerPanelOpen` in the context.
-  In the library, `RunnerOverlay` renders a floating "Runner" button
-  (bottom-center) when `!isRunnerPanelOpen` that calls
-  `setIsRunnerPanelOpen(true)`.
-- When `isRunnerPanelOpen` becomes `false`, the slide animation plays the exit
-  transition and then sets `mounted = false`, returning `null`.
+- **Close**: The shell's `X` button at the right edge of the RunControls row
+  calls `setIsRunnerPanelOpen(false)`. This closes ONLY the runner: the setter
+  maps onto the shared open-drawer id (`nextOpenDrawerIdForRunner`), so a
+  consumer drawer that happens to be open is left alone.
+- **Open**: Controlled externally by writing `isRunnerPanelOpen` in the context,
+  i.e. setting the shared open-drawer id to `'runner'` — which closes whichever
+  bottom drawer was open. In the library the floating "Runner" button is one of
+  `BottomDrawerButtons` (`FullGraph` root, bottom-center, shown while EVERY
+  drawer is closed); an open consumer drawer also shows a "Runner" switcher in
+  its header (`BottomDrawerSwitchers`), and the runner's own header shows one
+  switcher per consumer drawer.
+- When `isRunnerPanelOpen` becomes `false`, the shell's slide animation plays
+  the exit transition and then unmounts the panel (`mounted = false`).
 - A `useEffect` clears `selectedStepIndex` (closes the inspector) whenever the
   panel closes.
 
@@ -476,8 +505,9 @@ states on the canvas. The panel itself does not call `replayTo`.
 - **Selection / open state are context, not props**: There is no
   `selectedStepIndex`, `isOpen`, or `onOpenChange` prop. The panel reads/writes
   these through `useRecordingViewState()`, so it must be wrapped in a
-  `RecordingViewStateProvider`. The `RunSessionInteractionState` type is part of
-  the not-yet-adopted multi-session model.
+  `RecordingViewStateProvider` (inside a `BottomDrawerProvider`, which owns the
+  open-drawer id the open flag derives from). The `RunSessionInteractionState`
+  type is part of the not-yet-adopted multi-session model.
 
 ## Relationships with Other Features
 
@@ -538,12 +568,14 @@ what actually renders NodeRunnerPanel. It:
 
 ### -> [Custom Hooks (useSlideAnimation, useResizeHandle)](../hooks/hooksDoc.md)
 
-- **useSlideAnimation**: Used twice in NodeRunnerPanel - once for the drawer
-  (vertical, 250ms) and once for the inspector (horizontal, 200ms). Web
-  Animations API, GPU-accelerated transforms, smooth interrupt handling.
-- **useResizeHandle**: Used once for the content-area height. Returns
-  `{ size, onMouseDown }`; `size` is the current height (applied as inline
-  `height`) and `onMouseDown` is attached to the three-dot window handle.
+- **useSlideAnimation**: Used twice for the runner drawer — once by
+  `BottomDrawerShell` for the drawer itself (vertical, 250ms) and once by
+  NodeRunnerPanel for the inspector (horizontal, 200ms). Web Animations API,
+  GPU-accelerated transforms, smooth interrupt handling.
+- **useResizeHandle**: Used once, by `BottomDrawerShell`, for the content-area
+  height. Returns `{ size, onMouseDown }`; `size` is the current height (applied
+  as inline `height`) and `onMouseDown` is attached to the three-dot window
+  handle.
 
 ## Usage
 
@@ -554,32 +586,43 @@ what actually renders NodeRunnerPanel. It:
 // '@theclearsky/react-blender-nodes'. Import it via the internal path:
 import { NodeRunnerPanel } from '@/components/organisms/NodeRunnerPanel';
 import { RecordingViewStateProvider } from '@/components/organisms/FullGraph/RecordingViewStateProvider';
+import { BottomDrawerProvider } from '@/components/organisms/FullGraph/BottomDrawerProvider';
+import { RUNNER_DRAWER_ID } from '@/components/organisms/FullGraph/bottomDrawers';
 
-// NodeRunnerPanel MUST be rendered inside a RecordingViewStateProvider,
-// which owns isRunnerPanelOpen / selectedStepIndex / edgeValuesAnimated.
-<RecordingViewStateProvider>
-  {/* The drawer pins itself to the bottom of the nearest positioned parent */}
-  <div className='relative flex min-h-[600px] flex-col justify-end'>
-    <NodeRunnerPanel
-      runnerState={runnerState} // RunnerState from useNodeRunner
-      record={executionRecord} // ExecutionRecord | null
-      currentStepIndex={currentStepIndex}
-      onRun={run}
-      onPause={pause}
-      onStep={step}
-      onStop={stop}
-      onReset={reset}
-      mode={mode} // 'instant' | 'stepByStep'
-      onModeChange={setMode}
-      maxLoopIterations={maxLoopIterations}
-      onMaxLoopIterationsChange={setMaxLoopIterations}
-      onScrubTo={replayTo}
-      onNavigateToNode={(nodeId) => focusCanvasOn(nodeId)} // optional
-      debugMode={false}
-      hideComplexValues={false}
-    />
-  </div>
-</RecordingViewStateProvider>;
+// NodeRunnerPanel MUST be rendered inside a RecordingViewStateProvider
+// (selectedStepIndex / edgeValuesAnimated), which MUST sit inside a
+// BottomDrawerProvider (the shared open-drawer id `isRunnerPanelOpen` derives from).
+<BottomDrawerProvider
+  drawers={[{ id: RUNNER_DRAWER_ID, label: 'Runner' }]}
+  defaultOpenDrawerId={RUNNER_DRAWER_ID}
+>
+  <RecordingViewStateProvider
+    autoScroll={autoScroll}
+    onAutoScrollChange={setAutoScroll}
+  >
+    {/* The drawer pins itself to the bottom of the nearest positioned parent */}
+    <div className='relative flex min-h-[600px] flex-col justify-end'>
+      <NodeRunnerPanel
+        runnerState={runnerState} // RunnerState from useNodeRunner
+        record={executionRecord} // ExecutionRecord | null
+        currentStepIndex={currentStepIndex}
+        onRun={run}
+        onPause={pause}
+        onStep={step}
+        onStop={stop}
+        onReset={reset}
+        mode={mode} // 'instant' | 'stepByStep'
+        onModeChange={setMode}
+        maxLoopIterations={maxLoopIterations}
+        onMaxLoopIterationsChange={setMaxLoopIterations}
+        onScrubTo={replayTo}
+        onNavigateToNode={(nodeId) => focusCanvasOn(nodeId)} // optional
+        debugMode={false}
+        hideComplexValues={false}
+      />
+    </div>
+  </RecordingViewStateProvider>
+</BottomDrawerProvider>;
 ```
 
 In practice you rarely wire this by hand: pass `functionImplementations` to

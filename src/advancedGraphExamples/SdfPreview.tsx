@@ -99,7 +99,7 @@ function SdfPreviewEmptyState({
   return (
     <div
       data-slot='sdf-preview-empty'
-      className='p-3 text-center font-main text-[18px] text-secondary-light-gray'
+      className='rbn:p-3 rbn:text-center rbn:font-main rbn:text-[18px] rbn:text-secondary-light-gray'
     >
       {emptyStateMessage({ reachedAtStep, everRan })}
     </div>
@@ -149,7 +149,7 @@ function SdfFieldPreview({ live, atStep }: NodePreviewProps) {
       data-testid='sdf-field-canvas'
       width={FIELD_PREVIEW_SIZE}
       height={FIELD_PREVIEW_SIZE}
-      className='block w-full'
+      className='rbn:block rbn:w-full'
     />
   );
 }
@@ -184,7 +184,7 @@ function SdfMaskPreview({ live, atStep }: NodePreviewProps) {
       data-testid='sdf-mask-canvas'
       width={FIELD_PREVIEW_SIZE}
       height={FIELD_PREVIEW_SIZE}
-      className='block w-full'
+      className='rbn:block rbn:w-full'
     />
   );
 }
@@ -226,17 +226,17 @@ function SdfMeasurePreview({ live, atStep }: NodePreviewProps) {
     <div
       data-slot='sdf-measure-preview'
       data-testid='sdf-measure-preview'
-      className='flex flex-col gap-1 p-3 font-main'
+      className='rbn:flex rbn:flex-col rbn:gap-1 rbn:p-3 rbn:font-main'
     >
       {measuredOutputs.map(([outputName, measuredValue]) => (
         <div
           key={outputName}
-          className='flex items-baseline justify-between gap-3'
+          className='rbn:flex rbn:items-baseline rbn:justify-between rbn:gap-3'
         >
-          <span className='text-[13px] text-secondary-light-gray'>
+          <span className='rbn:text-[13px] rbn:text-secondary-light-gray'>
             {outputName}
           </span>
-          <span className='text-[17px] font-semibold text-primary-white'>
+          <span className='rbn:text-[17px] rbn:font-semibold rbn:text-primary-white'>
             {formatMeasureValue(outputName, measuredValue)}
           </span>
         </div>
@@ -299,7 +299,7 @@ function SdfRenderPreview({ live, atStep }: NodePreviewProps) {
       data-testid='sdf-render-canvas'
       width={RENDER_PREVIEW_SIZE}
       height={RENDER_PREVIEW_SIZE}
-      className='block w-full'
+      className='rbn:block rbn:w-full'
     />
   );
 }

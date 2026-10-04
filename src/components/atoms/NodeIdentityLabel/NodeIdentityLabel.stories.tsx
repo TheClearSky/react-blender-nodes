@@ -17,7 +17,7 @@ const meta = {
   decorators: [
     (Story) => (
       <div
-        className='flex bg-primary-dark-gray p-2 text-[13px] text-primary-white'
+        className='rbn:flex rbn:bg-primary-dark-gray rbn:p-2 rbn:text-[13px] rbn:text-primary-white'
         style={{ width: 180 }}
       >
         <Story />
@@ -32,12 +32,16 @@ type Story = StoryObj<typeof meta>;
 
 /** No custom name — renders the type name alone. */
 export const TypeOnly: Story = {
-  args: { typeName: 'AND Gate', className: 'min-w-0' },
+  args: { typeName: 'AND Gate', className: 'rbn:min-w-0' },
 };
 
 /** Short custom name fits fully alongside the dimmed type name. */
 export const ShortCustomName: Story = {
-  args: { typeName: 'AND Gate', customName: 'Summer', className: 'min-w-0' },
+  args: {
+    typeName: 'AND Gate',
+    customName: 'Summer',
+    className: 'rbn:min-w-0',
+  },
 };
 
 /**
@@ -50,7 +54,7 @@ export const LongName_ProtectType: Story = {
     typeName: 'AND Gate',
     customName: 'The Great Summer Adder Of Many Long Words',
     protect: 'type',
-    className: 'min-w-0',
+    className: 'rbn:min-w-0',
   },
 };
 
@@ -64,6 +68,6 @@ export const LongName_ProtectCustom: Story = {
     typeName: 'A Very Long Node Type Name Goes Here',
     customName: 'Summer',
     protect: 'custom',
-    className: 'min-w-0',
+    className: 'rbn:min-w-0',
   },
 };

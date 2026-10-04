@@ -123,8 +123,8 @@ function ConnectionReorderList({
     const color = item.additionalProperties?.color;
     const shape = item.additionalProperties?.shape;
     return (
-      <span className='flex min-w-0 items-center gap-2'>
-        <span className='w-4 shrink-0 text-right tabular-nums text-secondary-light-gray'>
+      <span className='rbn:flex rbn:min-w-0 rbn:items-center rbn:gap-2'>
+        <span className='rbn:w-4 rbn:shrink-0 rbn:text-right rbn:tabular-nums rbn:text-secondary-light-gray'>
           {position}
         </span>
         {(color || shape) && (
@@ -135,7 +135,7 @@ function ConnectionReorderList({
             className={theme?.node?.handleShape}
           />
         )}
-        <span className='truncate'>{item.name}</span>
+        <span className='rbn:truncate'>{item.name}</span>
       </span>
     );
   }
@@ -143,11 +143,11 @@ function ConnectionReorderList({
   return (
     <div
       data-slot='input-connection-reorder'
-      className='flex flex-col gap-2 font-main'
+      className='rbn:flex rbn:flex-col rbn:gap-2 rbn:font-main'
     >
-      <div className='flex items-center gap-2 px-1 text-[13px] text-secondary-light-gray'>
-        <ListOrdered className='h-4 w-4 shrink-0' />
-        <span className='truncate'>
+      <div className='rbn:flex rbn:items-center rbn:gap-2 rbn:px-1 rbn:text-[13px] rbn:text-secondary-light-gray'>
+        <ListOrdered className='rbn:h-4 rbn:w-4 rbn:shrink-0' />
+        <span className='rbn:truncate'>
           {targetHandleName
             ? `Order connections into “${targetHandleName}”`
             : 'Connection order'}
@@ -209,18 +209,18 @@ function InputConnectionOrderControl({
         // (AA for bold text). `scale-150` enlarges it via the CSS `scale`
         // property (no reflow — the fixed 20px `w-5` box is unchanged, so the row
         // never shifts, even at a two-character `9+`).
-        'nodrag nopan h-5 w-5 scale-150 rounded-full bg-primary-blue p-0 text-white hover:bg-primary-blue/85',
+        'nodrag nopan rbn:h-5 rbn:w-5 rbn:scale-150 rbn:rounded-full rbn:bg-primary-blue rbn:p-0 rbn:text-white rbn:hover:bg-primary-blue/85',
         theme?.node?.inputOrderBadge,
       )}
       trigger={
         <span
           data-slot='input-order-badge'
-          className='text-[12px] font-semibold leading-none tabular-nums'
+          className='rbn:text-[12px] rbn:font-semibold rbn:leading-none rbn:tabular-nums'
         >
           {connections.length > 9 ? '9+' : connections.length}
         </span>
       }
-      contentClassName={cn('min-w-[240px]', theme?.node?.inputOrderPopover)}
+      contentClassName={cn('rbn:min-w-[240px]', theme?.node?.inputOrderPopover)}
     >
       <ConnectionReorderList
         key={membershipKey}

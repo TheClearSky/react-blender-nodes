@@ -10,3 +10,4 @@ export * from './ColorPicker';
 export * from './DragList';
 export * from './PresetModal';
 export * from './ConnectionMiniMap';
+export * from './PathChipsInput';

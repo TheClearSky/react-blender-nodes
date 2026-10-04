@@ -11,11 +11,18 @@ import {
   RecordingViewStateContext,
   type RecordingViewStateContextValue,
 } from './RecordingViewStateContext';
+import { useBottomDrawers } from './BottomDrawerContext';
+import { RUNNER_DRAWER_ID, resolveRunnerOpenAction } from './bottomDrawers';
 
 // ─────────────────────────────────────────────────────
 // Provider
 // ─────────────────────────────────────────────────────
 
+/**
+ * Must be rendered inside a `BottomDrawerProvider`: the runner panel's open
+ * flag (`isRunnerPanelOpen`) is DERIVED from the shared bottom-drawer id, so
+ * the runner and a consumer drawer can never be open together.
+ */
 function RecordingViewStateProvider({
   children,
   autoScroll,
@@ -32,7 +39,18 @@ function RecordingViewStateProvider({
     null,
   );
   const [edgeValuesAnimated, setEdgeValuesAnimated] = useState(true);
-  const [isRunnerPanelOpen, setIsRunnerPanelOpen] = useState(true);
+
+  // The runner drawer's open flag is a VIEW of the one shared open-drawer id,
+  // kept in the same boolean shape the panel and `restoreViewState` always
+  // used. Opening takes over from any other drawer; closing only closes the
+  // runner (a consumer drawer that is open stays open).
+  const { openDrawerId, setOpenDrawerId } = useBottomDrawers();
+  const isRunnerPanelOpen = openDrawerId === RUNNER_DRAWER_ID;
+  const setIsRunnerPanelOpen = useCallback<Dispatch<SetStateAction<boolean>>>(
+    (value) =>
+      setOpenDrawerId((previous) => resolveRunnerOpenAction(previous, value)),
+    [setOpenDrawerId],
+  );
 
   // Timeline-level state. `autoScroll` is a CONTROLLED document preference (graph
   // state, via props); the wrapper resolves the SetStateAction updater form against
@@ -77,29 +95,34 @@ function RecordingViewStateProvider({
     autoplayIntervalSec,
   ]);
 
-  const restoreViewState = useCallback((vs: RecordingViewState) => {
-    if (vs.selectedStepIndex !== undefined)
-      setSelectedStepIndex(vs.selectedStepIndex);
-    if (vs.edgeValuesAnimated !== undefined)
-      setEdgeValuesAnimated(vs.edgeValuesAnimated);
-    if (vs.panelOpen !== undefined) setIsRunnerPanelOpen(vs.panelOpen);
-    // D2: `autoScroll` is a graph-document preference now; a loaded recording does
-    // NOT override it (the recording's captured value is informational only).
-    if (vs.timeMode !== undefined) setTimeMode(vs.timeMode);
-    if (vs.timelineCollapsed !== undefined)
-      setTimelineCollapsed(vs.timelineCollapsed);
-    if (vs.selectedIterations) {
-      setSelectedIterations(
-        new Map(
-          Object.entries(vs.selectedIterations).map(
-            ([k, v]) => [k, v] as [string, number],
+  const restoreViewState = useCallback(
+    (vs: RecordingViewState) => {
+      if (vs.selectedStepIndex !== undefined)
+        setSelectedStepIndex(vs.selectedStepIndex);
+      if (vs.edgeValuesAnimated !== undefined)
+        setEdgeValuesAnimated(vs.edgeValuesAnimated);
+      // A recording that was saved with the panel open opens the RUNNER drawer
+      // (closing any consumer drawer — one at a time).
+      if (vs.panelOpen !== undefined) setIsRunnerPanelOpen(vs.panelOpen);
+      // D2: `autoScroll` is a graph-document preference now; a loaded recording does
+      // NOT override it (the recording's captured value is informational only).
+      if (vs.timeMode !== undefined) setTimeMode(vs.timeMode);
+      if (vs.timelineCollapsed !== undefined)
+        setTimelineCollapsed(vs.timelineCollapsed);
+      if (vs.selectedIterations) {
+        setSelectedIterations(
+          new Map(
+            Object.entries(vs.selectedIterations).map(
+              ([k, v]) => [k, v] as [string, number],
+            ),
           ),
-        ),
-      );
-    }
-    if (vs.autoplayIntervalSec !== undefined)
-      setAutoplayIntervalSec(vs.autoplayIntervalSec);
-  }, []);
+        );
+      }
+      if (vs.autoplayIntervalSec !== undefined)
+        setAutoplayIntervalSec(vs.autoplayIntervalSec);
+    },
+    [setIsRunnerPanelOpen],
+  );
 
   const value = useMemo<RecordingViewStateContextValue>(
     () => ({
@@ -126,6 +149,7 @@ function RecordingViewStateProvider({
       selectedStepIndex,
       edgeValuesAnimated,
       isRunnerPanelOpen,
+      setIsRunnerPanelOpen,
       autoScroll,
       timeMode,
       timelineCollapsed,

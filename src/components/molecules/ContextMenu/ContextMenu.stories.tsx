@@ -23,7 +23,7 @@ const meta = {
   argTypes: {},
   decorators: [
     (Story) => (
-      <div className='flex justify-center items-center min-h-screen p-8'>
+      <div className='rbn:flex rbn:justify-center rbn:items-center rbn:min-h-screen rbn:p-8'>
         <Story />
       </div>
     ),
@@ -41,25 +41,25 @@ export const Playground = {
       {
         id: 'link-to-viewer',
         label: 'Link to Viewer',
-        icon: <EyeIcon className='w-4 h-4' />,
+        icon: <EyeIcon className='rbn:w-4 rbn:h-4' />,
         onClick: fn(),
       },
       {
         id: 'copy',
         label: 'Copy',
-        icon: <CopyIcon className='w-4 h-4' />,
+        icon: <CopyIcon className='rbn:w-4 rbn:h-4' />,
         onClick: fn(),
       },
       {
         id: 'paste',
         label: 'Paste',
-        icon: <ClipboardIcon className='w-4 h-4' />,
+        icon: <ClipboardIcon className='rbn:w-4 rbn:h-4' />,
         onClick: fn(),
       },
       {
         id: 'duplicate',
         label: 'Duplicate',
-        icon: <FileIcon className='w-4 h-4' />,
+        icon: <FileIcon className='rbn:w-4 rbn:h-4' />,
         shortcut: 'Shift D',
         onClick: fn(),
         separator: true,
@@ -67,7 +67,7 @@ export const Playground = {
       {
         id: 'delete',
         label: 'Delete',
-        icon: <XIcon className='w-4 h-4' />,
+        icon: <XIcon className='rbn:w-4 rbn:h-4' />,
         shortcut: 'X',
         onClick: fn(),
         separator: true,
@@ -82,7 +82,7 @@ export const Playground = {
       {
         id: 'make-group',
         label: 'Make Group',
-        icon: <FolderIcon className='w-4 h-4' />,
+        icon: <FolderIcon className='rbn:w-4 rbn:h-4' />,
         shortcut: 'Ctrl G',
         onClick: fn(),
         separator: true,
@@ -148,7 +148,7 @@ export const Playground = {
       {
         id: 'online-manual',
         label: 'Online Manual',
-        icon: <GlobeIcon className='w-4 h-4' />,
+        icon: <GlobeIcon className='rbn:w-4 rbn:h-4' />,
         onClick: fn(),
       },
     ],
@@ -161,23 +161,23 @@ export const WithIcons = {
       {
         id: 'database',
         label: 'Database',
-        icon: <DatabaseIcon className='w-4 h-4' />,
+        icon: <DatabaseIcon className='rbn:w-4 rbn:h-4' />,
         subItems: [
           {
             id: 'tables',
             label: 'Tables',
-            icon: <FolderIcon className='w-4 h-4' />,
+            icon: <FolderIcon className='rbn:w-4 rbn:h-4' />,
             subItems: [
               {
                 id: 'users',
                 label: 'Users',
-                icon: <FileIcon className='w-4 h-4' />,
+                icon: <FileIcon className='rbn:w-4 rbn:h-4' />,
                 onClick: fn(),
               },
               {
                 id: 'products',
                 label: 'Products',
-                icon: <FileIcon className='w-4 h-4' />,
+                icon: <FileIcon className='rbn:w-4 rbn:h-4' />,
                 onClick: fn(),
               },
             ],
@@ -185,12 +185,12 @@ export const WithIcons = {
           {
             id: 'views',
             label: 'Views',
-            icon: <FolderIcon className='w-4 h-4' />,
+            icon: <FolderIcon className='rbn:w-4 rbn:h-4' />,
             subItems: [
               {
                 id: 'user-view',
                 label: 'User View',
-                icon: <FileIcon className='w-4 h-4' />,
+                icon: <FileIcon className='rbn:w-4 rbn:h-4' />,
                 onClick: fn(),
               },
             ],
@@ -200,7 +200,7 @@ export const WithIcons = {
       {
         id: 'settings',
         label: 'Settings',
-        icon: <SettingsIcon className='w-4 h-4' />,
+        icon: <SettingsIcon className='rbn:w-4 rbn:h-4' />,
         subItems: [
           {
             id: 'appearance',
@@ -302,7 +302,7 @@ export const ActionsMenu = {
       {
         id: 'create',
         label: 'Create',
-        icon: <PlusIcon className='w-4 h-4' />,
+        icon: <PlusIcon className='rbn:w-4 rbn:h-4' />,
         subItems: [
           {
             id: 'new-project',
@@ -324,7 +324,7 @@ export const ActionsMenu = {
       {
         id: 'edit',
         label: 'Edit',
-        icon: <EditIcon className='w-4 h-4' />,
+        icon: <EditIcon className='rbn:w-4 rbn:h-4' />,
         subItems: [
           {
             id: 'rename',
@@ -346,7 +346,7 @@ export const ActionsMenu = {
       {
         id: 'delete',
         label: 'Delete',
-        icon: <TrashIcon className='w-4 h-4' />,
+        icon: <TrashIcon className='rbn:w-4 rbn:h-4' />,
         onClick: fn(),
       },
     ],
@@ -364,7 +364,7 @@ export const InteractiveExample = {
       {
         id: 'tools',
         label: 'Tools',
-        icon: <SettingsIcon className='w-4 h-4' />,
+        icon: <SettingsIcon className='rbn:w-4 rbn:h-4' />,
         subItems: [
           {
             id: 'development',
@@ -408,7 +408,7 @@ export const InteractiveExample = {
       {
         id: 'help',
         label: 'Help',
-        icon: <FileIcon className='w-4 h-4' />,
+        icon: <FileIcon className='rbn:w-4 rbn:h-4' />,
         subItems: [
           {
             id: 'documentation',
@@ -430,11 +430,11 @@ export const InteractiveExample = {
     ];
 
     return (
-      <div className='space-y-4'>
+      <div className='rbn:space-y-4'>
         <ContextMenu subItems={menuItems} />
         {lastAction && (
-          <div className='mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md'>
-            <p className='text-sm text-blue-800'>
+          <div className='rbn:mt-4 rbn:p-3 rbn:bg-blue-50 rbn:border rbn:border-blue-200 rbn:rounded-md'>
+            <p className='rbn:text-sm rbn:text-blue-800'>
               Last fn: <strong>{lastAction}</strong>
             </p>
           </div>

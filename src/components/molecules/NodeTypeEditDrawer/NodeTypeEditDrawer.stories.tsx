@@ -26,7 +26,7 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <div className='relative w-full h-[700px] bg-primary-black overflow-hidden'>
+      <div className='rbn:relative rbn:w-full rbn:h-[700px] rbn:bg-primary-black rbn:overflow-hidden'>
         <Story />
       </div>
     ),
@@ -51,18 +51,18 @@ function FlatInputsTemplate() {
 
   return (
     <>
-      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+      <Button size='small' onClick={() => setIsOpen(true)} className='rbn:m-4'>
         Edit Node Type
       </Button>
-      <div className='absolute top-0 right-0 m-4 text-primary-white text-xs font-main'>
-        <div className='font-medium mb-1'>Current order:</div>
-        <div className='text-secondary-light-gray'>
+      <div className='rbn:absolute rbn:top-0 rbn:right-0 rbn:m-4 rbn:text-primary-white rbn:text-xs rbn:font-main'>
+        <div className='rbn:font-medium rbn:mb-1'>Current order:</div>
+        <div className='rbn:text-secondary-light-gray'>
           Inputs:{' '}
           {inputs
             .map((i) => ('inputs' in i ? `[${i.name}]` : i.name))
             .join(', ')}
         </div>
-        <div className='text-secondary-light-gray'>
+        <div className='rbn:text-secondary-light-gray'>
           Outputs: {outputs.map((o) => o.name).join(', ')}
         </div>
       </div>
@@ -116,16 +116,16 @@ function WithPanelsTemplate() {
 
   return (
     <>
-      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+      <Button size='small' onClick={() => setIsOpen(true)} className='rbn:m-4'>
         Edit Advanced Processor
       </Button>
-      <div className='absolute top-0 right-0 m-4 text-primary-white text-xs font-main max-w-[300px]'>
-        <div className='font-medium mb-1'>Current structure:</div>
-        <div className='text-secondary-light-gray flex flex-col gap-0.5'>
+      <div className='rbn:absolute rbn:top-0 rbn:right-0 rbn:m-4 rbn:text-primary-white rbn:text-xs rbn:font-main rbn:max-w-[300px]'>
+        <div className='rbn:font-medium rbn:mb-1'>Current structure:</div>
+        <div className='rbn:text-secondary-light-gray rbn:flex rbn:flex-col rbn:gap-0.5'>
           {inputs.map((input, index) =>
             'inputs' in input ? (
               <div key={index}>
-                <span className='text-primary-white'>[{input.name}]</span>:{' '}
+                <span className='rbn:text-primary-white'>[{input.name}]</span>:{' '}
                 {input.inputs.map((i) => i.name).join(', ')}
               </div>
             ) : (
@@ -192,7 +192,7 @@ function ManyInputsTemplate() {
 
   return (
     <>
-      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+      <Button size='small' onClick={() => setIsOpen(true)} className='rbn:m-4'>
         Edit Complex Node
       </Button>
       <NodeTypeEditDrawer
@@ -222,7 +222,7 @@ function NameAndColorOnlyTemplate() {
 
   return (
     <>
-      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+      <Button size='small' onClick={() => setIsOpen(true)} className='rbn:m-4'>
         Edit (No Inputs/Outputs)
       </Button>
       <NodeTypeEditDrawer
@@ -250,7 +250,7 @@ function EmptyNodeGroupTemplate() {
 
   return (
     <>
-      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+      <Button size='small' onClick={() => setIsOpen(true)} className='rbn:m-4'>
         Edit Empty Group
       </Button>
       <NodeTypeEditDrawer
@@ -317,7 +317,7 @@ function ShapedHandlesTemplate() {
 
   return (
     <>
-      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+      <Button size='small' onClick={() => setIsOpen(true)} className='rbn:m-4'>
         Edit Shaped Node
       </Button>
       <NodeTypeEditDrawer

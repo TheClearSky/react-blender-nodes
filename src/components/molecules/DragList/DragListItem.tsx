@@ -64,7 +64,7 @@ function DragListItemRow<
   const content = renderContent ? (
     renderContent(item, depth)
   ) : (
-    <span className='truncate text-primary-white'>{item.name}</span>
+    <span className='rbn:truncate rbn:text-primary-white'>{item.name}</span>
   );
 
   return (
@@ -74,10 +74,10 @@ function DragListItemRow<
       data-item-id={item.id}
       data-path={pathKey}
       className={cn(
-        'group flex items-center gap-2 px-2.5 py-2 rounded-md',
-        'bg-primary-dark-gray hover:bg-drag-list-item-hover-bg',
-        'text-[14px] leading-[14px] font-main',
-        'select-none',
+        'rbn:group rbn:flex rbn:items-center rbn:gap-2 rbn:px-2.5 rbn:py-2 rbn:rounded-md',
+        'rbn:bg-primary-dark-gray rbn:hover:bg-drag-list-item-hover-bg',
+        'rbn:text-[14px] rbn:leading-[14px] rbn:font-main',
+        'rbn:select-none',
         theme?.dragList?.row,
       )}
       style={{ marginLeft: depth * indentationPerLevel }}
@@ -86,18 +86,18 @@ function DragListItemRow<
         <button
           type='button'
           onClick={handleToggle}
-          className='shrink-0 text-secondary-light-gray hover:text-primary-white p-0 bg-transparent border-none cursor-pointer'
+          className='rbn:shrink-0 rbn:text-secondary-light-gray rbn:hover:text-primary-white rbn:p-0 rbn:bg-transparent rbn:border-none rbn:cursor-pointer'
         >
           <ChevronDown
             className={cn(
-              'w-4 h-4 transition-transform duration-150',
-              isCollapsed && '-rotate-90',
+              'rbn:w-4 rbn:h-4 rbn:transition-transform rbn:duration-150',
+              isCollapsed && 'rbn:-rotate-90',
             )}
           />
         </button>
       )}
 
-      <div className='flex-1 min-w-0'>{content}</div>
+      <div className='rbn:flex-1 rbn:min-w-0'>{content}</div>
 
       {onDelete && isDeletable && (
         <button
@@ -105,21 +105,21 @@ function DragListItemRow<
           onClick={handleDelete}
           disabled={deleteDisabled}
           className={cn(
-            'shrink-0 p-0 bg-transparent border-none opacity-0 group-hover:opacity-100 transition-opacity',
+            'rbn:shrink-0 rbn:p-0 rbn:bg-transparent rbn:border-none rbn:opacity-0 rbn:group-hover:opacity-100 rbn:transition-opacity',
             deleteDisabled
-              ? 'text-secondary-light-gray opacity-30 cursor-not-allowed'
-              : 'text-secondary-light-gray hover:text-red-400 cursor-pointer',
+              ? 'rbn:text-secondary-light-gray rbn:opacity-30 rbn:cursor-not-allowed'
+              : 'rbn:text-secondary-light-gray rbn:hover:text-red-400 rbn:cursor-pointer',
           )}
         >
-          <Trash2 className='w-4 h-4' />
+          <Trash2 className='rbn:w-4 rbn:h-4' />
         </button>
       )}
 
       <div
         onPointerDown={handlePointerDown}
-        className='shrink-0 cursor-grab active:cursor-grabbing text-secondary-light-gray hover:text-primary-white touch-none'
+        className='rbn:shrink-0 rbn:cursor-grab rbn:active:cursor-grabbing rbn:text-secondary-light-gray rbn:hover:text-primary-white rbn:touch-none'
       >
-        <GripVertical className='w-4 h-4' />
+        <GripVertical className='rbn:w-4 rbn:h-4' />
       </div>
     </div>
   );

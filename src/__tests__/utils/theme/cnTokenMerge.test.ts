@@ -90,3 +90,85 @@ describe('theme/cn token-conflict resolution', () => {
     );
   });
 });
+
+/**
+ * The prefix-aware half of `cn`.
+ *
+ * This library compiles its utilities with a Tailwind `prefix`, which makes
+ * them opaque to tailwind-merge: `twMerge('rbn:px-4 rbn:px-3')` recognises
+ * NEITHER token and keeps both, so the winner would be decided by stylesheet
+ * order rather than by the merge. `cn` therefore strips first-party prefixes,
+ * merges, and restores them.
+ */
+describe('theme/cn first-party prefix handling', () => {
+  /**
+   * The acceptance criterion: prefixed input must behave exactly as the same
+   * input would have behaved unprefixed. If this holds, every existing
+   * expectation in this file holds for the prefixed world too.
+   */
+  it('makes the prefixed world byte-identical to the unprefixed world', () => {
+    const cases: string[][] = [
+      ['bg-primary-dark-gray', 'bg-white'],
+      ['px-4 py-2 rounded-md', 'px-6'],
+      ['text-primary-white', 'text-zinc-900'],
+      ['border border-b-0', 'bg-zinc-50'],
+      ['flex items-center gap-2', 'inline-flex gap-4'],
+      ['hover:bg-zinc-200', 'bg-white'],
+      ['bg-timeline-loop-accent/60', 'bg-purple-300/60'],
+    ];
+    for (const parts of cases) {
+      const prefixed = parts.map((part) =>
+        part
+          .split(' ')
+          .map((token) => `rbn:${token}`)
+          .join(' '),
+      );
+      const strippedBack = cn(...prefixed).replaceAll('rbn:', '');
+      expect(strippedBack).toBe(cn(...parts));
+    }
+  });
+
+  it('resolves a conflict WITHIN one prefix (the single-package case)', () => {
+    expect(cn('rbn:px-4', 'rbn:px-3')).toBe('rbn:px-3');
+  });
+
+  it('resolves a conflict ACROSS two first-party prefixes', () => {
+    // The plugin passing its own utility into a host component: the host's
+    // default must be deleted, not left for stylesheet order to arbitrate.
+    expect(cn('rbn:px-4', 'rbnt:px-3')).toBe('rbnt:px-3');
+    expect(cn('rbn:text-[27px]', 'rbnt:text-[13px]')).toBe('rbnt:text-[13px]');
+  });
+
+  it('lets a consumer unprefixed class win over a prefixed one', () => {
+    expect(cn('rbn:bg-primary-gray', 'bg-red-500')).toBe('bg-red-500');
+  });
+
+  /**
+   * tailwind-merge deliberately does NOT deduplicate tokens it does not
+   * recognise, so both copies must survive. Keying the restore map by the
+   * stripped VALUE instead of counting slots dropped the prefixed copy here,
+   * which would have silently unhooked the SliderNumberInput hover system.
+   */
+  it('keeps a prefixed marker alongside an unprefixed copy of itself', () => {
+    expect(cn('rbn:group/x rbn:flex', 'group/x')).toBe(
+      'rbn:group/x rbn:flex group/x',
+    );
+    expect(cn('rbn:no-scrollbar', 'no-scrollbar')).toBe(
+      'rbn:no-scrollbar no-scrollbar',
+    );
+    expect(cn('rbn:group/x', 'rbnt:group/x')).toBe('rbn:group/x rbnt:group/x');
+  });
+
+  it('does not strip a lookalike prefix that is not first-party', () => {
+    // A consumer `@custom-variant rbnhover:` must survive untouched — this is
+    // why the prefix set is an explicit list and not a `/^rbn[a-z]*:/` pattern.
+    expect(cn('rbnhover:bg-red-500', 'bg-blue-500')).toBe(
+      'rbnhover:bg-red-500 bg-blue-500',
+    );
+  });
+
+  it('leaves non-conflicting prefixed utilities alone', () => {
+    expect(cn('rbn:border rbn:border-b-0')).toBe('rbn:border rbn:border-b-0');
+    expect(cn('rbn:flex rbn:hover:hidden')).toBe('rbn:flex rbn:hover:hidden');
+  });
+});

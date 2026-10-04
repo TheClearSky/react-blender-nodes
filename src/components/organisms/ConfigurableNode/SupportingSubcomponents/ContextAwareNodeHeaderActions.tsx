@@ -45,7 +45,7 @@ function ContextAwareNodeHeaderActions({
             strokeWidth={2.5}
             className={cn(
               actionDef.iconClassName ??
-                'shrink-0 w-6 h-6 aspect-square cursor-pointer hover:opacity-80',
+                'rbn:shrink-0 rbn:w-6 rbn:h-6 rbn:aspect-square rbn:cursor-pointer rbn:hover:opacity-80',
               theme?.node?.headerActionIcon,
             )}
             onClick={handleClick}

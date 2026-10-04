@@ -39,16 +39,16 @@ export const AdjustableParentWidthWithFullWidth = {
     return (
       <div
         className={cn(
-          'flex flex-col gap-2 border-5',
-          parentBorder ? 'border-red-900' : 'border-transparent',
+          'rbn:flex rbn:flex-col rbn:gap-2 rbn:border-5',
+          parentBorder ? 'rbn:border-red-900' : 'rbn:border-transparent',
         )}
         style={{ width: parentWidth }}
       >
         <Button {...args}>
-          <span className='truncate'>{`Some ${'really '.repeat(10)}long text`}</span>
+          <span className='rbn:truncate'>{`Some ${'really '.repeat(10)}long text`}</span>
         </Button>
         <Button {...args}>
-          <span className='truncate'>
+          <span className='rbn:truncate'>
             Note that these buttons have a child span for flexbox to work
           </span>
         </Button>

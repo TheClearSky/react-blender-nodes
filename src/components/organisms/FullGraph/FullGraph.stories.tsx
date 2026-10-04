@@ -2,8 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Toaster, toast } from 'sonner';
 
+import { StickyNote } from 'lucide-react';
+
 import { FullGraph, useFullGraph, GraphThemeProvider } from './';
-import type { NodePreviewProps, NodePreviewRegistry } from './';
+import type {
+  GraphBottomDrawer,
+  NodePreviewProps,
+  NodePreviewRegistry,
+} from './';
 import type { GraphTheme, GraphThemePresetName } from '@/utils/theme';
 import { Position } from '@xyflow/react';
 import { type Nodes, type Edges } from './types';
@@ -509,52 +515,52 @@ export const Playground: StoryObj<typeof FullGraph> = {
 // that replaces a container slot must re-supply these, because slot strings
 // REPLACE the preset's slot string wholesale.
 const NEON_TEXT =
-  '[&_.text-primary-white]:text-fuchsia-100 [&_.text-secondary-light-gray]:text-fuchsia-300/80 [&_.text-secondary-dark-gray]:text-fuchsia-400/60';
+  'rbn:[&_.rbn\\:text-primary-white]:text-fuchsia-100 rbn:[&_.rbn\\:text-secondary-light-gray]:text-fuchsia-300/80 rbn:[&_.rbn\\:text-secondary-dark-gray]:text-fuchsia-400/60';
 const TERMINAL_TEXT =
-  '[&_.text-primary-white]:text-green-300 [&_.text-secondary-light-gray]:text-green-500/80 [&_.text-secondary-dark-gray]:text-green-700 [&_*]:font-mono';
+  'rbn:[&_.rbn\\:text-primary-white]:text-green-300 rbn:[&_.rbn\\:text-secondary-light-gray]:text-green-500/80 rbn:[&_.rbn\\:text-secondary-dark-gray]:text-green-700 rbn:[&_*]:font-mono';
 const PAPER_TEXT =
-  '[&_.text-primary-white]:text-stone-800 [&_.text-secondary-light-gray]:text-stone-500 [&_.text-secondary-dark-gray]:text-stone-400';
+  'rbn:[&_.rbn\\:text-primary-white]:text-stone-800 rbn:[&_.rbn\\:text-secondary-light-gray]:text-stone-500 rbn:[&_.rbn\\:text-secondary-dark-gray]:text-stone-400';
 const OCEAN_TEXT =
-  '[&_.text-primary-white]:text-sky-100 [&_.text-secondary-light-gray]:text-sky-300/80 [&_.text-secondary-dark-gray]:text-sky-500/60';
+  'rbn:[&_.rbn\\:text-primary-white]:text-sky-100 rbn:[&_.rbn\\:text-secondary-light-gray]:text-sky-300/80 rbn:[&_.rbn\\:text-secondary-dark-gray]:text-sky-500/60';
 const BLUEPRINT_TEXT =
-  '[&_.text-primary-white]:text-sky-50 [&_.text-secondary-light-gray]:text-sky-200/80 [&_.text-secondary-dark-gray]:text-sky-300/50';
+  'rbn:[&_.rbn\\:text-primary-white]:text-sky-50 rbn:[&_.rbn\\:text-secondary-light-gray]:text-sky-200/80 rbn:[&_.rbn\\:text-secondary-dark-gray]:text-sky-300/50';
 const POP_TEXT =
-  '[&_.text-primary-white]:text-black [&_.text-secondary-light-gray]:text-stone-600 [&_.text-secondary-dark-gray]:text-stone-400';
+  'rbn:[&_.rbn\\:text-primary-white]:text-black rbn:[&_.rbn\\:text-secondary-light-gray]:text-stone-600 rbn:[&_.rbn\\:text-secondary-dark-gray]:text-stone-400';
 const STAR_TEXT =
-  '[&_.text-primary-white]:text-violet-100 [&_.text-secondary-light-gray]:text-violet-300/80 [&_.text-secondary-dark-gray]:text-violet-400/60';
+  'rbn:[&_.rbn\\:text-primary-white]:text-violet-100 rbn:[&_.rbn\\:text-secondary-light-gray]:text-violet-300/80 rbn:[&_.rbn\\:text-secondary-dark-gray]:text-violet-400/60';
 const NOTEBOOK_TEXT =
-  '[&_.text-primary-white]:text-slate-800 [&_.text-secondary-light-gray]:text-slate-500 [&_.text-secondary-dark-gray]:text-slate-400';
+  'rbn:[&_.rbn\\:text-primary-white]:text-slate-800 rbn:[&_.rbn\\:text-secondary-light-gray]:text-slate-500 rbn:[&_.rbn\\:text-secondary-dark-gray]:text-slate-400';
 const LOGO_TEXT =
-  '[&_.text-primary-white]:text-[#dce9fb] [&_.text-secondary-light-gray]:text-[#a1ccf7] [&_.text-secondary-dark-gray]:text-[#5a76b8]';
+  'rbn:[&_.rbn\\:text-primary-white]:text-[#dce9fb] rbn:[&_.rbn\\:text-secondary-light-gray]:text-[#a1ccf7] rbn:[&_.rbn\\:text-secondary-dark-gray]:text-[#5a76b8]';
 
 /** Cyberpunk magenta/cyan on near-black violet. */
 const neonHeistTheme: GraphTheme = {
   root: [
-    'bg-[#0b0014]',
-    '[--color-graph-menu-bg:#150022]',
-    '[--color-graph-menu-item-hover-bg:#3b0a5e]',
-    '[--color-graph-elevated-surface-bg:#10001d]',
-    '[--color-graph-node-panel-content-bg:#1d0033]',
-    '[--color-timeline-loop-accent:#ff2bd6]',
-    '[--color-timeline-switch-accent:#00ffd5]',
-    '[--color-timeline-scrubber-active:#ff2bd6]',
-    '[--color-timeline-scrubber-line:rgba(255,43,214,0.55)]',
-    '[--color-timeline-scrubber-line-active:rgba(255,43,214,0.85)]',
-    '[--color-runner-muted-text:#b07ad1]',
-    '[--color-timeline-hover-text:#ffd6f7]',
-    '[--color-edge-value-pill-bg:#1a0030]',
-    '[--color-edge-value-pill-border:#ff2bd6]',
-    '[--color-edge-value-pill-text:#ffd6f7]',
-    '[--color-graph-scrollbar-thumb:#5b2a86]',
-    '[--color-timeline-scrollbar-thumb:#5b2a86]',
-    '[--color-timeline-scrollbar-track:#150022]',
-    '[--color-timeline-scrollbar-track-webkit:#1a0030]',
-    '[--color-runner-resize-handle-bg:#1a0030]',
-    '[--color-runner-resize-handle-hover-bg:#2a0845]',
-    '[--color-graph-toggle-track-bg:#1a0030]',
-    '[--color-drag-list-item-hover-bg:#3b0a5e]',
-    '[--color-running-glow-strong:rgba(255,43,214,0.5)]',
-    '[--color-running-glow-soft:rgba(255,43,214,0.3)]',
+    'rbn:bg-[#0b0014]',
+    'rbn:[--color-graph-menu-bg:#150022]',
+    'rbn:[--color-graph-menu-item-hover-bg:#3b0a5e]',
+    'rbn:[--color-graph-elevated-surface-bg:#10001d]',
+    'rbn:[--color-graph-node-panel-content-bg:#1d0033]',
+    'rbn:[--color-timeline-loop-accent:#ff2bd6]',
+    'rbn:[--color-timeline-switch-accent:#00ffd5]',
+    'rbn:[--color-timeline-scrubber-active:#ff2bd6]',
+    'rbn:[--color-timeline-scrubber-line:rgba(255,43,214,0.55)]',
+    'rbn:[--color-timeline-scrubber-line-active:rgba(255,43,214,0.85)]',
+    'rbn:[--color-runner-muted-text:#b07ad1]',
+    'rbn:[--color-timeline-hover-text:#ffd6f7]',
+    'rbn:[--color-edge-value-pill-bg:#1a0030]',
+    'rbn:[--color-edge-value-pill-border:#ff2bd6]',
+    'rbn:[--color-edge-value-pill-text:#ffd6f7]',
+    'rbn:[--color-graph-scrollbar-thumb:#5b2a86]',
+    'rbn:[--color-timeline-scrollbar-thumb:#5b2a86]',
+    'rbn:[--color-timeline-scrollbar-track:#150022]',
+    'rbn:[--color-timeline-scrollbar-track-webkit:#1a0030]',
+    'rbn:[--color-runner-resize-handle-bg:#1a0030]',
+    'rbn:[--color-runner-resize-handle-hover-bg:#2a0845]',
+    'rbn:[--color-graph-toggle-track-bg:#1a0030]',
+    'rbn:[--color-drag-list-item-hover-bg:#3b0a5e]',
+    'rbn:[--color-running-glow-strong:rgba(255,43,214,0.5)]',
+    'rbn:[--color-running-glow-soft:rgba(255,43,214,0.3)]',
   ].join(' '),
   reactFlow: {
     colorMode: 'dark',
@@ -573,83 +579,86 @@ const neonHeistTheme: GraphTheme = {
   },
   node: {
     container:
-      'in-[.selected]:border-fuchsia-400 focus:border-fuchsia-400 shadow-[0_0_24px_rgba(255,43,214,0.18)]',
-    header: 'uppercase tracking-[0.12em] text-[20px]',
-    body: 'bg-[#1e0238] border-x border-b border-fuchsia-500/50',
-    inputField: 'bg-[#1d0033] border-fuchsia-500/40 text-fuchsia-100',
+      'rbn:in-[.selected]:border-fuchsia-400 rbn:focus:border-fuchsia-400 rbn:shadow-[0_0_24px_rgba(255,43,214,0.18)]',
+    header: 'rbn:uppercase rbn:tracking-[0.12em] rbn:text-[20px]',
+    body: 'rbn:bg-[#1e0238] rbn:border-x rbn:border-b rbn:border-fuchsia-500/50',
+    inputField:
+      'rbn:bg-[#1d0033] rbn:border-fuchsia-500/40 rbn:text-fuchsia-100',
   },
   // The shared portaled-popover surface — themes BOTH the runner overflow menus
   // and the connection-order reorder badge at once (root vars can't reach a portal).
   popover: {
-    surface: `[--color-graph-elevated-surface-bg:#10001d] border-fuchsia-500/30 ${NEON_TEXT}`,
+    surface: `rbn:[--color-graph-elevated-surface-bg:#10001d] rbn:border-fuchsia-500/30 ${NEON_TEXT}`,
   },
   statusIndicator: {
-    tooltip: 'bg-[#150022] border-fuchsia-400/60 text-fuchsia-100',
+    tooltip: 'rbn:bg-[#150022] rbn:border-fuchsia-400/60 rbn:text-fuchsia-100',
   },
   contextMenu: {
-    list: 'bg-[#150022] border border-fuchsia-500/30 shadow-[0_0_30px_rgba(255,43,214,0.25)]',
-    item: 'hover:bg-fuchsia-500/20',
-    itemLabel: 'text-fuchsia-100',
-    shortcut: 'text-fuchsia-400/70',
-    separator: 'border-fuchsia-500/30',
+    list: 'rbn:bg-[#150022] rbn:border rbn:border-fuchsia-500/30 rbn:shadow-[0_0_30px_rgba(255,43,214,0.25)]',
+    item: 'rbn:hover:bg-fuchsia-500/20',
+    itemLabel: 'rbn:text-fuchsia-100',
+    shortcut: 'rbn:text-fuchsia-400/70',
+    separator: 'rbn:border-fuchsia-500/30',
     submenuPanel:
-      'bg-[#150022] border border-fuchsia-500/30 shadow-[0_0_30px_rgba(255,43,214,0.25)]',
+      'rbn:bg-[#150022] rbn:border rbn:border-fuchsia-500/30 rbn:shadow-[0_0_30px_rgba(255,43,214,0.25)]',
   },
   breadcrumbs: {
-    backButton: 'bg-[#150022] border-fuchsia-500/40 text-fuchsia-100',
+    backButton:
+      'rbn:bg-[#150022] rbn:border-fuchsia-500/40 rbn:text-fuchsia-100',
     selectTrigger:
-      'bg-[#150022] border-fuchsia-500/40 text-fuchsia-100 hover:bg-fuchsia-500/20',
-    list: 'text-fuchsia-100',
-    editButton: 'text-fuchsia-100 hover:bg-fuchsia-500/20',
+      'rbn:bg-[#150022] rbn:border-fuchsia-500/40 rbn:text-fuchsia-100 rbn:hover:bg-fuchsia-500/20',
+    list: 'rbn:text-fuchsia-100',
+    editButton: 'rbn:text-fuchsia-100 rbn:hover:bg-fuchsia-500/20',
   },
   runnerToggleButton:
-    'bg-[#150022]/90 border-fuchsia-500/40 text-fuchsia-100 hover:bg-fuchsia-500/20',
+    'rbn:bg-[#150022]/90 rbn:border-fuchsia-500/40 rbn:text-fuchsia-100 rbn:hover:bg-fuchsia-500/20',
   runnerPanel: {
-    container: `bg-[#10001d] border-fuchsia-500/30 ${NEON_TEXT}`,
-    overflowMenu: `[--color-graph-elevated-surface-bg:#10001d] [--color-graph-toggle-track-bg:#1a0030] border-fuchsia-500/30 ${NEON_TEXT}`,
-    overflowMenuItem: 'hover:bg-fuchsia-500/20',
-    overflowMenuItemActive: 'bg-fuchsia-500/30 text-fuchsia-50',
+    container: `rbn:bg-[#10001d] rbn:border-fuchsia-500/30 ${NEON_TEXT}`,
+    overflowMenu: `rbn:[--color-graph-elevated-surface-bg:#10001d] rbn:[--color-graph-toggle-track-bg:#1a0030] rbn:border-fuchsia-500/30 ${NEON_TEXT}`,
+    overflowMenuItem: 'rbn:hover:bg-fuchsia-500/20',
+    overflowMenuItemActive: 'rbn:bg-fuchsia-500/30 rbn:text-fuchsia-50',
   },
   runControls: {
-    container: 'bg-[#150022] border-fuchsia-500/20',
-    playButton: 'bg-fuchsia-600 shadow-[0_0_16px_rgba(255,43,214,0.6)]',
-    divider: 'bg-fuchsia-500/30',
+    container: 'rbn:bg-[#150022] rbn:border-fuchsia-500/20',
+    playButton: 'rbn:bg-fuchsia-600 rbn:shadow-[0_0_16px_rgba(255,43,214,0.6)]',
+    divider: 'rbn:bg-fuchsia-500/30',
   },
   timeline: {
-    container: `bg-[#10001d] ${NEON_TEXT}`,
-    toolbar: 'bg-[#10001d]',
-    trackArea: 'bg-[#0b0014] border-fuchsia-500/20',
-    ruler: 'bg-[#1a0030]',
-    navButton: 'border-fuchsia-500/30',
+    container: `rbn:bg-[#10001d] ${NEON_TEXT}`,
+    toolbar: 'rbn:bg-[#10001d]',
+    trackArea: 'rbn:bg-[#0b0014] rbn:border-fuchsia-500/20',
+    ruler: 'rbn:bg-[#1a0030]',
+    navButton: 'rbn:border-fuchsia-500/30',
   },
   inspector: {
-    container: `bg-[#10001d] ${NEON_TEXT}`,
-    sectionHeader: 'bg-[#1a0030] text-fuchsia-100 border-fuchsia-500/20',
-    valueBox: 'bg-[#150022] border-fuchsia-500/30 text-fuchsia-100',
-    timelineBox: 'bg-[#150022] border-fuchsia-500/30',
+    container: `rbn:bg-[#10001d] ${NEON_TEXT}`,
+    sectionHeader:
+      'rbn:bg-[#1a0030] rbn:text-fuchsia-100 rbn:border-fuchsia-500/20',
+    valueBox: 'rbn:bg-[#150022] rbn:border-fuchsia-500/30 rbn:text-fuchsia-100',
+    timelineBox: 'rbn:bg-[#150022] rbn:border-fuchsia-500/30',
   },
   drawer: {
-    container: `bg-[#10001d] border-fuchsia-500/30 ${NEON_TEXT}`,
-    title: 'text-fuchsia-100',
-    label: 'text-fuchsia-200',
-    footerButton: 'border-fuchsia-500/40',
+    container: `rbn:bg-[#10001d] rbn:border-fuchsia-500/30 ${NEON_TEXT}`,
+    title: 'rbn:text-fuchsia-100',
+    label: 'rbn:text-fuchsia-200',
+    footerButton: 'rbn:border-fuchsia-500/40',
   },
   modal: {
-    content: `bg-[#150022] border-fuchsia-500/30 ${NEON_TEXT}`,
-    title: 'text-fuchsia-100',
+    content: `rbn:bg-[#150022] rbn:border-fuchsia-500/30 ${NEON_TEXT}`,
+    title: 'rbn:text-fuchsia-100',
   },
-  connectionMiniMap: { container: 'border-fuchsia-500/30' },
+  connectionMiniMap: { container: 'rbn:border-fuchsia-500/30' },
   dragList: {
-    row: 'bg-[#1d0033] text-fuchsia-100 hover:bg-fuchsia-500/20',
-    preview: 'bg-[#1d0033] border-fuchsia-500/40',
+    row: 'rbn:bg-[#1d0033] rbn:text-fuchsia-100 rbn:hover:bg-fuchsia-500/20',
+    preview: 'rbn:bg-[#1d0033] rbn:border-fuchsia-500/40',
   },
   select: {
-    trigger: 'bg-[#1d0033] text-fuchsia-100 border-fuchsia-500/30',
-    content: `bg-[#150022] border-fuchsia-500/30 text-fuchsia-100 ${NEON_TEXT}`,
-    item: 'hover:bg-fuchsia-500/20',
+    trigger: 'rbn:bg-[#1d0033] rbn:text-fuchsia-100 rbn:border-fuchsia-500/30',
+    content: `rbn:bg-[#150022] rbn:border-fuchsia-500/30 rbn:text-fuchsia-100 ${NEON_TEXT}`,
+    item: 'rbn:hover:bg-fuchsia-500/20',
   },
   tooltip: {
-    content: `bg-[#150022] border-fuchsia-400/60 text-fuchsia-100 ${NEON_TEXT}`,
+    content: `rbn:bg-[#150022] rbn:border-fuchsia-400/60 rbn:text-fuchsia-100 ${NEON_TEXT}`,
   },
 };
 
@@ -657,32 +666,32 @@ const neonHeistTheme: GraphTheme = {
 const terminalGreenTheme: GraphTheme = {
   // Shared portaled-popover surface — overflow menus AND the reorder badge.
   popover: {
-    surface: `rounded-none [--color-graph-elevated-surface-bg:#020a04] [--color-graph-toggle-track-bg:#01140a] border-green-500/30 ${TERMINAL_TEXT}`,
+    surface: `rbn:rounded-none rbn:[--color-graph-elevated-surface-bg:#020a04] rbn:[--color-graph-toggle-track-bg:#01140a] rbn:border-green-500/30 ${TERMINAL_TEXT}`,
   },
   root: [
-    'bg-black',
-    '[--color-graph-menu-bg:#000000]',
-    '[--color-graph-menu-item-hover-bg:#052e16]',
-    '[--color-graph-elevated-surface-bg:#020a04]',
-    '[--color-graph-node-panel-content-bg:#01140a]',
-    '[--color-timeline-loop-accent:#22c55e]',
-    '[--color-timeline-switch-accent:#a3e635]',
-    '[--color-timeline-scrubber-active:#22c55e]',
-    '[--color-timeline-scrubber-line:rgba(34,197,94,0.55)]',
-    '[--color-timeline-scrubber-line-active:rgba(34,197,94,0.85)]',
-    '[--color-runner-muted-text:#16a34a]',
-    '[--color-timeline-hover-text:#bbf7d0]',
-    '[--color-edge-value-pill-bg:#000000]',
-    '[--color-edge-value-pill-border:#22c55e]',
-    '[--color-edge-value-pill-text:#86efac]',
-    '[--color-graph-scrollbar-thumb:#14532d]',
-    '[--color-timeline-scrollbar-thumb:#14532d]',
-    '[--color-timeline-scrollbar-track:#020a04]',
-    '[--color-timeline-scrollbar-track-webkit:#01140a]',
-    '[--color-runner-resize-handle-bg:#01140a]',
-    '[--color-runner-resize-handle-hover-bg:#052e16]',
-    '[--color-graph-toggle-track-bg:#01140a]',
-    '[--color-drag-list-item-hover-bg:#052e16]',
+    'rbn:bg-black',
+    'rbn:[--color-graph-menu-bg:#000000]',
+    'rbn:[--color-graph-menu-item-hover-bg:#052e16]',
+    'rbn:[--color-graph-elevated-surface-bg:#020a04]',
+    'rbn:[--color-graph-node-panel-content-bg:#01140a]',
+    'rbn:[--color-timeline-loop-accent:#22c55e]',
+    'rbn:[--color-timeline-switch-accent:#a3e635]',
+    'rbn:[--color-timeline-scrubber-active:#22c55e]',
+    'rbn:[--color-timeline-scrubber-line:rgba(34,197,94,0.55)]',
+    'rbn:[--color-timeline-scrubber-line-active:rgba(34,197,94,0.85)]',
+    'rbn:[--color-runner-muted-text:#16a34a]',
+    'rbn:[--color-timeline-hover-text:#bbf7d0]',
+    'rbn:[--color-edge-value-pill-bg:#000000]',
+    'rbn:[--color-edge-value-pill-border:#22c55e]',
+    'rbn:[--color-edge-value-pill-text:#86efac]',
+    'rbn:[--color-graph-scrollbar-thumb:#14532d]',
+    'rbn:[--color-timeline-scrollbar-thumb:#14532d]',
+    'rbn:[--color-timeline-scrollbar-track:#020a04]',
+    'rbn:[--color-timeline-scrollbar-track-webkit:#01140a]',
+    'rbn:[--color-runner-resize-handle-bg:#01140a]',
+    'rbn:[--color-runner-resize-handle-hover-bg:#052e16]',
+    'rbn:[--color-graph-toggle-track-bg:#01140a]',
+    'rbn:[--color-drag-list-item-hover-bg:#052e16]',
   ].join(' '),
   reactFlow: {
     colorMode: 'dark',
@@ -702,84 +711,91 @@ const terminalGreenTheme: GraphTheme = {
   },
   node: {
     container:
-      'rounded-none in-[.selected]:border-green-400 focus:border-green-400',
-    header: 'saturate-0 brightness-110 rounded-none font-mono text-[20px]',
-    headerTitle: 'font-mono',
-    body: 'rounded-none bg-[#06160d] border border-green-500/60',
-    outputRow: 'text-green-300 font-mono',
-    inputRow: 'text-green-300 font-mono',
-    panelHeader: 'text-green-300 font-mono hover:bg-green-500/10',
+      'rbn:rounded-none rbn:in-[.selected]:border-green-400 rbn:focus:border-green-400',
+    header:
+      'rbn:saturate-0 rbn:brightness-110 rbn:rounded-none rbn:font-mono rbn:text-[20px]',
+    headerTitle: 'rbn:font-mono',
+    body: 'rbn:rounded-none rbn:bg-[#06160d] rbn:border rbn:border-green-500/60',
+    outputRow: 'rbn:text-green-300 rbn:font-mono',
+    inputRow: 'rbn:text-green-300 rbn:font-mono',
+    panelHeader: 'rbn:text-green-300 rbn:font-mono rbn:hover:bg-green-500/10',
     inputField:
-      'rounded-none bg-black border-green-500/40 text-green-200 font-mono',
+      'rbn:rounded-none rbn:bg-black rbn:border-green-500/40 rbn:text-green-200 rbn:font-mono',
   },
   statusIndicator: {
-    tooltip: 'bg-black border-green-500/60 text-green-200 font-mono',
+    tooltip:
+      'rbn:bg-black rbn:border-green-500/60 rbn:text-green-200 rbn:font-mono',
   },
   contextMenu: {
-    list: 'rounded-none bg-black border border-green-500/40',
-    item: 'hover:bg-green-500/10',
-    itemLabel: 'text-green-300 font-mono',
-    shortcut: 'text-green-700 font-mono',
-    separator: 'border-green-500/40',
-    submenuPanel: 'rounded-none bg-black border border-green-500/40',
+    list: 'rbn:rounded-none rbn:bg-black rbn:border rbn:border-green-500/40',
+    item: 'rbn:hover:bg-green-500/10',
+    itemLabel: 'rbn:text-green-300 rbn:font-mono',
+    shortcut: 'rbn:text-green-700 rbn:font-mono',
+    separator: 'rbn:border-green-500/40',
+    submenuPanel:
+      'rbn:rounded-none rbn:bg-black rbn:border rbn:border-green-500/40',
   },
   breadcrumbs: {
-    backButton: 'rounded-none bg-black border-green-500/40 text-green-300',
+    backButton:
+      'rbn:rounded-none rbn:bg-black rbn:border-green-500/40 rbn:text-green-300',
     selectTrigger:
-      'rounded-none bg-black border-green-500/40 text-green-300 hover:bg-green-500/10',
-    list: 'text-green-300 font-mono',
-    editButton: 'text-green-300 hover:bg-green-500/10',
+      'rbn:rounded-none rbn:bg-black rbn:border-green-500/40 rbn:text-green-300 rbn:hover:bg-green-500/10',
+    list: 'rbn:text-green-300 rbn:font-mono',
+    editButton: 'rbn:text-green-300 rbn:hover:bg-green-500/10',
   },
   runnerToggleButton:
-    'rounded-none bg-black/90 border-green-500/40 text-green-300 font-mono hover:bg-green-500/10',
+    'rbn:rounded-none rbn:bg-black/90 rbn:border-green-500/40 rbn:text-green-300 rbn:font-mono rbn:hover:bg-green-500/10',
   runnerPanel: {
-    container: `rounded-none bg-[#020a04] border-green-500/30 ${TERMINAL_TEXT}`,
-    overflowMenu: `rounded-none [--color-graph-elevated-surface-bg:#020a04] [--color-graph-toggle-track-bg:#01140a] border-green-500/30 ${TERMINAL_TEXT}`,
-    overflowMenuItem: 'hover:bg-green-500/20',
-    overflowMenuItemActive: 'bg-green-500/30 text-green-100',
+    container: `rbn:rounded-none rbn:bg-[#020a04] rbn:border-green-500/30 ${TERMINAL_TEXT}`,
+    overflowMenu: `rbn:rounded-none rbn:[--color-graph-elevated-surface-bg:#020a04] rbn:[--color-graph-toggle-track-bg:#01140a] rbn:border-green-500/30 ${TERMINAL_TEXT}`,
+    overflowMenuItem: 'rbn:hover:bg-green-500/20',
+    overflowMenuItemActive: 'rbn:bg-green-500/30 rbn:text-green-100',
   },
   runControls: {
-    container: 'bg-black border-green-500/30',
+    container: 'rbn:bg-black rbn:border-green-500/30',
     playButton:
-      'rounded-none bg-green-700 shadow-[0_0_12px_rgba(34,197,94,0.5)]',
-    actionButton: 'rounded-none hover:bg-green-500/10',
-    divider: 'bg-green-500/30',
+      'rbn:rounded-none rbn:bg-green-700 rbn:shadow-[0_0_12px_rgba(34,197,94,0.5)]',
+    actionButton: 'rbn:rounded-none rbn:hover:bg-green-500/10',
+    divider: 'rbn:bg-green-500/30',
   },
   timeline: {
-    container: `bg-[#020a04] ${TERMINAL_TEXT}`,
-    toolbar: 'bg-[#020a04]',
-    trackArea: 'rounded-none bg-black border-green-500/30',
-    ruler: 'bg-[#01140a]',
-    navButton: 'rounded-none border-green-500/30',
+    container: `rbn:bg-[#020a04] ${TERMINAL_TEXT}`,
+    toolbar: 'rbn:bg-[#020a04]',
+    trackArea: 'rbn:rounded-none rbn:bg-black rbn:border-green-500/30',
+    ruler: 'rbn:bg-[#01140a]',
+    navButton: 'rbn:rounded-none rbn:border-green-500/30',
   },
   inspector: {
-    container: `bg-[#020a04] ${TERMINAL_TEXT}`,
-    sectionHeader: 'bg-[#01140a] text-green-300 border-green-500/30',
-    valueBox: 'rounded-none bg-black border-green-500/40 text-green-200',
-    timelineBox: 'rounded-none bg-black border-green-500/40',
+    container: `rbn:bg-[#020a04] ${TERMINAL_TEXT}`,
+    sectionHeader:
+      'rbn:bg-[#01140a] rbn:text-green-300 rbn:border-green-500/30',
+    valueBox:
+      'rbn:rounded-none rbn:bg-black rbn:border-green-500/40 rbn:text-green-200',
+    timelineBox: 'rbn:rounded-none rbn:bg-black rbn:border-green-500/40',
   },
   drawer: {
-    container: `bg-[#020a04] border-green-500/30 ${TERMINAL_TEXT}`,
-    title: 'text-green-300 font-mono',
-    label: 'text-green-300 font-mono',
-    footerButton: 'rounded-none border-green-500/40',
+    container: `rbn:bg-[#020a04] rbn:border-green-500/30 ${TERMINAL_TEXT}`,
+    title: 'rbn:text-green-300 rbn:font-mono',
+    label: 'rbn:text-green-300 rbn:font-mono',
+    footerButton: 'rbn:rounded-none rbn:border-green-500/40',
   },
   modal: {
-    content: `rounded-none bg-black border-green-500/40 ${TERMINAL_TEXT}`,
-    title: 'text-green-300 font-mono',
+    content: `rbn:rounded-none rbn:bg-black rbn:border-green-500/40 ${TERMINAL_TEXT}`,
+    title: 'rbn:text-green-300 rbn:font-mono',
   },
-  connectionMiniMap: { container: 'rounded-none border-green-500/40' },
+  connectionMiniMap: { container: 'rbn:rounded-none rbn:border-green-500/40' },
   dragList: {
-    row: 'rounded-none bg-[#01140a] text-green-300 hover:bg-green-500/10',
-    preview: 'rounded-none bg-[#01140a] border-green-500/40',
+    row: 'rbn:rounded-none rbn:bg-[#01140a] rbn:text-green-300 rbn:hover:bg-green-500/10',
+    preview: 'rbn:rounded-none rbn:bg-[#01140a] rbn:border-green-500/40',
   },
   select: {
-    trigger: 'rounded-none bg-black text-green-300 border-green-500/40',
-    content: `rounded-none bg-black border-green-500/40 text-green-300 ${TERMINAL_TEXT}`,
-    item: 'hover:bg-green-500/10',
+    trigger:
+      'rbn:rounded-none rbn:bg-black rbn:text-green-300 rbn:border-green-500/40',
+    content: `rbn:rounded-none rbn:bg-black rbn:border-green-500/40 rbn:text-green-300 ${TERMINAL_TEXT}`,
+    item: 'rbn:hover:bg-green-500/10',
   },
   tooltip: {
-    content: `rounded-none bg-black border-green-500/60 text-green-200 ${TERMINAL_TEXT}`,
+    content: `rbn:rounded-none rbn:bg-black rbn:border-green-500/60 rbn:text-green-200 ${TERMINAL_TEXT}`,
   },
 };
 
@@ -787,31 +803,31 @@ const terminalGreenTheme: GraphTheme = {
 const sunsetPaperTheme: GraphTheme = {
   // Shared portaled-popover surface — overflow menus AND the reorder badge.
   popover: {
-    surface: `bg-[#fff8ec] border-amber-300 ${PAPER_TEXT} [--color-graph-toggle-track-bg:#f3e3c6] [--color-primary-gray:#e0cda8] [&_.border-secondary-dark-gray]:border-amber-300`,
+    surface: `rbn:bg-[#fff8ec] rbn:border-amber-300 ${PAPER_TEXT} rbn:[--color-graph-toggle-track-bg:#f3e3c6] rbn:[--color-primary-gray:#e0cda8] rbn:[&_.rbn\\:border-secondary-dark-gray]:border-amber-300`,
   },
   root: [
-    'bg-[#fdf4e3]',
-    '[--color-graph-menu-bg:#fff8ec]',
-    '[--color-graph-menu-item-hover-bg:#fde8c8]',
-    '[--color-graph-elevated-surface-bg:#fffbf2]',
-    '[--color-graph-node-panel-content-bg:#f8ecd9]',
-    '[--color-timeline-loop-accent:#ea580c]',
-    '[--color-timeline-switch-accent:#0d9488]',
-    '[--color-runner-muted-text:#a8825f]',
-    '[--color-timeline-hover-text:#431407]',
-    '[--color-edge-value-pill-bg:#fff8ec]',
-    '[--color-edge-value-pill-border:#ddb892]',
-    '[--color-edge-value-pill-text:#431407]',
-    '[--color-graph-scrollbar-thumb:#d9b991]',
-    '[--color-timeline-scrollbar-thumb:#d9b991]',
-    '[--color-timeline-scrollbar-track:#f4e4cb]',
-    '[--color-timeline-scrollbar-track-webkit:#f0ddc0]',
-    '[--color-runner-resize-handle-bg:#f4e4cb]',
-    '[--color-runner-resize-handle-hover-bg:#ecd5b3]',
-    '[--color-graph-toggle-track-bg:#f4e4cb]',
-    '[--color-drag-list-item-hover-bg:#f0ddc0]',
-    '[--color-primary-gray:#e3cba4]',
-    '[--color-inspector-progress-track:#ecd5b3]',
+    'rbn:bg-[#fdf4e3]',
+    'rbn:[--color-graph-menu-bg:#fff8ec]',
+    'rbn:[--color-graph-menu-item-hover-bg:#fde8c8]',
+    'rbn:[--color-graph-elevated-surface-bg:#fffbf2]',
+    'rbn:[--color-graph-node-panel-content-bg:#f8ecd9]',
+    'rbn:[--color-timeline-loop-accent:#ea580c]',
+    'rbn:[--color-timeline-switch-accent:#0d9488]',
+    'rbn:[--color-runner-muted-text:#a8825f]',
+    'rbn:[--color-timeline-hover-text:#431407]',
+    'rbn:[--color-edge-value-pill-bg:#fff8ec]',
+    'rbn:[--color-edge-value-pill-border:#ddb892]',
+    'rbn:[--color-edge-value-pill-text:#431407]',
+    'rbn:[--color-graph-scrollbar-thumb:#d9b991]',
+    'rbn:[--color-timeline-scrollbar-thumb:#d9b991]',
+    'rbn:[--color-timeline-scrollbar-track:#f4e4cb]',
+    'rbn:[--color-timeline-scrollbar-track-webkit:#f0ddc0]',
+    'rbn:[--color-runner-resize-handle-bg:#f4e4cb]',
+    'rbn:[--color-runner-resize-handle-hover-bg:#ecd5b3]',
+    'rbn:[--color-graph-toggle-track-bg:#f4e4cb]',
+    'rbn:[--color-drag-list-item-hover-bg:#f0ddc0]',
+    'rbn:[--color-primary-gray:#e3cba4]',
+    'rbn:[--color-inspector-progress-track:#ecd5b3]',
   ].join(' '),
   reactFlow: {
     colorMode: 'light',
@@ -829,98 +845,103 @@ const sunsetPaperTheme: GraphTheme = {
     },
   },
   node: {
-    container: 'focus:border-amber-700 in-[.selected]:border-amber-700',
-    header: 'rounded-t-xl',
-    body: 'bg-[#fffaf0] rounded-b-xl border-x border-b border-amber-200',
-    outputRow: 'text-stone-800',
-    inputRow: 'text-stone-800',
-    panelHeader: 'text-stone-800 hover:bg-amber-100',
+    container: 'rbn:focus:border-amber-700 rbn:in-[.selected]:border-amber-700',
+    header: 'rbn:rounded-t-xl',
+    body: 'rbn:bg-[#fffaf0] rbn:rounded-b-xl rbn:border-x rbn:border-b rbn:border-amber-200',
+    outputRow: 'rbn:text-stone-800',
+    inputRow: 'rbn:text-stone-800',
+    panelHeader: 'rbn:text-stone-800 rbn:hover:bg-amber-100',
     inputField:
-      'bg-white text-stone-800 border-amber-300 placeholder:text-stone-400',
+      'rbn:bg-white rbn:text-stone-800 rbn:border-amber-300 rbn:placeholder:text-stone-400',
   },
   statusIndicator: {
-    tooltip: 'bg-[#fff8ec] border-amber-300 text-stone-800',
+    tooltip: 'rbn:bg-[#fff8ec] rbn:border-amber-300 rbn:text-stone-800',
   },
   contextMenu: {
-    list: 'bg-[#fff8ec] border-amber-200 shadow-amber-900/10',
-    item: 'hover:bg-amber-100',
-    itemLabel: 'text-stone-800',
-    shortcut: 'text-stone-500',
-    separator: 'border-amber-200',
-    submenuPanel: 'bg-[#fff8ec] shadow-amber-900/10',
+    list: 'rbn:bg-[#fff8ec] rbn:border-amber-200 rbn:shadow-amber-900/10',
+    item: 'rbn:hover:bg-amber-100',
+    itemLabel: 'rbn:text-stone-800',
+    shortcut: 'rbn:text-stone-500',
+    separator: 'rbn:border-amber-200',
+    submenuPanel: 'rbn:bg-[#fff8ec] rbn:shadow-amber-900/10',
   },
   breadcrumbs: {
-    backButton: 'bg-[#fff8ec] border-amber-300 text-stone-800',
+    backButton: 'rbn:bg-[#fff8ec] rbn:border-amber-300 rbn:text-stone-800',
     selectTrigger:
-      'bg-[#fff8ec] border-amber-300 text-stone-800 hover:bg-amber-100',
-    list: 'text-stone-800',
-    editButton: 'text-stone-800 hover:bg-amber-100',
+      'rbn:bg-[#fff8ec] rbn:border-amber-300 rbn:text-stone-800 rbn:hover:bg-amber-100',
+    list: 'rbn:text-stone-800',
+    editButton: 'rbn:text-stone-800 rbn:hover:bg-amber-100',
   },
   errorBoundary: {
-    container: 'bg-[#fdf4e3] text-stone-700',
-    retryButton: 'border-amber-300 bg-white text-stone-700 hover:bg-amber-100',
+    container: 'rbn:bg-[#fdf4e3] rbn:text-stone-700',
+    retryButton:
+      'rbn:border-amber-300 rbn:bg-white rbn:text-stone-700 rbn:hover:bg-amber-100',
   },
   runnerToggleButton:
-    'border-amber-300 bg-[#fff8ec]/90 text-stone-800 hover:bg-amber-100',
+    'rbn:border-amber-300 rbn:bg-[#fff8ec]/90 rbn:text-stone-800 rbn:hover:bg-amber-100',
   runnerPanel: {
-    container: `bg-[#faf0de] border-amber-300 ${PAPER_TEXT}`,
-    closeButton: 'text-stone-500 hover:bg-amber-100 hover:text-stone-800',
-    overflowMenu: `bg-[#fff8ec] border-amber-300 ${PAPER_TEXT} [--color-graph-toggle-track-bg:#f3e3c6] [--color-primary-gray:#e0cda8] [&_.border-secondary-dark-gray]:border-amber-300`,
-    overflowMenuItem: 'hover:bg-amber-100 hover:text-stone-900',
-    overflowMenuItemActive: 'bg-amber-200 text-stone-900',
+    container: `rbn:bg-[#faf0de] rbn:border-amber-300 ${PAPER_TEXT}`,
+    closeButton:
+      'rbn:text-stone-500 rbn:hover:bg-amber-100 rbn:hover:text-stone-800',
+    overflowMenu: `rbn:bg-[#fff8ec] rbn:border-amber-300 ${PAPER_TEXT} rbn:[--color-graph-toggle-track-bg:#f3e3c6] rbn:[--color-primary-gray:#e0cda8] rbn:[&_.rbn\\:border-secondary-dark-gray]:border-amber-300`,
+    overflowMenuItem: 'rbn:hover:bg-amber-100 rbn:hover:text-stone-900',
+    overflowMenuItemActive: 'rbn:bg-amber-200 rbn:text-stone-900',
   },
   runControls: {
-    container: 'bg-[#f6ead2] border-amber-200',
-    statusLabel: 'text-stone-800',
-    divider: 'bg-amber-200',
-    actionButton: 'text-stone-700 hover:bg-amber-100 hover:text-stone-900',
-    playButton: 'bg-orange-600 shadow-[0_0_12px_rgba(234,88,12,0.4)]',
+    container: 'rbn:bg-[#f6ead2] rbn:border-amber-200',
+    statusLabel: 'rbn:text-stone-800',
+    divider: 'rbn:bg-amber-200',
+    actionButton:
+      'rbn:text-stone-700 rbn:hover:bg-amber-100 rbn:hover:text-stone-900',
+    playButton: 'rbn:bg-orange-600 rbn:shadow-[0_0_12px_rgba(234,88,12,0.4)]',
   },
   timeline: {
-    container: `bg-[#f6ead2] ${PAPER_TEXT}`,
-    toolbar: 'bg-[#f6ead2]',
-    toolbarButton: 'text-stone-800 hover:bg-amber-100',
-    navButton: 'border-amber-300 bg-white text-stone-700 hover:bg-amber-200',
-    ruler: 'bg-[#f0ddc0]',
-    trackArea: 'bg-[#fffaf0] border-amber-200',
-    loopHeader: 'bg-[#f6ead2]',
-    switchHeader: 'bg-[#f6ead2]',
+    container: `rbn:bg-[#f6ead2] ${PAPER_TEXT}`,
+    toolbar: 'rbn:bg-[#f6ead2]',
+    toolbarButton: 'rbn:text-stone-800 rbn:hover:bg-amber-100',
+    navButton:
+      'rbn:border-amber-300 rbn:bg-white rbn:text-stone-700 rbn:hover:bg-amber-200',
+    ruler: 'rbn:bg-[#f0ddc0]',
+    trackArea: 'rbn:bg-[#fffaf0] rbn:border-amber-200',
+    loopHeader: 'rbn:bg-[#f6ead2]',
+    switchHeader: 'rbn:bg-[#f6ead2]',
   },
   inspector: {
-    container: `bg-[#faf0de] ${PAPER_TEXT}`,
-    header: 'border-amber-200',
-    sectionHeader: 'bg-[#f0ddc0] text-stone-800 border-amber-200',
-    valueBox: 'bg-white border-amber-300 text-stone-800',
-    timelineBox: 'bg-[#f6ead2] border-amber-300',
-    contextBox: 'border-amber-300',
+    container: `rbn:bg-[#faf0de] ${PAPER_TEXT}`,
+    header: 'rbn:border-amber-200',
+    sectionHeader: 'rbn:bg-[#f0ddc0] rbn:text-stone-800 rbn:border-amber-200',
+    valueBox: 'rbn:bg-white rbn:border-amber-300 rbn:text-stone-800',
+    timelineBox: 'rbn:bg-[#f6ead2] rbn:border-amber-300',
+    contextBox: 'rbn:border-amber-300',
   },
   drawer: {
-    container: `bg-[#faf0de] border-amber-300 ${PAPER_TEXT}`,
-    header: 'border-amber-200',
-    title: 'text-stone-800',
-    closeButton: 'hover:bg-amber-100',
-    footer: 'border-amber-200',
-    label: 'text-stone-800',
-    emptyState: 'text-stone-500',
+    container: `rbn:bg-[#faf0de] rbn:border-amber-300 ${PAPER_TEXT}`,
+    header: 'rbn:border-amber-200',
+    title: 'rbn:text-stone-800',
+    closeButton: 'rbn:hover:bg-amber-100',
+    footer: 'rbn:border-amber-200',
+    label: 'rbn:text-stone-800',
+    emptyState: 'rbn:text-stone-500',
     footerButton:
-      'bg-amber-100 text-stone-800 border-amber-300 hover:bg-amber-200',
+      'rbn:bg-amber-100 rbn:text-stone-800 rbn:border-amber-300 rbn:hover:bg-amber-200',
   },
   modal: {
-    content: `bg-[#faf0de] border-amber-300 ${PAPER_TEXT}`,
-    title: 'text-stone-800',
+    content: `rbn:bg-[#faf0de] rbn:border-amber-300 ${PAPER_TEXT}`,
+    title: 'rbn:text-stone-800',
   },
-  connectionMiniMap: { container: 'border-amber-300' },
+  connectionMiniMap: { container: 'rbn:border-amber-300' },
   dragList: {
-    row: 'bg-[#f0ddc0] text-stone-800 hover:bg-amber-200',
-    preview: 'bg-[#f0ddc0] border-amber-300',
+    row: 'rbn:bg-[#f0ddc0] rbn:text-stone-800 rbn:hover:bg-amber-200',
+    preview: 'rbn:bg-[#f0ddc0] rbn:border-amber-300',
   },
   select: {
-    trigger: 'bg-white text-stone-800 border-amber-300 hover:bg-amber-50',
-    content: `bg-[#fff8ec] border-amber-300 text-stone-800 ${PAPER_TEXT}`,
-    item: 'hover:bg-amber-100',
+    trigger:
+      'rbn:bg-white rbn:text-stone-800 rbn:border-amber-300 rbn:hover:bg-amber-50',
+    content: `rbn:bg-[#fff8ec] rbn:border-amber-300 rbn:text-stone-800 ${PAPER_TEXT}`,
+    item: 'rbn:hover:bg-amber-100',
   },
   tooltip: {
-    content: `bg-[#fff8ec] border-amber-400/70 text-stone-800 ${PAPER_TEXT}`,
+    content: `rbn:bg-[#fff8ec] rbn:border-amber-400/70 rbn:text-stone-800 ${PAPER_TEXT}`,
   },
 };
 
@@ -928,32 +949,32 @@ const sunsetPaperTheme: GraphTheme = {
 const deepOceanTheme: GraphTheme = {
   // Shared portaled-popover surface — overflow menus AND the reorder badge.
   popover: {
-    surface: `[--color-graph-elevated-surface-bg:#061827] [--color-graph-toggle-track-bg:#0a2238] border-cyan-500/30 ${OCEAN_TEXT}`,
+    surface: `rbn:[--color-graph-elevated-surface-bg:#061827] rbn:[--color-graph-toggle-track-bg:#0a2238] rbn:border-cyan-500/30 ${OCEAN_TEXT}`,
   },
   root: [
-    'bg-[#04111f]',
-    '[--color-graph-menu-bg:#081c30]',
-    '[--color-graph-menu-item-hover-bg:#0e3a5c]',
-    '[--color-graph-elevated-surface-bg:#061827]',
-    '[--color-graph-node-panel-content-bg:#0a2238]',
-    '[--color-timeline-loop-accent:#22d3ee]',
-    '[--color-timeline-switch-accent:#818cf8]',
-    '[--color-timeline-scrubber-active:#22d3ee]',
-    '[--color-timeline-scrubber-line:rgba(34,211,238,0.5)]',
-    '[--color-timeline-scrubber-line-active:rgba(34,211,238,0.8)]',
-    '[--color-runner-muted-text:#5e88a6]',
-    '[--color-timeline-hover-text:#cffafe]',
-    '[--color-edge-value-pill-bg:#081c30]',
-    '[--color-edge-value-pill-border:#155e75]',
-    '[--color-edge-value-pill-text:#cffafe]',
-    '[--color-graph-scrollbar-thumb:#155e75]',
-    '[--color-timeline-scrollbar-thumb:#155e75]',
-    '[--color-timeline-scrollbar-track:#061827]',
-    '[--color-timeline-scrollbar-track-webkit:#0a2238]',
-    '[--color-runner-resize-handle-bg:#0a2238]',
-    '[--color-runner-resize-handle-hover-bg:#0e3a5c]',
-    '[--color-graph-toggle-track-bg:#0a2238]',
-    '[--color-drag-list-item-hover-bg:#0e3a5c]',
+    'rbn:bg-[#04111f]',
+    'rbn:[--color-graph-menu-bg:#081c30]',
+    'rbn:[--color-graph-menu-item-hover-bg:#0e3a5c]',
+    'rbn:[--color-graph-elevated-surface-bg:#061827]',
+    'rbn:[--color-graph-node-panel-content-bg:#0a2238]',
+    'rbn:[--color-timeline-loop-accent:#22d3ee]',
+    'rbn:[--color-timeline-switch-accent:#818cf8]',
+    'rbn:[--color-timeline-scrubber-active:#22d3ee]',
+    'rbn:[--color-timeline-scrubber-line:rgba(34,211,238,0.5)]',
+    'rbn:[--color-timeline-scrubber-line-active:rgba(34,211,238,0.8)]',
+    'rbn:[--color-runner-muted-text:#5e88a6]',
+    'rbn:[--color-timeline-hover-text:#cffafe]',
+    'rbn:[--color-edge-value-pill-bg:#081c30]',
+    'rbn:[--color-edge-value-pill-border:#155e75]',
+    'rbn:[--color-edge-value-pill-text:#cffafe]',
+    'rbn:[--color-graph-scrollbar-thumb:#155e75]',
+    'rbn:[--color-timeline-scrollbar-thumb:#155e75]',
+    'rbn:[--color-timeline-scrollbar-track:#061827]',
+    'rbn:[--color-timeline-scrollbar-track-webkit:#0a2238]',
+    'rbn:[--color-runner-resize-handle-bg:#0a2238]',
+    'rbn:[--color-runner-resize-handle-hover-bg:#0e3a5c]',
+    'rbn:[--color-graph-toggle-track-bg:#0a2238]',
+    'rbn:[--color-drag-list-item-hover-bg:#0e3a5c]',
   ].join(' '),
   reactFlow: {
     colorMode: 'dark',
@@ -971,76 +992,76 @@ const deepOceanTheme: GraphTheme = {
     },
   },
   node: {
-    container: 'in-[.selected]:border-cyan-300 focus:border-cyan-300',
-    body: 'bg-[#0e2c47] border-x border-b border-cyan-500/50',
-    inputField: 'bg-[#081c30] border-cyan-500/40 text-sky-100',
+    container: 'rbn:in-[.selected]:border-cyan-300 rbn:focus:border-cyan-300',
+    body: 'rbn:bg-[#0e2c47] rbn:border-x rbn:border-b rbn:border-cyan-500/50',
+    inputField: 'rbn:bg-[#081c30] rbn:border-cyan-500/40 rbn:text-sky-100',
   },
   statusIndicator: {
-    tooltip: 'bg-[#081c30] border-cyan-400/60 text-sky-100',
+    tooltip: 'rbn:bg-[#081c30] rbn:border-cyan-400/60 rbn:text-sky-100',
   },
   contextMenu: {
-    list: 'bg-[#081c30] border border-cyan-500/30',
-    item: 'hover:bg-cyan-500/15',
-    itemLabel: 'text-sky-100',
-    shortcut: 'text-sky-400/70',
-    separator: 'border-cyan-500/30',
-    submenuPanel: 'bg-[#081c30] border border-cyan-500/30',
+    list: 'rbn:bg-[#081c30] rbn:border rbn:border-cyan-500/30',
+    item: 'rbn:hover:bg-cyan-500/15',
+    itemLabel: 'rbn:text-sky-100',
+    shortcut: 'rbn:text-sky-400/70',
+    separator: 'rbn:border-cyan-500/30',
+    submenuPanel: 'rbn:bg-[#081c30] rbn:border rbn:border-cyan-500/30',
   },
   breadcrumbs: {
-    backButton: 'bg-[#081c30] border-cyan-500/40 text-sky-100',
+    backButton: 'rbn:bg-[#081c30] rbn:border-cyan-500/40 rbn:text-sky-100',
     selectTrigger:
-      'bg-[#081c30] border-cyan-500/40 text-sky-100 hover:bg-cyan-500/15',
-    list: 'text-sky-100',
-    editButton: 'text-sky-100 hover:bg-cyan-500/15',
+      'rbn:bg-[#081c30] rbn:border-cyan-500/40 rbn:text-sky-100 rbn:hover:bg-cyan-500/15',
+    list: 'rbn:text-sky-100',
+    editButton: 'rbn:text-sky-100 rbn:hover:bg-cyan-500/15',
   },
   runnerToggleButton:
-    'bg-[#081c30]/90 border-cyan-500/40 text-sky-100 hover:bg-cyan-500/15',
+    'rbn:bg-[#081c30]/90 rbn:border-cyan-500/40 rbn:text-sky-100 rbn:hover:bg-cyan-500/15',
   runnerPanel: {
-    container: `bg-[#061827] border-cyan-500/30 ${OCEAN_TEXT}`,
-    overflowMenu: `[--color-graph-elevated-surface-bg:#061827] [--color-graph-toggle-track-bg:#0a2238] border-cyan-500/30 ${OCEAN_TEXT}`,
-    overflowMenuItem: 'hover:bg-cyan-500/20',
-    overflowMenuItemActive: 'bg-cyan-500/30 text-cyan-50',
+    container: `rbn:bg-[#061827] rbn:border-cyan-500/30 ${OCEAN_TEXT}`,
+    overflowMenu: `rbn:[--color-graph-elevated-surface-bg:#061827] rbn:[--color-graph-toggle-track-bg:#0a2238] rbn:border-cyan-500/30 ${OCEAN_TEXT}`,
+    overflowMenuItem: 'rbn:hover:bg-cyan-500/20',
+    overflowMenuItemActive: 'rbn:bg-cyan-500/30 rbn:text-cyan-50',
   },
   runControls: {
-    container: 'bg-[#081c30] border-cyan-500/20',
-    playButton: 'bg-cyan-600 shadow-[0_0_14px_rgba(34,211,238,0.5)]',
-    divider: 'bg-cyan-500/30',
+    container: 'rbn:bg-[#081c30] rbn:border-cyan-500/20',
+    playButton: 'rbn:bg-cyan-600 rbn:shadow-[0_0_14px_rgba(34,211,238,0.5)]',
+    divider: 'rbn:bg-cyan-500/30',
   },
   timeline: {
-    container: `bg-[#061827] ${OCEAN_TEXT}`,
-    toolbar: 'bg-[#061827]',
-    trackArea: 'bg-[#04111f] border-cyan-500/20',
-    ruler: 'bg-[#0a2238]',
-    navButton: 'border-cyan-500/30',
+    container: `rbn:bg-[#061827] ${OCEAN_TEXT}`,
+    toolbar: 'rbn:bg-[#061827]',
+    trackArea: 'rbn:bg-[#04111f] rbn:border-cyan-500/20',
+    ruler: 'rbn:bg-[#0a2238]',
+    navButton: 'rbn:border-cyan-500/30',
   },
   inspector: {
-    container: `bg-[#061827] ${OCEAN_TEXT}`,
-    sectionHeader: 'bg-[#0a2238] text-sky-100 border-cyan-500/20',
-    valueBox: 'bg-[#081c30] border-cyan-500/30 text-sky-100',
-    timelineBox: 'bg-[#081c30] border-cyan-500/30',
+    container: `rbn:bg-[#061827] ${OCEAN_TEXT}`,
+    sectionHeader: 'rbn:bg-[#0a2238] rbn:text-sky-100 rbn:border-cyan-500/20',
+    valueBox: 'rbn:bg-[#081c30] rbn:border-cyan-500/30 rbn:text-sky-100',
+    timelineBox: 'rbn:bg-[#081c30] rbn:border-cyan-500/30',
   },
   drawer: {
-    container: `bg-[#061827] border-cyan-500/30 ${OCEAN_TEXT}`,
-    title: 'text-sky-100',
-    label: 'text-sky-200',
-    footerButton: 'border-cyan-500/40',
+    container: `rbn:bg-[#061827] rbn:border-cyan-500/30 ${OCEAN_TEXT}`,
+    title: 'rbn:text-sky-100',
+    label: 'rbn:text-sky-200',
+    footerButton: 'rbn:border-cyan-500/40',
   },
   modal: {
-    content: `bg-[#081c30] border-cyan-500/30 ${OCEAN_TEXT}`,
-    title: 'text-sky-100',
+    content: `rbn:bg-[#081c30] rbn:border-cyan-500/30 ${OCEAN_TEXT}`,
+    title: 'rbn:text-sky-100',
   },
-  connectionMiniMap: { container: 'border-cyan-500/30' },
+  connectionMiniMap: { container: 'rbn:border-cyan-500/30' },
   dragList: {
-    row: 'bg-[#0a2238] text-sky-100 hover:bg-cyan-500/15',
-    preview: 'bg-[#0a2238] border-cyan-500/40',
+    row: 'rbn:bg-[#0a2238] rbn:text-sky-100 rbn:hover:bg-cyan-500/15',
+    preview: 'rbn:bg-[#0a2238] rbn:border-cyan-500/40',
   },
   select: {
-    trigger: 'bg-[#081c30] text-sky-100 border-cyan-500/30',
-    content: `bg-[#081c30] border-cyan-500/30 text-sky-100 ${OCEAN_TEXT}`,
-    item: 'hover:bg-cyan-500/15',
+    trigger: 'rbn:bg-[#081c30] rbn:text-sky-100 rbn:border-cyan-500/30',
+    content: `rbn:bg-[#081c30] rbn:border-cyan-500/30 rbn:text-sky-100 ${OCEAN_TEXT}`,
+    item: 'rbn:hover:bg-cyan-500/15',
   },
   tooltip: {
-    content: `bg-[#081c30] border-cyan-400/60 text-sky-100 ${OCEAN_TEXT}`,
+    content: `rbn:bg-[#081c30] rbn:border-cyan-400/60 rbn:text-sky-100 ${OCEAN_TEXT}`,
   },
 };
 
@@ -1048,32 +1069,32 @@ const deepOceanTheme: GraphTheme = {
 const blueprintTheme: GraphTheme = {
   // Shared portaled-popover surface — overflow menus AND the reorder badge.
   popover: {
-    surface: `[--color-graph-elevated-surface-bg:#0a2c5e] [--color-graph-toggle-track-bg:#0c3578] border-sky-300/30 ${BLUEPRINT_TEXT}`,
+    surface: `rbn:[--color-graph-elevated-surface-bg:#0a2c5e] rbn:[--color-graph-toggle-track-bg:#0c3578] rbn:border-sky-300/30 ${BLUEPRINT_TEXT}`,
   },
   root: [
-    'bg-[#0b3a82]',
-    '[--color-graph-menu-bg:#0b2f66]',
-    '[--color-graph-menu-item-hover-bg:#1d4d9e]',
-    '[--color-graph-elevated-surface-bg:#0a2c5e]',
-    '[--color-graph-node-panel-content-bg:#0c3578]',
-    '[--color-timeline-loop-accent:#7dd3fc]',
-    '[--color-timeline-switch-accent:#fef08a]',
-    '[--color-timeline-scrubber-active:#e0f2fe]',
-    '[--color-timeline-scrubber-line:rgba(224,242,254,0.5)]',
-    '[--color-timeline-scrubber-line-active:rgba(224,242,254,0.85)]',
-    '[--color-runner-muted-text:#93c5fd]',
-    '[--color-timeline-hover-text:#f0f9ff]',
-    '[--color-edge-value-pill-bg:#0b2f66]',
-    '[--color-edge-value-pill-border:#7dd3fc]',
-    '[--color-edge-value-pill-text:#e0f2fe]',
-    '[--color-graph-scrollbar-thumb:#2563eb]',
-    '[--color-timeline-scrollbar-thumb:#2563eb]',
-    '[--color-timeline-scrollbar-track:#0a2c5e]',
-    '[--color-timeline-scrollbar-track-webkit:#0c3578]',
-    '[--color-runner-resize-handle-bg:#0c3578]',
-    '[--color-runner-resize-handle-hover-bg:#1d4d9e]',
-    '[--color-graph-toggle-track-bg:#0c3578]',
-    '[--color-drag-list-item-hover-bg:#1d4d9e]',
+    'rbn:bg-[#0b3a82]',
+    'rbn:[--color-graph-menu-bg:#0b2f66]',
+    'rbn:[--color-graph-menu-item-hover-bg:#1d4d9e]',
+    'rbn:[--color-graph-elevated-surface-bg:#0a2c5e]',
+    'rbn:[--color-graph-node-panel-content-bg:#0c3578]',
+    'rbn:[--color-timeline-loop-accent:#7dd3fc]',
+    'rbn:[--color-timeline-switch-accent:#fef08a]',
+    'rbn:[--color-timeline-scrubber-active:#e0f2fe]',
+    'rbn:[--color-timeline-scrubber-line:rgba(224,242,254,0.5)]',
+    'rbn:[--color-timeline-scrubber-line-active:rgba(224,242,254,0.85)]',
+    'rbn:[--color-runner-muted-text:#93c5fd]',
+    'rbn:[--color-timeline-hover-text:#f0f9ff]',
+    'rbn:[--color-edge-value-pill-bg:#0b2f66]',
+    'rbn:[--color-edge-value-pill-border:#7dd3fc]',
+    'rbn:[--color-edge-value-pill-text:#e0f2fe]',
+    'rbn:[--color-graph-scrollbar-thumb:#2563eb]',
+    'rbn:[--color-timeline-scrollbar-thumb:#2563eb]',
+    'rbn:[--color-timeline-scrollbar-track:#0a2c5e]',
+    'rbn:[--color-timeline-scrollbar-track-webkit:#0c3578]',
+    'rbn:[--color-runner-resize-handle-bg:#0c3578]',
+    'rbn:[--color-runner-resize-handle-hover-bg:#1d4d9e]',
+    'rbn:[--color-graph-toggle-track-bg:#0c3578]',
+    'rbn:[--color-drag-list-item-hover-bg:#1d4d9e]',
   ].join(' '),
   reactFlow: {
     colorMode: 'dark',
@@ -1092,78 +1113,78 @@ const blueprintTheme: GraphTheme = {
     },
   },
   node: {
-    container: 'in-[.selected]:border-sky-200 focus:border-sky-200',
+    container: 'rbn:in-[.selected]:border-sky-200 rbn:focus:border-sky-200',
     header:
-      'font-mono uppercase tracking-wider text-[18px] border-b border-white/30',
-    body: 'bg-[#0c3a86] border-x border-b border-sky-200/50',
-    inputField: 'bg-[#0b2f66] border-sky-300/40 text-sky-50',
+      'rbn:font-mono rbn:uppercase rbn:tracking-wider rbn:text-[18px] rbn:border-b rbn:border-white/30',
+    body: 'rbn:bg-[#0c3a86] rbn:border-x rbn:border-b rbn:border-sky-200/50',
+    inputField: 'rbn:bg-[#0b2f66] rbn:border-sky-300/40 rbn:text-sky-50',
   },
   statusIndicator: {
-    tooltip: 'bg-[#0b2f66] border-sky-300/60 text-sky-50',
+    tooltip: 'rbn:bg-[#0b2f66] rbn:border-sky-300/60 rbn:text-sky-50',
   },
   contextMenu: {
-    list: 'bg-[#0b2f66] border border-sky-300/30',
-    item: 'hover:bg-sky-400/20',
-    itemLabel: 'text-sky-50',
-    shortcut: 'text-sky-300/70',
-    separator: 'border-sky-300/30',
-    submenuPanel: 'bg-[#0b2f66] border border-sky-300/30',
+    list: 'rbn:bg-[#0b2f66] rbn:border rbn:border-sky-300/30',
+    item: 'rbn:hover:bg-sky-400/20',
+    itemLabel: 'rbn:text-sky-50',
+    shortcut: 'rbn:text-sky-300/70',
+    separator: 'rbn:border-sky-300/30',
+    submenuPanel: 'rbn:bg-[#0b2f66] rbn:border rbn:border-sky-300/30',
   },
   breadcrumbs: {
-    backButton: 'bg-[#0b2f66] border-sky-300/40 text-sky-50',
+    backButton: 'rbn:bg-[#0b2f66] rbn:border-sky-300/40 rbn:text-sky-50',
     selectTrigger:
-      'bg-[#0b2f66] border-sky-300/40 text-sky-50 hover:bg-sky-400/20',
-    list: 'text-sky-50',
-    editButton: 'text-sky-50 hover:bg-sky-400/20',
+      'rbn:bg-[#0b2f66] rbn:border-sky-300/40 rbn:text-sky-50 rbn:hover:bg-sky-400/20',
+    list: 'rbn:text-sky-50',
+    editButton: 'rbn:text-sky-50 rbn:hover:bg-sky-400/20',
   },
   runnerToggleButton:
-    'bg-[#0b2f66]/90 border-sky-300/40 text-sky-50 hover:bg-sky-400/20',
+    'rbn:bg-[#0b2f66]/90 rbn:border-sky-300/40 rbn:text-sky-50 rbn:hover:bg-sky-400/20',
   runnerPanel: {
-    container: `bg-[#0a2c5e] border-sky-300/30 ${BLUEPRINT_TEXT}`,
-    overflowMenu: `[--color-graph-elevated-surface-bg:#0a2c5e] [--color-graph-toggle-track-bg:#0c3578] border-sky-300/30 ${BLUEPRINT_TEXT}`,
-    overflowMenuItem: 'hover:bg-sky-400/20',
-    overflowMenuItemActive: 'bg-sky-400/30 text-sky-50',
+    container: `rbn:bg-[#0a2c5e] rbn:border-sky-300/30 ${BLUEPRINT_TEXT}`,
+    overflowMenu: `rbn:[--color-graph-elevated-surface-bg:#0a2c5e] rbn:[--color-graph-toggle-track-bg:#0c3578] rbn:border-sky-300/30 ${BLUEPRINT_TEXT}`,
+    overflowMenuItem: 'rbn:hover:bg-sky-400/20',
+    overflowMenuItemActive: 'rbn:bg-sky-400/30 rbn:text-sky-50',
   },
   runControls: {
-    container: 'bg-[#0b2f66] border-sky-300/20',
-    playButton: 'bg-sky-500 shadow-[0_0_14px_rgba(125,211,252,0.5)]',
-    divider: 'bg-sky-300/30',
+    container: 'rbn:bg-[#0b2f66] rbn:border-sky-300/20',
+    playButton: 'rbn:bg-sky-500 rbn:shadow-[0_0_14px_rgba(125,211,252,0.5)]',
+    divider: 'rbn:bg-sky-300/30',
   },
   timeline: {
-    container: `bg-[#0a2c5e] ${BLUEPRINT_TEXT}`,
-    toolbar: 'bg-[#0a2c5e]',
-    trackArea: 'bg-[#0b3a82] border-sky-300/20',
-    ruler: 'bg-[#0c3578]',
-    navButton: 'border-sky-300/30',
+    container: `rbn:bg-[#0a2c5e] ${BLUEPRINT_TEXT}`,
+    toolbar: 'rbn:bg-[#0a2c5e]',
+    trackArea: 'rbn:bg-[#0b3a82] rbn:border-sky-300/20',
+    ruler: 'rbn:bg-[#0c3578]',
+    navButton: 'rbn:border-sky-300/30',
   },
   inspector: {
-    container: `bg-[#0a2c5e] ${BLUEPRINT_TEXT}`,
-    sectionHeader: 'bg-[#0c3578] text-sky-50 border-sky-300/20',
-    valueBox: 'bg-[#0b2f66] border-sky-300/30 text-sky-50',
-    timelineBox: 'bg-[#0b2f66] border-sky-300/30',
+    container: `rbn:bg-[#0a2c5e] ${BLUEPRINT_TEXT}`,
+    sectionHeader: 'rbn:bg-[#0c3578] rbn:text-sky-50 rbn:border-sky-300/20',
+    valueBox: 'rbn:bg-[#0b2f66] rbn:border-sky-300/30 rbn:text-sky-50',
+    timelineBox: 'rbn:bg-[#0b2f66] rbn:border-sky-300/30',
   },
   drawer: {
-    container: `bg-[#0a2c5e] border-sky-300/30 ${BLUEPRINT_TEXT}`,
-    title: 'text-sky-50',
-    label: 'text-sky-100',
-    footerButton: 'border-sky-300/40',
+    container: `rbn:bg-[#0a2c5e] rbn:border-sky-300/30 ${BLUEPRINT_TEXT}`,
+    title: 'rbn:text-sky-50',
+    label: 'rbn:text-sky-100',
+    footerButton: 'rbn:border-sky-300/40',
   },
   modal: {
-    content: `bg-[#0b2f66] border-sky-300/30 ${BLUEPRINT_TEXT}`,
-    title: 'text-sky-50',
+    content: `rbn:bg-[#0b2f66] rbn:border-sky-300/30 ${BLUEPRINT_TEXT}`,
+    title: 'rbn:text-sky-50',
   },
-  connectionMiniMap: { container: 'border-sky-300/30' },
+  connectionMiniMap: { container: 'rbn:border-sky-300/30' },
   dragList: {
-    row: 'bg-[#0c3578] text-sky-50 hover:bg-sky-400/20',
-    preview: 'bg-[#0c3578] border-sky-300/40',
+    row: 'rbn:bg-[#0c3578] rbn:text-sky-50 rbn:hover:bg-sky-400/20',
+    preview: 'rbn:bg-[#0c3578] rbn:border-sky-300/40',
   },
   select: {
-    trigger: 'bg-[#0b2f66] text-sky-50 border-sky-300/30',
-    content: `bg-[#0b2f66] border-sky-300/30 text-sky-50 ${BLUEPRINT_TEXT}`,
-    item: 'hover:bg-sky-400/20',
+    trigger: 'rbn:bg-[#0b2f66] rbn:text-sky-50 rbn:border-sky-300/30',
+    content: `rbn:bg-[#0b2f66] rbn:border-sky-300/30 rbn:text-sky-50 ${BLUEPRINT_TEXT}`,
+    item: 'rbn:hover:bg-sky-400/20',
   },
   tooltip: {
-    content: `bg-[#0b2f66] border-sky-300/60 text-sky-50 ${BLUEPRINT_TEXT}`,
+    content: `rbn:bg-[#0b2f66] rbn:border-sky-300/60 rbn:text-sky-50 ${BLUEPRINT_TEXT}`,
   },
 };
 
@@ -1171,34 +1192,34 @@ const blueprintTheme: GraphTheme = {
 const halftonePopTheme: GraphTheme = {
   // Shared portaled-popover surface — overflow menus AND the reorder badge.
   popover: {
-    surface: `rounded-none bg-white border-2 border-black ${POP_TEXT} [--color-graph-toggle-track-bg:#fef3c7] [--color-primary-gray:#fde047] [&_.border-secondary-dark-gray]:border-black`,
+    surface: `rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black ${POP_TEXT} rbn:[--color-graph-toggle-track-bg:#fef3c7] rbn:[--color-primary-gray:#fde047] rbn:[&_.rbn\\:border-secondary-dark-gray]:border-black`,
   },
   root: [
-    'bg-[#fde047]',
-    '[--color-graph-menu-bg:#ffffff]',
-    '[--color-graph-menu-item-hover-bg:#fde047]',
-    '[--color-graph-elevated-surface-bg:#fffbeb]',
-    '[--color-graph-node-panel-content-bg:#fef3c7]',
-    '[--color-timeline-loop-accent:#ef4444]',
-    '[--color-timeline-switch-accent:#3b82f6]',
-    '[--color-timeline-scrubber-active:#ef4444]',
-    '[--color-timeline-scrubber-line:rgba(239,68,68,0.6)]',
-    '[--color-timeline-scrubber-line-active:rgba(239,68,68,0.9)]',
-    '[--color-runner-muted-text:#78716c]',
-    '[--color-timeline-hover-text:#000000]',
-    '[--color-edge-value-pill-bg:#ffffff]',
-    '[--color-edge-value-pill-border:#000000]',
-    '[--color-edge-value-pill-text:#000000]',
-    '[--color-graph-scrollbar-thumb:#a8a29e]',
-    '[--color-timeline-scrollbar-thumb:#a8a29e]',
-    '[--color-timeline-scrollbar-track:#fef3c7]',
-    '[--color-timeline-scrollbar-track-webkit:#fde68a]',
-    '[--color-runner-resize-handle-bg:#fde68a]',
-    '[--color-runner-resize-handle-hover-bg:#fcd34d]',
-    '[--color-graph-toggle-track-bg:#fef3c7]',
-    '[--color-drag-list-item-hover-bg:#fde68a]',
-    '[--color-primary-gray:#fcd34d]',
-    '[--color-inspector-progress-track:#fde68a]',
+    'rbn:bg-[#fde047]',
+    'rbn:[--color-graph-menu-bg:#ffffff]',
+    'rbn:[--color-graph-menu-item-hover-bg:#fde047]',
+    'rbn:[--color-graph-elevated-surface-bg:#fffbeb]',
+    'rbn:[--color-graph-node-panel-content-bg:#fef3c7]',
+    'rbn:[--color-timeline-loop-accent:#ef4444]',
+    'rbn:[--color-timeline-switch-accent:#3b82f6]',
+    'rbn:[--color-timeline-scrubber-active:#ef4444]',
+    'rbn:[--color-timeline-scrubber-line:rgba(239,68,68,0.6)]',
+    'rbn:[--color-timeline-scrubber-line-active:rgba(239,68,68,0.9)]',
+    'rbn:[--color-runner-muted-text:#78716c]',
+    'rbn:[--color-timeline-hover-text:#000000]',
+    'rbn:[--color-edge-value-pill-bg:#ffffff]',
+    'rbn:[--color-edge-value-pill-border:#000000]',
+    'rbn:[--color-edge-value-pill-text:#000000]',
+    'rbn:[--color-graph-scrollbar-thumb:#a8a29e]',
+    'rbn:[--color-timeline-scrollbar-thumb:#a8a29e]',
+    'rbn:[--color-timeline-scrollbar-track:#fef3c7]',
+    'rbn:[--color-timeline-scrollbar-track-webkit:#fde68a]',
+    'rbn:[--color-runner-resize-handle-bg:#fde68a]',
+    'rbn:[--color-runner-resize-handle-hover-bg:#fcd34d]',
+    'rbn:[--color-graph-toggle-track-bg:#fef3c7]',
+    'rbn:[--color-drag-list-item-hover-bg:#fde68a]',
+    'rbn:[--color-primary-gray:#fcd34d]',
+    'rbn:[--color-inspector-progress-track:#fde68a]',
   ].join(' '),
   reactFlow: {
     colorMode: 'light',
@@ -1218,98 +1239,105 @@ const halftonePopTheme: GraphTheme = {
   },
   node: {
     container:
-      'rounded-none border-[3px] border-black shadow-[6px_6px_0_rgba(0,0,0,0.85)] in-[.selected]:border-blue-600 focus:border-blue-600',
+      'rbn:rounded-none rbn:border-[3px] rbn:border-black rbn:shadow-[6px_6px_0_rgba(0,0,0,0.85)] rbn:in-[.selected]:border-blue-600 rbn:focus:border-blue-600',
     header:
-      'rounded-none border-b-[3px] border-black font-extrabold uppercase tracking-tight',
-    body: 'rounded-none bg-white',
-    outputRow: 'text-black font-semibold',
-    inputRow: 'text-black font-semibold',
-    panelHeader: 'text-black font-semibold hover:bg-yellow-200',
+      'rbn:rounded-none rbn:border-b-[3px] rbn:border-black rbn:font-extrabold rbn:uppercase rbn:tracking-tight',
+    body: 'rbn:rounded-none rbn:bg-white',
+    outputRow: 'rbn:text-black rbn:font-semibold',
+    inputRow: 'rbn:text-black rbn:font-semibold',
+    panelHeader: 'rbn:text-black rbn:font-semibold rbn:hover:bg-yellow-200',
     inputField:
-      'rounded-none bg-white text-black border-2 border-black placeholder:text-stone-400',
+      'rbn:rounded-none rbn:bg-white rbn:text-black rbn:border-2 rbn:border-black rbn:placeholder:text-stone-400',
   },
   statusIndicator: {
-    tooltip: 'rounded-none bg-white border-2 border-black text-black',
+    tooltip:
+      'rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black rbn:text-black',
   },
   contextMenu: {
-    list: 'rounded-none bg-white border-2 border-black shadow-[5px_5px_0_rgba(0,0,0,0.85)]',
-    item: 'hover:bg-yellow-200',
-    itemLabel: 'text-black font-semibold',
-    shortcut: 'text-stone-500',
-    separator: 'border-black',
+    list: 'rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black rbn:shadow-[5px_5px_0_rgba(0,0,0,0.85)]',
+    item: 'rbn:hover:bg-yellow-200',
+    itemLabel: 'rbn:text-black rbn:font-semibold',
+    shortcut: 'rbn:text-stone-500',
+    separator: 'rbn:border-black',
     submenuPanel:
-      'rounded-none bg-white border-2 border-black shadow-[5px_5px_0_rgba(0,0,0,0.85)]',
+      'rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black rbn:shadow-[5px_5px_0_rgba(0,0,0,0.85)]',
   },
   breadcrumbs: {
-    backButton: 'rounded-none bg-white border-2 border-black text-black',
+    backButton:
+      'rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black rbn:text-black',
     selectTrigger:
-      'rounded-none bg-white border-2 border-black text-black hover:bg-yellow-200',
-    list: 'text-black',
-    editButton: 'text-black hover:bg-yellow-200',
+      'rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black rbn:text-black rbn:hover:bg-yellow-200',
+    list: 'rbn:text-black',
+    editButton: 'rbn:text-black rbn:hover:bg-yellow-200',
   },
   runnerToggleButton:
-    'rounded-none bg-white border-2 border-black text-black font-bold shadow-[4px_4px_0_rgba(0,0,0,0.85)] hover:bg-yellow-200',
+    'rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black rbn:text-black rbn:font-bold rbn:shadow-[4px_4px_0_rgba(0,0,0,0.85)] rbn:hover:bg-yellow-200',
   runnerPanel: {
-    container: `rounded-none bg-[#fffbeb] border-2 border-black ${POP_TEXT}`,
-    closeButton: 'rounded-none text-black hover:bg-yellow-200',
-    overflowMenu: `rounded-none bg-white border-2 border-black ${POP_TEXT} [--color-graph-toggle-track-bg:#fef3c7] [--color-primary-gray:#fde047] [&_.border-secondary-dark-gray]:border-black`,
-    overflowMenuItem: 'hover:bg-yellow-200 hover:text-black',
-    overflowMenuItemActive: 'bg-yellow-400 text-black',
+    container: `rbn:rounded-none rbn:bg-[#fffbeb] rbn:border-2 rbn:border-black ${POP_TEXT}`,
+    closeButton: 'rbn:rounded-none rbn:text-black rbn:hover:bg-yellow-200',
+    overflowMenu: `rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black ${POP_TEXT} rbn:[--color-graph-toggle-track-bg:#fef3c7] rbn:[--color-primary-gray:#fde047] rbn:[&_.rbn\\:border-secondary-dark-gray]:border-black`,
+    overflowMenuItem: 'rbn:hover:bg-yellow-200 rbn:hover:text-black',
+    overflowMenuItemActive: 'rbn:bg-yellow-400 rbn:text-black',
   },
   runControls: {
-    container: 'bg-[#fde68a] border-black',
-    statusLabel: 'text-black font-bold',
-    divider: 'bg-black',
-    actionButton: 'rounded-none text-black hover:bg-yellow-200',
+    container: 'rbn:bg-[#fde68a] rbn:border-black',
+    statusLabel: 'rbn:text-black rbn:font-bold',
+    divider: 'rbn:bg-black',
+    actionButton: 'rbn:rounded-none rbn:text-black rbn:hover:bg-yellow-200',
     playButton:
-      'rounded-none bg-red-500 border-2 border-black shadow-[3px_3px_0_rgba(0,0,0,0.85)]',
+      'rbn:rounded-none rbn:bg-red-500 rbn:border-2 rbn:border-black rbn:shadow-[3px_3px_0_rgba(0,0,0,0.85)]',
   },
   timeline: {
-    container: `bg-[#fde68a] ${POP_TEXT}`,
-    toolbar: 'bg-[#fde68a]',
-    toolbarButton: 'text-black hover:bg-yellow-200',
+    container: `rbn:bg-[#fde68a] ${POP_TEXT}`,
+    toolbar: 'rbn:bg-[#fde68a]',
+    toolbarButton: 'rbn:text-black rbn:hover:bg-yellow-200',
     navButton:
-      'rounded-none border-black bg-white text-black hover:bg-yellow-200',
-    ruler: 'bg-[#fef3c7]',
-    trackArea: 'rounded-none bg-white border-2 border-black',
-    loopHeader: 'bg-[#fde68a]',
-    switchHeader: 'bg-[#fde68a]',
+      'rbn:rounded-none rbn:border-black rbn:bg-white rbn:text-black rbn:hover:bg-yellow-200',
+    ruler: 'rbn:bg-[#fef3c7]',
+    trackArea: 'rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black',
+    loopHeader: 'rbn:bg-[#fde68a]',
+    switchHeader: 'rbn:bg-[#fde68a]',
   },
   inspector: {
-    container: `bg-[#fffbeb] ${POP_TEXT}`,
-    header: 'border-black',
-    sectionHeader: 'bg-[#fde68a] text-black border-black',
-    valueBox: 'rounded-none bg-white border-2 border-black text-black',
-    timelineBox: 'rounded-none bg-[#fef3c7] border-2 border-black',
-    contextBox: 'rounded-none border-2 border-black',
+    container: `rbn:bg-[#fffbeb] ${POP_TEXT}`,
+    header: 'rbn:border-black',
+    sectionHeader: 'rbn:bg-[#fde68a] rbn:text-black rbn:border-black',
+    valueBox:
+      'rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black rbn:text-black',
+    timelineBox:
+      'rbn:rounded-none rbn:bg-[#fef3c7] rbn:border-2 rbn:border-black',
+    contextBox: 'rbn:rounded-none rbn:border-2 rbn:border-black',
   },
   drawer: {
-    container: `bg-[#fffbeb] border-l-2 border-black ${POP_TEXT}`,
-    header: 'border-black',
-    title: 'text-black font-extrabold uppercase',
-    closeButton: 'hover:bg-yellow-200',
-    footer: 'border-black',
-    label: 'text-black font-semibold',
-    emptyState: 'text-stone-500',
+    container: `rbn:bg-[#fffbeb] rbn:border-l-2 rbn:border-black ${POP_TEXT}`,
+    header: 'rbn:border-black',
+    title: 'rbn:text-black rbn:font-extrabold rbn:uppercase',
+    closeButton: 'rbn:hover:bg-yellow-200',
+    footer: 'rbn:border-black',
+    label: 'rbn:text-black rbn:font-semibold',
+    emptyState: 'rbn:text-stone-500',
     footerButton:
-      'rounded-none bg-white text-black border-2 border-black hover:bg-yellow-200',
+      'rbn:rounded-none rbn:bg-white rbn:text-black rbn:border-2 rbn:border-black rbn:hover:bg-yellow-200',
   },
   modal: {
-    content: `rounded-none bg-[#fffbeb] border-[3px] border-black shadow-[8px_8px_0_rgba(0,0,0,0.85)] ${POP_TEXT}`,
-    title: 'text-black font-extrabold uppercase',
+    content: `rbn:rounded-none rbn:bg-[#fffbeb] rbn:border-[3px] rbn:border-black rbn:shadow-[8px_8px_0_rgba(0,0,0,0.85)] ${POP_TEXT}`,
+    title: 'rbn:text-black rbn:font-extrabold rbn:uppercase',
   },
-  connectionMiniMap: { container: 'rounded-none border-2 border-black' },
+  connectionMiniMap: {
+    container: 'rbn:rounded-none rbn:border-2 rbn:border-black',
+  },
   dragList: {
-    row: 'rounded-none bg-white text-black border border-black hover:bg-yellow-200',
-    preview: 'rounded-none bg-white border-2 border-black',
+    row: 'rbn:rounded-none rbn:bg-white rbn:text-black rbn:border rbn:border-black rbn:hover:bg-yellow-200',
+    preview: 'rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black',
   },
   select: {
-    trigger: 'rounded-none bg-white text-black border-2 border-black',
-    content: `rounded-none bg-white border-2 border-black text-black ${POP_TEXT}`,
-    item: 'hover:bg-yellow-200',
+    trigger:
+      'rbn:rounded-none rbn:bg-white rbn:text-black rbn:border-2 rbn:border-black',
+    content: `rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black rbn:text-black ${POP_TEXT}`,
+    item: 'rbn:hover:bg-yellow-200',
   },
   tooltip: {
-    content: `rounded-none bg-white border-2 border-black text-black ${POP_TEXT}`,
+    content: `rbn:rounded-none rbn:bg-white rbn:border-2 rbn:border-black rbn:text-black ${POP_TEXT}`,
   },
 };
 
@@ -1317,34 +1345,34 @@ const halftonePopTheme: GraphTheme = {
 const observatoryTheme: GraphTheme = {
   // Shared portaled-popover surface — overflow menus AND the reorder badge.
   popover: {
-    surface: `[--color-graph-elevated-surface-bg:#0d0a1f] [--color-graph-toggle-track-bg:#14102b] border-violet-500/30 ${STAR_TEXT}`,
+    surface: `rbn:[--color-graph-elevated-surface-bg:#0d0a1f] rbn:[--color-graph-toggle-track-bg:#14102b] rbn:border-violet-500/30 ${STAR_TEXT}`,
   },
   root: [
-    'bg-[#02010a]',
-    '[--color-graph-menu-bg:#14102b]',
-    '[--color-graph-menu-item-hover-bg:#2e2659]',
-    '[--color-graph-elevated-surface-bg:#0d0a1f]',
-    '[--color-graph-node-panel-content-bg:#161130]',
-    '[--color-timeline-loop-accent:#a78bfa]',
-    '[--color-timeline-switch-accent:#fbbf24]',
-    '[--color-timeline-scrubber-active:#fbbf24]',
-    '[--color-timeline-scrubber-line:rgba(251,191,36,0.5)]',
-    '[--color-timeline-scrubber-line-active:rgba(251,191,36,0.85)]',
-    '[--color-runner-muted-text:#8b7fc7]',
-    '[--color-timeline-hover-text:#ede9fe]',
-    '[--color-edge-value-pill-bg:#14102b]',
-    '[--color-edge-value-pill-border:#a78bfa]',
-    '[--color-edge-value-pill-text:#ede9fe]',
-    '[--color-graph-scrollbar-thumb:#4c3d8f]',
-    '[--color-timeline-scrollbar-thumb:#4c3d8f]',
-    '[--color-timeline-scrollbar-track:#0d0a1f]',
-    '[--color-timeline-scrollbar-track-webkit:#14102b]',
-    '[--color-runner-resize-handle-bg:#14102b]',
-    '[--color-runner-resize-handle-hover-bg:#2e2659]',
-    '[--color-graph-toggle-track-bg:#14102b]',
-    '[--color-drag-list-item-hover-bg:#2e2659]',
-    '[--color-running-glow-strong:rgba(167,139,250,0.5)]',
-    '[--color-running-glow-soft:rgba(167,139,250,0.3)]',
+    'rbn:bg-[#02010a]',
+    'rbn:[--color-graph-menu-bg:#14102b]',
+    'rbn:[--color-graph-menu-item-hover-bg:#2e2659]',
+    'rbn:[--color-graph-elevated-surface-bg:#0d0a1f]',
+    'rbn:[--color-graph-node-panel-content-bg:#161130]',
+    'rbn:[--color-timeline-loop-accent:#a78bfa]',
+    'rbn:[--color-timeline-switch-accent:#fbbf24]',
+    'rbn:[--color-timeline-scrubber-active:#fbbf24]',
+    'rbn:[--color-timeline-scrubber-line:rgba(251,191,36,0.5)]',
+    'rbn:[--color-timeline-scrubber-line-active:rgba(251,191,36,0.85)]',
+    'rbn:[--color-runner-muted-text:#8b7fc7]',
+    'rbn:[--color-timeline-hover-text:#ede9fe]',
+    'rbn:[--color-edge-value-pill-bg:#14102b]',
+    'rbn:[--color-edge-value-pill-border:#a78bfa]',
+    'rbn:[--color-edge-value-pill-text:#ede9fe]',
+    'rbn:[--color-graph-scrollbar-thumb:#4c3d8f]',
+    'rbn:[--color-timeline-scrollbar-thumb:#4c3d8f]',
+    'rbn:[--color-timeline-scrollbar-track:#0d0a1f]',
+    'rbn:[--color-timeline-scrollbar-track-webkit:#14102b]',
+    'rbn:[--color-runner-resize-handle-bg:#14102b]',
+    'rbn:[--color-runner-resize-handle-hover-bg:#2e2659]',
+    'rbn:[--color-graph-toggle-track-bg:#14102b]',
+    'rbn:[--color-drag-list-item-hover-bg:#2e2659]',
+    'rbn:[--color-running-glow-strong:rgba(167,139,250,0.5)]',
+    'rbn:[--color-running-glow-soft:rgba(167,139,250,0.3)]',
   ].join(' '),
   reactFlow: {
     colorMode: 'dark',
@@ -1364,76 +1392,78 @@ const observatoryTheme: GraphTheme = {
   },
   node: {
     container:
-      'in-[.selected]:border-violet-300 focus:border-violet-300 shadow-[0_0_30px_rgba(167,139,250,0.12)]',
-    body: 'bg-[#191338] border-x border-b border-violet-500/50',
-    inputField: 'bg-[#14102b] border-violet-500/40 text-violet-100',
+      'rbn:in-[.selected]:border-violet-300 rbn:focus:border-violet-300 rbn:shadow-[0_0_30px_rgba(167,139,250,0.12)]',
+    body: 'rbn:bg-[#191338] rbn:border-x rbn:border-b rbn:border-violet-500/50',
+    inputField: 'rbn:bg-[#14102b] rbn:border-violet-500/40 rbn:text-violet-100',
   },
   statusIndicator: {
-    tooltip: 'bg-[#14102b] border-violet-400/60 text-violet-100',
+    tooltip: 'rbn:bg-[#14102b] rbn:border-violet-400/60 rbn:text-violet-100',
   },
   contextMenu: {
-    list: 'bg-[#14102b] border border-violet-500/30',
-    item: 'hover:bg-violet-500/20',
-    itemLabel: 'text-violet-100',
-    shortcut: 'text-violet-400/70',
-    separator: 'border-violet-500/30',
-    submenuPanel: 'bg-[#14102b] border border-violet-500/30',
+    list: 'rbn:bg-[#14102b] rbn:border rbn:border-violet-500/30',
+    item: 'rbn:hover:bg-violet-500/20',
+    itemLabel: 'rbn:text-violet-100',
+    shortcut: 'rbn:text-violet-400/70',
+    separator: 'rbn:border-violet-500/30',
+    submenuPanel: 'rbn:bg-[#14102b] rbn:border rbn:border-violet-500/30',
   },
   breadcrumbs: {
-    backButton: 'bg-[#14102b] border-violet-500/40 text-violet-100',
+    backButton: 'rbn:bg-[#14102b] rbn:border-violet-500/40 rbn:text-violet-100',
     selectTrigger:
-      'bg-[#14102b] border-violet-500/40 text-violet-100 hover:bg-violet-500/20',
-    list: 'text-violet-100',
-    editButton: 'text-violet-100 hover:bg-violet-500/20',
+      'rbn:bg-[#14102b] rbn:border-violet-500/40 rbn:text-violet-100 rbn:hover:bg-violet-500/20',
+    list: 'rbn:text-violet-100',
+    editButton: 'rbn:text-violet-100 rbn:hover:bg-violet-500/20',
   },
   runnerToggleButton:
-    'bg-[#14102b]/90 border-violet-500/40 text-violet-100 hover:bg-violet-500/20',
+    'rbn:bg-[#14102b]/90 rbn:border-violet-500/40 rbn:text-violet-100 rbn:hover:bg-violet-500/20',
   runnerPanel: {
-    container: `bg-[#0d0a1f] border-violet-500/30 ${STAR_TEXT}`,
-    overflowMenu: `[--color-graph-elevated-surface-bg:#0d0a1f] [--color-graph-toggle-track-bg:#14102b] border-violet-500/30 ${STAR_TEXT}`,
-    overflowMenuItem: 'hover:bg-violet-500/20',
-    overflowMenuItemActive: 'bg-violet-500/30 text-violet-50',
+    container: `rbn:bg-[#0d0a1f] rbn:border-violet-500/30 ${STAR_TEXT}`,
+    overflowMenu: `rbn:[--color-graph-elevated-surface-bg:#0d0a1f] rbn:[--color-graph-toggle-track-bg:#14102b] rbn:border-violet-500/30 ${STAR_TEXT}`,
+    overflowMenuItem: 'rbn:hover:bg-violet-500/20',
+    overflowMenuItemActive: 'rbn:bg-violet-500/30 rbn:text-violet-50',
   },
   runControls: {
-    container: 'bg-[#14102b] border-violet-500/20',
-    playButton: 'bg-violet-600 shadow-[0_0_16px_rgba(167,139,250,0.55)]',
-    divider: 'bg-violet-500/30',
+    container: 'rbn:bg-[#14102b] rbn:border-violet-500/20',
+    playButton:
+      'rbn:bg-violet-600 rbn:shadow-[0_0_16px_rgba(167,139,250,0.55)]',
+    divider: 'rbn:bg-violet-500/30',
   },
   timeline: {
-    container: `bg-[#0d0a1f] ${STAR_TEXT}`,
-    toolbar: 'bg-[#0d0a1f]',
-    trackArea: 'bg-[#02010a] border-violet-500/20',
-    ruler: 'bg-[#14102b]',
-    navButton: 'border-violet-500/30',
+    container: `rbn:bg-[#0d0a1f] ${STAR_TEXT}`,
+    toolbar: 'rbn:bg-[#0d0a1f]',
+    trackArea: 'rbn:bg-[#02010a] rbn:border-violet-500/20',
+    ruler: 'rbn:bg-[#14102b]',
+    navButton: 'rbn:border-violet-500/30',
   },
   inspector: {
-    container: `bg-[#0d0a1f] ${STAR_TEXT}`,
-    sectionHeader: 'bg-[#14102b] text-violet-100 border-violet-500/20',
-    valueBox: 'bg-[#14102b] border-violet-500/30 text-violet-100',
-    timelineBox: 'bg-[#14102b] border-violet-500/30',
+    container: `rbn:bg-[#0d0a1f] ${STAR_TEXT}`,
+    sectionHeader:
+      'rbn:bg-[#14102b] rbn:text-violet-100 rbn:border-violet-500/20',
+    valueBox: 'rbn:bg-[#14102b] rbn:border-violet-500/30 rbn:text-violet-100',
+    timelineBox: 'rbn:bg-[#14102b] rbn:border-violet-500/30',
   },
   drawer: {
-    container: `bg-[#0d0a1f] border-violet-500/30 ${STAR_TEXT}`,
-    title: 'text-violet-100',
-    label: 'text-violet-200',
-    footerButton: 'border-violet-500/40',
+    container: `rbn:bg-[#0d0a1f] rbn:border-violet-500/30 ${STAR_TEXT}`,
+    title: 'rbn:text-violet-100',
+    label: 'rbn:text-violet-200',
+    footerButton: 'rbn:border-violet-500/40',
   },
   modal: {
-    content: `bg-[#14102b] border-violet-500/30 ${STAR_TEXT}`,
-    title: 'text-violet-100',
+    content: `rbn:bg-[#14102b] rbn:border-violet-500/30 ${STAR_TEXT}`,
+    title: 'rbn:text-violet-100',
   },
-  connectionMiniMap: { container: 'border-violet-500/30' },
+  connectionMiniMap: { container: 'rbn:border-violet-500/30' },
   dragList: {
-    row: 'bg-[#161130] text-violet-100 hover:bg-violet-500/20',
-    preview: 'bg-[#161130] border-violet-500/40',
+    row: 'rbn:bg-[#161130] rbn:text-violet-100 rbn:hover:bg-violet-500/20',
+    preview: 'rbn:bg-[#161130] rbn:border-violet-500/40',
   },
   select: {
-    trigger: 'bg-[#14102b] text-violet-100 border-violet-500/30',
-    content: `bg-[#14102b] border-violet-500/30 text-violet-100 ${STAR_TEXT}`,
-    item: 'hover:bg-violet-500/20',
+    trigger: 'rbn:bg-[#14102b] rbn:text-violet-100 rbn:border-violet-500/30',
+    content: `rbn:bg-[#14102b] rbn:border-violet-500/30 rbn:text-violet-100 ${STAR_TEXT}`,
+    item: 'rbn:hover:bg-violet-500/20',
   },
   tooltip: {
-    content: `bg-[#14102b] border-violet-400/60 text-violet-100 ${STAR_TEXT}`,
+    content: `rbn:bg-[#14102b] rbn:border-violet-400/60 rbn:text-violet-100 ${STAR_TEXT}`,
   },
 };
 
@@ -1445,34 +1475,34 @@ const observatoryTheme: GraphTheme = {
 const ruledNotebookTheme: GraphTheme = {
   // Shared portaled-popover surface — overflow menus AND the reorder badge.
   popover: {
-    surface: `bg-white border-blue-200 ${NOTEBOOK_TEXT} [--color-graph-toggle-track-bg:#e7eef6] [--color-primary-gray:#c7d6e6] [&_.border-secondary-dark-gray]:border-blue-200`,
+    surface: `rbn:bg-white rbn:border-blue-200 ${NOTEBOOK_TEXT} rbn:[--color-graph-toggle-track-bg:#e7eef6] rbn:[--color-primary-gray:#c7d6e6] rbn:[&_.rbn\\:border-secondary-dark-gray]:border-blue-200`,
   },
   root: [
-    'bg-[#fbfaf4]',
-    '[--color-graph-menu-bg:#ffffff]',
-    '[--color-graph-menu-item-hover-bg:#dbeafe]',
-    '[--color-graph-elevated-surface-bg:#fdfcf7]',
-    '[--color-graph-node-panel-content-bg:#f1f5f9]',
-    '[--color-timeline-loop-accent:#f87171]',
-    '[--color-timeline-switch-accent:#60a5fa]',
-    '[--color-timeline-scrubber-active:#f87171]',
-    '[--color-timeline-scrubber-line:rgba(248,113,113,0.5)]',
-    '[--color-timeline-scrubber-line-active:rgba(248,113,113,0.85)]',
-    '[--color-runner-muted-text:#64748b]',
-    '[--color-timeline-hover-text:#0f172a]',
-    '[--color-edge-value-pill-bg:#ffffff]',
-    '[--color-edge-value-pill-border:#93c5fd]',
-    '[--color-edge-value-pill-text:#1e293b]',
-    '[--color-graph-scrollbar-thumb:#cbd5e1]',
-    '[--color-timeline-scrollbar-thumb:#cbd5e1]',
-    '[--color-timeline-scrollbar-track:#f1f5f9]',
-    '[--color-timeline-scrollbar-track-webkit:#e2e8f0]',
-    '[--color-runner-resize-handle-bg:#eef2f6]',
-    '[--color-runner-resize-handle-hover-bg:#e2e8f0]',
-    '[--color-graph-toggle-track-bg:#eef2f6]',
-    '[--color-drag-list-item-hover-bg:#e2e8f0]',
-    '[--color-primary-gray:#dbe3ec]',
-    '[--color-inspector-progress-track:#e2e8f0]',
+    'rbn:bg-[#fbfaf4]',
+    'rbn:[--color-graph-menu-bg:#ffffff]',
+    'rbn:[--color-graph-menu-item-hover-bg:#dbeafe]',
+    'rbn:[--color-graph-elevated-surface-bg:#fdfcf7]',
+    'rbn:[--color-graph-node-panel-content-bg:#f1f5f9]',
+    'rbn:[--color-timeline-loop-accent:#f87171]',
+    'rbn:[--color-timeline-switch-accent:#60a5fa]',
+    'rbn:[--color-timeline-scrubber-active:#f87171]',
+    'rbn:[--color-timeline-scrubber-line:rgba(248,113,113,0.5)]',
+    'rbn:[--color-timeline-scrubber-line-active:rgba(248,113,113,0.85)]',
+    'rbn:[--color-runner-muted-text:#64748b]',
+    'rbn:[--color-timeline-hover-text:#0f172a]',
+    'rbn:[--color-edge-value-pill-bg:#ffffff]',
+    'rbn:[--color-edge-value-pill-border:#93c5fd]',
+    'rbn:[--color-edge-value-pill-text:#1e293b]',
+    'rbn:[--color-graph-scrollbar-thumb:#cbd5e1]',
+    'rbn:[--color-timeline-scrollbar-thumb:#cbd5e1]',
+    'rbn:[--color-timeline-scrollbar-track:#f1f5f9]',
+    'rbn:[--color-timeline-scrollbar-track-webkit:#e2e8f0]',
+    'rbn:[--color-runner-resize-handle-bg:#eef2f6]',
+    'rbn:[--color-runner-resize-handle-hover-bg:#e2e8f0]',
+    'rbn:[--color-graph-toggle-track-bg:#eef2f6]',
+    'rbn:[--color-drag-list-item-hover-bg:#e2e8f0]',
+    'rbn:[--color-primary-gray:#dbe3ec]',
+    'rbn:[--color-inspector-progress-track:#e2e8f0]',
   ].join(' '),
   reactFlow: {
     colorMode: 'light',
@@ -1491,93 +1521,99 @@ const ruledNotebookTheme: GraphTheme = {
     },
   },
   node: {
-    container: 'focus:border-red-400 in-[.selected]:border-red-400',
-    header: 'rounded-t-sm',
-    headerTitle: 'font-serif italic',
-    body: 'bg-white/95 rounded-b-sm border-x border-b border-blue-200 shadow-sm',
-    outputRow: 'text-slate-800',
-    inputRow: 'text-slate-800',
-    panelHeader: 'text-slate-800 hover:bg-blue-100',
+    container: 'rbn:focus:border-red-400 rbn:in-[.selected]:border-red-400',
+    header: 'rbn:rounded-t-sm',
+    headerTitle: 'rbn:font-serif rbn:italic',
+    body: 'rbn:bg-white/95 rbn:rounded-b-sm rbn:border-x rbn:border-b rbn:border-blue-200 rbn:shadow-sm',
+    outputRow: 'rbn:text-slate-800',
+    inputRow: 'rbn:text-slate-800',
+    panelHeader: 'rbn:text-slate-800 rbn:hover:bg-blue-100',
     inputField:
-      'bg-white text-slate-800 border-blue-200 placeholder:text-slate-400',
+      'rbn:bg-white rbn:text-slate-800 rbn:border-blue-200 rbn:placeholder:text-slate-400',
   },
   statusIndicator: {
-    tooltip: 'bg-white border-blue-200 text-slate-800',
+    tooltip: 'rbn:bg-white rbn:border-blue-200 rbn:text-slate-800',
   },
   contextMenu: {
-    list: 'bg-white border-blue-100 shadow-slate-400/20',
-    item: 'hover:bg-blue-100',
-    itemLabel: 'text-slate-800',
-    shortcut: 'text-slate-500',
-    separator: 'border-blue-200',
-    submenuPanel: 'bg-white shadow-slate-400/20',
+    list: 'rbn:bg-white rbn:border-blue-100 rbn:shadow-slate-400/20',
+    item: 'rbn:hover:bg-blue-100',
+    itemLabel: 'rbn:text-slate-800',
+    shortcut: 'rbn:text-slate-500',
+    separator: 'rbn:border-blue-200',
+    submenuPanel: 'rbn:bg-white rbn:shadow-slate-400/20',
   },
   breadcrumbs: {
-    backButton: 'bg-white border-blue-200 text-slate-800',
-    selectTrigger: 'bg-white border-blue-200 text-slate-800 hover:bg-blue-50',
-    list: 'text-slate-800 font-serif italic',
-    editButton: 'text-slate-800 hover:bg-blue-100',
+    backButton: 'rbn:bg-white rbn:border-blue-200 rbn:text-slate-800',
+    selectTrigger:
+      'rbn:bg-white rbn:border-blue-200 rbn:text-slate-800 rbn:hover:bg-blue-50',
+    list: 'rbn:text-slate-800 rbn:font-serif rbn:italic',
+    editButton: 'rbn:text-slate-800 rbn:hover:bg-blue-100',
   },
   runnerToggleButton:
-    'border-blue-200 bg-white/90 text-slate-800 hover:bg-blue-50',
+    'rbn:border-blue-200 rbn:bg-white/90 rbn:text-slate-800 rbn:hover:bg-blue-50',
   runnerPanel: {
-    container: `bg-[#fdfcf7] border-blue-200 ${NOTEBOOK_TEXT}`,
-    closeButton: 'text-slate-500 hover:bg-blue-100 hover:text-slate-800',
-    overflowMenu: `bg-white border-blue-200 ${NOTEBOOK_TEXT} [--color-graph-toggle-track-bg:#e7eef6] [--color-primary-gray:#c7d6e6] [&_.border-secondary-dark-gray]:border-blue-200`,
-    overflowMenuItem: 'hover:bg-blue-100 hover:text-slate-900',
-    overflowMenuItemActive: 'bg-blue-200 text-slate-900',
+    container: `rbn:bg-[#fdfcf7] rbn:border-blue-200 ${NOTEBOOK_TEXT}`,
+    closeButton:
+      'rbn:text-slate-500 rbn:hover:bg-blue-100 rbn:hover:text-slate-800',
+    overflowMenu: `rbn:bg-white rbn:border-blue-200 ${NOTEBOOK_TEXT} rbn:[--color-graph-toggle-track-bg:#e7eef6] rbn:[--color-primary-gray:#c7d6e6] rbn:[&_.rbn\\:border-secondary-dark-gray]:border-blue-200`,
+    overflowMenuItem: 'rbn:hover:bg-blue-100 rbn:hover:text-slate-900',
+    overflowMenuItemActive: 'rbn:bg-blue-200 rbn:text-slate-900',
   },
   runControls: {
-    container: 'bg-[#f4f1e8] border-blue-200',
-    statusLabel: 'text-slate-800',
-    divider: 'bg-blue-200',
-    actionButton: 'text-slate-700 hover:bg-blue-100 hover:text-slate-900',
-    playButton: 'bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.4)]',
+    container: 'rbn:bg-[#f4f1e8] rbn:border-blue-200',
+    statusLabel: 'rbn:text-slate-800',
+    divider: 'rbn:bg-blue-200',
+    actionButton:
+      'rbn:text-slate-700 rbn:hover:bg-blue-100 rbn:hover:text-slate-900',
+    playButton: 'rbn:bg-red-400 rbn:shadow-[0_0_10px_rgba(248,113,113,0.4)]',
   },
   timeline: {
-    container: `bg-[#f4f1e8] ${NOTEBOOK_TEXT}`,
-    toolbar: 'bg-[#f4f1e8]',
-    toolbarButton: 'text-slate-800 hover:bg-blue-100',
-    navButton: 'border-blue-200 bg-white text-slate-700 hover:bg-blue-100',
-    ruler: 'bg-[#eef2f6]',
-    trackArea: 'bg-white border-blue-200',
-    loopHeader: 'bg-[#f4f1e8]',
-    switchHeader: 'bg-[#f4f1e8]',
+    container: `rbn:bg-[#f4f1e8] ${NOTEBOOK_TEXT}`,
+    toolbar: 'rbn:bg-[#f4f1e8]',
+    toolbarButton: 'rbn:text-slate-800 rbn:hover:bg-blue-100',
+    navButton:
+      'rbn:border-blue-200 rbn:bg-white rbn:text-slate-700 rbn:hover:bg-blue-100',
+    ruler: 'rbn:bg-[#eef2f6]',
+    trackArea: 'rbn:bg-white rbn:border-blue-200',
+    loopHeader: 'rbn:bg-[#f4f1e8]',
+    switchHeader: 'rbn:bg-[#f4f1e8]',
   },
   inspector: {
-    container: `bg-[#fdfcf7] ${NOTEBOOK_TEXT}`,
-    header: 'border-blue-200',
-    sectionHeader: 'bg-[#eef2f6] text-slate-800 border-blue-200',
-    valueBox: 'bg-white border-blue-200 text-slate-800',
-    timelineBox: 'bg-[#f4f1e8] border-blue-200',
-    contextBox: 'border-blue-200',
+    container: `rbn:bg-[#fdfcf7] ${NOTEBOOK_TEXT}`,
+    header: 'rbn:border-blue-200',
+    sectionHeader: 'rbn:bg-[#eef2f6] rbn:text-slate-800 rbn:border-blue-200',
+    valueBox: 'rbn:bg-white rbn:border-blue-200 rbn:text-slate-800',
+    timelineBox: 'rbn:bg-[#f4f1e8] rbn:border-blue-200',
+    contextBox: 'rbn:border-blue-200',
   },
   drawer: {
-    container: `bg-[#fdfcf7] border-blue-200 ${NOTEBOOK_TEXT}`,
-    header: 'border-blue-200',
-    title: 'text-slate-800 font-serif italic',
-    closeButton: 'hover:bg-blue-100',
-    footer: 'border-blue-200',
-    label: 'text-slate-800',
-    emptyState: 'text-slate-500',
-    footerButton: 'bg-blue-50 text-slate-800 border-blue-200 hover:bg-blue-100',
+    container: `rbn:bg-[#fdfcf7] rbn:border-blue-200 ${NOTEBOOK_TEXT}`,
+    header: 'rbn:border-blue-200',
+    title: 'rbn:text-slate-800 rbn:font-serif rbn:italic',
+    closeButton: 'rbn:hover:bg-blue-100',
+    footer: 'rbn:border-blue-200',
+    label: 'rbn:text-slate-800',
+    emptyState: 'rbn:text-slate-500',
+    footerButton:
+      'rbn:bg-blue-50 rbn:text-slate-800 rbn:border-blue-200 rbn:hover:bg-blue-100',
   },
   modal: {
-    content: `bg-[#fdfcf7] border-blue-200 ${NOTEBOOK_TEXT}`,
-    title: 'text-slate-800 font-serif italic',
+    content: `rbn:bg-[#fdfcf7] rbn:border-blue-200 ${NOTEBOOK_TEXT}`,
+    title: 'rbn:text-slate-800 rbn:font-serif rbn:italic',
   },
-  connectionMiniMap: { container: 'border-blue-200' },
+  connectionMiniMap: { container: 'rbn:border-blue-200' },
   dragList: {
-    row: 'bg-[#eef2f6] text-slate-800 hover:bg-blue-100',
-    preview: 'bg-[#eef2f6] border-blue-200',
+    row: 'rbn:bg-[#eef2f6] rbn:text-slate-800 rbn:hover:bg-blue-100',
+    preview: 'rbn:bg-[#eef2f6] rbn:border-blue-200',
   },
   select: {
-    trigger: 'bg-white text-slate-800 border-blue-200 hover:bg-blue-50',
-    content: `bg-white border-blue-200 text-slate-800 ${NOTEBOOK_TEXT}`,
-    item: 'hover:bg-blue-100',
+    trigger:
+      'rbn:bg-white rbn:text-slate-800 rbn:border-blue-200 rbn:hover:bg-blue-50',
+    content: `rbn:bg-white rbn:border-blue-200 rbn:text-slate-800 ${NOTEBOOK_TEXT}`,
+    item: 'rbn:hover:bg-blue-100',
   },
   tooltip: {
-    content: `bg-white border-blue-300/70 text-slate-800 ${NOTEBOOK_TEXT}`,
+    content: `rbn:bg-white rbn:border-blue-300/70 rbn:text-slate-800 ${NOTEBOOK_TEXT}`,
   },
 };
 
@@ -1592,34 +1628,34 @@ const ruledNotebookTheme: GraphTheme = {
 const logoTheme: GraphTheme = {
   // Shared portaled-popover surface — overflow menus AND the reorder badge.
   popover: {
-    surface: `rounded-none [--color-graph-elevated-surface-bg:#0b1430] [--color-graph-toggle-track-bg:#101c42] border-[#3170a0] ${LOGO_TEXT}`,
+    surface: `rbn:rounded-none rbn:[--color-graph-elevated-surface-bg:#0b1430] rbn:[--color-graph-toggle-track-bg:#101c42] rbn:border-[#3170a0] ${LOGO_TEXT}`,
   },
   root: [
-    'bg-[#0e1939]',
-    '[--color-graph-menu-bg:#101c42]',
-    '[--color-graph-menu-item-hover-bg:#1d2c5e]',
-    '[--color-graph-elevated-surface-bg:#0b1430]',
-    '[--color-graph-node-panel-content-bg:#13204a]',
-    '[--color-timeline-loop-accent:#ee7678]',
-    '[--color-timeline-switch-accent:#f2db68]',
-    '[--color-timeline-scrubber-active:#a1ccf7]',
-    '[--color-timeline-scrubber-line:rgba(161,204,247,0.55)]',
-    '[--color-timeline-scrubber-line-active:rgba(161,204,247,0.9)]',
-    '[--color-runner-muted-text:#5a76b8]',
-    '[--color-timeline-hover-text:#dce9fb]',
-    '[--color-edge-value-pill-bg:#0e1939]',
-    '[--color-edge-value-pill-border:#3170a0]',
-    '[--color-edge-value-pill-text:#a1ccf7]',
-    '[--color-graph-scrollbar-thumb:#3170a0]',
-    '[--color-timeline-scrollbar-thumb:#3170a0]',
-    '[--color-timeline-scrollbar-track:#0b1430]',
-    '[--color-timeline-scrollbar-track-webkit:#101c42]',
-    '[--color-runner-resize-handle-bg:#101c42]',
-    '[--color-runner-resize-handle-hover-bg:#1d2c5e]',
-    '[--color-graph-toggle-track-bg:#101c42]',
-    '[--color-drag-list-item-hover-bg:#1d2c5e]',
-    '[--color-running-glow-strong:rgba(246,225,106,0.5)]',
-    '[--color-running-glow-soft:rgba(246,225,106,0.3)]',
+    'rbn:bg-[#0e1939]',
+    'rbn:[--color-graph-menu-bg:#101c42]',
+    'rbn:[--color-graph-menu-item-hover-bg:#1d2c5e]',
+    'rbn:[--color-graph-elevated-surface-bg:#0b1430]',
+    'rbn:[--color-graph-node-panel-content-bg:#13204a]',
+    'rbn:[--color-timeline-loop-accent:#ee7678]',
+    'rbn:[--color-timeline-switch-accent:#f2db68]',
+    'rbn:[--color-timeline-scrubber-active:#a1ccf7]',
+    'rbn:[--color-timeline-scrubber-line:rgba(161,204,247,0.55)]',
+    'rbn:[--color-timeline-scrubber-line-active:rgba(161,204,247,0.9)]',
+    'rbn:[--color-runner-muted-text:#5a76b8]',
+    'rbn:[--color-timeline-hover-text:#dce9fb]',
+    'rbn:[--color-edge-value-pill-bg:#0e1939]',
+    'rbn:[--color-edge-value-pill-border:#3170a0]',
+    'rbn:[--color-edge-value-pill-text:#a1ccf7]',
+    'rbn:[--color-graph-scrollbar-thumb:#3170a0]',
+    'rbn:[--color-timeline-scrollbar-thumb:#3170a0]',
+    'rbn:[--color-timeline-scrollbar-track:#0b1430]',
+    'rbn:[--color-timeline-scrollbar-track-webkit:#101c42]',
+    'rbn:[--color-runner-resize-handle-bg:#101c42]',
+    'rbn:[--color-runner-resize-handle-hover-bg:#1d2c5e]',
+    'rbn:[--color-graph-toggle-track-bg:#101c42]',
+    'rbn:[--color-drag-list-item-hover-bg:#1d2c5e]',
+    'rbn:[--color-running-glow-strong:rgba(246,225,106,0.5)]',
+    'rbn:[--color-running-glow-soft:rgba(246,225,106,0.3)]',
   ].join(' '),
   reactFlow: {
     colorMode: 'dark',
@@ -1640,80 +1676,85 @@ const logoTheme: GraphTheme = {
   },
   node: {
     container:
-      'border-[3px] border-[#3170a0] rounded-none shadow-[-10px_10px_0_rgba(10,18,48,0.9)] in-[.selected]:border-[#97ccf7] focus:border-[#97ccf7]',
-    header: 'rounded-none',
-    body: 'rounded-none bg-[#101c42]',
-    handleShape: 'border-[#3170a0]',
-    inputField: 'bg-[#0e1939] border-[#3170a0] text-[#dce9fb]',
+      'rbn:border-[3px] rbn:border-[#3170a0] rbn:rounded-none rbn:shadow-[-10px_10px_0_rgba(10,18,48,0.9)] rbn:in-[.selected]:border-[#97ccf7] rbn:focus:border-[#97ccf7]',
+    header: 'rbn:rounded-none',
+    body: 'rbn:rounded-none rbn:bg-[#101c42]',
+    handleShape: 'rbn:border-[#3170a0]',
+    inputField: 'rbn:bg-[#0e1939] rbn:border-[#3170a0] rbn:text-[#dce9fb]',
   },
   statusIndicator: {
-    tooltip: 'bg-[#101c42] border-[#3170a0] text-[#dce9fb]',
+    tooltip: 'rbn:bg-[#101c42] rbn:border-[#3170a0] rbn:text-[#dce9fb]',
   },
   contextMenu: {
-    list: 'rounded-none bg-[#101c42] border-2 border-[#3170a0]',
-    item: 'hover:bg-[#1d2c5e]',
-    itemLabel: 'text-[#dce9fb]',
-    shortcut: 'text-[#5a76b8]',
-    separator: 'border-[#3170a0]/60',
-    submenuPanel: 'rounded-none bg-[#101c42] border-2 border-[#3170a0]',
+    list: 'rbn:rounded-none rbn:bg-[#101c42] rbn:border-2 rbn:border-[#3170a0]',
+    item: 'rbn:hover:bg-[#1d2c5e]',
+    itemLabel: 'rbn:text-[#dce9fb]',
+    shortcut: 'rbn:text-[#5a76b8]',
+    separator: 'rbn:border-[#3170a0]/60',
+    submenuPanel:
+      'rbn:rounded-none rbn:bg-[#101c42] rbn:border-2 rbn:border-[#3170a0]',
   },
   breadcrumbs: {
-    backButton: 'rounded-none bg-[#101c42] border-[#3170a0] text-[#dce9fb]',
+    backButton:
+      'rbn:rounded-none rbn:bg-[#101c42] rbn:border-[#3170a0] rbn:text-[#dce9fb]',
     selectTrigger:
-      'rounded-none bg-[#101c42] border-[#3170a0] text-[#dce9fb] hover:bg-[#1d2c5e]',
-    list: 'text-[#dce9fb]',
-    editButton: 'text-[#dce9fb] hover:bg-[#1d2c5e]',
+      'rbn:rounded-none rbn:bg-[#101c42] rbn:border-[#3170a0] rbn:text-[#dce9fb] rbn:hover:bg-[#1d2c5e]',
+    list: 'rbn:text-[#dce9fb]',
+    editButton: 'rbn:text-[#dce9fb] rbn:hover:bg-[#1d2c5e]',
   },
   runnerToggleButton:
-    'rounded-none bg-[#101c42]/90 border-[#3170a0] text-[#dce9fb] hover:bg-[#1d2c5e]',
+    'rbn:rounded-none rbn:bg-[#101c42]/90 rbn:border-[#3170a0] rbn:text-[#dce9fb] rbn:hover:bg-[#1d2c5e]',
   runnerPanel: {
-    container: `rounded-none bg-[#0b1430] border-[#3170a0] ${LOGO_TEXT}`,
-    overflowMenu: `rounded-none [--color-graph-elevated-surface-bg:#0b1430] [--color-graph-toggle-track-bg:#101c42] border-[#3170a0] ${LOGO_TEXT}`,
-    overflowMenuItem: 'hover:bg-[#3170a0]/25',
-    overflowMenuItemActive: 'bg-[#3170a0]/40 text-[#dce9fb]',
+    container: `rbn:rounded-none rbn:bg-[#0b1430] rbn:border-[#3170a0] ${LOGO_TEXT}`,
+    overflowMenu: `rbn:rounded-none rbn:[--color-graph-elevated-surface-bg:#0b1430] rbn:[--color-graph-toggle-track-bg:#101c42] rbn:border-[#3170a0] ${LOGO_TEXT}`,
+    overflowMenuItem: 'rbn:hover:bg-[#3170a0]/25',
+    overflowMenuItemActive: 'rbn:bg-[#3170a0]/40 rbn:text-[#dce9fb]',
   },
   runControls: {
-    container: 'bg-[#101c42] border-[#3170a0]/60',
+    container: 'rbn:bg-[#101c42] rbn:border-[#3170a0]/60',
     playButton:
-      'rounded-none bg-[#f2db68] text-[#0e1939] shadow-[0_0_14px_rgba(246,225,106,0.55)]',
-    actionButton: 'rounded-none hover:bg-[#1d2c5e]',
-    divider: 'bg-[#3170a0]/60',
+      'rbn:rounded-none rbn:bg-[#f2db68] rbn:text-[#0e1939] rbn:shadow-[0_0_14px_rgba(246,225,106,0.55)]',
+    actionButton: 'rbn:rounded-none rbn:hover:bg-[#1d2c5e]',
+    divider: 'rbn:bg-[#3170a0]/60',
   },
   timeline: {
-    container: `bg-[#0b1430] ${LOGO_TEXT}`,
-    toolbar: 'bg-[#0b1430]',
-    trackArea: 'rounded-none bg-[#0e1939] border-[#3170a0]/60',
-    ruler: 'bg-[#101c42]',
-    navButton: 'rounded-none border-[#3170a0]/60',
+    container: `rbn:bg-[#0b1430] ${LOGO_TEXT}`,
+    toolbar: 'rbn:bg-[#0b1430]',
+    trackArea: 'rbn:rounded-none rbn:bg-[#0e1939] rbn:border-[#3170a0]/60',
+    ruler: 'rbn:bg-[#101c42]',
+    navButton: 'rbn:rounded-none rbn:border-[#3170a0]/60',
   },
   inspector: {
-    container: `bg-[#0b1430] ${LOGO_TEXT}`,
-    sectionHeader: 'bg-[#101c42] text-[#dce9fb] border-[#3170a0]/60',
-    valueBox: 'rounded-none bg-[#101c42] border-[#3170a0] text-[#dce9fb]',
-    timelineBox: 'rounded-none bg-[#101c42] border-[#3170a0]',
+    container: `rbn:bg-[#0b1430] ${LOGO_TEXT}`,
+    sectionHeader:
+      'rbn:bg-[#101c42] rbn:text-[#dce9fb] rbn:border-[#3170a0]/60',
+    valueBox:
+      'rbn:rounded-none rbn:bg-[#101c42] rbn:border-[#3170a0] rbn:text-[#dce9fb]',
+    timelineBox: 'rbn:rounded-none rbn:bg-[#101c42] rbn:border-[#3170a0]',
   },
   drawer: {
-    container: `bg-[#0b1430] border-[#3170a0] ${LOGO_TEXT}`,
-    title: 'text-[#dce9fb]',
-    label: 'text-[#a1ccf7]',
-    footerButton: 'rounded-none border-[#3170a0]',
+    container: `rbn:bg-[#0b1430] rbn:border-[#3170a0] ${LOGO_TEXT}`,
+    title: 'rbn:text-[#dce9fb]',
+    label: 'rbn:text-[#a1ccf7]',
+    footerButton: 'rbn:rounded-none rbn:border-[#3170a0]',
   },
   modal: {
-    content: `rounded-none bg-[#101c42] border-2 border-[#3170a0] ${LOGO_TEXT}`,
-    title: 'text-[#dce9fb]',
+    content: `rbn:rounded-none rbn:bg-[#101c42] rbn:border-2 rbn:border-[#3170a0] ${LOGO_TEXT}`,
+    title: 'rbn:text-[#dce9fb]',
   },
-  connectionMiniMap: { container: 'rounded-none border-[#3170a0]' },
+  connectionMiniMap: { container: 'rbn:rounded-none rbn:border-[#3170a0]' },
   dragList: {
-    row: 'rounded-none bg-[#13204a] text-[#dce9fb] hover:bg-[#1d2c5e]',
-    preview: 'rounded-none bg-[#13204a] border-[#3170a0]',
+    row: 'rbn:rounded-none rbn:bg-[#13204a] rbn:text-[#dce9fb] rbn:hover:bg-[#1d2c5e]',
+    preview: 'rbn:rounded-none rbn:bg-[#13204a] rbn:border-[#3170a0]',
   },
   select: {
-    trigger: 'rounded-none bg-[#101c42] text-[#dce9fb] border-[#3170a0]',
-    content: `rounded-none bg-[#101c42] border-2 border-[#3170a0] text-[#dce9fb] ${LOGO_TEXT}`,
-    item: 'hover:bg-[#1d2c5e]',
+    trigger:
+      'rbn:rounded-none rbn:bg-[#101c42] rbn:text-[#dce9fb] rbn:border-[#3170a0]',
+    content: `rbn:rounded-none rbn:bg-[#101c42] rbn:border-2 rbn:border-[#3170a0] rbn:text-[#dce9fb] ${LOGO_TEXT}`,
+    item: 'rbn:hover:bg-[#1d2c5e]',
   },
   tooltip: {
-    content: `rounded-none bg-[#101c42] border-[#97ccf7]/70 text-[#dce9fb] ${LOGO_TEXT}`,
+    content: `rbn:rounded-none rbn:bg-[#101c42] rbn:border-[#97ccf7]/70 rbn:text-[#dce9fb] ${LOGO_TEXT}`,
   },
 };
 
@@ -3116,6 +3157,7 @@ function RunnerStoryView({
   nodePreviews,
   decorateForPreviewDemo = false,
   omitRunner = false,
+  bottomDrawers,
 }: {
   frame?: { width: number; height: number };
   nodePreviews?: NodePreviewRegistry<CircuitNodeTypeId>;
@@ -3124,6 +3166,8 @@ function RunnerStoryView({
   /** Tier-2 demo: render WITHOUT a runner (no impls / record) so previews show
    *  their null-safe empty states. */
   omitRunner?: boolean;
+  /** Consumer bottom drawers beside the runner (the `drawers` story control). */
+  bottomDrawers?: ReadonlyArray<GraphBottomDrawer>;
 }) {
   const { state, dispatch } = useFullGraph<
     CircuitDataTypeId,
@@ -3205,6 +3249,7 @@ function RunnerStoryView({
       executionRecord={omitRunner ? undefined : record}
       onExecutionRecordChange={omitRunner ? undefined : setRecord}
       nodePreviews={nodePreviews}
+      bottomDrawers={bottomDrawers}
       onStateImported={(imported) => console.log('State imported:', imported)}
       onRecordingImported={(record) =>
         console.log('Recording imported:', record)
@@ -3248,6 +3293,48 @@ function RunnerStoryView({
 }
 
 // ─────────────────────────────────────────────────────
+// Consumer bottom drawer for the `drawers` story control
+// ─────────────────────────────────────────────────────
+
+/**
+ * A consumer drawer body: a scratchpad. Its state is LOCAL on purpose — a
+ * drawer body unmounts when the drawer closes (the documented contract), so
+ * whatever is typed here is gone after close/reopen, exactly as a consumer
+ * would see it before moving state outside the drawer.
+ */
+function StoryNotesDrawerBody() {
+  const [notes, setNotes] = useState('');
+  return (
+    <div className='rbn:flex rbn:h-full rbn:w-full rbn:flex-col rbn:gap-2 rbn:p-3 rbn:text-[12px] rbn:text-secondary-light-gray'>
+      <p>
+        A consumer <code>bottomDrawers</code> entry, rendered with the runner
+        panel&apos;s chrome. Open the Runner from the header switcher, or close
+        this drawer and use the floating buttons — only one bottom drawer is
+        open at a time.
+      </p>
+      <textarea
+        data-testid='story-notes-textarea'
+        value={notes}
+        onChange={(event) => setNotes(event.target.value)}
+        placeholder='Scratchpad (local state — resets when the drawer closes)'
+        className='rbn:min-h-[80px] rbn:flex-1 rbn:resize-none rbn:rounded rbn:border rbn:border-secondary-dark-gray rbn:bg-primary-black rbn:p-2 rbn:text-[12px] rbn:text-primary-white rbn:outline-none rbn:focus:border-primary-blue'
+      />
+    </div>
+  );
+}
+
+/** Module-level so the array's identity is stable across story re-renders. */
+const STORY_BOTTOM_DRAWERS: ReadonlyArray<GraphBottomDrawer> = [
+  {
+    id: 'notes',
+    label: 'Notes',
+    icon: <StickyNote />,
+    title: 'Open the notes drawer',
+    content: <StoryNotesDrawerBody />,
+  },
+];
+
+// ─────────────────────────────────────────────────────
 // WithRunner control panel — one story, many aspects
 // ─────────────────────────────────────────────────────
 
@@ -3259,6 +3346,7 @@ type RunnerPreviewMode =
   | 'no-runner';
 type RunnerStoryTheme = 'dark' | 'light';
 type RunnerStoryFrame = 'full' | 'narrow-390';
+type RunnerStoryDrawers = 'none' | 'notes';
 
 const RUNNER_PREVIEW_MODES: RunnerPreviewMode[] = [
   'none',
@@ -3269,6 +3357,7 @@ const RUNNER_PREVIEW_MODES: RunnerPreviewMode[] = [
 ];
 const RUNNER_STORY_THEMES: RunnerStoryTheme[] = ['dark', 'light'];
 const RUNNER_STORY_FRAMES: RunnerStoryFrame[] = ['full', 'narrow-390'];
+const RUNNER_STORY_DRAWERS: RunnerStoryDrawers[] = ['none', 'notes'];
 
 /** One row of labeled story-chrome buttons (data-testid="story-<control>-<value>"). */
 function StoryControlGroup<Value extends string>({
@@ -3324,6 +3413,7 @@ function WithRunnerStoryView() {
   const [previewMode, setPreviewMode] = useState<RunnerPreviewMode>('none');
   const [storyTheme, setStoryTheme] = useState<RunnerStoryTheme>('dark');
   const [storyFrame, setStoryFrame] = useState<RunnerStoryFrame>('full');
+  const [storyDrawers, setStoryDrawers] = useState<RunnerStoryDrawers>('none');
 
   const modeProps =
     previewMode === 'dashboard'
@@ -3376,15 +3466,25 @@ function WithRunnerStoryView() {
             active={storyFrame}
             onSelect={setStoryFrame}
           />
+          <StoryControlGroup
+            label='drawers'
+            control='drawers'
+            values={RUNNER_STORY_DRAWERS}
+            active={storyDrawers}
+            onSelect={setStoryDrawers}
+          />
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
           <RunnerStoryView
-            key={`${previewMode}|${storyFrame}`}
+            key={`${previewMode}|${storyFrame}|${storyDrawers}`}
             {...modeProps}
             frame={
               storyFrame === 'narrow-390'
                 ? { width: 390, height: 760 }
                 : undefined
+            }
+            bottomDrawers={
+              storyDrawers === 'notes' ? STORY_BOTTOM_DRAWERS : undefined
             }
           />
         </div>
@@ -4976,10 +5076,10 @@ export const CustomInputComponents: StoryObj<typeof FullGraph> = {
                   }
                   defaultFormat='hex'
                 >
-                  <ColorPicker.Area className='w-full aspect-square' />
+                  <ColorPicker.Area className='rbn:w-full rbn:aspect-square' />
                   <ColorPicker.Hue />
-                  <div className='flex items-center gap-2'>
-                    <ColorPicker.Preview className='w-8 h-8 shrink-0' />
+                  <div className='rbn:flex rbn:items-center rbn:gap-2'>
+                    <ColorPicker.Preview className='rbn:w-8 rbn:h-8 rbn:shrink-0' />
                     <ColorPicker.CssInput size='normal' />
                   </div>
                 </ColorPicker.Root>

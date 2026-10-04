@@ -5,17 +5,18 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/utils/cnHelper';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 cursor-pointer \
-  rounded-md transition-all \
-  font-main whitespace-nowrap text-primary-white \
-  disabled:cursor-not-allowed disabled:bg-secondary-dark-gray disabled:opacity-50 outline-none focus-visible:outline-none border',
+  'rbn:inline-flex rbn:items-center rbn:justify-center rbn:gap-2 rbn:cursor-pointer \
+  rbn:rounded-md rbn:transition-all \
+  rbn:font-main rbn:whitespace-nowrap rbn:text-primary-white \
+  rbn:disabled:cursor-not-allowed rbn:disabled:bg-secondary-dark-gray rbn:disabled:opacity-50 rbn:outline-none rbn:focus-visible:outline-none rbn:border',
   {
     variants: {
       color: {
-        dark: 'bg-secondary-black border-secondary-dark-gray',
-        lightNonPriority: 'bg-primary-gray border-transparent',
-        lightPriority: 'bg-primary-gray border-transparent',
-        lightParentGroupBasedHover: 'bg-primary-gray border-transparent',
+        dark: 'rbn:bg-secondary-black rbn:border-secondary-dark-gray',
+        lightNonPriority: 'rbn:bg-primary-gray rbn:border-transparent',
+        lightPriority: 'rbn:bg-primary-gray rbn:border-transparent',
+        lightParentGroupBasedHover:
+          'rbn:bg-primary-gray rbn:border-transparent',
       },
       //Handled in compoundVariants
       applyHoverStyles: {
@@ -23,8 +24,9 @@ const buttonVariants = cva(
         false: '',
       },
       size: {
-        normal: 'py-2 px-4 text-[27px] leading-[27px]',
-        small: 'py-2 px-3 text-[16px] leading-[13px] rounded-sm',
+        normal: 'rbn:py-2 rbn:px-4 rbn:text-[27px] rbn:leading-[27px]',
+        small:
+          'rbn:py-2 rbn:px-3 rbn:text-[16px] rbn:leading-[13px] rbn:rounded-sm',
       },
     },
     defaultVariants: {
@@ -36,27 +38,27 @@ const buttonVariants = cva(
       {
         color: 'dark',
         applyHoverStyles: true,
-        className: 'hover:bg-primary-dark-gray',
+        className: 'rbn:hover:bg-primary-dark-gray',
       },
       {
         color: 'lightNonPriority',
         applyHoverStyles: true,
         className:
-          'hover:bg-secondary-light-gray-as-transparent-overlay-over-primary-gray',
+          'rbn:hover:bg-secondary-light-gray-as-transparent-overlay-over-primary-gray',
       },
 
       {
         color: 'lightPriority',
         applyHoverStyles: true,
         className:
-          'hover:bg-primary-light-gray-as-transparent-overlay-over-primary-gray',
+          'rbn:hover:bg-primary-light-gray-as-transparent-overlay-over-primary-gray',
       },
 
       {
         color: 'lightParentGroupBasedHover',
         applyHoverStyles: true,
         className:
-          'hover:bg-primary-light-gray-as-transparent-overlay-over-primary-gray group-hover/lightParentGroupBasedHover:bg-secondary-light-gray-as-transparent-overlay-over-primary-gray',
+          'rbn:hover:bg-primary-light-gray-as-transparent-overlay-over-primary-gray rbn:group-hover/lightParentGroupBasedHover:bg-secondary-light-gray-as-transparent-overlay-over-primary-gray',
       },
     ],
   },

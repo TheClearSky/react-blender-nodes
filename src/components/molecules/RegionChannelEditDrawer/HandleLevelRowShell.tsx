@@ -56,9 +56,9 @@ function HandleLevelRowShell({
 
   return (
     <>
-      <div className='flex flex-col overflow-hidden'>
+      <div className='rbn:flex rbn:flex-col rbn:overflow-hidden'>
         <div
-          className='flex items-center gap-2 cursor-pointer select-none'
+          className='rbn:flex rbn:items-center rbn:gap-2 rbn:cursor-pointer rbn:select-none'
           onClick={() => setExpanded(!expanded)}
         >
           <HandleShapeSwatch
@@ -69,33 +69,33 @@ function HandleLevelRowShell({
           />
           <span
             className={cn(
-              'flex-1 min-w-0 truncate text-[14px] leading-[14px] font-main',
+              'rbn:flex-1 rbn:min-w-0 rbn:truncate rbn:text-[14px] rbn:leading-[14px] rbn:font-main',
               commonName
-                ? 'text-primary-white'
-                : 'text-secondary-light-gray italic',
+                ? 'rbn:text-primary-white'
+                : 'rbn:text-secondary-light-gray rbn:italic',
             )}
           >
             {displayName}
           </span>
           <button
-            className='shrink-0 p-0.5 rounded hover:bg-primary-gray text-secondary-light-gray hover:text-primary-white transition-colors'
+            className='rbn:shrink-0 rbn:p-0.5 rbn:rounded rbn:hover:bg-primary-gray rbn:text-secondary-light-gray rbn:hover:text-primary-white rbn:transition-colors'
             onClick={(event) => {
               event.stopPropagation();
               handleRenameAll();
             }}
           >
-            <Pencil className='w-3.5 h-3.5' />
+            <Pencil className='rbn:w-3.5 rbn:h-3.5' />
           </button>
           <ChevronDown
             className={cn(
-              'w-4 h-4 shrink-0 text-secondary-light-gray transition-transform duration-150',
-              !expanded && '-rotate-90',
+              'rbn:w-4 rbn:h-4 rbn:shrink-0 rbn:text-secondary-light-gray rbn:transition-transform rbn:duration-150',
+              !expanded && 'rbn:-rotate-90',
             )}
           />
         </div>
 
         {expanded && (
-          <div className='pb-1 pt-2 flex flex-col gap-2.5 border-t border-secondary-dark-gray mt-2'>
+          <div className='rbn:pb-1 rbn:pt-2 rbn:flex rbn:flex-col rbn:gap-2.5 rbn:border-t rbn:border-secondary-dark-gray rbn:mt-2'>
             {children}
           </div>
         )}
@@ -128,7 +128,7 @@ function HandleLevelRowShell({
           onChange={setRenameName}
           allowOnlyNumbers={false}
           liveUpdate
-          className='w-full'
+          className='rbn:w-full'
         />
       </PresetModal>
     </>

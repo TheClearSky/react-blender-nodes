@@ -7,22 +7,42 @@ import {
   type ExecutionTimelineProps,
 } from './ExecutionTimeline';
 import { RecordingViewStateProvider } from '@/components/organisms/FullGraph/RecordingViewStateProvider';
+import { BottomDrawerProvider } from '@/components/organisms/FullGraph/BottomDrawerProvider';
+import {
+  RUNNER_DRAWER_ID,
+  type BottomDrawerDescriptor,
+} from '@/components/organisms/FullGraph/bottomDrawers';
+import { DEFAULT_RUNNER_VIEW_PREFERENCES } from '@/utils/nodeStateManagement/runnerViewPreferences';
 import type {
   ExecutionRecord,
   ExecutionStepRecord,
 } from '@/utils/nodeRunner/types';
 
+/** The runner as the drawer chrome sees it; `RecordingViewStateProvider` derives
+ *  the panel-open flag from this context, so the isolated story needs it too. */
+const STORY_BOTTOM_DRAWERS: ReadonlyArray<BottomDrawerDescriptor> = [
+  { id: RUNNER_DRAWER_ID, label: 'Runner' },
+];
+
 /** Decorator wrapper: owns the (now controlled) autoScroll preference locally so the
  *  isolated story's auto-scroll checkbox stays interactive. */
 function AutoScrollStoryProvider({ children }: { children: ReactNode }) {
-  const [autoScroll, setAutoScroll] = useState(true);
+  // Seeded from the library default, not a literal.
+  const [autoScroll, setAutoScroll] = useState(
+    DEFAULT_RUNNER_VIEW_PREFERENCES.autoScroll,
+  );
   return (
-    <RecordingViewStateProvider
-      autoScroll={autoScroll}
-      onAutoScrollChange={setAutoScroll}
+    <BottomDrawerProvider
+      drawers={STORY_BOTTOM_DRAWERS}
+      defaultOpenDrawerId={RUNNER_DRAWER_ID}
     >
-      {children}
-    </RecordingViewStateProvider>
+      <RecordingViewStateProvider
+        autoScroll={autoScroll}
+        onAutoScrollChange={setAutoScroll}
+      >
+        {children}
+      </RecordingViewStateProvider>
+    </BottomDrawerProvider>
   );
 }
 
@@ -454,24 +474,24 @@ export const InteractiveDemo: Story = {
     const [selectedStep, setSelectedStep] = useState<number | null>(null);
 
     return (
-      <div className='flex flex-col gap-4 w-full'>
-        <div className='flex items-center gap-4 px-4'>
-          <span className='text-primary-white text-[14px] font-main'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-4 rbn:w-full'>
+        <div className='rbn:flex rbn:items-center rbn:gap-4 rbn:px-4'>
+          <span className='rbn:text-primary-white rbn:text-[14px] rbn:font-main'>
             Scrubber at step:{' '}
-            <span className='text-primary-blue font-semibold'>
+            <span className='rbn:text-primary-blue rbn:font-semibold'>
               {currentStep}
             </span>
           </span>
-          <span className='text-secondary-light-gray text-[14px] font-main'>
+          <span className='rbn:text-secondary-light-gray rbn:text-[14px] rbn:font-main'>
             |
           </span>
-          <span className='text-primary-white text-[14px] font-main'>
+          <span className='rbn:text-primary-white rbn:text-[14px] rbn:font-main'>
             Selected:{' '}
-            <span className='text-primary-blue font-semibold'>
+            <span className='rbn:text-primary-blue rbn:font-semibold'>
               {selectedStep ?? 'none'}
             </span>
           </span>
-          <span className='text-secondary-dark-gray text-[12px] font-main ml-auto'>
+          <span className='rbn:text-secondary-dark-gray rbn:text-[12px] rbn:font-main rbn:ml-auto'>
             Scroll to zoom &middot; Drag to pan &middot; Click ruler to scrub
           </span>
         </div>

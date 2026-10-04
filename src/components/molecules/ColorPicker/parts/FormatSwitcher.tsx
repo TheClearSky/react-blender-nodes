@@ -37,7 +37,10 @@ function ColorPickerFormatSwitcher({
       size={size === 'small' ? 'compact' : 'normal'}
     >
       <SelectTrigger
-        className={cn('font-mono uppercase tracking-wide w-fit', className)}
+        className={cn(
+          'rbn:font-mono rbn:uppercase rbn:tracking-wide rbn:w-fit',
+          className,
+        )}
       >
         <SelectValue placeholder='Format' />
       </SelectTrigger>

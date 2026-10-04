@@ -102,8 +102,10 @@ const FullGraphContextMenu = ({
         contain: 'layout',
       }}
       className={cn(
-        'z-50 transition-opacity ease-out',
-        isOpen ? 'opacity-100 duration-100' : 'opacity-0 duration-150',
+        'rbn:z-50 rbn:transition-opacity rbn:ease-out',
+        isOpen
+          ? 'rbn:opacity-100 rbn:duration-100'
+          : 'rbn:opacity-0 rbn:duration-150',
       )}
       onClick={(e) => e.stopPropagation()}
       {...getFloatingProps()}

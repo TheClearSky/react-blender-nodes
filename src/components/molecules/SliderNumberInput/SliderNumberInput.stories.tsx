@@ -61,14 +61,14 @@ export const AdjustableParentWidthWithFullWidth = {
     return (
       <div
         className={cn(
-          'flex flex-col gap-2 border-5',
-          parentBorder ? 'border-red-900' : 'border-transparent',
+          'rbn:flex rbn:flex-col rbn:gap-2 rbn:border-5',
+          parentBorder ? 'rbn:border-red-900' : 'rbn:border-transparent',
         )}
         style={{ width: parentWidth }}
       >
-        <SliderNumberInput className='w-full' {...args} />
+        <SliderNumberInput className='rbn:w-full' {...args} />
         <SliderNumberInput
-          className='w-full'
+          className='rbn:w-full'
           {...args}
           name={`A ${'really '.repeat(5)} long name`}
         />
@@ -90,9 +90,9 @@ export const SizeComparison: Story = {
     const [smallVal, setSmallVal] = useState(42.5);
 
     return (
-      <div className='flex flex-col gap-6 p-4'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-6 rbn:p-4'>
         <div>
-          <div className='mb-2 text-sm text-secondary-light-gray'>
+          <div className='rbn:mb-2 rbn:text-sm rbn:text-secondary-light-gray'>
             Normal (canvas-sized)
           </div>
           <SliderNumberInput
@@ -104,7 +104,7 @@ export const SizeComparison: Story = {
           />
         </div>
         <div>
-          <div className='mb-2 text-sm text-secondary-light-gray'>
+          <div className='rbn:mb-2 rbn:text-sm rbn:text-secondary-light-gray'>
             Small (toolbar-sized)
           </div>
           <SliderNumberInput
@@ -130,7 +130,7 @@ export const SmallInteger: Story = {
   render: () => {
     const [val, setVal] = useState(100);
     return (
-      <div className='flex items-center gap-3 p-4'>
+      <div className='rbn:flex rbn:items-center rbn:gap-3 rbn:p-4'>
         <SliderNumberInput
           name='Max Loops'
           value={val}
@@ -138,7 +138,7 @@ export const SmallInteger: Story = {
           size='small'
           decimals={0}
         />
-        <span className='font-mono text-xs text-secondary-light-gray'>
+        <span className='rbn:font-mono rbn:text-xs rbn:text-secondary-light-gray'>
           value: {val}
         </span>
       </div>
@@ -151,7 +151,7 @@ export const SmallFloat: Story = {
   render: () => {
     const [val, setVal] = useState(1.0);
     return (
-      <div className='flex items-center gap-3 p-4'>
+      <div className='rbn:flex rbn:items-center rbn:gap-3 rbn:p-4'>
         <SliderNumberInput
           name='Interval'
           value={val}
@@ -160,7 +160,7 @@ export const SmallFloat: Story = {
           max={30}
           size='small'
         />
-        <span className='font-mono text-xs text-secondary-light-gray'>
+        <span className='rbn:font-mono rbn:text-xs rbn:text-secondary-light-gray'>
           value: {val.toFixed(1)}s
         </span>
       </div>
@@ -177,12 +177,12 @@ export const EdgeCaseSmallValue: Story = {
   render: () => {
     const [val, setVal] = useState(1);
     return (
-      <div className='flex flex-col gap-4 p-4'>
-        <div className='text-xs text-secondary-light-gray'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-4 rbn:p-4'>
+        <div className='rbn:text-xs rbn:text-secondary-light-gray'>
           Drag test: value starts at 1 with decimals=0, step=1. Drag should
           change value by whole integers.
         </div>
-        <div className='flex items-center gap-3'>
+        <div className='rbn:flex rbn:items-center rbn:gap-3'>
           <SliderNumberInput
             name='Count'
             value={val}
@@ -191,7 +191,7 @@ export const EdgeCaseSmallValue: Story = {
             decimals={0}
             step={1}
           />
-          <span className='font-mono text-xs text-secondary-light-gray'>
+          <span className='rbn:font-mono rbn:text-xs rbn:text-secondary-light-gray'>
             value: {val}
           </span>
         </div>
@@ -205,19 +205,19 @@ export const EdgeCaseZeroValue: Story = {
   render: () => {
     const [val, setVal] = useState(0);
     return (
-      <div className='flex flex-col gap-4 p-4'>
-        <div className='text-xs text-secondary-light-gray'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-4 rbn:p-4'>
+        <div className='rbn:text-xs rbn:text-secondary-light-gray'>
           Value starts at 0 with no min/max. Step is inferred from display
           precision.
         </div>
-        <div className='flex items-center gap-3'>
+        <div className='rbn:flex rbn:items-center rbn:gap-3'>
           <SliderNumberInput
             name='Offset'
             value={val}
             onChange={setVal}
             size='small'
           />
-          <span className='font-mono text-xs text-secondary-light-gray'>
+          <span className='rbn:font-mono rbn:text-xs rbn:text-secondary-light-gray'>
             value: {val.toFixed(1)}
           </span>
         </div>
@@ -231,13 +231,13 @@ export const NoConstraints: Story = {
   render: () => {
     const [val, setVal] = useState(500);
     return (
-      <div className='flex flex-col gap-4 p-4'>
-        <div className='text-xs text-secondary-light-gray'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-4 rbn:p-4'>
+        <div className='rbn:text-xs rbn:text-secondary-light-gray'>
           No min/max/step. Step scales proportionally with value.
         </div>
-        <div className='flex items-center gap-3'>
+        <div className='rbn:flex rbn:items-center rbn:gap-3'>
           <SliderNumberInput name='Amount' value={val} onChange={setVal} />
-          <span className='font-mono text-xs text-secondary-light-gray'>
+          <span className='rbn:font-mono rbn:text-xs rbn:text-secondary-light-gray'>
             value: {val.toFixed(4)}
           </span>
         </div>
@@ -251,11 +251,11 @@ export const WithRange: Story = {
   render: () => {
     const [val, setVal] = useState(25);
     return (
-      <div className='flex flex-col gap-4 p-4'>
-        <div className='text-xs text-secondary-light-gray'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-4 rbn:p-4'>
+        <div className='rbn:text-xs rbn:text-secondary-light-gray'>
           min=0, max=100, step=1 — shows gradient fill.
         </div>
-        <div className='flex items-center gap-3'>
+        <div className='rbn:flex rbn:items-center rbn:gap-3'>
           <SliderNumberInput
             name='Progress'
             value={val}
@@ -265,7 +265,7 @@ export const WithRange: Story = {
             step={5}
             decimals={0}
           />
-          <span className='font-mono text-xs text-secondary-light-gray'>
+          <span className='rbn:font-mono rbn:text-xs rbn:text-secondary-light-gray'>
             {val}%
           </span>
         </div>
@@ -279,7 +279,7 @@ export const SmallWithRange: Story = {
   render: () => {
     const [val, setVal] = useState(60);
     return (
-      <div className='flex items-center gap-3 p-4'>
+      <div className='rbn:flex rbn:items-center rbn:gap-3 rbn:p-4'>
         <SliderNumberInput
           name='Volume'
           value={val}
@@ -289,9 +289,63 @@ export const SmallWithRange: Story = {
           size='small'
           decimals={0}
         />
-        <span className='font-mono text-xs text-secondary-light-gray'>
+        <span className='rbn:font-mono rbn:text-xs rbn:text-secondary-light-gray'>
           {val}%
         </span>
+      </div>
+    );
+  },
+};
+
+/**
+ * `ariaLabel` gives the control its full spoken name while `name` stays the
+ * short on-screen label that keeps it narrow.
+ *
+ * It applies to BOTH branches: the `role='group'` wrapper while this is a
+ * slider, and the text field once you click the middle. Click in, then inspect
+ * the field in the a11y pane — it should read "Duration in seconds", not "dur".
+ *
+ * Callers must NOT wrap this control in a `<label>` to supply that name. A
+ * `<label>` binds to its first labelable descendant, which is the decrement
+ * chevron, and the browser then propagates `:hover` to that chevron from
+ * anywhere inside the label — the left chevron lights up while you hover the
+ * middle. Hover the two below and compare.
+ */
+export const WithAccessibleName: Story = {
+  render: () => {
+    const [named, setNamed] = useState(16);
+    const [wrapped, setWrapped] = useState(16);
+    return (
+      <div className='rbn:flex rbn:flex-col rbn:gap-6 rbn:p-4'>
+        <div className='rbn:flex rbn:flex-col rbn:gap-1'>
+          <span className='rbn:text-xs rbn:text-secondary-light-gray'>
+            correct — ariaLabel, no label element
+          </span>
+          <SliderNumberInput
+            name='dur s'
+            ariaLabel='Duration in seconds'
+            value={named}
+            onChange={setNamed}
+            size='small'
+            decimals={2}
+          />
+        </div>
+        <div className='rbn:flex rbn:flex-col rbn:gap-1'>
+          <span className='rbn:text-xs rbn:text-secondary-light-gray'>
+            wrong — wrapped in a label: hovering the middle also lights the left
+            chevron
+          </span>
+          <label className='rbn:inline-flex rbn:w-max rbn:items-center'>
+            <span className='rbn:sr-only'>Duration in seconds</span>
+            <SliderNumberInput
+              name='dur s'
+              value={wrapped}
+              onChange={setWrapped}
+              size='small'
+              decimals={2}
+            />
+          </label>
+        </div>
       </div>
     );
   },

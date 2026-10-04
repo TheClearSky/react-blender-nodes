@@ -60,14 +60,15 @@ Which components actually consume which hooks (verified against source):
 +-----------------------+        +-------------------+
 
 +-----------------------+        +-------------------+
-| NodeRunnerPanel       |------->| useSlideAnimation | (panel + inspector)
+| BottomDrawerShell     |------->| useSlideAnimation | (drawer; runner + consumer)
+| NodeRunnerPanel       |------->|                   | (inspector)
 | SwitchEditDrawer      |------->|                   |
 | LoopEditDrawer        |------->|                   |
 | NodeTypeEditDrawer    |------->|                   |
 +-----------------------+        +-------------------+
 
 +-----------------------+        +-------------------+
-| NodeRunnerPanel       |------->| useResizeHandle   |
+| BottomDrawerShell     |------->| useResizeHandle   |
 +-----------------------+        +-------------------+
 
 +-----------------------+        +-------------------+
@@ -334,10 +335,11 @@ Key design decisions:
 
 ### Usage context
 
-- **NodeRunnerPanel**
-  (`src/components/organisms/NodeRunnerPanel/NodeRunnerPanel.tsx` ›
-  `NodeRunnerPanel`): slides the panel up from the bottom (default `translateY`
-  transforms) when `isRunnerPanelOpen`.
+- **BottomDrawerShell**
+  (`src/components/molecules/BottomDrawerShell/BottomDrawerShell.tsx` ›
+  `BottomDrawerShell`): slides a bottom drawer up from the bottom (default
+  `translateY` transforms) when `open` — the runner panel (`isRunnerPanelOpen`)
+  and every consumer `bottomDrawers` entry render through it.
 - **NodeRunnerPanel inspector**
   (`src/components/organisms/NodeRunnerPanel/NodeRunnerPanel.tsx` ›
   `NodeRunnerPanel`): a second `useSlideAnimation` slides the step inspector in
@@ -422,11 +424,12 @@ newSize    = clamp(startSize + delta, minSize, maxSize)
 
 ### Usage context
 
-- **NodeRunnerPanel**
-  (`src/components/organisms/NodeRunnerPanel/NodeRunnerPanel.tsx` ›
-  `NodeRunnerPanel`): resizes the panel content height by dragging its top edge
-  with `direction: 'up'`, bounded by `MIN_CONTENT_HEIGHT`/`MAX_CONTENT_HEIGHT`
-  and starting at `DEFAULT_CONTENT_HEIGHT`. The returned `size` is read as
+- **BottomDrawerShell**
+  (`src/components/molecules/BottomDrawerShell/BottomDrawerShell.tsx` ›
+  `BottomDrawerShell`): resizes a bottom drawer's content height (the runner
+  panel's, or a consumer drawer's) by dragging its top edge with
+  `direction: 'up'`, bounded by `MIN_CONTENT_HEIGHT`/`MAX_CONTENT_HEIGHT` and
+  starting at `DEFAULT_CONTENT_HEIGHT`. The returned `size` is read as
   `contentHeight` and `onMouseDown` as `handleResizeStart`.
 
 ---
@@ -645,24 +648,25 @@ also stops automatically on `pointerup` and `touchend` on `window`
 
 ### -> [NodeRunnerPanel (useSlideAnimation, useResizeHandle)](../ui/nodeRunnerPanelDoc.md)
 
-`NodeRunnerPanel` uses `useSlideAnimation` for two transitions — the panel
-itself (slide up from the bottom) and the step inspector (slide in from the
-right) — and `useResizeHandle` for user-controlled panel height. The slide
-animations control mount/unmount of DOM, while the resize handle controls the
-panel's content height within its mounted state.
+The runner drawer uses `useSlideAnimation` for two transitions — the drawer
+itself (slide up from the bottom, inside the shared `BottomDrawerShell`) and the
+step inspector (slide in from the right, in `NodeRunnerPanel`) — and
+`useResizeHandle` (also in the shell) for user-controlled panel height. The
+slide animations control mount/unmount of DOM, while the resize handle controls
+the panel's content height within its mounted state.
 
 ```
 NodeRunnerPanel
   |
-  +--- useSlideAnimation(isRunnerPanelOpen)            // panel, translateY
-  |      +--- mounted? --> render panel
-  |      +--- ref      --> combined with external panelRef
-  |      +--- style    --> initial hidden transform
+  +--- BottomDrawerShell(open = isRunnerPanelOpen)
+  |      +--- useSlideAnimation(open)                       // drawer, translateY
+  |      |      +--- mounted? --> render drawer
+  |      |      +--- ref      --> combined with external panelRef
+  |      |      +--- style    --> initial hidden transform
+  |      +--- useResizeHandle({ direction: 'up', initialSize, minSize, maxSize })
+  |             +--- size        --> drawer content height
   |
   +--- useSlideAnimation(inspectorOpen, { translateX, 200ms })  // inspector
-  |
-  +--- useResizeHandle({ direction: 'up', initialSize, minSize, maxSize })
-         +--- size        --> panel content height
          +--- onMouseDown --> attached to top-edge drag handle
 ```
 

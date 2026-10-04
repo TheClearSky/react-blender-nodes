@@ -15,10 +15,12 @@ type LoopEditDrawerProps = {
   loopStartNodeData: Record<string, unknown> | null;
   loopStopNodeData: Record<string, unknown> | null;
   loopEndNodeData: Record<string, unknown> | null;
-  /** Save the kept (reordered/renamed) channels and the channels to delete. */
+  /** Save the kept (reordered/renamed) channels, the channels to delete, and
+   *  the loop's (trimmed) description. */
   onSave: (
     keptLevels: LoopHandleLevel[],
     deletedLevels: LoopHandleLevel[],
+    description?: string,
   ) => void;
   /** Compute the connections a channel deletion would break (from live state).
    *  When omitted, channel deletion is disabled. */
@@ -63,6 +65,11 @@ function LoopEditDrawer({
         getCommonName(level) || level.handles.loopStartIn.name || 'Channel'
       }
       onSave={onSave}
+      initialDescription={
+        typeof loopStartNodeData?.description === 'string'
+          ? loopStartNodeData.description
+          : ''
+      }
       getChannelBlastRadius={getChannelBlastRadius}
       getNeighborhood={getNeighborhood}
     />

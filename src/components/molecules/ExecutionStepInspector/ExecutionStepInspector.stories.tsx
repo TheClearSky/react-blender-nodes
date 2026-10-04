@@ -392,7 +392,7 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <div className='flex justify-center items-center min-h-screen p-8'>
+      <div className='rbn:flex rbn:justify-center rbn:items-center rbn:min-h-screen rbn:p-8'>
         <Story />
       </div>
     ),
@@ -525,21 +525,21 @@ export const AllStatuses: Story = {
   args: { stepRecord: completedStep },
   render: () => {
     return (
-      <div className='flex flex-wrap gap-6 items-start'>
-        <div className='flex flex-col gap-1 items-center'>
-          <span className='text-[12px] text-secondary-light-gray font-main uppercase tracking-wider'>
+      <div className='rbn:flex rbn:flex-wrap rbn:gap-6 rbn:items-start'>
+        <div className='rbn:flex rbn:flex-col rbn:gap-1 rbn:items-center'>
+          <span className='rbn:text-[12px] rbn:text-secondary-light-gray rbn:font-main rbn:uppercase rbn:tracking-wider'>
             Completed
           </span>
           <ExecutionStepInspector stepRecord={completedStep} onClose={fn()} />
         </div>
-        <div className='flex flex-col gap-1 items-center'>
-          <span className='text-[12px] text-secondary-light-gray font-main uppercase tracking-wider'>
+        <div className='rbn:flex rbn:flex-col rbn:gap-1 rbn:items-center'>
+          <span className='rbn:text-[12px] rbn:text-secondary-light-gray rbn:font-main rbn:uppercase rbn:tracking-wider'>
             Errored
           </span>
           <ExecutionStepInspector stepRecord={erroredStep} onClose={fn()} />
         </div>
-        <div className='flex flex-col gap-1 items-center'>
-          <span className='text-[12px] text-secondary-light-gray font-main uppercase tracking-wider'>
+        <div className='rbn:flex rbn:flex-col rbn:gap-1 rbn:items-center'>
+          <span className='rbn:text-[12px] rbn:text-secondary-light-gray rbn:font-main rbn:uppercase rbn:tracking-wider'>
             Skipped
           </span>
           <ExecutionStepInspector stepRecord={skippedStep} onClose={fn()} />
@@ -582,37 +582,37 @@ export const InteractiveStepSwitcher: Story = {
     const [debugMode, setDebugMode] = useState(false);
 
     return (
-      <div className='flex gap-6 items-start'>
-        <div className='flex flex-col gap-1'>
-          <span className='text-[12px] text-secondary-light-gray font-main mb-2'>
+      <div className='rbn:flex rbn:gap-6 rbn:items-start'>
+        <div className='rbn:flex rbn:flex-col rbn:gap-1'>
+          <span className='rbn:text-[12px] rbn:text-secondary-light-gray rbn:font-main rbn:mb-2'>
             Select a step:
           </span>
           {labels.map((label, i) => (
             <button
               key={label}
               onClick={() => setIndex(i)}
-              className={`px-3 py-1.5 text-[13px] font-main rounded text-left cursor-pointer transition-colors ${
+              className={`rbn:px-3 rbn:py-1.5 rbn:text-[13px] rbn:font-main rbn:rounded rbn:text-left rbn:cursor-pointer rbn:transition-colors ${
                 i === index
-                  ? 'bg-primary-blue text-primary-white'
-                  : 'bg-secondary-black text-secondary-light-gray hover:bg-primary-dark-gray'
+                  ? 'rbn:bg-primary-blue rbn:text-primary-white'
+                  : 'rbn:bg-secondary-black rbn:text-secondary-light-gray rbn:hover:bg-primary-dark-gray'
               }`}
             >
               {label}
             </button>
           ))}
-          <div className='flex flex-col gap-1 mt-3'>
+          <div className='rbn:flex rbn:flex-col rbn:gap-1 rbn:mt-3'>
             <button
               onClick={() => setHideComplex((p) => !p)}
-              className='px-3 py-1.5 text-[12px] font-main rounded cursor-pointer bg-secondary-black text-secondary-light-gray hover:bg-primary-dark-gray border border-secondary-dark-gray'
+              className='rbn:px-3 rbn:py-1.5 rbn:text-[12px] rbn:font-main rbn:rounded rbn:cursor-pointer rbn:bg-secondary-black rbn:text-secondary-light-gray rbn:hover:bg-primary-dark-gray rbn:border rbn:border-secondary-dark-gray'
             >
               {hideComplex ? 'Show' : 'Hide'} complex
             </button>
             <button
               onClick={() => setDebugMode((p) => !p)}
-              className={`px-3 py-1.5 text-[12px] font-main rounded cursor-pointer border ${
+              className={`rbn:px-3 rbn:py-1.5 rbn:text-[12px] rbn:font-main rbn:rounded rbn:cursor-pointer rbn:border ${
                 debugMode
-                  ? 'bg-primary-blue/20 text-primary-blue border-primary-blue/40'
-                  : 'bg-secondary-black text-secondary-light-gray border-secondary-dark-gray hover:bg-primary-dark-gray'
+                  ? 'rbn:bg-primary-blue/20 rbn:text-primary-blue rbn:border-primary-blue/40'
+                  : 'rbn:bg-secondary-black rbn:text-secondary-light-gray rbn:border-secondary-dark-gray rbn:hover:bg-primary-dark-gray'
               }`}
             >
               Debug {debugMode ? 'ON' : 'OFF'}

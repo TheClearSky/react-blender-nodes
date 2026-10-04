@@ -3,6 +3,7 @@ import { navigateToStory } from '../../../actions/graph/graphCanvas.actions';
 import {
   clickReset,
   clickStep,
+  enableFollowIntoGroups,
   setMode,
 } from '../../../actions/runnerPanel/runnerPanel.actions';
 import {
@@ -189,6 +190,10 @@ test.describe('Runner UI — per-node-type previews (WithRunner panel modes)', (
       .click();
     await expect(page.locator('[data-step-index]').first()).toBeVisible();
 
+    // Follow-into-groups is a document preference; this test is about the
+    // feature, so make sure it is ON first (asserted, not a blind click).
+    await enableFollowIntoGroups(page);
+
     const back = page.locator('button:has(svg.lucide-arrow-left)').first();
     const panel = page.locator('[data-slot="node-preview-panel"]').first();
 
@@ -224,6 +229,10 @@ test.describe('Runner UI — per-node-type previews (WithRunner panel modes)', (
     await expect(page.locator('[data-step-index]').first()).toBeVisible();
     const back = page.locator('button:has(svg.lucide-arrow-left)').first();
 
+    // Follow-into-groups is a document preference; make sure it is ON — the
+    // assertions below read the viewport's scope as the proof of each jump.
+    await enableFollowIntoGroups(page);
+
     // Park the head on root step #0 (follow keeps the viewport at root).
     await page.locator('[data-step-index="0"]').first().click({ force: true });
     await expect(back).toBeDisabled();
@@ -251,6 +260,10 @@ test.describe('Runner UI — per-node-type previews (WithRunner panel modes)', (
       .locator('[data-testid="story-fixture-group-two-instances"]')
       .click();
     await expect(page.locator('[data-step-index]').first()).toBeVisible();
+
+    // Follow-into-groups is a document preference; make sure it is ON — the
+    // assertions below read the viewport's scope as the proof of each jump.
+    await enableFollowIntoGroups(page);
 
     const back = page.locator('button:has(svg.lucide-arrow-left)').first();
     const stepBlocks = page.locator('[data-step-index]');

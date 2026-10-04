@@ -40,7 +40,7 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <div className='flex justify-center items-center min-h-screen p-8'>
+      <div className='rbn:flex rbn:justify-center rbn:items-center rbn:min-h-screen rbn:p-8'>
         <Story />
       </div>
     ),
@@ -114,10 +114,10 @@ export const AllStatesComparison: Story = {
     ];
 
     return (
-      <div className='flex flex-col gap-4'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-4'>
         {states.map((state) => (
-          <div key={state} className='flex items-center gap-4'>
-            <span className='text-primary-white text-[14px] font-main w-24 text-right uppercase tracking-wider'>
+          <div key={state} className='rbn:flex rbn:items-center rbn:gap-4'>
+            <span className='rbn:text-primary-white rbn:text-[14px] rbn:font-main rbn:w-24 rbn:text-right rbn:uppercase rbn:tracking-wider'>
               {state}
             </span>
             <RunControls
@@ -199,10 +199,12 @@ export const InteractiveLifecycle: Story = {
     }
 
     return (
-      <div className='flex flex-col gap-6 items-center'>
-        <div className='text-primary-white text-[18px] font-main'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-6 rbn:items-center'>
+        <div className='rbn:text-primary-white rbn:text-[18px] rbn:font-main'>
           State:{' '}
-          <span className='text-primary-blue font-semibold'>{runnerState}</span>
+          <span className='rbn:text-primary-blue rbn:font-semibold'>
+            {runnerState}
+          </span>
         </div>
         <RunControls
           runnerState={runnerState}
@@ -216,19 +218,19 @@ export const InteractiveLifecycle: Story = {
           onModeChange={setMode}
           onMaxLoopIterationsChange={setMaxIterations}
         />
-        <div className='w-[500px] bg-secondary-black rounded-md p-3 border border-secondary-dark-gray'>
-          <div className='text-[12px] text-secondary-light-gray font-main mb-2'>
+        <div className='rbn:w-[500px] rbn:bg-secondary-black rbn:rounded-md rbn:p-3 rbn:border rbn:border-secondary-dark-gray'>
+          <div className='rbn:text-[12px] rbn:text-secondary-light-gray rbn:font-main rbn:mb-2'>
             Action Log:
           </div>
           {log.length === 0 ? (
-            <div className='text-[12px] text-secondary-dark-gray font-main italic'>
+            <div className='rbn:text-[12px] rbn:text-secondary-dark-gray rbn:font-main rbn:italic'>
               Click buttons to see state transitions...
             </div>
           ) : (
             log.map((entry, i) => (
               <div
                 key={i}
-                className='text-[12px] text-primary-white font-main py-0.5'
+                className='rbn:text-[12px] rbn:text-primary-white rbn:font-main rbn:py-0.5'
               >
                 {entry}
               </div>

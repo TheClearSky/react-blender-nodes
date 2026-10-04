@@ -12,7 +12,7 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <div className='w-[300px] bg-[#222222] p-3 rounded-md'>
+      <div className='rbn:w-[300px] rbn:bg-[#222222] rbn:p-3 rbn:rounded-md'>
         <Story />
       </div>
     ),
@@ -217,19 +217,19 @@ function CustomContentTemplate() {
       items={items}
       onChange={setItems}
       renderContent={(item) => (
-        <div className='flex items-center gap-2 min-w-0'>
+        <div className='rbn:flex rbn:items-center rbn:gap-2 rbn:min-w-0'>
           {'additionalProperties' in item && item.additionalProperties && (
             <div
-              className='w-2.5 h-2.5 rounded-full shrink-0'
+              className='rbn:w-2.5 rbn:h-2.5 rbn:rounded-full rbn:shrink-0'
               style={{ backgroundColor: item.additionalProperties.color }}
             />
           )}
-          <div className='min-w-0'>
-            <div className='text-primary-white truncate text-[13px]'>
+          <div className='rbn:min-w-0'>
+            <div className='rbn:text-primary-white rbn:truncate rbn:text-[13px]'>
               {item.name}
             </div>
             {'additionalProperties' in item && item.additionalProperties && (
-              <div className='text-secondary-light-gray text-[11px] truncate'>
+              <div className='rbn:text-secondary-light-gray rbn:text-[11px] rbn:truncate'>
                 {item.additionalProperties.description}
               </div>
             )}
@@ -268,8 +268,8 @@ function MaxDepthEnforcementTemplate() {
   ]);
 
   return (
-    <div className='flex flex-col gap-2'>
-      <div className='text-[11px] text-secondary-light-gray font-main'>
+    <div className='rbn:flex rbn:flex-col rbn:gap-2'>
+      <div className='rbn:text-[11px] rbn:text-secondary-light-gray rbn:font-main'>
         maxDepth=2 — try dragging &quot;Nested Group&quot; into &quot;Group
         B&quot;
       </div>

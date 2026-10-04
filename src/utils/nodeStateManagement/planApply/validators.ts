@@ -209,7 +209,11 @@ function validateAction<
     case actionTypesMap.SET_VIEWPORT:
       return ok({ kind: 'SET_VIEWPORT', viewport: action.payload.viewport });
     case actionTypesMap.REPLACE_STATE:
-      return ok({ kind: 'REPLACE_STATE', state: action.payload.state });
+      return ok({
+        kind: 'REPLACE_STATE',
+        state: action.payload.state,
+        preserveHistory: action.payload.preserveHistory === true,
+      });
 
     case actionTypesMap.OPEN_NODE_GROUP: {
       if ('nodeId' in action.payload) {
@@ -553,6 +557,26 @@ function validateAction<
       });
     }
 
+    case actionTypesMap.UPDATE_NODE_DESCRIPTION: {
+      const { nodeIds, description } = action.payload;
+      const view = getCurrentNodesAndEdgesFromState(_state);
+      const known = new Set(view.nodes.map((n) => n.id));
+      const targets = nodeIds.filter((id) => known.has(id));
+      if (targets.length === 0) {
+        return err({
+          code: 'MISSING_ENDPOINT' as const,
+          which: 'source' as const,
+          detail: 'No node found for description update',
+        });
+      }
+      const trimmed = description?.trim();
+      return ok({
+        kind: 'UPDATE_NODE_DESCRIPTION' as const,
+        nodeIds: targets,
+        description: trimmed ? trimmed : undefined,
+      });
+    }
+
     case actionTypesMap.UPDATE_NODE_PREVIEW_COLLAPSED: {
       const { nodeId, previewCollapsed } = action.payload;
       const view = getCurrentNodesAndEdgesFromState(_state);
@@ -639,7 +663,7 @@ function validateAction<
     }
 
     case actionTypesMap.UPDATE_USER_ZONE: {
-      const { zoneId, name, color } = action.payload;
+      const { zoneId, name, color, description } = action.payload;
       const view = getCurrentNodesAndEdgesFromState(_state);
       if (!view.userZones || !(zoneId in view.userZones)) {
         return err({ code: 'NOOP' as const, reason: 'User zone not found' });
@@ -651,7 +675,13 @@ function validateAction<
       const normalizedColor = normalizeZoneColor(color);
       // Nothing to apply (blank name dropped + no parseable color) → NOOP so no
       // phantom history entry / applied event is produced (mirrors REORDER).
-      if (!trimmedName && !normalizedColor) {
+      // A description-only update is a real change ('' clears it).
+      const cleanedDescription = description?.trim();
+      if (
+        !trimmedName &&
+        !normalizedColor &&
+        cleanedDescription === undefined
+      ) {
         return err({ code: 'NOOP' as const, reason: 'No user-zone change' });
       }
       return ok({
@@ -659,6 +689,9 @@ function validateAction<
         zoneId,
         name: trimmedName ? trimmedName : undefined,
         color: normalizedColor,
+        ...(cleanedDescription !== undefined && {
+          description: cleanedDescription,
+        }),
       });
     }
 
@@ -749,8 +782,21 @@ function validateAction<
         nodeTypeId: nodeTypeId as string,
         updates: {
           ...(updates.name !== undefined && { name: updates.name }),
+          ...(updates.description !== undefined && {
+            description: updates.description.trim(),
+          }),
           ...(updates.headerColor !== undefined && {
             headerColor: updates.headerColor,
+          }),
+          // Folder names are trimmed with runs of spaces collapsed; blank
+          // segments are dropped (the menu has no unnamed folders).
+          ...(Array.isArray(updates.locationInContextMenu) && {
+            locationInContextMenu: updates.locationInContextMenu
+              .filter(
+                (segment): segment is string => typeof segment === 'string',
+              )
+              .map((segment) => segment.trim().replace(/\s+/g, ' '))
+              .filter((segment) => segment !== ''),
           }),
           ...(updates.inputs !== undefined && {
             inputs: updates.inputs,

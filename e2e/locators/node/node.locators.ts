@@ -29,6 +29,28 @@ function getNodeById(page: Page, nodeId: string): Locator {
 }
 
 /**
+ * The node header's title text.
+ *
+ * Address it by `data-slot`, never by tag. It used to be a `<p>`, and three
+ * specs reached for it with `node.locator('p').first()`; commit `2ade0b6`
+ * ("Reorder +Rename", 2026-06-28) replaced that `<p>` with `EditableNodeTitle`
+ * → `NodeIdentityLabel` → `<span data-slot='node-identity'>` so titles could be
+ * renamed inline, and those specs silently went red for three months. The
+ * `data-slot` is the contract; the element that carries it is not.
+ *
+ * `NodeIdentityLabel` renders one span when the node has no custom name, and a
+ * wrapper span containing `customName` + `: typeName` when it does — so
+ * `textContent` is the type name in the first case and `"Custom : Type"` in the
+ * second. Runner surfaces (timeline block, block tooltip, step inspector) use
+ * the same slot, which is why this is scoped to one `.react-flow__node`.
+ */
+function getNodeTitle(page: Page, nodeId: string): Locator {
+  return getNodeById(page, nodeId)
+    .locator('[data-slot="node-identity"]')
+    .first();
+}
+
+/**
  * All handles on a node, filtered by source/target direction.
  * Source handles live on the right of the node; target handles on the left.
  */
@@ -192,6 +214,7 @@ function getLoopStopCondition(page: Page, loopStopId: string): Locator {
 export {
   getNodeByName,
   getNodeById,
+  getNodeTitle,
   getAllHandles,
   getHandleByDataId,
   getHandleByName,

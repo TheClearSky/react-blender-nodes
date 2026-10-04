@@ -52,7 +52,7 @@ function createLoopMenuItem<
     {
       id: 'add-loop',
       label: 'Add Loop',
-      icon: createElement(RepeatIcon, { className: 'w-4 h-4' }),
+      icon: createElement(RepeatIcon, { className: 'rbn:w-4 rbn:h-4' }),
       onClick: () => {
         dispatch({
           type: actionTypesMap.ADD_LOOP,

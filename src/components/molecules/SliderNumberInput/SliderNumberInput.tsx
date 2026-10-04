@@ -28,10 +28,48 @@ type SliderNumberInputProps = {
   max?: number;
   /** Step size for value changes */
   step?: number;
+  /**
+   * Exact change for one chevron click (◂ / ▸). Without it a click moves
+   * 10 % of `step` (or of the auto step, which is proportional to the value —
+   * 1 → 1.1 → 1.21…). Drags are unaffected: they stay proportional.
+   */
+  increment?: number;
   /** Size variant. "normal" is the canvas-friendly default, "small" is compact for toolbars. */
   size?: 'normal' | 'small';
   /** Number of decimal places to display (default: 4 for normal, 1 for small) */
   decimals?: number;
+  /**
+   * Text to show on the slider face INSTEAD of a number while `value` is
+   * `undefined`.
+   *
+   * Without this the face reads `value ?? 0`, so an input whose real state is
+   * "no value set — the implementation default applies" displays `0.0000`.
+   * On a frequency or a decay time that is not a cosmetic difference, it is a
+   * wrong reading: zero is a value, and "unset" is not.
+   *
+   * OPT-IN BY DESIGN. Omitting it leaves every existing call site byte-for-byte
+   * unchanged, which matters because this control is also used UNCONTROLLED
+   * (no `value` prop, internal state only) — those callers must keep showing
+   * their number, not a placeholder, and they never pass this.
+   */
+  placeholder?: string;
+  /**
+   * Full, spoken name for the whole control.
+   *
+   * `name` is the SHORT label shown on screen (`dur`, `min`, `t`) so the
+   * control can stay narrow; this is the long form screen readers announce.
+   * It is applied to BOTH branches: as the name of the `role='group'` wrapper
+   * while the control is a slider, and as the `aria-label` of the text field
+   * once it is clicked into. The clicked branch is the state where the name
+   * matters most — the user is committing a value — and without this the field
+   * falls back to naming itself by its 3-character `placeholder`.
+   *
+   * Callers that wrap this control in a `<label>` to supply the name instead
+   * should NOT: a `<label>` binds to its first labelable descendant, which is
+   * the decrement chevron, and the browser then propagates `:hover` to that
+   * chevron from anywhere inside the label.
+   */
+  ariaLabel?: string;
 };
 
 /**
@@ -107,13 +145,22 @@ const SliderNumberInput = forwardRef<
       min,
       max,
       step,
+      increment,
       size = 'normal',
       decimals,
+      ariaLabel,
+      placeholder,
     },
     ref,
   ) => {
     const isSmall = size === 'small';
     const displayDecimals = decimals ?? (isSmall ? 1 : 4);
+    /**
+     * Show the placeholder only while the control is CONTROLLED-but-unset.
+     * `value === undefined` alone is not enough: an uncontrolled slider also
+     * has no `value`, and it must keep showing its own number.
+     */
+    const showPlaceholder = placeholder !== undefined && value === undefined;
 
     //Internal states
     const [valueInner, setValueInner] = useState(value ?? 0);
@@ -222,10 +269,18 @@ const SliderNumberInput = forwardRef<
       onChange(newValue);
     }
     function handleIncrement(ratio: number = 0.1) {
-      handleChange(stepToUse.current * ratio);
+      handleChange(
+        increment !== undefined
+          ? Math.abs(increment)
+          : stepToUse.current * ratio,
+      );
     }
     function handleDecrement(ratio: number = 0.1) {
-      handleChange(-stepToUse.current * ratio);
+      handleChange(
+        -(increment !== undefined
+          ? Math.abs(increment)
+          : stepToUse.current * ratio),
+      );
     }
 
     function handleSwitchFromSliderToInput() {
@@ -252,31 +307,35 @@ const SliderNumberInput = forwardRef<
         : '';
 
     // Size-dependent classes
-    const heightClass = isSmall ? 'h-[22px]' : 'h-[44px]';
+    const heightClass = isSmall ? 'rbn:h-[22px]' : 'rbn:h-[44px]';
     const chevronBtnClass = isSmall
-      ? `${heightClass} w-[18px]`
-      : `${heightClass} w-[30px]`;
-    const iconClass = isSmall ? 'h-3 w-3' : '';
-    const textClass = isSmall ? 'text-[10px]' : '';
+      ? `${heightClass} rbn:w-[18px]`
+      : `${heightClass} rbn:w-[30px]`;
+    const iconClass = isSmall ? 'rbn:h-3 rbn:w-3' : '';
+    // 12px: the size of the labels and buttons a compact field sits beside
+    // (toolbars, menus). At 10px it read as a different, smaller control.
+    const textClass = isSmall ? 'rbn:text-[12px]' : '';
     const centerBtnClass = isSmall
-      ? `${heightClass} rounded-none px-1.5 flex-1 justify-between grid grid-cols-[repeat(2,auto)] bg-transparent gap-1`
-      : `${heightClass} rounded-none pl-1.5 pr-0 flex-1 justify-between grid grid-cols-[repeat(2,auto)] bg-transparent`;
+      ? `${heightClass} rbn:rounded-none rbn:px-1.5 rbn:flex-1 rbn:justify-between rbn:grid rbn:grid-cols-[repeat(2,auto)] rbn:bg-transparent rbn:gap-1`
+      : `${heightClass} rbn:rounded-none rbn:pl-1.5 rbn:pr-0 rbn:flex-1 rbn:justify-between rbn:grid rbn:grid-cols-[repeat(2,auto)] rbn:bg-transparent`;
 
     return !isClicked ? (
       <div
         className={cn(
-          'flex items-center gap-0 group/lightParentGroupBasedHover w-max bg-primary-gray',
-          isSmall ? 'rounded-sm' : 'rounded-md',
+          'rbn:flex rbn:items-center rbn:gap-0 rbn:group/lightParentGroupBasedHover rbn:w-max rbn:bg-primary-gray',
+          isSmall ? 'rbn:rounded-sm' : 'rbn:rounded-md',
           className,
         )}
         style={gradient !== '' ? { background: gradient } : {}}
         ref={ref}
+        role={ariaLabel !== undefined ? 'group' : undefined}
+        aria-label={ariaLabel}
       >
         <Button
           color='lightParentGroupBasedHover'
           className={cn(
             chevronBtnClass,
-            'rounded-r-none p-0 shrink-0 bg-transparent',
+            'rbn:rounded-r-none rbn:p-0 rbn:shrink-0 rbn:bg-transparent',
             textClass,
           )}
           onClick={() => handleDecrement(0.1)}
@@ -291,16 +350,18 @@ const SliderNumberInput = forwardRef<
           applyHoverStyles={!disableHoverStyles}
           ref={dragRef}
         >
-          <span className='truncate text-left'>{name}</span>
-          <span className='truncate tabular-nums'>
-            {valueToUse.toFixed(displayDecimals)}
+          <span className='rbn:truncate rbn:text-left'>{name}</span>
+          <span className='rbn:truncate rbn:tabular-nums'>
+            {showPlaceholder
+              ? placeholder
+              : valueToUse.toFixed(displayDecimals)}
           </span>
         </Button>
         <Button
           color='lightParentGroupBasedHover'
           className={cn(
             chevronBtnClass,
-            'rounded-l-none p-0 shrink-0 bg-transparent',
+            'rbn:rounded-l-none rbn:p-0 rbn:shrink-0 rbn:bg-transparent',
             textClass,
           )}
           onClick={() => handleIncrement(0.1)}
@@ -313,11 +374,22 @@ const SliderNumberInput = forwardRef<
     ) : (
       <Input
         className={cn(
-          'w-full',
-          isSmall && 'h-[22px] text-[11px] px-1.5',
+          'rbn:w-full',
+          isSmall && 'rbn:h-[22px] rbn:text-[12px] rbn:px-1.5',
           className,
         )}
         placeholder={name}
+        // The name matters MOST here: this is the state where the user is
+        // committing a value. Without it the field names itself by its
+        // 3-character placeholder (WCAG 3.3.2 / 1.3.1 weak pattern).
+        aria-label={ariaLabel}
+        // Focus the field as soon as it replaces the slider. `useDrag`'s
+        // mousedown calls preventDefault(), which suppresses focus-on-mousedown,
+        // and the button that was clicked is then unmounted — so without this
+        // the user gets a text box they cannot type into until they click a
+        // SECOND time, and assistive tech reading the tree in that window sees
+        // the field named by its 3-character placeholder.
+        autoFocus
         value={valueToUse}
         allowOnlyNumbers
         numberOfDecimals={displayDecimals}

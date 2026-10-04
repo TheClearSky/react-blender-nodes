@@ -41,7 +41,7 @@ function NodeIdentityLabel({
 }: NodeIdentityLabelProps) {
   if (!customName) {
     return (
-      <span className={cn('truncate', className)} data-slot='node-identity'>
+      <span className={cn('rbn:truncate', className)} data-slot='node-identity'>
         {typeName}
       </span>
     );
@@ -52,11 +52,18 @@ function NodeIdentityLabel({
   const typeShrink = protect === 'custom' ? 'shrink-[9999]' : '';
   return (
     <span
-      className={cn('flex min-w-0 items-baseline', className)}
+      className={cn('rbn:flex rbn:min-w-0 rbn:items-baseline', className)}
       data-slot='node-identity'
     >
-      <span className={cn('min-w-0 truncate', customShrink)}>{customName}</span>
-      <span className={cn('min-w-0 truncate pl-1.5 opacity-75', typeShrink)}>
+      <span className={cn('rbn:min-w-0 rbn:truncate', customShrink)}>
+        {customName}
+      </span>
+      <span
+        className={cn(
+          'rbn:min-w-0 rbn:truncate rbn:pl-1.5 rbn:opacity-75',
+          typeShrink,
+        )}
+      >
         {`: ${typeName}`}
       </span>
     </span>

@@ -111,17 +111,21 @@ export const SizeComparison: Story = {
     const [normalVal, setNormalVal] = useState('instant');
     const [smallVal, setSmallVal] = useState('execution');
     return (
-      <div className='flex flex-col gap-6 p-4'>
-        <div className='flex flex-col gap-1'>
-          <span className='text-[11px] text-secondary-light-gray'>Normal</span>
+      <div className='rbn:flex rbn:flex-col rbn:gap-6 rbn:p-4'>
+        <div className='rbn:flex rbn:flex-col rbn:gap-1'>
+          <span className='rbn:text-[11px] rbn:text-secondary-light-gray'>
+            Normal
+          </span>
           <ButtonToggle
             options={twoOptions}
             value={normalVal}
             onChange={setNormalVal}
           />
         </div>
-        <div className='flex flex-col gap-1'>
-          <span className='text-[11px] text-secondary-light-gray'>Small</span>
+        <div className='rbn:flex rbn:flex-col rbn:gap-1'>
+          <span className='rbn:text-[11px] rbn:text-secondary-light-gray'>
+            Small
+          </span>
           <ButtonToggle
             options={[
               { value: 'execution', label: 'Execution' },
@@ -132,8 +136,8 @@ export const SizeComparison: Story = {
             size='small'
           />
         </div>
-        <div className='flex flex-col gap-1'>
-          <span className='text-[11px] text-secondary-light-gray'>
+        <div className='rbn:flex rbn:flex-col rbn:gap-1'>
+          <span className='rbn:text-[11px] rbn:text-secondary-light-gray'>
             Three options (normal)
           </span>
           <ButtonToggle
@@ -142,8 +146,8 @@ export const SizeComparison: Story = {
             onChange={() => {}}
           />
         </div>
-        <div className='flex flex-col gap-1'>
-          <span className='text-[11px] text-secondary-light-gray'>
+        <div className='rbn:flex rbn:flex-col rbn:gap-1'>
+          <span className='rbn:text-[11px] rbn:text-secondary-light-gray'>
             Three options (small)
           </span>
           <ButtonToggle

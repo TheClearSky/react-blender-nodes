@@ -38,29 +38,29 @@ function ConnectionRow({
 }) {
   const [showMap, setShowMap] = useState(false);
   return (
-    <div className='flex flex-col gap-1'>
-      <div className='flex items-center gap-1.5 text-[12px] text-primary-white/90'>
-        <span className='truncate max-w-[110px]'>
+    <div className='rbn:flex rbn:flex-col rbn:gap-1'>
+      <div className='rbn:flex rbn:items-center rbn:gap-1.5 rbn:text-[12px] rbn:text-primary-white/90'>
+        <span className='rbn:truncate rbn:max-w-[110px]'>
           {connection.sourceNodeName}
         </span>
         {connection.sourceHandleName && (
-          <span className='text-primary-white/50 truncate'>
+          <span className='rbn:text-primary-white/50 rbn:truncate'>
             {'▸'} {connection.sourceHandleName}
           </span>
         )}
-        <ArrowRight className='w-3 h-3 shrink-0 text-primary-white/50' />
+        <ArrowRight className='rbn:w-3 rbn:h-3 rbn:shrink-0 rbn:text-primary-white/50' />
         {connection.targetHandleName && (
-          <span className='text-primary-white/50 truncate'>
+          <span className='rbn:text-primary-white/50 rbn:truncate'>
             {connection.targetHandleName} {'▸'}
           </span>
         )}
-        <span className='truncate max-w-[110px]'>
+        <span className='rbn:truncate rbn:max-w-[110px]'>
           {connection.targetNodeName}
         </span>
         <button
           type='button'
           onClick={() => setShowMap((v) => !v)}
-          className='ml-auto shrink-0 text-[10px] text-primary-white/70 hover:text-primary-white px-1.5 py-0.5 rounded bg-primary-gray'
+          className='rbn:ml-auto rbn:shrink-0 rbn:text-[10px] rbn:text-primary-white/70 rbn:hover:text-primary-white rbn:px-1.5 rbn:py-0.5 rbn:rounded rbn:bg-primary-gray'
         >
           {showMap ? 'Hide' : 'Look'}
         </button>
@@ -96,32 +96,32 @@ function ScopeSection({
   const showManifestations =
     scope.scopeId !== 'root' && scope.instanceManifestations > 1;
   return (
-    <div className='rounded border border-secondary-dark-gray'>
+    <div className='rbn:rounded rbn:border rbn:border-secondary-dark-gray'>
       <button
         type='button'
         onClick={() => setExpanded((v) => !v)}
-        className='w-full flex items-center gap-2 px-2.5 py-1.5 text-left'
+        className='rbn:w-full rbn:flex rbn:items-center rbn:gap-2 rbn:px-2.5 rbn:py-1.5 rbn:text-left'
       >
         <ChevronRight
           className={cn(
-            'w-3.5 h-3.5 shrink-0 text-primary-white/70 transition-transform',
-            expanded && 'rotate-90',
+            'rbn:w-3.5 rbn:h-3.5 rbn:shrink-0 rbn:text-primary-white/70 rbn:transition-transform',
+            expanded && 'rbn:rotate-90',
           )}
         />
-        <span className='text-[13px] text-primary-white font-medium truncate'>
+        <span className='rbn:text-[13px] rbn:text-primary-white rbn:font-medium rbn:truncate'>
           {scope.scopeLabel}
         </span>
         {showManifestations && (
-          <span className='text-[10px] text-primary-white/50 shrink-0'>
+          <span className='rbn:text-[10px] rbn:text-primary-white/50 rbn:shrink-0'>
             {'·'} {scope.instanceManifestations} places
           </span>
         )}
-        <span className='ml-auto shrink-0 text-[11px] text-primary-white/80 bg-primary-gray rounded px-1.5'>
+        <span className='rbn:ml-auto rbn:shrink-0 rbn:text-[11px] rbn:text-primary-white/80 rbn:bg-primary-gray rbn:rounded rbn:px-1.5'>
           {scope.connections.length}
         </span>
       </button>
       {expanded && (
-        <div className='flex flex-col gap-2 px-2.5 pb-2.5'>
+        <div className='rbn:flex rbn:flex-col rbn:gap-2 rbn:px-2.5 rbn:pb-2.5'>
           {scope.connections.map((connection) => (
             <ConnectionRow
               key={connection.edgeId}
@@ -157,7 +157,7 @@ function HandleSummaryContent({
 }) {
   if (blastRadius.totalConnections === 0) {
     return (
-      <div className='text-[13px] text-primary-white/70 font-main'>
+      <div className='rbn:text-[13px] rbn:text-primary-white/70 rbn:font-main'>
         "{blastRadius.target.handleName}" isn't connected anywhere — deleting it
         won't break any edges.
       </div>
@@ -179,12 +179,16 @@ function HandleSummaryContent({
       edgeIds,
     );
     return (
-      <div className='flex flex-col gap-2.5 font-main'>
-        <div className='text-[13px] text-primary-white/90'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-2.5 rbn:font-main'>
+        <div className='rbn:text-[13px] rbn:text-primary-white/90'>
           Deleting{' '}
-          <span className='font-medium'>{blastRadius.target.handleName}</span>{' '}
+          <span className='rbn:font-medium'>
+            {blastRadius.target.handleName}
+          </span>{' '}
           breaks{' '}
-          <span className='font-medium'>{blastRadius.totalConnections}</span>{' '}
+          <span className='rbn:font-medium'>
+            {blastRadius.totalConnections}
+          </span>{' '}
           connection{cPlural} — highlighted below:
         </div>
         <ExpandableConnectionMiniMap
@@ -199,12 +203,12 @@ function HandleSummaryContent({
   }
 
   return (
-    <div className='flex flex-col gap-2.5 font-main'>
-      <div className='text-[13px] text-primary-white/90'>
+    <div className='rbn:flex rbn:flex-col rbn:gap-2.5 rbn:font-main'>
+      <div className='rbn:text-[13px] rbn:text-primary-white/90'>
         Deleting{' '}
-        <span className='font-medium'>{blastRadius.target.handleName}</span> (
-        {blastRadius.target.direction}) breaks{' '}
-        <span className='font-medium'>{blastRadius.totalConnections}</span>{' '}
+        <span className='rbn:font-medium'>{blastRadius.target.handleName}</span>{' '}
+        ({blastRadius.target.direction}) breaks{' '}
+        <span className='rbn:font-medium'>{blastRadius.totalConnections}</span>{' '}
         connection{cPlural} across {blastRadius.scopes.length} location{sPlural}
         :
       </div>

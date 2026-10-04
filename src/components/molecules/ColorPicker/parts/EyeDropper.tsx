@@ -49,11 +49,13 @@ function ColorPickerEyeDropper({
       size={size}
       onClick={handleClick}
       className={cn(
-        'cursor-pointer bg-transparent border-secondary-dark-gray hover:bg-primary-gray',
+        'rbn:cursor-pointer rbn:bg-transparent rbn:border-secondary-dark-gray rbn:hover:bg-primary-gray',
         className,
       )}
     >
-      <Pipette className={size === 'small' ? 'w-3.5 h-3.5' : 'w-5 h-5'} />
+      <Pipette
+        className={size === 'small' ? 'rbn:w-3.5 rbn:h-3.5' : 'rbn:w-5 rbn:h-5'}
+      />
     </Button>
   );
 }

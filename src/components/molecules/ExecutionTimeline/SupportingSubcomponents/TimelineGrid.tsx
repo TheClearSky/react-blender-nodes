@@ -34,13 +34,13 @@ function TimeRuler({
   return (
     <div
       className={cn(
-        'relative border-b border-timeline-ruler-border bg-runner-ruler-bg',
+        'rbn:relative rbn:border-b rbn:border-timeline-ruler-border rbn:bg-runner-ruler-bg',
         theme?.timeline?.ruler,
       )}
       style={{ height: `${RULER_HEIGHT}px`, width: `${contentWidth}px` }}
     >
       <div
-        className='relative h-full cursor-ew-resize select-none'
+        className='rbn:relative rbn:h-full rbn:cursor-ew-resize rbn:select-none'
         onMouseDown={onScrubDown}
       >
         {ticks.map((t) => {
@@ -49,13 +49,13 @@ function TimeRuler({
           return (
             <div
               key={t}
-              className='absolute bottom-1 -translate-x-1/2'
+              className='rbn:absolute rbn:bottom-1 rbn:-translate-x-1/2'
               style={{ left: `${x}px` }}
             >
-              <span className='font-mono text-[11px] tabular-nums text-runner-muted-text select-none whitespace-nowrap'>
+              <span className='rbn:font-mono rbn:text-[11px] rbn:tabular-nums rbn:text-runner-muted-text rbn:select-none rbn:whitespace-nowrap'>
                 {formatTime(t)}
               </span>
-              <div className='absolute -bottom-1 left-1/2 h-1 w-px bg-timeline-tick' />
+              <div className='rbn:absolute rbn:-bottom-1 rbn:left-1/2 rbn:h-1 rbn:w-px rbn:bg-timeline-tick' />
             </div>
           );
         })}
@@ -87,11 +87,11 @@ function TimelineGrid({
   }
 
   return (
-    <div className='pointer-events-none absolute inset-0'>
+    <div className='rbn:pointer-events-none rbn:absolute rbn:inset-0'>
       {lines.map((x) => (
         <div
           key={x}
-          className='absolute top-0 bottom-0 w-px bg-runner-grid-line'
+          className='rbn:absolute rbn:top-0 rbn:bottom-0 rbn:w-px rbn:bg-runner-grid-line'
           style={{ left: `${x}px` }}
         />
       ))}

@@ -58,22 +58,22 @@ function TimelineToolbarOverflowMenu({
 }: TimelineToolbarOverflowMenuProps) {
   const theme = useGraphTheme();
   const sectionLabel =
-    'px-1 text-[10px] font-semibold uppercase tracking-wider text-secondary-light-gray';
+    'rbn:px-1 rbn:text-[10px] rbn:font-semibold rbn:uppercase rbn:tracking-wider rbn:text-secondary-light-gray';
   // Ghost buttons (no filled bg) so the themed `overflowMenuItem` hover reaches
   // their inlined hover state — a filled `bg-primary-dark-gray` would be a
   // portaled inline token the menu-surface slot can't override.
   const zoomButton = cn(
-    'btn-press flex flex-1 items-center justify-center rounded py-1 text-primary-white transition-colors hover:bg-primary-dark-gray',
+    'btn-press rbn:flex rbn:flex-1 rbn:items-center rbn:justify-center rbn:rounded rbn:py-1 rbn:text-primary-white rbn:transition-colors rbn:hover:bg-primary-dark-gray',
     theme?.runnerPanel?.overflowMenuItem,
   );
   return (
     <Popover
-      trigger={<MoreHorizontal className='h-4 w-4' />}
+      trigger={<MoreHorizontal className='rbn:h-4 rbn:w-4' />}
       triggerLabel='More timeline options'
       triggerClassName={cn(theme?.runnerPanel?.closeButton, triggerClassName)}
       contentClassName={theme?.runnerPanel?.overflowMenu}
     >
-      <div className='flex flex-col gap-1'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-1'>
         <span className={sectionLabel}>Autoplay interval (s)</span>
         <SliderNumberInput
           name='Interval'
@@ -86,18 +86,18 @@ function TimelineToolbarOverflowMenu({
         />
       </div>
 
-      <label className='flex cursor-pointer items-center gap-2 px-1 text-[13px] text-primary-white select-none'>
+      <label className='rbn:flex rbn:cursor-pointer rbn:items-center rbn:gap-2 rbn:px-1 rbn:text-[13px] rbn:text-primary-white rbn:select-none'>
         <input
           type='checkbox'
           checked={autoScroll}
           onChange={(e) => onAutoScrollChange(e.target.checked)}
-          className='h-3.5 w-3.5 cursor-pointer rounded-sm accent-primary-blue'
+          className='rbn:h-3.5 rbn:w-3.5 rbn:cursor-pointer rbn:rounded-sm rbn:accent-primary-blue'
         />
         Auto-scroll to selected step
       </label>
 
       {hasPauseData && (
-        <div className='flex flex-col gap-1'>
+        <div className='rbn:flex rbn:flex-col rbn:gap-1'>
           <span className={sectionLabel}>Time mode</span>
           <ButtonToggle
             options={TIME_MODE_OPTIONS}
@@ -111,16 +111,16 @@ function TimelineToolbarOverflowMenu({
         </div>
       )}
 
-      <div className='flex flex-col gap-1'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-1'>
         <span className={sectionLabel}>Zoom</span>
-        <div className='flex items-center gap-1'>
+        <div className='rbn:flex rbn:items-center rbn:gap-1'>
           <button
             type='button'
             onClick={onZoomIn}
             className={zoomButton}
             title='Zoom In'
           >
-            <ZoomIn className='h-4 w-4' />
+            <ZoomIn className='rbn:h-4 rbn:w-4' />
           </button>
           <button
             type='button'
@@ -128,7 +128,7 @@ function TimelineToolbarOverflowMenu({
             className={zoomButton}
             title='Zoom Out'
           >
-            <ZoomOut className='h-4 w-4' />
+            <ZoomOut className='rbn:h-4 rbn:w-4' />
           </button>
           <button
             type='button'
@@ -136,21 +136,23 @@ function TimelineToolbarOverflowMenu({
             className={zoomButton}
             title='Fit to View'
           >
-            <Maximize2 className='h-4 w-4' />
+            <Maximize2 className='rbn:h-4 rbn:w-4' />
           </button>
         </div>
       </div>
 
-      <div className='flex flex-col gap-1 border-t border-secondary-dark-gray pt-2 font-mono text-[12px] text-primary-white'>
-        <span className='flex items-center gap-1.5'>
-          <Timer className='h-3.5 w-3.5' /> {totalDurationMs.toFixed(2)}ms
+      <div className='rbn:flex rbn:flex-col rbn:gap-1 rbn:border-t rbn:border-secondary-dark-gray rbn:pt-2 rbn:font-mono rbn:text-[12px] rbn:text-primary-white'>
+        <span className='rbn:flex rbn:items-center rbn:gap-1.5'>
+          <Timer className='rbn:h-3.5 rbn:w-3.5' /> {totalDurationMs.toFixed(2)}
+          ms
         </span>
-        <span className='flex items-center gap-1.5'>
-          <Layers className='h-3.5 w-3.5' /> {stepCount} steps
+        <span className='rbn:flex rbn:items-center rbn:gap-1.5'>
+          <Layers className='rbn:h-3.5 rbn:w-3.5' /> {stepCount} steps
         </span>
         {warmupDurationMs > 0 && (
-          <span className='flex items-center gap-1.5'>
-            <Zap className='h-3.5 w-3.5' /> JIT {warmupDurationMs.toFixed(1)}ms
+          <span className='rbn:flex rbn:items-center rbn:gap-1.5'>
+            <Zap className='rbn:h-3.5 rbn:w-3.5' /> JIT{' '}
+            {warmupDurationMs.toFixed(1)}ms
           </span>
         )}
       </div>

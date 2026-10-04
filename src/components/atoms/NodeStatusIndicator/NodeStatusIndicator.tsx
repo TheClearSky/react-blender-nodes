@@ -60,7 +60,7 @@ function StatusTooltip({
       <div
         ref={refs.setReference}
         className={cn(
-          'absolute top-1 right-1 z-10 cursor-pointer pointer-events-auto',
+          'rbn:absolute rbn:top-1 rbn:right-1 rbn:z-10 rbn:cursor-pointer rbn:pointer-events-auto',
           iconClassName,
         )}
         {...getReferenceProps()}
@@ -76,7 +76,7 @@ function StatusTooltip({
           <div
             style={transitionStyles}
             className={cn(
-              'max-w-xs rounded-md bg-tooltip-bg border border-secondary-dark-gray px-3 py-2 text-[14px] leading-[18px] font-main text-primary-white shadow-lg whitespace-pre-wrap pointer-events-auto',
+              'rbn:max-w-xs rbn:rounded-md rbn:bg-tooltip-bg rbn:border rbn:border-secondary-dark-gray rbn:px-3 rbn:py-2 rbn:text-[14px] rbn:leading-[18px] rbn:font-main rbn:text-primary-white rbn:shadow-lg rbn:whitespace-pre-wrap rbn:pointer-events-auto',
               theme?.statusIndicator?.tooltip,
             )}
           >
@@ -125,31 +125,33 @@ function NodeStatusIndicator({
     warnings && warnings.length > 0 ? warnings.join('\n') : undefined;
 
   return (
-    <div className='relative'>
+    <div className='rbn:relative'>
       {/* Outline overlay — uses outline (not border) so it never shifts the node's size.
           Always mounted so transitions work smoothly when scrubbing back to idle. */}
       <div
         className={cn(
-          'absolute inset-0 rounded-md pointer-events-none z-10 transition-[outline-color,box-shadow,opacity] duration-200',
+          'rbn:absolute rbn:inset-0 rbn:rounded-md rbn:pointer-events-none rbn:z-10 rbn:transition-[outline-color,box-shadow,opacity] rbn:duration-200',
           visualState === 'idle' &&
-            '[outline:5px_solid_transparent] shadow-none',
+            'rbn:[outline:5px_solid_transparent] rbn:shadow-none',
           visualState === 'running' &&
-            '[outline:5px_dashed_var(--color-primary-blue)] animate-[running-glow_2s_ease-in-out_infinite]',
+            'rbn:[outline:5px_dashed_var(--color-primary-blue)] rbn:animate-[running-glow_2s_ease-in-out_infinite]',
           visualState === 'completed' &&
-            '[outline:5px_solid_var(--color-status-completed)] shadow-[0_0_12px_rgba(76,175,80,0.3)]',
+            'rbn:[outline:5px_solid_var(--color-status-completed)] rbn:shadow-[0_0_12px_rgba(76,175,80,0.3)]',
           visualState === 'errored' &&
-            '[outline:5px_solid_var(--color-status-errored)] shadow-[0_0_12px_rgba(255,68,68,0.3)]',
+            'rbn:[outline:5px_solid_var(--color-status-errored)] rbn:shadow-[0_0_12px_rgba(255,68,68,0.3)]',
           visualState === 'skipped' &&
-            '[outline:5px_dashed_var(--color-secondary-dark-gray)] opacity-50',
+            'rbn:[outline:5px_dashed_var(--color-secondary-dark-gray)] rbn:opacity-50',
           visualState === 'warning' &&
-            '[outline:5px_solid_var(--color-status-warning)] shadow-[0_0_12px_rgba(255,165,0,0.3)]',
+            'rbn:[outline:5px_solid_var(--color-status-warning)] rbn:shadow-[0_0_12px_rgba(255,165,0,0.3)]',
         )}
       />
 
       {/* Error icon */}
       {visualState === 'errored' && errorTooltipContent && (
         <StatusTooltip
-          icon={<AlertCircleIcon className='w-5 h-5 text-status-errored' />}
+          icon={
+            <AlertCircleIcon className='rbn:w-5 rbn:h-5 rbn:text-status-errored' />
+          }
           content={errorTooltipContent}
         />
       )}
@@ -157,14 +159,16 @@ function NodeStatusIndicator({
       {/* Warning icon */}
       {visualState === 'warning' && warningTooltipContent && (
         <StatusTooltip
-          icon={<AlertTriangleIcon className='w-5 h-5 text-status-warning' />}
+          icon={
+            <AlertTriangleIcon className='rbn:w-5 rbn:h-5 rbn:text-status-warning' />
+          }
           content={warningTooltipContent}
         />
       )}
 
       {/* Dimming layer for skipped */}
       {visualState === 'skipped' && (
-        <div className='absolute inset-0 rounded-md bg-black/30 pointer-events-none z-10' />
+        <div className='rbn:absolute rbn:inset-0 rbn:rounded-md rbn:bg-black/30 rbn:pointer-events-none rbn:z-10' />
       )}
 
       {children}

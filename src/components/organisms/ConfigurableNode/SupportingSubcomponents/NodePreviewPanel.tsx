@@ -116,7 +116,7 @@ function NodePreviewPanelInner({
       // contributes nothing to the wrapper's intrinsic width, then stretches to
       // match the node) — oversized content scrolls instead of widening the node.
       className={cn(
-        'nodrag nopan nowheel mb-1 w-0 min-w-full max-h-[320px] overflow-auto rounded-md bg-primary-dark-gray text-[27px] leading-snug',
+        'nodrag nopan nowheel rbn:mb-1 rbn:w-0 rbn:min-w-full rbn:max-h-[320px] rbn:overflow-auto rbn:rounded-md rbn:bg-primary-dark-gray rbn:text-[27px] rbn:leading-snug',
         theme?.node?.previewPanel,
       )}
     >
@@ -132,18 +132,20 @@ function NodePreviewPanelInner({
           )
         }
         fallback={({ error, reset }) => (
-          <div className='flex flex-col items-center gap-2 p-3 text-center'>
-            <div className='flex items-center gap-1.5 text-status-errored'>
-              <AlertTriangle className='h-5 w-5' />
-              <span className='text-[20px] font-medium'>Preview error</span>
+          <div className='rbn:flex rbn:flex-col rbn:items-center rbn:gap-2 rbn:p-3 rbn:text-center'>
+            <div className='rbn:flex rbn:items-center rbn:gap-1.5 rbn:text-status-errored'>
+              <AlertTriangle className='rbn:h-5 rbn:w-5' />
+              <span className='rbn:text-[20px] rbn:font-medium'>
+                Preview error
+              </span>
             </div>
-            <p className='text-[16px] text-secondary-light-gray'>
+            <p className='rbn:text-[16px] rbn:text-secondary-light-gray'>
               {error.message}
             </p>
             <button
               type='button'
               onClick={reset}
-              className='rounded border border-secondary-dark-gray px-2 py-1 text-[16px] text-secondary-light-gray transition-colors hover:text-primary-white'
+              className='rbn:rounded rbn:border rbn:border-secondary-dark-gray rbn:px-2 rbn:py-1 rbn:text-[16px] rbn:text-secondary-light-gray rbn:transition-colors rbn:hover:text-primary-white'
             >
               Retry
             </button>

@@ -46,16 +46,16 @@ function RunControlsOverflowMenu({
 }: RunControlsOverflowMenuProps) {
   const theme = useGraphTheme();
   const sectionLabel =
-    'px-1 text-[10px] font-semibold uppercase tracking-wider text-secondary-light-gray';
+    'rbn:px-1 rbn:text-[10px] rbn:font-semibold rbn:uppercase rbn:tracking-wider rbn:text-secondary-light-gray';
   return (
     <Popover
-      trigger={<MoreHorizontal className='h-4 w-4' />}
+      trigger={<MoreHorizontal className='rbn:h-4 rbn:w-4' />}
       triggerLabel='More run options'
       triggerClassName={cn(theme?.runnerPanel?.closeButton, triggerClassName)}
       contentClassName={theme?.runnerPanel?.overflowMenu}
     >
       {showTargetPicker && runTargets && (
-        <div className='flex flex-col gap-1'>
+        <div className='rbn:flex rbn:flex-col rbn:gap-1'>
           <span className={sectionLabel}>Run target</span>
           {runTargets.map((target) => (
             <button
@@ -64,26 +64,26 @@ function RunControlsOverflowMenu({
               disabled={!canRun}
               onClick={() => onRunTargetChange?.(target.id)}
               className={cn(
-                'btn-press flex items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] text-primary-white transition-colors',
+                'btn-press rbn:flex rbn:items-center rbn:gap-2 rbn:rounded rbn:px-2 rbn:py-1.5 rbn:text-left rbn:text-[13px] rbn:text-primary-white rbn:transition-colors',
                 target.id === activeRunTargetId
                   ? cn(
-                      'bg-primary-blue/20',
+                      'rbn:bg-primary-blue/20',
                       theme?.runnerPanel?.overflowMenuItemActive,
                     )
                   : cn(
-                      'hover:bg-primary-dark-gray',
+                      'rbn:hover:bg-primary-dark-gray',
                       theme?.runnerPanel?.overflowMenuItem,
                     ),
-                !canRun && 'cursor-not-allowed opacity-40',
+                !canRun && 'rbn:cursor-not-allowed rbn:opacity-40',
               )}
             >
               {target.icon}
-              <span className='truncate'>{target.label}</span>
+              <span className='rbn:truncate'>{target.label}</span>
             </button>
           ))}
         </div>
       )}
-      <div className='flex flex-col gap-1'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-1'>
         <span className={sectionLabel}>Mode</span>
         <ButtonToggle
           options={RUN_MODE_OPTIONS}
@@ -98,8 +98,8 @@ function RunControlsOverflowMenu({
       </div>
       <div
         className={cn(
-          'flex flex-col gap-1',
-          !canEdit && 'pointer-events-none opacity-50',
+          'rbn:flex rbn:flex-col rbn:gap-1',
+          !canEdit && 'rbn:pointer-events-none rbn:opacity-50',
         )}
       >
         <span className={sectionLabel}>Max loops</span>

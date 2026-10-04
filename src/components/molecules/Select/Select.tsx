@@ -296,7 +296,7 @@ function SelectInternals({
   );
   return (
     <InternalsContext.Provider value={value}>
-      <div className={renderInline ? 'relative w-full' : undefined}>
+      <div className={renderInline ? 'rbn:relative rbn:w-full' : undefined}>
         {children}
       </div>
     </InternalsContext.Provider>
@@ -319,28 +319,28 @@ const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
         ref={refs.setReference}
         type='button'
         className={cn(
-          'flex w-full items-center justify-between border cursor-pointer',
-          'border-secondary-dark-gray bg-primary-black font-main text-primary-white',
-          'focus:outline-none focus-visible:ring-1 focus-visible:ring-white',
-          'disabled:cursor-not-allowed disabled:opacity-50',
+          'rbn:flex rbn:w-full rbn:items-center rbn:justify-between rbn:border rbn:cursor-pointer',
+          'rbn:border-secondary-dark-gray rbn:bg-primary-black rbn:font-main rbn:text-primary-white',
+          'rbn:focus:outline-none rbn:focus-visible:ring-1 rbn:focus-visible:ring-white',
+          'rbn:disabled:cursor-not-allowed rbn:disabled:opacity-50',
           size === 'compact'
-            ? 'h-[22px] px-2 py-0.5 text-[12px] leading-[12px] rounded'
+            ? 'rbn:h-[22px] rbn:px-2 rbn:py-0.5 rbn:text-[12px] rbn:leading-[12px] rbn:rounded'
             : size === 'small'
-              ? 'h-[28px] px-3 py-1 text-[16px] leading-[16px] rounded-sm'
-              : 'h-[44px] px-4 py-2 text-[27px] leading-[27px] rounded-md',
+              ? 'rbn:h-[28px] rbn:px-3 rbn:py-1 rbn:text-[16px] rbn:leading-[16px] rbn:rounded-sm'
+              : 'rbn:h-[44px] rbn:px-4 rbn:py-2 rbn:text-[27px] rbn:leading-[27px] rbn:rounded-md',
           className,
         )}
         {...getReferenceProps(props)}
       >
-        <span className='text-left truncate'>{children}</span>
+        <span className='rbn:text-left rbn:truncate'>{children}</span>
         <ChevronDownIcon
           className={cn(
-            'shrink-0 ml-1',
+            'rbn:shrink-0 rbn:ml-1',
             size === 'compact'
-              ? 'h-3 w-3'
+              ? 'rbn:h-3 rbn:w-3'
               : size === 'small'
-                ? 'h-4 w-4'
-                : 'h-6 w-6',
+                ? 'rbn:h-4 rbn:w-4'
+                : 'rbn:h-6 rbn:w-6',
           )}
         />
       </button>
@@ -379,12 +379,12 @@ function SelectValue({
     return (
       <span
         className={cn(
-          'flex items-center gap-2 text-red-500 truncate',
+          'rbn:flex rbn:items-center rbn:gap-2 rbn:text-red-500 rbn:truncate',
           className,
         )}
       >
-        <span className='truncate'>{displayText}</span>
-        <span className='text-[20px] leading-[20px] shrink-0'>
+        <span className='rbn:truncate'>{displayText}</span>
+        <span className='rbn:text-[20px] rbn:leading-[20px] rbn:shrink-0'>
           {unsupportedLabel}
         </span>
       </span>
@@ -393,7 +393,10 @@ function SelectValue({
 
   return (
     <span
-      className={cn(!displayText && 'text-graph-input-placeholder', className)}
+      className={cn(
+        !displayText && 'rbn:text-graph-input-placeholder',
+        className,
+      )}
     >
       {displayText || placeholder}
     </span>
@@ -494,11 +497,14 @@ function SelectContent({ children, className }: SelectContentProps) {
         <div
           style={transitionStyles}
           className={cn(
-            'overflow-hidden rounded-md border border-secondary-dark-gray bg-graph-menu-bg text-primary-white shadow-md',
+            'rbn:overflow-hidden rbn:rounded-md rbn:border rbn:border-secondary-dark-gray rbn:bg-graph-menu-bg rbn:text-primary-white rbn:shadow-md',
             className,
           )}
         >
-          <div className='overflow-y-auto p-1' style={{ maxHeight: 384 }}>
+          <div
+            className='rbn:overflow-y-auto rbn:p-1'
+            style={{ maxHeight: 384 }}
+          >
             {children}
           </div>
         </div>
@@ -546,32 +552,32 @@ function SelectItem({
       aria-selected={isSelected}
       tabIndex={isActive ? 0 : -1}
       className={cn(
-        'relative flex w-full cursor-default select-none items-center',
-        'font-main text-primary-white outline-none',
+        'rbn:relative rbn:flex rbn:w-full rbn:cursor-default rbn:select-none rbn:items-center',
+        'rbn:font-main rbn:text-primary-white rbn:outline-none',
         size === 'compact'
-          ? 'py-0.5 pl-2 pr-1 text-[12px] leading-[12px] rounded'
+          ? 'rbn:py-0.5 rbn:pl-2 rbn:pr-1 rbn:text-[12px] rbn:leading-[12px] rbn:rounded'
           : size === 'small'
-            ? 'py-1 pl-3 pr-1.5 text-[16px] leading-[16px] rounded-sm'
-            : 'py-1.5 pl-4 pr-2 text-[27px] leading-[27px] rounded-sm',
-        isActive && 'bg-graph-menu-item-hover-bg',
-        disabled && 'pointer-events-none opacity-50',
+            ? 'rbn:py-1 rbn:pl-3 rbn:pr-1.5 rbn:text-[16px] rbn:leading-[16px] rbn:rounded-sm'
+            : 'rbn:py-1.5 rbn:pl-4 rbn:pr-2 rbn:text-[27px] rbn:leading-[27px] rbn:rounded-sm',
+        isActive && 'rbn:bg-graph-menu-item-hover-bg',
+        disabled && 'rbn:pointer-events-none rbn:opacity-50',
         className,
       )}
       {...getItemProps({
         onClick: disabled ? undefined : () => handleSelect(itemValue),
       })}
     >
-      <span className='truncate'>{children}</span>
+      <span className='rbn:truncate'>{children}</span>
       {isSelected && (
-        <span className='ml-auto'>
+        <span className='rbn:ml-auto'>
           <CheckIcon
             className={cn(
-              'ml-1',
+              'rbn:ml-1',
               size === 'compact'
-                ? 'h-3 w-3'
+                ? 'rbn:h-3 rbn:w-3'
                 : size === 'small'
-                  ? 'h-3.5 w-3.5'
-                  : 'h-5 w-5',
+                  ? 'rbn:h-3.5 rbn:w-3.5'
+                  : 'rbn:h-5 rbn:w-5',
             )}
             strokeWidth={2.5}
           />
@@ -594,7 +600,7 @@ function SelectLabel({ children, className }: SelectLabelProps) {
   return (
     <div
       className={cn(
-        'py-1.5 px-2 text-[27px] leading-[27px] font-main font-semibold text-primary-white',
+        'rbn:py-1.5 rbn:px-2 rbn:text-[27px] rbn:leading-[27px] rbn:font-main rbn:font-semibold rbn:text-primary-white',
         className,
       )}
     >
@@ -613,7 +619,12 @@ type SelectSeparatorProps = {
 
 function SelectSeparator({ className }: SelectSeparatorProps) {
   return (
-    <div className={cn('-mx-1 my-1 h-px bg-secondary-dark-gray', className)} />
+    <div
+      className={cn(
+        'rbn:-mx-1 rbn:my-1 rbn:h-px rbn:bg-secondary-dark-gray',
+        className,
+      )}
+    />
   );
 }
 
@@ -644,14 +655,17 @@ function SelectUnsupportedItem({ className }: SelectUnsupportedItemProps) {
       type='button'
       onClick={() => handleSelect(value)}
       className={cn(
-        'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-4 pr-2',
-        'text-[27px] leading-[27px] font-main text-red-500/60 hover:bg-graph-menu-item-hover-bg',
+        'rbn:relative rbn:flex rbn:w-full rbn:cursor-default rbn:select-none rbn:items-center rbn:rounded-sm rbn:py-1.5 rbn:pl-4 rbn:pr-2',
+        'rbn:text-[27px] rbn:leading-[27px] rbn:font-main rbn:text-red-500/60 rbn:hover:bg-graph-menu-item-hover-bg',
         className,
       )}
     >
-      <span className='truncate'>{value}</span>
-      <span className='ml-auto'>
-        <XIcon className='h-5 w-5 ml-2 mr-1' strokeWidth={2.5} />
+      <span className='rbn:truncate'>{value}</span>
+      <span className='rbn:ml-auto'>
+        <XIcon
+          className='rbn:h-5 rbn:w-5 rbn:ml-2 rbn:mr-1'
+          strokeWidth={2.5}
+        />
       </span>
     </button>
   );

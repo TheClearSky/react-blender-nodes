@@ -24,7 +24,7 @@ const Checkbox = forwardRef<
     <CheckboxPrimitive.Root
       data-slot='checkbox'
       className={cn(
-        'peer bg-primary-gray border-transparent data-[state=checked]:bg-primary-blue data-[state=checked]:text-primary-white focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-7 shrink-0 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
+        'rbn:peer rbn:bg-primary-gray rbn:border-transparent rbn:data-[state=checked]:bg-primary-blue rbn:data-[state=checked]:text-primary-white rbn:focus-visible:border-ring rbn:focus-visible:ring-ring/50 rbn:aria-invalid:ring-destructive/20 rbn:dark:aria-invalid:ring-destructive/40 rbn:aria-invalid:border-destructive rbn:size-7 rbn:shrink-0 rbn:rounded-[4px] rbn:border rbn:shadow-xs rbn:transition-shadow rbn:outline-none rbn:focus-visible:ring-[3px] rbn:disabled:cursor-not-allowed rbn:disabled:opacity-50',
         className,
       )}
       {...props}
@@ -32,9 +32,9 @@ const Checkbox = forwardRef<
     >
       <CheckboxPrimitive.Indicator
         data-slot='checkbox-indicator'
-        className='grid place-content-center text-current transition-none'
+        className='rbn:grid rbn:place-content-center rbn:text-current rbn:transition-none'
       >
-        <CheckIcon className='size-6' strokeWidth={3.5} />
+        <CheckIcon className='rbn:size-6' strokeWidth={3.5} />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   );

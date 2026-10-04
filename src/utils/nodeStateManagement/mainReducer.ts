@@ -47,6 +47,7 @@ const actionTypes = [
   'UPDATE_GRAPH_IO_HANDLES',
   'REORDER_INPUT_CONNECTIONS',
   'UPDATE_NODE_CUSTOM_NAME',
+  'UPDATE_NODE_DESCRIPTION',
   'ADD_USER_ZONE',
   'UPDATE_USER_ZONE',
   'UPDATE_USER_ZONE_MEMBERS',
@@ -92,6 +93,7 @@ const actionTypesMap = {
   [actionTypes[32]]: actionTypes[32],
   [actionTypes[33]]: actionTypes[33],
   [actionTypes[34]]: actionTypes[34],
+  [actionTypes[35]]: actionTypes[35],
 } as const;
 
 /**
@@ -191,6 +193,17 @@ type Action<
       };
     }
   | {
+      /** Set or clear the in-app description of node INSTANCES (shown behind
+       *  the ⓘ on their titles, ahead of the type's description). Loops use it:
+       *  the loop's three nodes carry the loop's description. */
+      type: typeof actionTypesMap.UPDATE_NODE_DESCRIPTION;
+      payload: {
+        nodeIds: string[];
+        /** New description, or `undefined` / blank to clear it. */
+        description: string | undefined;
+      };
+    }
+  | {
       /** Collapse/expand a node instance's preview panel (persisted on `node.data`;
        *  visibility-only, undoable). The flag is always valid to set; it takes
        *  VISIBLE effect only when a `nodePreviews` component is registered for that
@@ -238,6 +251,8 @@ type Action<
         name?: string;
         /** New CSS hex color (invalid is dropped by the validator). */
         color?: string;
+        /** New description; blank clears it. */
+        description?: string;
       };
     }
   | {
@@ -303,6 +318,15 @@ type Action<
           UnderlyingType,
           ComplexSchemaType
         >;
+        /**
+         * Keep `state.history` (undo/redo) from the payload instead of
+         * dropping it. For RESTORING a session this same editor produced
+         * earlier — e.g. switching back to a tab whose in-memory state was
+         * taken with `state` — where the history's patches match the state
+         * exactly. Never set it for imported or hand-built states: their
+         * history (if any) does not describe them. Default `false`.
+         */
+        preserveHistory?: boolean;
       };
     }
   | {
@@ -318,7 +342,11 @@ type Action<
         // (guarded by scripts/check-dist-types.mjs).
         updates: {
           name?: string;
+          /** New description; blank clears it. */
+          description?: string;
           headerColor?: string;
+          /** Add-menu folders, outermost first; `[]` = top level of Add Node. */
+          locationInContextMenu?: string[];
           inputs?: (
             | TypeOfInput<DataTypeUniqueId>
             | TypeOfInputPanel<DataTypeUniqueId>

@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   type ActionDispatch,
+  type ReactNode,
 } from 'react';
 import { z } from 'zod';
 import {
@@ -27,7 +28,13 @@ import {
 import '@xyflow/react/dist/style.css';
 import { ConfigurableConnection } from '@/components/atoms/ConfigurableConnection/ConfigurableConnection';
 import type { HandleShape } from '@/components/atoms/HandleShapeSwatch/handleShapes';
-import { createNodeContextMenu } from '../../molecules/ContextMenu/createNodeContextMenu';
+import {
+  createNodeContextMenu,
+  menuFolderSuggestions,
+} from '../../molecules/ContextMenu/createNodeContextMenu';
+
+/** A group with no menu location sits at the top level (a stable `[]`). */
+const EMPTY_PATH: readonly string[] = [];
 import { FullGraphContextMenu } from './FullGraphContextMenu';
 import { createImportExportMenuItems } from './createImportExportMenuItems';
 import { FullGraphNodeGroupSelector } from './FullGraphNodeGroupSelector';
@@ -57,13 +64,24 @@ import type {
 } from '@/utils/nodeRunner/types';
 import type { RunTarget } from '@/utils/nodeRunner/runTargets/types';
 import type { RecorderWarning } from '@/utils/nodeRunner/executionRecorder';
+import type { RunEvent } from '@/utils/nodeRunner/types';
 import { RunnerOverlay } from './RunnerOverlay';
+import { BottomDrawerProvider } from './BottomDrawerProvider';
+import { BottomDrawerButtons } from './BottomDrawerButtons';
+import { ConsumerBottomDrawer } from './ConsumerBottomDrawer';
+import {
+  RUNNER_DRAWER_ID,
+  sanitizeBottomDrawers,
+  type BottomDrawerDescriptor,
+  type GraphBottomDrawer,
+} from './bottomDrawers';
+import type { GraphRunnerHandle } from './runnerHandle';
 import { canRemoveStructuredNodesAndEdges } from '@/utils/nodeStateManagement/nodes/loops';
 import { standardNodeTypeNamesMap } from '@/utils/nodeStateManagement/standardNodes';
 import { hasKey } from '@/utils/nodeRunner/groupCompiler';
 import { useGraphImportExport } from './useGraphImportExport';
 import { ErrorBoundary } from '@/components/atoms/ErrorBoundary';
-import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Play, RotateCcw } from 'lucide-react';
 import type { GraphEvent } from '@/utils/nodeStateManagement/graphEvent';
 import {
   InputComponentRegistryContext,
@@ -103,6 +121,18 @@ import type { SwitchHandleLevel } from '@/components/molecules/SwitchEditDrawer'
 import { createLoopMenuItem } from '@/components/molecules/ContextMenu/createLoopMenuItem';
 import { createSwitchMenuItem } from '@/components/molecules/ContextMenu/createSwitchMenuItem';
 import { createUserZoneMenuItem } from '@/components/molecules/ContextMenu/createUserZoneMenuItem';
+
+/**
+ * The built-in runner drawer as the bottom-drawer chrome sees it — registered
+ * first whenever `functionImplementations` is provided. Same label, icon and
+ * tooltip the floating "Runner" button always had.
+ */
+const RUNNER_DRAWER: BottomDrawerDescriptor = {
+  id: RUNNER_DRAWER_ID,
+  label: 'Runner',
+  icon: <Play className='rbn:h-3.5 rbn:w-3.5 rbn:shrink-0' />,
+  title: 'Open runner panel',
+};
 
 /**
  * Props for the FullGraph component
@@ -219,6 +249,27 @@ type FullGraphProps<
    */
   onRecorderWarning?: (warning: RecorderWarning) => void;
   /**
+   * Run lifecycle stream: `run:started` / `run:completed` / `run:aborted` /
+   * `run:reset`, discriminated on `kind` (see `RunEvent`).
+   *
+   * `onExecutionRecordChange` cannot tell you which of those happened — it is
+   * the controlled record setter, so a run starting, a reset and a load all
+   * arrive as the same `null`. Use this when you need to distinguish them:
+   *
+   * - **Stamp what was actually run.** The graph a run executes is the one in
+   *   `state` when `run:started` fires. Snapshot there; do NOT snapshot when
+   *   the record arrives, or a graph edited during the run gets recorded as
+   *   having been run.
+   * - **React to a Reset.** `run:reset` is the only way to distinguish the
+   *   user resetting the runner from a run beginning.
+   * - **Drop superseded work.** `runId` is stable across a run's events, so a
+   *   late event from a replaced run is identifiable.
+   *
+   * Called through a ref dereferenced at emit time, so a new inline function
+   * each render neither restarts a run nor re-creates the runner.
+   */
+  onRunEvent?: (event: RunEvent) => void;
+  /**
    * Unified observability stream — fires for every UI lifecycle moment
    * that bypasses the reducer (drag end, delete-attempt verdict, import
    * outcomes). Pair with `useFullGraph(initial, { onGraphEvent })` (the
@@ -286,6 +337,49 @@ type FullGraphProps<
    * Defaults to `true`. Set `false` to freeze the root I/O cardinality.
    */
   allowRootIOStructureEdit?: boolean;
+  /**
+   * Consumer BOTTOM DRAWERS, rendered with the runner panel's chrome (slide-up
+   * drawer, three-dot resize handle, header with a close `X`) at the bottom of
+   * the graph. Each gets a floating open button beside the runner's, and at
+   * most ONE bottom drawer — the runner included — is open at a time: opening
+   * one closes the other, and an open drawer's header carries a switcher
+   * button for each of the others. Works with or without
+   * `functionImplementations`.
+   *
+   * Ids must be unique and may not be `'runner'` (reserved). A drawer's
+   * `content` mounts only while it is open, so keep durable state outside it.
+   * Keep the array's identity stable (a module-level constant or `useMemo`),
+   * like `inputComponents`: the drawer chrome re-renders when it changes.
+   *
+   * The runner drawer opens by default when it is registered — at mount, or
+   * later if `functionImplementations` arrives after mount while nothing else
+   * is open. Consumer drawers start closed.
+   */
+  bottomDrawers?: ReadonlyArray<GraphBottomDrawer>;
+  /**
+   * How node GROUPS are marked in the Add Node menu. Defaults to lucide's
+   * `SquaresExclude` (two overlapping squares); pass another node to swap
+   * it, or `false` for no mark.
+   */
+  addMenuGroupIcon?: ReactNode | false;
+  /**
+   * Receives an imperative handle on the runner — `run` / `stop` / `reset` /
+   * `getRunnerState` — so the application can start a run on its own schedule
+   * (an auto-run after an idle delay, a keyboard shortcut, its own menu item).
+   * `run` is the same call the panel's Run button makes, so the two cannot
+   * disagree about resume-versus-restart.
+   *
+   * Populated only while a runner exists (`functionImplementations` given);
+   * otherwise, and before mount, the ref holds `null`.
+   */
+  runnerRef?: React.RefObject<GraphRunnerHandle | null>;
+  /**
+   * Called whenever the OPEN bottom drawer changes: `'runner'`
+   * (`RUNNER_DRAWER_ID`), a consumer drawer's id, or `null` when every drawer
+   * is closed. Fires on changes only, not for the initial value. Read via a ref
+   * at call time, so a new inline function each render is safe.
+   */
+  onOpenDrawerChange?: (openDrawerId: string | null) => void;
 };
 
 // ─────────────────────────────────────────────────────
@@ -316,12 +410,17 @@ function FullGraphWithReactFlowProvider<
   onRecordingImported,
   onImportError,
   onRecorderWarning,
+  onRunEvent,
   onGraphEvent,
   inputComponents,
   nodePreviews,
   enableUndoRedoShortcuts = true,
   allowRootIORename = true,
   allowRootIOStructureEdit = true,
+  bottomDrawers,
+  onOpenDrawerChange,
+  runnerRef,
+  addMenuGroupIcon,
 }: Omit<
   FullGraphProps<
     DataTypeUniqueId,
@@ -481,8 +580,33 @@ function FullGraphWithReactFlowProvider<
   }, [state]);
 
   const handleSaveLoop = useCallback(
-    (keptLevels: LoopHandleLevel[], deletedLevels: LoopHandleLevel[]) => {
+    (
+      keptLevels: LoopHandleLevel[],
+      deletedLevels: LoopHandleLevel[],
+      description?: string,
+    ) => {
       if (!editLoopTriplet) return;
+      const currentDescription =
+        typeof editLoopTriplet.loopStartData.description === 'string'
+          ? editLoopTriplet.loopStartData.description
+          : '';
+      // A loop is three nodes; its description lives on all three so the ⓘ
+      // shows on whichever title you hover.
+      const describe =
+        description !== undefined && description !== currentDescription
+          ? () =>
+              dispatch({
+                type: actionTypesMap.UPDATE_NODE_DESCRIPTION,
+                payload: {
+                  nodeIds: [
+                    editLoopTriplet.loopStartId,
+                    editLoopTriplet.loopStopId,
+                    editLoopTriplet.loopEndId,
+                  ],
+                  description,
+                },
+              })
+          : null;
       const nodeIds = {
         loopStartNodeId: editLoopTriplet.loopStartId,
         loopStopNodeId: editLoopTriplet.loopStopId,
@@ -496,21 +620,25 @@ function FullGraphWithReactFlowProvider<
             levels: keptLevels.map((l) => ({ handles: l.handles })),
           },
         });
-      if (deletedLevels.length > 0) {
-        // Deletion (cascading edges) + the residual reorder/rename as a single
-        // undoable step. DELETE runs first so UPDATE reorders only survivors.
+      if (deletedLevels.length > 0 || describe) {
+        // Deletion (cascading edges) + the residual reorder/rename (+ the
+        // description) as a single undoable step. DELETE runs first so UPDATE
+        // reorders only survivors.
         dispatch({ type: actionTypesMap.BEGIN_BATCH });
-        dispatch({
-          type: actionTypesMap.DELETE_LOOP_CHANNELS,
-          payload: {
-            ...nodeIds,
-            channels: deletedLevels.map((l) => ({
-              dataTypeUniqueId: l.dataTypeUniqueId,
-              handles: l.handles,
-            })),
-          },
-        });
+        if (deletedLevels.length > 0) {
+          dispatch({
+            type: actionTypesMap.DELETE_LOOP_CHANNELS,
+            payload: {
+              ...nodeIds,
+              channels: deletedLevels.map((l) => ({
+                dataTypeUniqueId: l.dataTypeUniqueId,
+                handles: l.handles,
+              })),
+            },
+          });
+        }
         updateLoop();
+        describe?.();
         dispatch({ type: actionTypesMap.END_BATCH });
       } else {
         updateLoop();
@@ -665,6 +793,21 @@ function FullGraphWithReactFlowProvider<
     return state.openedNodeGroupStack?.[state.openedNodeGroupStack.length - 1];
   }, [state.openedNodeGroupStack]);
 
+  const getMenuFolderSuggestions = useCallback(
+    (parentPath: readonly string[]) =>
+      menuFolderSuggestions(
+        state.typeOfNodes as Record<
+          string,
+          { locationInContextMenu?: string[] }
+        >,
+        parentPath,
+        state.hiddenNodeTypesInContextMenu as
+          | Partial<Record<string, true>>
+          | undefined,
+      ),
+    [state.typeOfNodes, state.hiddenNodeTypesInContextMenu],
+  );
+
   const handleSaveNodeType = useCallback(
     (nodeTypeId: string, updates: SaveUpdates) => {
       // The drawer is generic-agnostic: it hands back plain `string` ids and
@@ -682,6 +825,8 @@ function FullGraphWithReactFlowProvider<
             nodeTypeId: typeId,
             updates: typeUpdates as {
               name?: string;
+              description?: string;
+              locationInContextMenu?: string[];
               headerColor?: string;
               inputs?: (
                 | TypeOfInput<DataTypeUniqueId>
@@ -800,6 +945,42 @@ function FullGraphWithReactFlowProvider<
     state.userZones,
   ]);
 
+  // React Flow caches each node's handle positions by NODE id and re-measures
+  // only on resize. A node that keeps its id while its handles change — a
+  // REPLACE_STATE with a graph built independently from the same node ids (a
+  // demo rebuilt with fresh handle ids), undo/redo across a handle edit —
+  // kept the stale bounds, and every edge on the new handle ids failed to
+  // render ("Couldn't create edge for source handle id", error #008). Diff
+  // the rendered nodes' handle ids and re-measure exactly the ones that
+  // changed; the edits above that already do this stay as they are.
+  const handleSignaturesRef = useRef(new Map<string, string>());
+  useEffect(() => {
+    const previous = handleSignaturesRef.current;
+    const next = new Map<string, string>();
+    const changed: string[] = [];
+    for (const node of currentNodesAndEdges.nodes) {
+      const ids: string[] = [];
+      for (const item of node.data.inputs ?? []) {
+        if ('inputs' in item)
+          for (const input of item.inputs) ids.push(input.id);
+        else ids.push(item.id);
+      }
+      ids.push('|');
+      for (const output of node.data.outputs ?? []) ids.push(output.id);
+      const signature = ids.join(',');
+      next.set(node.id, signature);
+      const before = previous.get(node.id);
+      if (before !== undefined && before !== signature) changed.push(node.id);
+    }
+    handleSignaturesRef.current = next;
+    // After the nodes' new handles are in the DOM, as the edits above do.
+    // Not cancelled on the next render: the signatures are already recorded,
+    // so a quick follow-up change (React Flow's own dimension updates) must
+    // not swallow this re-measure.
+    if (changed.length > 0)
+      requestAnimationFrame(() => updateNodeInternals(changed));
+  }, [currentNodesAndEdges.nodes, updateNodeInternals]);
+
   // System (derived) + user (authored) zones render through the one overlay.
   // Memoized so the overlay's own [zones, nodes] memo isn't busted every render.
   const allZonesForOverlay = useMemo(
@@ -852,6 +1033,14 @@ function FullGraphWithReactFlowProvider<
   // PY-2: make a zone's authored membership legible on demand — select exactly
   // its member nodes (others deselected). A select-only change set is
   // non-undoable (hasNonSelectionChanges), so this never pollutes undo.
+  const handleDescribeUserZone = useCallback(
+    (zoneId: string, description: string) =>
+      dispatch({
+        type: actionTypesMap.UPDATE_USER_ZONE,
+        payload: { zoneId, description },
+      }),
+    [dispatch],
+  );
   const handleSelectUserZoneMembers = useCallback(
     (zoneId: string) => {
       const members = new Set(
@@ -900,6 +1089,7 @@ function FullGraphWithReactFlowProvider<
         isAtRootScope: isAtRootScopeForMenu,
         rootGraphInputExists: rootGraphIoPresence.input,
         rootGraphOutputExists: rootGraphIoPresence.output,
+        ...(addMenuGroupIcon !== undefined && { groupIcon: addMenuGroupIcon }),
       }),
       ...createImportExportMenuItems({
         onExportState: handleExportState,
@@ -1108,6 +1298,7 @@ function FullGraphWithReactFlowProvider<
           onRecolor={handleRecolorUserZone}
           onDelete={handleDeleteUserZone}
           onSelectMembers={handleSelectUserZoneMembers}
+          onDescribe={handleDescribeUserZone}
         />
         <MiniMap pannable {...theme?.reactFlow?.miniMap} />
       </ReactFlow>
@@ -1171,32 +1362,69 @@ function FullGraphWithReactFlowProvider<
     [dispatch],
   );
 
+  // Bottom drawers: the runner (when present) then the sanitized consumer
+  // drawers, in button order. Keyed on the runner's PRESENCE, not the
+  // `functionImplementations` identity, so an inline implementations object
+  // cannot churn the drawer context on every render.
+  // ONE predicate for "the runner exists", shared with the JSX branch below —
+  // `!= null` so a JS consumer passing `null` gets no runner registered rather
+  // than a registered-but-unrendered runner that nothing can close.
+  const hasRunner = functionImplementations != null;
+  const { drawers: consumerBottomDrawers, problems: bottomDrawerProblems } =
+    useMemo(() => sanitizeBottomDrawers(bottomDrawers), [bottomDrawers]);
+  const bottomDrawerDescriptors = useMemo<BottomDrawerDescriptor[]>(
+    () => [
+      ...(hasRunner ? [RUNNER_DRAWER] : []),
+      ...consumerBottomDrawers.map(({ id, label, icon, title }) => ({
+        id,
+        label,
+        icon,
+        title,
+      })),
+    ],
+    [hasRunner, consumerBottomDrawers],
+  );
+  // Dev diagnostic for a reserved or duplicated drawer id (the offending drawer
+  // is dropped, never rendered twice). An effect keeps the log out of the
+  // render phase; the Set makes each distinct message log ONCE per mount, so
+  // an inline `bottomDrawers` array (a fresh `problems` array every render)
+  // cannot spam the console.
+  const reportedBottomDrawerProblemsRef = useRef(new Set<string>());
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    for (const problem of bottomDrawerProblems) {
+      if (reportedBottomDrawerProblemsRef.current.has(problem)) continue;
+      reportedBottomDrawerProblemsRef.current.add(problem);
+      console.error(problem);
+    }
+  }, [bottomDrawerProblems]);
+
   return (
     <ErrorBoundary
       fallback={({ error, reset }) => (
         <div
           data-slot='error-boundary-graph'
           className={cn(
-            'flex h-full w-full flex-col items-center justify-center gap-3 bg-zinc-900 text-zinc-300',
+            'rbn:flex rbn:h-full rbn:w-full rbn:flex-col rbn:items-center rbn:justify-center rbn:gap-3 rbn:bg-zinc-900 rbn:text-zinc-300',
             theme?.errorBoundary?.container,
           )}
         >
-          <AlertTriangle className='h-10 w-10 text-red-400' />
-          <p className='text-sm font-medium text-red-400'>
+          <AlertTriangle className='rbn:h-10 rbn:w-10 rbn:text-red-400' />
+          <p className='rbn:text-sm rbn:font-medium rbn:text-red-400'>
             Graph rendering error
           </p>
-          <p className='max-w-md text-center text-xs text-zinc-500'>
+          <p className='rbn:max-w-md rbn:text-center rbn:text-xs rbn:text-zinc-500'>
             {error.message}
           </p>
           <button
             type='button'
             onClick={reset}
             className={cn(
-              'mt-2 inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-zinc-700',
+              'rbn:mt-2 rbn:inline-flex rbn:items-center rbn:gap-1.5 rbn:rounded-md rbn:border rbn:border-zinc-700 rbn:bg-zinc-800 rbn:px-3 rbn:py-1.5 rbn:text-xs rbn:text-zinc-300 rbn:transition-colors rbn:hover:bg-zinc-700',
               theme?.errorBoundary?.retryButton,
             )}
           >
-            <RotateCcw className='h-3 w-3' />
+            <RotateCcw className='rbn:h-3 rbn:w-3' />
             Retry
           </button>
         </div>
@@ -1212,68 +1440,83 @@ function FullGraphWithReactFlowProvider<
               width: '100%',
               height: '100%',
             }}
-            className={cn('relative', theme?.root)}
+            className={cn('rbn:relative', theme?.root)}
           >
-            {functionImplementations ? (
-              <RecordingViewStateProvider
-                autoScroll={getRunnerViewPreferences(state).autoScroll}
-                onAutoScrollChange={handleAutoScrollChange}
-              >
-                <ErrorBoundary
-                  fallback={({ error, reset }) => (
-                    <div
-                      data-slot='error-boundary-runner'
-                      className={cn(
-                        'flex h-full w-full flex-col items-center justify-center gap-3 rounded-md border border-red-500/50 bg-zinc-900 p-6 text-zinc-300',
-                        theme?.errorBoundary?.container,
-                      )}
-                    >
-                      <AlertTriangle className='h-8 w-8 text-red-400' />
-                      <p className='text-sm font-medium text-red-400'>
-                        Runner panel error
-                      </p>
-                      <p className='max-w-md text-center text-xs text-zinc-500'>
-                        {error.message}
-                      </p>
-                      <button
-                        type='button'
-                        onClick={reset}
+            <BottomDrawerProvider
+              drawers={bottomDrawerDescriptors}
+              defaultOpenDrawerId={RUNNER_DRAWER_ID}
+              onOpenDrawerChange={onOpenDrawerChange}
+            >
+              {hasRunner ? (
+                <RecordingViewStateProvider
+                  autoScroll={getRunnerViewPreferences(state).autoScroll}
+                  onAutoScrollChange={handleAutoScrollChange}
+                >
+                  <ErrorBoundary
+                    fallback={({ error, reset }) => (
+                      <div
+                        data-slot='error-boundary-runner'
                         className={cn(
-                          'mt-2 inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-zinc-700',
-                          theme?.errorBoundary?.retryButton,
+                          'rbn:flex rbn:h-full rbn:w-full rbn:flex-col rbn:items-center rbn:justify-center rbn:gap-3 rbn:rounded-md rbn:border rbn:border-red-500/50 rbn:bg-zinc-900 rbn:p-6 rbn:text-zinc-300',
+                          theme?.errorBoundary?.container,
                         )}
                       >
-                        <RotateCcw className='h-3 w-3' />
-                        Retry
-                      </button>
-                    </div>
-                  )}
-                  onError={(error, errorInfo) => {
-                    console.error(
-                      '[RunnerOverlay] Render error:',
-                      error,
-                      errorInfo,
-                    );
-                  }}
-                >
-                  <RunnerOverlay
-                    state={state}
-                    dispatch={dispatch}
-                    functionImplementations={functionImplementations}
-                    runTargets={runTargets}
-                    defaultRunTargetId={defaultRunTargetId}
-                    rootInputs={rootInputs}
-                    onRecorderWarning={onRecorderWarning}
-                    onExecutionRecordRef={executionRecordRef}
-                    loadRecordRef={loadRecordRef}
+                        <AlertTriangle className='rbn:h-8 rbn:w-8 rbn:text-red-400' />
+                        <p className='rbn:text-sm rbn:font-medium rbn:text-red-400'>
+                          Runner panel error
+                        </p>
+                        <p className='rbn:max-w-md rbn:text-center rbn:text-xs rbn:text-zinc-500'>
+                          {error.message}
+                        </p>
+                        <button
+                          type='button'
+                          onClick={reset}
+                          className={cn(
+                            'rbn:mt-2 rbn:inline-flex rbn:items-center rbn:gap-1.5 rbn:rounded-md rbn:border rbn:border-zinc-700 rbn:bg-zinc-800 rbn:px-3 rbn:py-1.5 rbn:text-xs rbn:text-zinc-300 rbn:transition-colors rbn:hover:bg-zinc-700',
+                            theme?.errorBoundary?.retryButton,
+                          )}
+                        >
+                          <RotateCcw className='rbn:h-3 rbn:w-3' />
+                          Retry
+                        </button>
+                      </div>
+                    )}
+                    onError={(error, errorInfo) => {
+                      console.error(
+                        '[RunnerOverlay] Render error:',
+                        error,
+                        errorInfo,
+                      );
+                    }}
                   >
-                    {graphContent}
-                  </RunnerOverlay>
-                </ErrorBoundary>
-              </RecordingViewStateProvider>
-            ) : (
-              graphContent
-            )}
+                    <RunnerOverlay
+                      state={state}
+                      dispatch={dispatch}
+                      functionImplementations={functionImplementations}
+                      runTargets={runTargets}
+                      defaultRunTargetId={defaultRunTargetId}
+                      rootInputs={rootInputs}
+                      onRecorderWarning={onRecorderWarning}
+                      onRunEvent={onRunEvent}
+                      onExecutionRecordRef={executionRecordRef}
+                      loadRecordRef={loadRecordRef}
+                      runnerRef={runnerRef}
+                    >
+                      {graphContent}
+                    </RunnerOverlay>
+                  </ErrorBoundary>
+                </RecordingViewStateProvider>
+              ) : (
+                graphContent
+              )}
+
+              {/* Consumer bottom drawers + the floating open buttons (shown only
+                while every drawer, the runner included, is closed). */}
+              {consumerBottomDrawers.map((drawer) => (
+                <ConsumerBottomDrawer key={drawer.id} drawer={drawer} />
+              ))}
+              <BottomDrawerButtons />
+            </BottomDrawerProvider>
 
             {/* Hidden file inputs for import actions triggered by context menu */}
             <FileInputElements />
@@ -1283,6 +1526,13 @@ function FullGraphWithReactFlowProvider<
               onClose={() => dispatch({ type: actionTypesMap.CLOSE_DRAWER })}
               nodeTypeId={editDrawerNodeTypeId}
               nodeTypeName={editDrawerNodeType?.name ?? null}
+              nodeTypeDescription={editDrawerNodeType?.description ?? null}
+              nodeTypeLocationInContextMenu={
+                editDrawerNodeType
+                  ? (editDrawerNodeType.locationInContextMenu ?? EMPTY_PATH)
+                  : null
+              }
+              getMenuFolderSuggestions={getMenuFolderSuggestions}
               nodeTypeHeaderColor={editDrawerNodeType?.headerColor ?? null}
               nodeTypeInputs={editDrawerNodeType?.inputs ?? null}
               nodeTypeOutputs={editDrawerNodeType?.outputs ?? null}
@@ -1440,12 +1690,17 @@ function FullGraph<
   executionRecord,
   onExecutionRecordChange,
   onRecorderWarning,
+  onRunEvent,
   onGraphEvent,
   inputComponents,
   nodePreviews,
   enableUndoRedoShortcuts,
   allowRootIORename,
   allowRootIOStructureEdit,
+  bottomDrawers,
+  onOpenDrawerChange,
+  runnerRef,
+  addMenuGroupIcon,
 }: FullGraphProps<
   DataTypeUniqueId,
   NodeTypeUniqueId,
@@ -1520,12 +1775,17 @@ function FullGraph<
             onRecordingImported={onRecordingImported}
             onImportError={onImportError}
             onRecorderWarning={onRecorderWarning}
+            onRunEvent={onRunEvent}
             onGraphEvent={onGraphEvent}
             inputComponents={inputComponents}
             nodePreviews={nodePreviews}
             enableUndoRedoShortcuts={enableUndoRedoShortcuts}
             allowRootIORename={allowRootIORename}
             allowRootIOStructureEdit={allowRootIOStructureEdit}
+            bottomDrawers={bottomDrawers}
+            onOpenDrawerChange={onOpenDrawerChange}
+            runnerRef={runnerRef}
+            addMenuGroupIcon={addMenuGroupIcon}
           />
         </RecordContext.Provider>
       </FullGraphContext.Provider>

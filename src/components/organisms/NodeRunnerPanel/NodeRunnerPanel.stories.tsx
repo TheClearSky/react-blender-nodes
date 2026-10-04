@@ -5,6 +5,13 @@ import { fn } from 'storybook/test';
 
 import { NodeRunnerPanel, type NodeRunnerPanelProps } from './NodeRunnerPanel';
 import { RecordingViewStateProvider } from '@/components/organisms/FullGraph/RecordingViewStateProvider';
+import { BottomDrawerProvider } from '@/components/organisms/FullGraph/BottomDrawerProvider';
+import { BottomDrawerButtons } from '@/components/organisms/FullGraph/BottomDrawerButtons';
+import {
+  RUNNER_DRAWER_ID,
+  type BottomDrawerDescriptor,
+} from '@/components/organisms/FullGraph/bottomDrawers';
+import { DEFAULT_RUNNER_VIEW_PREFERENCES } from '@/utils/nodeStateManagement/runnerViewPreferences';
 import type { RunMode } from '@/components/molecules/RunControls/RunControls';
 import type {
   RunnerState,
@@ -17,17 +24,34 @@ import type {
 } from '@/utils/nodeRunner/types';
 import { runnerStates } from '@/utils/nodeRunner/types';
 
+/** The runner as the drawer chrome sees it — lets the `X` close and the floating
+ *  "Runner" button (`BottomDrawerButtons`) reopen the isolated panel. */
+const STORY_BOTTOM_DRAWERS: ReadonlyArray<BottomDrawerDescriptor> = [
+  { id: RUNNER_DRAWER_ID, label: 'Runner', title: 'Open runner panel' },
+];
+
 /** Decorator wrapper: owns the (now controlled) autoScroll preference locally so the
  *  isolated story's auto-scroll checkbox stays interactive. */
 function AutoScrollStoryProvider({ children }: { children: ReactNode }) {
-  const [autoScroll, setAutoScroll] = useState(true);
+  // Seeded from the library default, not a literal.
+  const [autoScroll, setAutoScroll] = useState(
+    DEFAULT_RUNNER_VIEW_PREFERENCES.autoScroll,
+  );
   return (
-    <RecordingViewStateProvider
-      autoScroll={autoScroll}
-      onAutoScrollChange={setAutoScroll}
+    // The panel's open flag is derived from the shared bottom-drawer context
+    // (one drawer open at a time), so the isolated story needs that provider
+    // too — with the runner as its only drawer, open from the start.
+    <BottomDrawerProvider
+      drawers={STORY_BOTTOM_DRAWERS}
+      defaultOpenDrawerId={RUNNER_DRAWER_ID}
     >
-      {children}
-    </RecordingViewStateProvider>
+      <RecordingViewStateProvider
+        autoScroll={autoScroll}
+        onAutoScrollChange={setAutoScroll}
+      >
+        {children}
+      </RecordingViewStateProvider>
+    </BottomDrawerProvider>
   );
 }
 
@@ -659,8 +683,9 @@ const meta = {
   decorators: [
     (Story) => (
       <AutoScrollStoryProvider>
-        <div className='relative flex flex-col justify-end min-h-[600px] bg-[#1a1a1a]'>
+        <div className='rbn:relative rbn:flex rbn:flex-col rbn:justify-end rbn:min-h-[600px] rbn:bg-[#1a1a1a]'>
           <Story />
+          <BottomDrawerButtons />
         </div>
       </AutoScrollStoryProvider>
     ),
@@ -1890,7 +1915,7 @@ export const AllStatesComparison: Story = {
   args: { runnerState: 'idle' },
   decorators: [
     (Story) => (
-      <div className='flex flex-col gap-0 min-h-[600px] bg-[#1a1a1a]'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-0 rbn:min-h-[600px] rbn:bg-[#1a1a1a]'>
         <Story />
       </div>
     ),
@@ -1931,10 +1956,10 @@ export const AllStatesComparison: Story = {
     ];
 
     return (
-      <div className='flex flex-col gap-6 p-4'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-6 rbn:p-4'>
         {configs.map(({ state, record, stepIdx, mode }) => (
-          <div key={state} className='flex flex-col gap-1'>
-            <span className='text-primary-white text-[14px] font-main uppercase tracking-wider'>
+          <div key={state} className='rbn:flex rbn:flex-col rbn:gap-1'>
+            <span className='rbn:text-primary-white rbn:text-[14px] rbn:font-main rbn:uppercase rbn:tracking-wider'>
               {state}
             </span>
             <NodeRunnerPanel
@@ -1980,7 +2005,7 @@ export const InteractiveLifecycle: Story = {
   args: { runnerState: 'idle' },
   decorators: [
     (Story) => (
-      <div className='flex flex-col min-h-[700px] bg-[#1a1a1a]'>
+      <div className='rbn:flex rbn:flex-col rbn:min-h-[700px] rbn:bg-[#1a1a1a]'>
         <Story />
       </div>
     ),
@@ -2116,45 +2141,47 @@ export const InteractiveLifecycle: Story = {
     }, [addLog, clearTimer]);
 
     return (
-      <div className='flex flex-col flex-1'>
+      <div className='rbn:flex rbn:flex-col rbn:flex-1'>
         {/* Status header */}
-        <div className='flex items-center gap-4 px-4 py-3 border-b border-secondary-dark-gray'>
-          <span className='text-primary-white text-[16px] font-main font-semibold'>
+        <div className='rbn:flex rbn:items-center rbn:gap-4 rbn:px-4 rbn:py-3 rbn:border-b rbn:border-secondary-dark-gray'>
+          <span className='rbn:text-primary-white rbn:text-[16px] rbn:font-main rbn:font-semibold'>
             Interactive Lifecycle Demo
           </span>
-          <span className='text-secondary-light-gray text-[13px] font-main'>
+          <span className='rbn:text-secondary-light-gray rbn:text-[13px] rbn:font-main'>
             State:{' '}
-            <span className='text-primary-blue font-semibold'>
+            <span className='rbn:text-primary-blue rbn:font-semibold'>
               {runnerState}
             </span>
           </span>
-          <span className='text-secondary-light-gray text-[13px] font-main'>
+          <span className='rbn:text-secondary-light-gray rbn:text-[13px] rbn:font-main'>
             Mode:{' '}
-            <span className='text-primary-blue font-semibold'>{mode}</span>
+            <span className='rbn:text-primary-blue rbn:font-semibold'>
+              {mode}
+            </span>
           </span>
-          <span className='text-secondary-light-gray text-[13px] font-main'>
+          <span className='rbn:text-secondary-light-gray rbn:text-[13px] rbn:font-main'>
             Steps:{' '}
-            <span className='text-primary-blue font-semibold'>
+            <span className='rbn:text-primary-blue rbn:font-semibold'>
               {visibleSteps}/{halfAdderSteps.length}
             </span>
           </span>
         </div>
 
         {/* Action log */}
-        <div className='flex-1 overflow-y-auto p-4'>
-          <div className='bg-secondary-black rounded-md p-3 border border-secondary-dark-gray max-w-[700px]'>
-            <div className='text-[12px] text-secondary-light-gray font-main mb-2 uppercase tracking-wider'>
+        <div className='rbn:flex-1 rbn:overflow-y-auto rbn:p-4'>
+          <div className='rbn:bg-secondary-black rbn:rounded-md rbn:p-3 rbn:border rbn:border-secondary-dark-gray rbn:max-w-[700px]'>
+            <div className='rbn:text-[12px] rbn:text-secondary-light-gray rbn:font-main rbn:mb-2 rbn:uppercase rbn:tracking-wider'>
               Action Log
             </div>
             {log.length === 0 ? (
-              <div className='text-[12px] text-secondary-dark-gray font-main italic'>
+              <div className='rbn:text-[12px] rbn:text-secondary-dark-gray rbn:font-main rbn:italic'>
                 Click Run or Step to begin...
               </div>
             ) : (
               log.map((entry, i) => (
                 <div
                   key={i}
-                  className='text-[12px] text-primary-white py-0.5 font-mono'
+                  className='rbn:text-[12px] rbn:text-primary-white rbn:py-0.5 rbn:font-mono'
                 >
                   {entry}
                 </div>
@@ -2200,7 +2227,7 @@ export const InteractiveReplay: Story = {
   args: { runnerState: 'completed' },
   decorators: [
     (Story) => (
-      <div className='flex flex-col min-h-[600px] bg-[#1a1a1a]'>
+      <div className='rbn:flex rbn:flex-col rbn:min-h-[600px] rbn:bg-[#1a1a1a]'>
         <Story />
       </div>
     ),
@@ -2210,34 +2237,34 @@ export const InteractiveReplay: Story = {
     const currentStep = largePipelineSteps[currentStepIndex];
 
     return (
-      <div className='flex flex-col flex-1'>
+      <div className='rbn:flex rbn:flex-col rbn:flex-1'>
         {/* Info bar */}
-        <div className='flex items-center gap-6 px-4 py-3 border-b border-secondary-dark-gray'>
-          <span className='text-primary-white text-[16px] font-main font-semibold'>
+        <div className='rbn:flex rbn:items-center rbn:gap-6 rbn:px-4 rbn:py-3 rbn:border-b rbn:border-secondary-dark-gray'>
+          <span className='rbn:text-primary-white rbn:text-[16px] rbn:font-main rbn:font-semibold'>
             Replay: Large Pipeline (16 nodes)
           </span>
-          <span className='text-secondary-light-gray text-[13px] font-main'>
+          <span className='rbn:text-secondary-light-gray rbn:text-[13px] rbn:font-main'>
             Scrubber at step{' '}
-            <span className='text-primary-blue font-semibold'>
+            <span className='rbn:text-primary-blue rbn:font-semibold'>
               {currentStepIndex}
             </span>
           </span>
           {currentStep && (
-            <span className='text-secondary-light-gray text-[13px] font-main'>
+            <span className='rbn:text-secondary-light-gray rbn:text-[13px] rbn:font-main'>
               Node:{' '}
-              <span className='text-primary-white'>
+              <span className='rbn:text-primary-white'>
                 {currentStep.nodeTypeName}
               </span>{' '}
               @ level {currentStep.concurrencyLevel}
             </span>
           )}
-          <span className='text-secondary-dark-gray text-[11px] font-main ml-auto'>
+          <span className='rbn:text-secondary-dark-gray rbn:text-[11px] rbn:font-main rbn:ml-auto'>
             Scroll to zoom | Drag to pan | Click ruler to scrub | Click block to
             inspect
           </span>
         </div>
 
-        <div className='flex-1' />
+        <div className='rbn:flex-1' />
 
         {/* Panel */}
         <NodeRunnerPanel
@@ -2276,7 +2303,7 @@ export const InteractiveErrorInspection: Story = {
   args: { runnerState: 'errored' },
   decorators: [
     (Story) => (
-      <div className='flex flex-col min-h-[600px] bg-[#1a1a1a]'>
+      <div className='rbn:flex rbn:flex-col rbn:min-h-[600px] rbn:bg-[#1a1a1a]'>
         <Story />
       </div>
     ),
@@ -2285,20 +2312,20 @@ export const InteractiveErrorInspection: Story = {
     const [currentStepIndex, setCurrentStepIndex] = useState(2);
 
     return (
-      <div className='flex flex-col flex-1'>
-        <div className='flex items-center gap-4 px-4 py-3 border-b border-secondary-dark-gray'>
-          <span className='text-primary-white text-[16px] font-main font-semibold'>
+      <div className='rbn:flex rbn:flex-col rbn:flex-1'>
+        <div className='rbn:flex rbn:items-center rbn:gap-4 rbn:px-4 rbn:py-3 rbn:border-b rbn:border-secondary-dark-gray'>
+          <span className='rbn:text-primary-white rbn:text-[16px] rbn:font-main rbn:font-semibold'>
             Error Inspection Demo
           </span>
-          <span className='text-[#FF4444] text-[13px] font-main'>
+          <span className='rbn:text-[#FF4444] rbn:text-[13px] rbn:font-main'>
             1 error | 1 skipped
           </span>
-          <span className='text-secondary-dark-gray text-[11px] font-main ml-auto'>
+          <span className='rbn:text-secondary-dark-gray rbn:text-[11px] rbn:font-main rbn:ml-auto'>
             Click the red block to inspect the error details
           </span>
         </div>
 
-        <div className='flex-1' />
+        <div className='rbn:flex-1' />
 
         <NodeRunnerPanel
           runnerState='errored'
@@ -2335,7 +2362,7 @@ export const InteractiveLoopReplay: Story = {
   args: { runnerState: 'completed' },
   decorators: [
     (Story) => (
-      <div className='flex flex-col min-h-[600px] bg-[#1a1a1a]'>
+      <div className='rbn:flex rbn:flex-col rbn:min-h-[600px] rbn:bg-[#1a1a1a]'>
         <Story />
       </div>
     ),
@@ -2345,29 +2372,29 @@ export const InteractiveLoopReplay: Story = {
     const currentStep = loopSteps[currentStepIndex];
 
     return (
-      <div className='flex flex-col flex-1'>
-        <div className='flex items-center gap-4 px-4 py-3 border-b border-secondary-dark-gray'>
-          <span className='text-primary-white text-[16px] font-main font-semibold'>
+      <div className='rbn:flex rbn:flex-col rbn:flex-1'>
+        <div className='rbn:flex rbn:items-center rbn:gap-4 rbn:px-4 rbn:py-3 rbn:border-b rbn:border-secondary-dark-gray'>
+          <span className='rbn:text-primary-white rbn:text-[16px] rbn:font-main rbn:font-semibold'>
             Loop Replay: Counter 0..5
           </span>
-          <span className='text-secondary-light-gray text-[13px] font-main'>
+          <span className='rbn:text-secondary-light-gray rbn:text-[13px] rbn:font-main'>
             Step{' '}
-            <span className='text-primary-blue font-semibold'>
+            <span className='rbn:text-primary-blue rbn:font-semibold'>
               {currentStepIndex}
             </span>{' '}
             / {loopSteps.length - 1}
           </span>
           {currentStep?.loopIteration !== undefined && (
-            <span className='text-secondary-light-gray text-[13px] font-main'>
+            <span className='rbn:text-secondary-light-gray rbn:text-[13px] rbn:font-main'>
               Loop iteration:{' '}
-              <span className='text-primary-blue font-semibold'>
+              <span className='rbn:text-primary-blue rbn:font-semibold'>
                 {currentStep.loopIteration}
               </span>
             </span>
           )}
         </div>
 
-        <div className='flex-1' />
+        <div className='rbn:flex-1' />
 
         <NodeRunnerPanel
           runnerState='completed'
@@ -2403,7 +2430,7 @@ export const InteractiveGroupReplay: Story = {
   args: { runnerState: 'completed' },
   decorators: [
     (Story) => (
-      <div className='flex flex-col min-h-[600px] bg-[#1a1a1a]'>
+      <div className='rbn:flex rbn:flex-col rbn:min-h-[600px] rbn:bg-[#1a1a1a]'>
         <Story />
       </div>
     ),
@@ -2412,17 +2439,17 @@ export const InteractiveGroupReplay: Story = {
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
     return (
-      <div className='flex flex-col flex-1'>
-        <div className='flex items-center gap-4 px-4 py-3 border-b border-secondary-dark-gray'>
-          <span className='text-primary-white text-[16px] font-main font-semibold'>
+      <div className='rbn:flex rbn:flex-col rbn:flex-1'>
+        <div className='rbn:flex rbn:items-center rbn:gap-4 rbn:px-4 rbn:py-3 rbn:border-b rbn:border-secondary-dark-gray'>
+          <span className='rbn:text-primary-white rbn:text-[16px] rbn:font-main rbn:font-semibold'>
             Group Replay: Half-Adder Group
           </span>
-          <span className='text-secondary-dark-gray text-[11px] font-main ml-auto'>
+          <span className='rbn:text-secondary-dark-gray rbn:text-[11px] rbn:font-main rbn:ml-auto'>
             Click inner group nodes to see group context in inspector
           </span>
         </div>
 
-        <div className='flex-1' />
+        <div className='rbn:flex-1' />
 
         <NodeRunnerPanel
           runnerState='completed'
@@ -2459,7 +2486,7 @@ export const InteractiveDisplayOptions: Story = {
   args: { runnerState: 'completed' },
   decorators: [
     (Story) => (
-      <div className='flex flex-col min-h-[650px] bg-[#1a1a1a]'>
+      <div className='rbn:flex rbn:flex-col rbn:min-h-[650px] rbn:bg-[#1a1a1a]'>
         <Story />
       </div>
     ),
@@ -2470,37 +2497,37 @@ export const InteractiveDisplayOptions: Story = {
     const [hideComplex, setHideComplex] = useState(false);
 
     return (
-      <div className='flex flex-col flex-1'>
-        <div className='flex items-center gap-4 px-4 py-3 border-b border-secondary-dark-gray'>
-          <span className='text-primary-white text-[16px] font-main font-semibold'>
+      <div className='rbn:flex rbn:flex-col rbn:flex-1'>
+        <div className='rbn:flex rbn:items-center rbn:gap-4 rbn:px-4 rbn:py-3 rbn:border-b rbn:border-secondary-dark-gray'>
+          <span className='rbn:text-primary-white rbn:text-[16px] rbn:font-main rbn:font-semibold'>
             Display Options
           </span>
           <button
             onClick={() => setDebugMode((p) => !p)}
-            className={`px-3 py-1 text-[12px] font-main rounded cursor-pointer border transition-colors ${
+            className={`rbn:px-3 rbn:py-1 rbn:text-[12px] rbn:font-main rbn:rounded rbn:cursor-pointer rbn:border rbn:transition-colors ${
               debugMode
-                ? 'bg-primary-blue/20 text-primary-blue border-primary-blue/40'
-                : 'bg-secondary-black text-secondary-light-gray border-secondary-dark-gray hover:bg-primary-dark-gray'
+                ? 'rbn:bg-primary-blue/20 rbn:text-primary-blue rbn:border-primary-blue/40'
+                : 'rbn:bg-secondary-black rbn:text-secondary-light-gray rbn:border-secondary-dark-gray rbn:hover:bg-primary-dark-gray'
             }`}
           >
             Debug {debugMode ? 'ON' : 'OFF'}
           </button>
           <button
             onClick={() => setHideComplex((p) => !p)}
-            className={`px-3 py-1 text-[12px] font-main rounded cursor-pointer border transition-colors ${
+            className={`rbn:px-3 rbn:py-1 rbn:text-[12px] rbn:font-main rbn:rounded rbn:cursor-pointer rbn:border rbn:transition-colors ${
               hideComplex
-                ? 'bg-primary-blue/20 text-primary-blue border-primary-blue/40'
-                : 'bg-secondary-black text-secondary-light-gray border-secondary-dark-gray hover:bg-primary-dark-gray'
+                ? 'rbn:bg-primary-blue/20 rbn:text-primary-blue rbn:border-primary-blue/40'
+                : 'rbn:bg-secondary-black rbn:text-secondary-light-gray rbn:border-secondary-dark-gray rbn:hover:bg-primary-dark-gray'
             }`}
           >
             Hide Complex {hideComplex ? 'ON' : 'OFF'}
           </button>
-          <span className='text-secondary-dark-gray text-[11px] font-main ml-auto'>
+          <span className='rbn:text-secondary-dark-gray rbn:text-[11px] rbn:font-main rbn:ml-auto'>
             Click blocks to inspect, then toggle options above
           </span>
         </div>
 
-        <div className='flex-1' />
+        <div className='rbn:flex-1' />
 
         <NodeRunnerPanel
           runnerState='completed'
@@ -2540,7 +2567,7 @@ export const InteractiveModeSwitching: Story = {
   args: { runnerState: 'idle' },
   decorators: [
     (Story) => (
-      <div className='flex flex-col min-h-[650px] bg-[#1a1a1a]'>
+      <div className='rbn:flex rbn:flex-col rbn:min-h-[650px] rbn:bg-[#1a1a1a]'>
         <Story />
       </div>
     ),
@@ -2659,21 +2686,21 @@ export const InteractiveModeSwitching: Story = {
     }, [clearTimer]);
 
     return (
-      <div className='flex flex-col flex-1'>
-        <div className='flex items-center gap-4 px-4 py-3 border-b border-secondary-dark-gray'>
-          <span className='text-primary-white text-[16px] font-main font-semibold'>
+      <div className='rbn:flex rbn:flex-col rbn:flex-1'>
+        <div className='rbn:flex rbn:items-center rbn:gap-4 rbn:px-4 rbn:py-3 rbn:border-b rbn:border-secondary-dark-gray'>
+          <span className='rbn:text-primary-white rbn:text-[16px] rbn:font-main rbn:font-semibold'>
             Mode Switching: Large Pipeline
           </span>
-          <span className='text-secondary-light-gray text-[13px] font-main'>
+          <span className='rbn:text-secondary-light-gray rbn:text-[13px] rbn:font-main'>
             {runnerState} | {mode} | {visibleSteps}/{largePipelineSteps.length}{' '}
             steps
           </span>
-          <span className='text-secondary-dark-gray text-[11px] font-main ml-auto'>
+          <span className='rbn:text-secondary-dark-gray rbn:text-[11px] rbn:font-main rbn:ml-auto'>
             Switch mode when idle, then click Run
           </span>
         </div>
 
-        <div className='flex-1' />
+        <div className='rbn:flex-1' />
 
         <NodeRunnerPanel
           runnerState={runnerState}
@@ -2714,7 +2741,7 @@ export const InteractiveScenarioSwitcher: Story = {
   args: { runnerState: 'completed' },
   decorators: [
     (Story) => (
-      <div className='flex flex-col min-h-[700px] bg-[#1a1a1a]'>
+      <div className='rbn:flex rbn:flex-col rbn:min-h-[700px] rbn:bg-[#1a1a1a]'>
         <Story />
       </div>
     ),
@@ -2778,8 +2805,8 @@ export const InteractiveScenarioSwitcher: Story = {
     const scenario = scenarios[scenarioIdx];
 
     return (
-      <div className='flex flex-col flex-1'>
-        <div className='flex items-center gap-3 px-4 py-3 border-b border-secondary-dark-gray overflow-x-auto'>
+      <div className='rbn:flex rbn:flex-col rbn:flex-1'>
+        <div className='rbn:flex rbn:items-center rbn:gap-3 rbn:px-4 rbn:py-3 rbn:border-b rbn:border-secondary-dark-gray rbn:overflow-x-auto'>
           {scenarios.map((s, i) => (
             <button
               key={s.label}
@@ -2787,21 +2814,21 @@ export const InteractiveScenarioSwitcher: Story = {
                 setScenarioIdx(i);
                 setCurrentStepIndex(0);
               }}
-              className={`px-3 py-1.5 text-[13px] font-main rounded cursor-pointer whitespace-nowrap transition-colors ${
+              className={`rbn:px-3 rbn:py-1.5 rbn:text-[13px] rbn:font-main rbn:rounded rbn:cursor-pointer rbn:whitespace-nowrap rbn:transition-colors ${
                 i === scenarioIdx
-                  ? 'bg-primary-blue text-primary-white'
-                  : 'bg-secondary-black text-secondary-light-gray hover:bg-primary-dark-gray border border-secondary-dark-gray'
+                  ? 'rbn:bg-primary-blue rbn:text-primary-white'
+                  : 'rbn:bg-secondary-black rbn:text-secondary-light-gray rbn:hover:bg-primary-dark-gray rbn:border rbn:border-secondary-dark-gray'
               }`}
             >
               {s.label}
             </button>
           ))}
-          <span className='text-secondary-light-gray text-[13px] font-main ml-auto'>
+          <span className='rbn:text-secondary-light-gray rbn:text-[13px] rbn:font-main rbn:ml-auto'>
             {scenario.record.steps.length} steps
           </span>
         </div>
 
-        <div className='flex-1' />
+        <div className='rbn:flex-1' />
 
         <NodeRunnerPanel
           runnerState={scenario.state}

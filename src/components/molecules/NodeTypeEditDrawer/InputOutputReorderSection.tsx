@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Pencil } from 'lucide-react';
+import { Info, Plus, Pencil } from 'lucide-react';
 import { Button, Input } from '@/components/atoms';
 import { HandleShapeSwatch } from '@/components/atoms/HandleShapeSwatch';
 import { DragList } from '@/components/molecules/DragList';
@@ -73,6 +73,30 @@ type InputOutputReorderSectionProps = {
   addItemLabel?: string;
 };
 
+/** A copy of `items` with one leaf's description set (panels searched too). */
+function setItemDescription(
+  items: DragListItem<InputAdditionalProps>[],
+  id: string,
+  description: string,
+): DragListItem<InputAdditionalProps>[] {
+  return items.map((item) => {
+    if (isDragListNonLeaf(item)) {
+      return {
+        ...item,
+        subTrees: setItemDescription(item.subTrees, id, description),
+      };
+    }
+    if (item.id !== id) return item;
+    return {
+      ...item,
+      additionalProperties: {
+        ...(item.additionalProperties as InputAdditionalProps),
+        description,
+      },
+    };
+  });
+}
+
 function InputOutputReorderSection({
   items,
   onChange,
@@ -91,6 +115,8 @@ function InputOutputReorderSection({
   // The id of the item being renamed (leaf or panel), or null when the modal
   // is being used to add a new panel.
   const [renamingItemId, setRenamingItemId] = useState<string | null>(null);
+  // The leaf whose description box is open (one at a time).
+  const [describingId, setDescribingId] = useState<string | null>(null);
 
   const renamingItemIsPanel =
     renamingItemId !== null &&
@@ -163,63 +189,108 @@ function InputOutputReorderSection({
   const renderContent = (item: DragListItem<InputAdditionalProps>) => {
     const isPanel = isDragListNonLeaf(item);
     const isEmpty = isPanel && item.subTrees.length === 0;
+    const description = !isPanel
+      ? (item.additionalProperties?.description ?? '')
+      : '';
+    const describing = describingId === item.id;
 
     return (
-      <div className='flex items-center gap-1.5 min-w-0 flex-1'>
-        {!isPanel &&
-          (item.additionalProperties?.color ||
-            item.additionalProperties?.shape) && (
-            <HandleShapeSwatch
-              shape={item.additionalProperties.shape}
-              color={item.additionalProperties.color}
-              size={16}
-              className={theme?.node?.handleShape}
-            />
-          )}
-        <span
-          className={cn(
-            'truncate text-primary-white',
-            isPanel && 'font-medium',
-            isEmpty && hasEmptyPanelError && 'text-red-400',
-          )}
-        >
-          {item.name}
-        </span>
-        {!isPanel && item.additionalProperties?.dataType && (
-          <span className='text-secondary-light-gray text-[13px] truncate shrink-0'>
-            {item.additionalProperties.dataType}
-          </span>
-        )}
-        {(isPanel || (!isPanel && allowLeafRename)) && (
-          <button
-            className='shrink-0 p-1 rounded hover:bg-primary-gray text-secondary-light-gray hover:text-primary-white transition-colors'
-            onClick={(event) => {
-              event.stopPropagation();
-              handleStartRename(item.id, item.name);
-            }}
-            onPointerDown={(event) => event.stopPropagation()}
+      <div className='rbn:flex rbn:min-w-0 rbn:flex-1 rbn:flex-col rbn:gap-1'>
+        <div className='rbn:flex rbn:items-center rbn:gap-1.5 rbn:min-w-0 rbn:flex-1'>
+          {!isPanel &&
+            (item.additionalProperties?.color ||
+              item.additionalProperties?.shape) && (
+              <HandleShapeSwatch
+                shape={item.additionalProperties.shape}
+                color={item.additionalProperties.color}
+                size={16}
+                className={theme?.node?.handleShape}
+              />
+            )}
+          <span
+            className={cn(
+              'rbn:truncate rbn:text-primary-white',
+              isPanel && 'rbn:font-medium',
+              isEmpty && hasEmptyPanelError && 'rbn:text-red-400',
+            )}
           >
-            <Pencil className='w-3.5 h-3.5' />
-          </button>
+            {item.name}
+          </span>
+          {!isPanel && item.additionalProperties?.dataType && (
+            <span className='rbn:text-secondary-light-gray rbn:text-[13px] rbn:truncate rbn:shrink-0'>
+              {item.additionalProperties.dataType}
+            </span>
+          )}
+          {(isPanel || (!isPanel && allowLeafRename)) && (
+            <button
+              className='rbn:shrink-0 rbn:p-1 rbn:rounded rbn:hover:bg-primary-gray rbn:text-secondary-light-gray rbn:hover:text-primary-white rbn:transition-colors'
+              onClick={(event) => {
+                event.stopPropagation();
+                handleStartRename(item.id, item.name);
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Pencil className='rbn:w-3.5 rbn:h-3.5' />
+            </button>
+          )}
+          {!isPanel && (
+            <button
+              type='button'
+              aria-label={`Describe ${item.name}`}
+              aria-pressed={describing}
+              title={
+                description
+                  ? `Description: ${description}`
+                  : 'Add a description (shown behind the ⓘ on this socket)'
+              }
+              className={cn(
+                'rbn:ml-auto rbn:shrink-0 rbn:rounded rbn:p-1 rbn:transition-colors rbn:hover:bg-primary-gray rbn:hover:text-primary-white',
+                description
+                  ? 'rbn:text-primary-blue'
+                  : 'rbn:text-secondary-light-gray',
+              )}
+              onClick={(event) => {
+                event.stopPropagation();
+                setDescribingId(describing ? null : item.id);
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <Info className='rbn:w-3.5 rbn:h-3.5' />
+            </button>
+          )}
+        </div>
+        {describing && (
+          <textarea
+            autoFocus
+            aria-label={`Description of ${item.name}`}
+            placeholder='What this socket is for'
+            value={description}
+            onChange={(event) =>
+              onChange(setItemDescription(items, item.id, event.target.value))
+            }
+            onPointerDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+            className='rbn:w-full rbn:min-h-[64px] rbn:resize-y rbn:rounded rbn:border rbn:border-secondary-dark-gray rbn:bg-primary-black rbn:px-2 rbn:py-1.5 rbn:text-[13px] rbn:leading-snug rbn:text-primary-white rbn:outline-none rbn:focus:border-primary-blue'
+          />
         )}
       </div>
     );
   };
 
   return (
-    <div className='flex flex-col gap-1.5'>
-      <div className='flex items-center justify-between'>
-        <label className='text-primary-white text-sm font-main'>
+    <div className='rbn:flex rbn:flex-col rbn:gap-1.5'>
+      <div className='rbn:flex rbn:items-center rbn:justify-between'>
+        <label className='rbn:text-primary-white rbn:text-sm rbn:font-main'>
           {sectionLabel}
         </label>
-        <div className='flex items-center gap-1'>
+        <div className='rbn:flex rbn:items-center rbn:gap-1'>
           {onAddItem && (
             <Button
               size='small'
               onClick={onAddItem}
-              className='bg-transparent border-none hover:bg-primary-gray p-1 h-auto text-[13px] leading-[13px] gap-1'
+              className='rbn:bg-transparent rbn:border-none rbn:hover:bg-primary-gray rbn:p-1 rbn:h-auto rbn:text-[13px] rbn:leading-[13px] rbn:gap-1'
             >
-              <Plus className='w-3.5 h-3.5' />
+              <Plus className='rbn:w-3.5 rbn:h-3.5' />
               {addItemLabel}
             </Button>
           )}
@@ -227,9 +298,9 @@ function InputOutputReorderSection({
             <Button
               size='small'
               onClick={handleAddPanel}
-              className='bg-transparent border-none hover:bg-primary-gray p-1 h-auto text-[13px] leading-[13px] gap-1'
+              className='rbn:bg-transparent rbn:border-none rbn:hover:bg-primary-gray rbn:p-1 rbn:h-auto rbn:text-[13px] rbn:leading-[13px] rbn:gap-1'
             >
-              <Plus className='w-3.5 h-3.5' />
+              <Plus className='rbn:w-3.5 rbn:h-3.5' />
               Panel
             </Button>
           )}
@@ -251,7 +322,7 @@ function InputOutputReorderSection({
           renderContent={renderContent}
         />
       ) : (
-        <div className='text-secondary-light-gray text-sm py-2 text-center'>
+        <div className='rbn:text-secondary-light-gray rbn:text-sm rbn:py-2 rbn:text-center'>
           No {sectionLabel.toLowerCase()}
         </div>
       )}
@@ -295,7 +366,7 @@ function InputOutputReorderSection({
           onChange={setPanelModalName}
           allowOnlyNumbers={false}
           liveUpdate
-          className='w-full'
+          className='rbn:w-full'
         />
       </PresetModal>
     </div>

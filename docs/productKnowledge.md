@@ -225,26 +225,26 @@ When an edge is removed:
 
 The complete graph state is a single object containing:
 
-| Field                                | What It Holds                                                                                                                                  |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dataTypes`                          | Registry of all data type definitions                                                                                                          |
-| `typeOfNodes`                        | Registry of all node type definitions (including groups)                                                                                       |
-| `nodes`                              | Array of node instances on the current canvas                                                                                                  |
-| `edges`                              | Array of edges on the current canvas                                                                                                           |
-| `viewport`                           | Current pan/zoom position                                                                                                                      |
-| `openedNodeGroupStack`               | Navigation stack when editing inside node groups                                                                                               |
-| `zones`                              | First-class regions (loop/switch bodies). UI-only; stripped on export                                                                          |
-| `zoneIndex`                          | Handle->zone lookup index. UI-only; stripped on export                                                                                         |
-| `activeDrawer`                       | Which edit drawer is open (loop/switch/node-type). UI-only                                                                                     |
-| `history`                            | Undo/redo stacks of Immer patches. UI-only; stripped on export                                                                                 |
-| `runnerViewPreferences`              | Document-level runner-panel prefs (autoScroll, followIntoGroups); persisted on export like userZones; toggled by UPDATE_RUNNER_VIEW_PREFERENCE |
-| `allowedConversionsBetweenDataTypes` | Type conversion rules (optional)                                                                                                               |
-| `enableTypeInference`                | Whether polymorphic type resolution is active                                                                                                  |
-| `enableComplexTypeChecking`          | Whether Zod schema compatibility is checked                                                                                                    |
-| `enableCycleChecking`                | Whether cycles are prevented                                                                                                                   |
-| `enableRecursionChecking`            | Whether recursive group nesting is prevented                                                                                                   |
-| `nodeCountConstraints`               | Per-scope min/max limits on node types (optional)                                                                                              |
-| `enableDebugMode`                    | Whether debug overlays are shown                                                                                                               |
+| Field                                | What It Holds                                                                                                                                                                             |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dataTypes`                          | Registry of all data type definitions                                                                                                                                                     |
+| `typeOfNodes`                        | Registry of all node type definitions (including groups)                                                                                                                                  |
+| `nodes`                              | Array of node instances on the current canvas                                                                                                                                             |
+| `edges`                              | Array of edges on the current canvas                                                                                                                                                      |
+| `viewport`                           | Current pan/zoom position                                                                                                                                                                 |
+| `openedNodeGroupStack`               | Navigation stack when editing inside node groups                                                                                                                                          |
+| `zones`                              | First-class regions (loop/switch bodies). UI-only; stripped on export                                                                                                                     |
+| `zoneIndex`                          | Handle->zone lookup index. UI-only; stripped on export                                                                                                                                    |
+| `activeDrawer`                       | Which edit drawer is open (loop/switch/node-type). UI-only                                                                                                                                |
+| `history`                            | Undo/redo stacks of Immer patches. UI-only; stripped on export                                                                                                                            |
+| `runnerViewPreferences`              | Document-level runner-panel prefs (autoScroll, followIntoGroups — both default ON; a consumer may seed OFF); persisted on export like userZones; toggled by UPDATE_RUNNER_VIEW_PREFERENCE |
+| `allowedConversionsBetweenDataTypes` | Type conversion rules (optional)                                                                                                                                                          |
+| `enableTypeInference`                | Whether polymorphic type resolution is active                                                                                                                                             |
+| `enableComplexTypeChecking`          | Whether Zod schema compatibility is checked                                                                                                                                               |
+| `enableCycleChecking`                | Whether cycles are prevented                                                                                                                                                              |
+| `enableRecursionChecking`            | Whether recursive group nesting is prevented                                                                                                                                              |
+| `nodeCountConstraints`               | Per-scope min/max limits on node types (optional)                                                                                                                                         |
+| `enableDebugMode`                    | Whether debug overlays are shown                                                                                                                                                          |
 
 State is managed by an external Redux-style store (`createGraphStore`, consumed
 through `useFullGraph`). Every dispatch runs a **validate -> plan -> apply**

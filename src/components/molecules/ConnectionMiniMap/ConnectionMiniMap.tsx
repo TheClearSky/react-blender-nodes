@@ -123,7 +123,7 @@ function ConnectionMiniMap({
   if (nodes.length === 0) {
     return (
       <div
-        className='flex items-center justify-center rounded bg-secondary-dark-gray text-[11px] text-primary-white/50 font-main'
+        className='rbn:flex rbn:items-center rbn:justify-center rbn:rounded rbn:bg-secondary-dark-gray rbn:text-[11px] rbn:text-primary-white/50 rbn:font-main'
         style={{ height }}
       >
         No preview available
@@ -135,7 +135,7 @@ function ConnectionMiniMap({
     <div
       ref={containerRef}
       className={cn(
-        'rounded overflow-hidden border border-secondary-dark-gray bg-mini-map-bg',
+        'rbn:rounded rbn:overflow-hidden rbn:border rbn:border-secondary-dark-gray rbn:bg-mini-map-bg',
         theme?.connectionMiniMap?.container,
       )}
       style={{ height }}

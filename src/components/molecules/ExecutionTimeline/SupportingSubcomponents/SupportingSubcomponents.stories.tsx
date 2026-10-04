@@ -253,7 +253,9 @@ const mockLoopSegment: LoopSegment = {
 
 function DarkBg({ children }: { children: React.ReactNode }) {
   return (
-    <div className='rounded-md bg-runner-timeline-box-bg p-4'>{children}</div>
+    <div className='rbn:rounded-md rbn:bg-runner-timeline-box-bg rbn:p-4'>
+      {children}
+    </div>
   );
 }
 
@@ -269,7 +271,7 @@ function PositionedContainer({
   return (
     <DarkBg>
       <div
-        className='relative'
+        className='rbn:relative'
         style={{ width: `${width}px`, height: `${height}px` }}
       >
         {children}
@@ -565,7 +567,7 @@ export const GridStory = {
   name: 'TimelineGrid',
   render: () => (
     <DarkBg>
-      <div className='relative' style={{ width: '600px', height: '200px' }}>
+      <div className='rbn:relative' style={{ width: '600px', height: '200px' }}>
         <TimelineGrid timeScale={4} contentWidth={600} totalDuration={120} />
       </div>
     </DarkBg>
@@ -582,9 +584,9 @@ export const RulerAndGrid = {
           totalDuration={120}
           onScrubDown={fn()}
         />
-        <div className='relative' style={{ height: '150px' }}>
+        <div className='rbn:relative' style={{ height: '150px' }}>
           <TimelineGrid timeScale={4} contentWidth={600} totalDuration={120} />
-          <div className='pt-3'>
+          <div className='rbn:pt-3'>
             <FlatSection
               steps={concurrentSteps}
               timeScale={4}

@@ -1,4 +1,5 @@
 import { getHandleFromNodeDataMatchingHandleId } from '@/utils/nodeStateManagement/handles/handleGetters';
+import { liveHandleColor } from '@/utils/nodeStateManagement/handles/liveHandleVisual';
 import { cn } from '@/utils';
 import {
   BaseEdge,
@@ -206,7 +207,7 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
         props.sourceHandleId || '',
         sourceNodeData?.data,
       )?.value;
-      return inputOrOutput?.handleColor ?? '#A1A1A1';
+      return (inputOrOutput && liveHandleColor(inputOrOutput)) ?? '#A1A1A1';
     }, [props.source, sourceNodeData]);
 
     const targetNodeData = useNodesData(props.target || '');
@@ -217,7 +218,7 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
         props.targetHandleId || '',
         targetNodeData?.data,
       )?.value;
-      return inputOrOutput?.handleColor ?? '#A1A1A1';
+      return (inputOrOutput && liveHandleColor(inputOrOutput)) ?? '#A1A1A1';
     }, [props.target, targetNodeData]);
 
     const { label, labelStyle, markerStart, markerEnd, interactionWidth } =
@@ -309,10 +310,10 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
           markerStart={markerStart}
           interactionWidth={interactionWidth}
           className={cn(
-            'stroke-7! in-[g.selected]:brightness-150',
-            !isInViewport && 'opacity-25',
+            'rbn:stroke-7! rbn:in-[g.selected]:brightness-150',
+            !isInViewport && 'rbn:opacity-25',
             formattedValue !== null &&
-              'animate-[edge-brightness-pulse_1.5s_ease-in-out_infinite]',
+              'rbn:animate-[edge-brightness-pulse_1.5s_ease-in-out_infinite]',
           )}
           style={{
             stroke: `url(#${`linear-gradient-edge-${id}`})`,
@@ -339,7 +340,7 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
                   height={pillHeight}
                   rx={6}
                   className={cn(
-                    'fill-edge-value-pill-bg stroke-edge-value-pill-border',
+                    'rbn:fill-edge-value-pill-bg rbn:stroke-edge-value-pill-border',
                     theme?.edge?.valuePillBox,
                   )}
                   strokeWidth={1}
@@ -348,7 +349,7 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
                   textAnchor='middle'
                   dominantBaseline='central'
                   className={cn(
-                    'fill-edge-value-pill-text',
+                    'rbn:fill-edge-value-pill-text',
                     theme?.edge?.valuePillText,
                   )}
                   fontSize={11}
@@ -370,7 +371,7 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
                   height={pillHeight}
                   rx={6}
                   className={cn(
-                    'fill-edge-value-pill-bg stroke-edge-value-pill-border',
+                    'rbn:fill-edge-value-pill-bg rbn:stroke-edge-value-pill-border',
                     theme?.edge?.valuePillBox,
                   )}
                   strokeWidth={1}
@@ -379,7 +380,7 @@ const ConfigurableEdge = forwardRef<HTMLDivElement, ConfigurableEdgeProps>(
                   textAnchor='middle'
                   dominantBaseline='central'
                   className={cn(
-                    'fill-edge-value-pill-text',
+                    'rbn:fill-edge-value-pill-text',
                     theme?.edge?.valuePillText,
                   )}
                   fontSize={11}

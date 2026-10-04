@@ -6,6 +6,11 @@ type InputComponentProps = {
   onChange: (value: unknown) => void;
   name: string;
   dataTypeId: string;
+  /** The node type's limits for this socket (`TypeOfInput.min/max/step`),
+   *  when it declares them. */
+  min?: number;
+  max?: number;
+  step?: number;
 };
 
 type InputComponentRegistry<DataTypeUniqueId extends string = string> = Partial<

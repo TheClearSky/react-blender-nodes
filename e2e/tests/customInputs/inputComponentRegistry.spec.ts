@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+﻿import { test, expect } from '@playwright/test';
 import { navigateToStory } from '../../actions/graph/graphCanvas.actions';
 import {
   addColorSource,
@@ -31,7 +31,7 @@ import { STORY_CUSTOM_INPUT, HANDLE_MIXED } from '../../constants';
 
 const COLOR_INPUT_LOCATOR = 'input[aria-label="Color value"]';
 
-test.describe('Custom Input Component Registry — rendering', () => {
+test.describe('Custom Input Component Registry â€” rendering', () => {
   test('CI1: Color Source renders a custom color picker for the complex Color type', async ({
     page,
   }) => {
@@ -69,7 +69,7 @@ test.describe('Custom Input Component Registry — rendering', () => {
     const sourceId = await addColorSource(page, { x: 400, y: 300 });
 
     const node = getNodeById(page, sourceId);
-    const label = node.locator('div.truncate.text-right');
+    const label = node.locator('div.rbn\\:truncate.rbn\\:text-right');
     await expect(label).toBeVisible();
     await expect(label).toHaveText('Color');
 
@@ -80,7 +80,7 @@ test.describe('Custom Input Component Registry — rendering', () => {
   });
 });
 
-test.describe('Custom Input Component Registry — value persistence', () => {
+test.describe('Custom Input Component Registry â€” value persistence', () => {
   test('CI4: Setting a color value via the picker persists in node state', async ({
     page,
   }) => {
@@ -144,7 +144,7 @@ test.describe('Custom Input Component Registry — value persistence', () => {
   });
 });
 
-test.describe('Custom Input Component Registry — runner integration', () => {
+test.describe('Custom Input Component Registry â€” runner integration', () => {
   test('CI7: Custom input value flows through the runner and appears in inspector', async ({
     page,
   }) => {

@@ -117,7 +117,7 @@ const ConnectableHandle = forwardRef<HTMLDivElement, ConnectableHandleProps>(
         position={position}
         id={id}
         className={cn(
-          '!w-6 !h-6 !border-none !bg-transparent !pointer-events-auto',
+          'rbn:!w-6 rbn:!h-6 rbn:!border-none rbn:!bg-transparent rbn:!pointer-events-auto',
           className,
         )}
         style={{
@@ -129,7 +129,9 @@ const ConnectableHandle = forwardRef<HTMLDivElement, ConnectableHandleProps>(
         {...props}
         ref={ref}
       >
-        <div className={cn('pointer-events-none flex justify-center')}>
+        <div
+          className={cn('rbn:pointer-events-none rbn:flex rbn:justify-center')}
+        >
           <HandleShapeSwatch
             shape={shape}
             color={color}
@@ -157,11 +159,11 @@ const StaticHandle = forwardRef<HTMLDivElement, StaticHandleProps>(
     return (
       <div
         className={cn(
-          'absolute',
+          'rbn:absolute',
           position === Position.Right &&
-            'right-0 top-1/2 -translate-y-1/2 translate-x-1/2',
+            'rbn:right-0 rbn:top-1/2 rbn:-translate-y-1/2 rbn:translate-x-1/2',
           position === Position.Left &&
-            'left-0 top-1/2 -translate-y-1/2 -translate-x-1/2',
+            'rbn:left-0 rbn:top-1/2 rbn:-translate-y-1/2 rbn:-translate-x-1/2',
         )}
         {...props}
         ref={ref}

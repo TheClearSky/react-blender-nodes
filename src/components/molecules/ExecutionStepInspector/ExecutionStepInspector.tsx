@@ -119,7 +119,7 @@ function StatusBadge({ status }: { status: ExecutionStepRecord['status'] }) {
   return (
     <span
       className={cn(
-        'rounded-full px-3 py-1 text-[13px] font-medium',
+        'rbn:rounded-full rbn:px-3 rbn:py-1 rbn:text-[13px] rbn:font-medium',
         c.bg,
         c.text,
         theme?.inspector?.statusBadge,
@@ -145,26 +145,28 @@ function ConnectionLine({
 }) {
   const theme = useGraphTheme();
   return (
-    <div className='flex flex-col gap-1.5'>
-      <div className='flex min-w-0 items-baseline gap-1 text-[13px] text-primary-white/80'>
-        <span className='shrink-0 text-runner-muted-text'>Coming From–</span>
+    <div className='rbn:flex rbn:flex-col rbn:gap-1.5'>
+      <div className='rbn:flex rbn:min-w-0 rbn:items-baseline rbn:gap-1 rbn:text-[13px] rbn:text-primary-white/80'>
+        <span className='rbn:shrink-0 rbn:text-runner-muted-text'>
+          Coming From–
+        </span>
         <NodeIdentityLabel
           typeName={conn.sourceNodeName}
           customName={conn.sourceNodeCustomName}
-          className='min-w-0'
+          className='rbn:min-w-0'
         />
-        <span className='min-w-0 shrink-[9999] truncate'>
+        <span className='rbn:min-w-0 rbn:shrink-[9999] rbn:truncate'>
           / {conn.sourceHandleName}
         </span>
       </div>
       {debugMode && (
-        <div className='text-[9px] text-secondary-dark-gray'>
+        <div className='rbn:text-[9px] rbn:text-secondary-dark-gray'>
           nodeId: {conn.sourceNodeId} &middot; handleId: {conn.sourceHandleId}
         </div>
       )}
       <div
         className={cn(
-          'rounded-md border border-runner-value-border bg-runner-value-bg px-3 py-2 font-mono text-[14px] text-primary-white',
+          'rbn:rounded-md rbn:border rbn:border-runner-value-border rbn:bg-runner-value-bg rbn:px-3 rbn:py-2 rbn:font-mono rbn:text-[14px] rbn:text-primary-white',
           theme?.inspector?.valueBox,
         )}
       >
@@ -191,10 +193,10 @@ function InputHandleDisplay({
 }) {
   const theme = useGraphTheme();
   return (
-    <div className='flex flex-col gap-1.5'>
-      <div className='truncate text-[14px] text-primary-white'>
+    <div className='rbn:flex rbn:flex-col rbn:gap-1.5'>
+      <div className='rbn:truncate rbn:text-[14px] rbn:text-primary-white'>
         {handleName}{' '}
-        <span className='text-secondary-light-gray'>
+        <span className='rbn:text-secondary-light-gray'>
           ({handleValue.dataTypeId})
         </span>
       </div>
@@ -211,14 +213,14 @@ function InputHandleDisplay({
       ) : handleValue.isDefault ? (
         <div
           className={cn(
-            'rounded-md border border-runner-value-border bg-runner-value-bg px-3 py-2 font-mono text-[14px] text-primary-white',
+            'rbn:rounded-md rbn:border rbn:border-runner-value-border rbn:bg-runner-value-bg rbn:px-3 rbn:py-2 rbn:font-mono rbn:text-[14px] rbn:text-primary-white',
             theme?.inspector?.valueBox,
           )}
         >
           {formatValue(handleValue.defaultValue, hideComplex)}
         </div>
       ) : (
-        <span className='text-[13px] italic text-secondary-light-gray'>
+        <span className='rbn:text-[13px] rbn:italic rbn:text-secondary-light-gray'>
           No value
         </span>
       )}
@@ -241,16 +243,16 @@ function OutputHandleDisplay({
 }) {
   const theme = useGraphTheme();
   return (
-    <div className='flex flex-col gap-1.5'>
-      <div className='truncate text-[14px] text-primary-white'>
+    <div className='rbn:flex rbn:flex-col rbn:gap-1.5'>
+      <div className='rbn:truncate rbn:text-[14px] rbn:text-primary-white'>
         {handleName}{' '}
-        <span className='text-secondary-light-gray'>
+        <span className='rbn:text-secondary-light-gray'>
           ({handleValue.dataTypeId})
         </span>
       </div>
       <div
         className={cn(
-          'rounded-md border border-runner-value-border bg-runner-value-bg px-3 py-2 font-mono text-[14px] text-primary-white',
+          'rbn:rounded-md rbn:border rbn:border-runner-value-border rbn:bg-runner-value-bg rbn:px-3 rbn:py-2 rbn:font-mono rbn:text-[14px] rbn:text-primary-white',
           theme?.inspector?.valueBox,
         )}
       >
@@ -284,56 +286,56 @@ function ExecutionStepInspector({
   return (
     <div
       className={cn(
-        'flex w-full @min-[832px]/runnerpanel:w-[340px] animate-slide-in-right flex-col bg-runner-panel-bg',
+        'rbn:flex rbn:w-full rbn:@min-[832px]/runnerpanel:w-[340px] rbn:animate-slide-in-right rbn:flex-col rbn:bg-runner-panel-bg',
         theme?.inspector?.container,
       )}
     >
       {/* Header */}
       <div
         className={cn(
-          'flex items-center justify-between border-b border-secondary-dark-gray px-4 py-3',
+          'rbn:flex rbn:items-center rbn:justify-between rbn:border-b rbn:border-secondary-dark-gray rbn:px-4 rbn:py-3',
           theme?.inspector?.header,
         )}
       >
-        <div className='flex min-w-0 items-center gap-2.5'>
-          <Package className='h-5 w-5 shrink-0 text-primary-white' />
+        <div className='rbn:flex rbn:min-w-0 rbn:items-center rbn:gap-2.5'>
+          <Package className='rbn:h-5 rbn:w-5 rbn:shrink-0 rbn:text-primary-white' />
           <NodeIdentityLabel
             typeName={stepRecord.nodeTypeName}
             customName={stepRecord.customName}
-            className='min-w-0 text-[15px] tracking-wide text-primary-white'
+            className='rbn:min-w-0 rbn:text-[15px] rbn:tracking-wide rbn:text-primary-white'
           />
         </div>
-        <div className='flex shrink-0 items-center gap-3'>
+        <div className='rbn:flex rbn:shrink-0 rbn:items-center rbn:gap-3'>
           {onEdgeValuesAnimatedChange && (
             <Tooltip content='Animate edge value badges along the connection path instead of showing them statically'>
-              <label className='flex cursor-pointer items-center gap-1.5 text-[12px] text-secondary-light-gray select-none'>
+              <label className='rbn:flex rbn:cursor-pointer rbn:items-center rbn:gap-1.5 rbn:text-[12px] rbn:text-secondary-light-gray rbn:select-none'>
                 <input
                   type='checkbox'
                   checked={edgeValuesAnimated ?? true}
                   onChange={(e) => onEdgeValuesAnimatedChange(e.target.checked)}
-                  className='h-3 w-3 accent-primary-blue'
+                  className='rbn:h-3 rbn:w-3 rbn:accent-primary-blue'
                 />
-                <span className='text-primary-white'>Animate</span>
+                <span className='rbn:text-primary-white'>Animate</span>
               </label>
             </Tooltip>
           )}
           <button
             type='button'
             onClick={onClose}
-            className='btn-press rounded p-1 text-secondary-light-gray transition-colors hover:text-primary-white'
+            className='btn-press rbn:rounded rbn:p-1 rbn:text-secondary-light-gray rbn:transition-colors rbn:hover:text-primary-white'
             aria-label='Close'
           >
-            <X className='h-3.5 w-3.5' />
+            <X className='rbn:h-3.5 rbn:w-3.5' />
           </button>
         </div>
       </div>
 
       {/* Execution info */}
-      <div className='flex flex-col gap-3 border-b border-secondary-dark-gray px-4 py-3.5'>
+      <div className='rbn:flex rbn:flex-col rbn:gap-3 rbn:border-b rbn:border-secondary-dark-gray rbn:px-4 rbn:py-3.5'>
         {/* Status row */}
-        <div className='flex items-center justify-between rounded-md border border-runner-value-border px-3 py-2'>
+        <div className='rbn:flex rbn:items-center rbn:justify-between rbn:rounded-md rbn:border rbn:border-runner-value-border rbn:px-3 rbn:py-2'>
           <StatusBadge status={stepRecord.status} />
-          <span className='font-mono text-[13px] text-secondary-light-gray'>
+          <span className='rbn:font-mono rbn:text-[13px] rbn:text-secondary-light-gray'>
             {stepRecord.estimatedTiming
               ? '< 0.1ms'
               : `${stepRecord.duration.toFixed(2)}ms`}
@@ -343,25 +345,25 @@ function ExecutionStepInspector({
         {/* Timeline box */}
         <div
           className={cn(
-            'rounded-md border border-runner-value-border bg-runner-timeline-box-bg px-3 py-2.5',
+            'rbn:rounded-md rbn:border rbn:border-runner-value-border rbn:bg-runner-timeline-box-bg rbn:px-3 rbn:py-2.5',
             theme?.inspector?.timelineBox,
           )}
         >
-          <div className='text-center text-[13px] text-secondary-light-gray'>
+          <div className='rbn:text-center rbn:text-[13px] rbn:text-secondary-light-gray'>
             {stepRecord.startTime.toFixed(2)}ms{' '}
-            <span className='text-secondary-dark-gray'>&rarr;</span>{' '}
+            <span className='rbn:text-secondary-dark-gray'>&rarr;</span>{' '}
             {stepRecord.endTime.toFixed(2)}ms
           </div>
-          <div className='relative mt-2 h-1.5 w-full overflow-hidden rounded-full bg-inspector-progress-track'>
+          <div className='rbn:relative rbn:mt-2 rbn:h-1.5 rbn:w-full rbn:overflow-hidden rbn:rounded-full rbn:bg-inspector-progress-track'>
             <div
-              className='absolute h-full rounded-full bg-secondary-light-gray/50'
+              className='rbn:absolute rbn:h-full rbn:rounded-full rbn:bg-secondary-light-gray/50'
               style={{
                 left: '20%',
                 width: '55%',
               }}
             />
             <div
-              className='absolute h-full w-0.5 bg-secondary-light-gray'
+              className='rbn:absolute rbn:h-full rbn:w-0.5 rbn:bg-secondary-light-gray'
               style={{ left: '77%' }}
             />
           </div>
@@ -369,7 +371,7 @@ function ExecutionStepInspector({
 
         {/* Loop/Group context */}
         {(stepRecord.loopIteration !== undefined || stepRecord.groupNodeId) && (
-          <div className='flex flex-col gap-2'>
+          <div className='rbn:flex rbn:flex-col rbn:gap-2'>
             {stepRecord.loopIteration !== undefined &&
               (() => {
                 // Resolve by IDENTITY (owning instance path + structure
@@ -389,16 +391,16 @@ function ExecutionStepInspector({
                 return (
                   <div
                     className={cn(
-                      'rounded-md border border-runner-value-border px-3 py-2',
+                      'rbn:rounded-md rbn:border rbn:border-runner-value-border rbn:px-3 rbn:py-2',
                       theme?.inspector?.contextBox,
                     )}
                   >
-                    <div className='text-[12px] text-primary-white'>
+                    <div className='rbn:text-[12px] rbn:text-primary-white'>
                       Loop iteration {stepRecord.loopIteration + 1}
                       {loopRecord ? ` of ${loopRecord.totalIterations}` : ''}
                     </div>
                     {iterationRecord && (
-                      <div className='mt-1 text-[10px] text-secondary-light-gray'>
+                      <div className='rbn:mt-1 rbn:text-[10px] rbn:text-secondary-light-gray'>
                         Condition:{' '}
                         {iterationRecord.conditionValue
                           ? 'true (continues)'
@@ -409,7 +411,7 @@ function ExecutionStepInspector({
                 );
               })()}
             {stepRecord.groupNodeId && (
-              <div className='text-[11px] text-secondary-light-gray'>
+              <div className='rbn:text-[11px] rbn:text-secondary-light-gray'>
                 Group: {stepRecord.groupNodeId}
                 {stepRecord.groupDepth !== undefined &&
                   ` (depth ${stepRecord.groupDepth})`}
@@ -419,7 +421,7 @@ function ExecutionStepInspector({
         )}
 
         {debugMode && (
-          <div className='text-[9px] text-secondary-dark-gray'>
+          <div className='rbn:text-[9px] rbn:text-secondary-dark-gray'>
             nodeId: {stepRecord.nodeId} &middot; typeId: {stepRecord.nodeTypeId}
           </div>
         )}
@@ -429,28 +431,28 @@ function ExecutionStepInspector({
       <Accordion
         type='multiple'
         defaultValue={['inputs', 'outputs']}
-        className='w-full'
+        className='rbn:w-full'
       >
         {/* Inputs section */}
         <AccordionItem
           value='inputs'
-          className='border-b border-secondary-dark-gray'
+          className='rbn:border-b rbn:border-secondary-dark-gray'
         >
           <AccordionTrigger
             className={cn(
-              'gap-1.5 border-b border-secondary-dark-gray bg-runner-section-header-bg px-4 py-2.5 text-[14px] text-primary-white hover:no-underline [&>svg]:text-secondary-light-gray',
+              'rbn:gap-1.5 rbn:border-b rbn:border-secondary-dark-gray rbn:bg-runner-section-header-bg rbn:px-4 rbn:py-2.5 rbn:text-[14px] rbn:text-primary-white rbn:hover:no-underline rbn:[&>svg]:text-secondary-light-gray',
               theme?.inspector?.sectionHeader,
             )}
           >
             Inputs
           </AccordionTrigger>
-          <AccordionContent className='p-4'>
-            <div className='flex flex-col gap-4 bg-runner-panel-bg'>
+          <AccordionContent className='rbn:p-4'>
+            <div className='rbn:flex rbn:flex-col rbn:gap-4 rbn:bg-runner-panel-bg'>
               {inputEntries.length > 0 ? (
                 inputEntries.map(([name, value], idx) => (
                   <div key={name}>
                     {idx > 0 && (
-                      <div className='-mx-4 mb-4 h-px bg-secondary-dark-gray' />
+                      <div className='rbn:-mx-4 rbn:mb-4 rbn:h-px rbn:bg-secondary-dark-gray' />
                     )}
                     <InputHandleDisplay
                       handleName={name}
@@ -461,7 +463,7 @@ function ExecutionStepInspector({
                   </div>
                 ))
               ) : (
-                <div className='text-[13px] italic text-secondary-light-gray'>
+                <div className='rbn:text-[13px] rbn:italic rbn:text-secondary-light-gray'>
                   No inputs
                 </div>
               )}
@@ -472,23 +474,23 @@ function ExecutionStepInspector({
         {/* Outputs section */}
         <AccordionItem
           value='outputs'
-          className='border-b border-secondary-dark-gray'
+          className='rbn:border-b rbn:border-secondary-dark-gray'
         >
           <AccordionTrigger
             className={cn(
-              'gap-1.5 border-b border-secondary-dark-gray bg-runner-section-header-bg px-4 py-2.5 text-[14px] text-primary-white hover:no-underline [&>svg]:text-secondary-light-gray',
+              'rbn:gap-1.5 rbn:border-b rbn:border-secondary-dark-gray rbn:bg-runner-section-header-bg rbn:px-4 rbn:py-2.5 rbn:text-[14px] rbn:text-primary-white rbn:hover:no-underline rbn:[&>svg]:text-secondary-light-gray',
               theme?.inspector?.sectionHeader,
             )}
           >
             Outputs
           </AccordionTrigger>
-          <AccordionContent className='p-4'>
-            <div className='flex flex-col gap-4 bg-runner-panel-bg'>
+          <AccordionContent className='rbn:p-4'>
+            <div className='rbn:flex rbn:flex-col rbn:gap-4 rbn:bg-runner-panel-bg'>
               {outputEntries.length > 0 ? (
                 outputEntries.map(([name, value], idx) => (
                   <div key={name}>
                     {idx > 0 && (
-                      <div className='-mx-4 mb-4 h-px bg-secondary-dark-gray' />
+                      <div className='rbn:-mx-4 rbn:mb-4 rbn:h-px rbn:bg-secondary-dark-gray' />
                     )}
                     <OutputHandleDisplay
                       handleName={name}
@@ -498,7 +500,7 @@ function ExecutionStepInspector({
                   </div>
                 ))
               ) : (
-                <div className='text-[13px] italic text-secondary-light-gray'>
+                <div className='rbn:text-[13px] rbn:italic rbn:text-secondary-light-gray'>
                   No outputs
                 </div>
               )}
@@ -509,17 +511,17 @@ function ExecutionStepInspector({
 
       {/* Error section */}
       {stepRecord.error && (
-        <div className='p-4'>
+        <div className='rbn:p-4'>
           <div
             className={cn(
-              'rounded-md border border-status-errored/30 bg-status-errored/10 p-2.5',
+              'rbn:rounded-md rbn:border rbn:border-status-errored/30 rbn:bg-status-errored/10 rbn:p-2.5',
               theme?.inspector?.errorBox,
             )}
           >
-            <div className='mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-status-errored'>
+            <div className='rbn:mb-1.5 rbn:text-[10px] rbn:font-semibold rbn:uppercase rbn:tracking-wider rbn:text-status-errored'>
               Error
             </div>
-            <div className='whitespace-pre-wrap font-mono text-[11px] text-status-errored'>
+            <div className='rbn:whitespace-pre-wrap rbn:font-mono rbn:text-[11px] rbn:text-status-errored'>
               {formatGraphError(stepRecord.error)}
             </div>
           </div>

@@ -68,6 +68,19 @@ async function setMaxIterations(page: Page, target: number): Promise<void> {
   }
 }
 
+/**
+ * Turn the timeline's "Follow groups" preference ON and assert it. The value is
+ * a DOCUMENT preference (library default ON, but a fixture or a consumer seed
+ * can store `false`), so this reads the box first instead of blindly clicking —
+ * a blind click on an already-ON box would turn follow OFF and fail later on a
+ * scrubbing assertion that points nowhere near the real cause.
+ */
+async function enableFollowIntoGroups(page: Page): Promise<void> {
+  const checkbox = page.locator('[data-testid="follow-into-groups"]');
+  if (!(await checkbox.isChecked())) await checkbox.click();
+  await expect(checkbox).toBeChecked();
+}
+
 async function getRunnerState(page: Page): Promise<string> {
   const text = await getRunnerStateLabel(page).textContent();
   return (text ?? '').trim();
@@ -94,6 +107,7 @@ export {
   clickReset,
   setMode,
   setMaxIterations,
+  enableFollowIntoGroups,
   getRunnerState,
   waitForRunnerState,
 };

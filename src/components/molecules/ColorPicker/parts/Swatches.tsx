@@ -34,7 +34,7 @@ function ColorPickerSwatches({
   const { color, setColor, formatted } = useColorPickerContext();
 
   return (
-    <div className={cn('grid grid-cols-10 gap-1.5', className)}>
+    <div className={cn('rbn:grid rbn:grid-cols-10 rbn:gap-1.5', className)}>
       {presets.map((preset, index) => {
         const parsed = parseColor(preset);
         const isActive = parsed
@@ -47,18 +47,21 @@ function ColorPickerSwatches({
             type='button'
             onClick={() => setColor(preset)}
             className={cn(
-              'relative w-6 h-6 cursor-pointer overflow-hidden rounded-sm border outline-none transition-transform',
-              'hover:scale-110',
+              'rbn:relative rbn:w-6 rbn:h-6 rbn:cursor-pointer rbn:overflow-hidden rbn:rounded-sm rbn:border rbn:outline-none rbn:transition-transform',
+              'rbn:hover:scale-110',
               isActive
-                ? 'border-white ring-1 ring-white'
-                : 'border-secondary-dark-gray',
+                ? 'rbn:border-white rbn:ring-1 rbn:ring-white'
+                : 'rbn:border-secondary-dark-gray',
             )}
             style={{
               backgroundImage: CHECKERBOARD,
               backgroundSize: '8px 8px',
             }}
           >
-            <span className='absolute inset-0' style={{ background: preset }} />
+            <span
+              className='rbn:absolute rbn:inset-0'
+              style={{ background: preset }}
+            />
           </button>
         );
       })}
@@ -66,9 +69,9 @@ function ColorPickerSwatches({
         <button
           type='button'
           onClick={() => onAdd(color, formatColor(color, 'hex'))}
-          className='inline-flex w-6 h-6 cursor-pointer items-center justify-center rounded-sm border border-dashed border-secondary-dark-gray text-graph-input-placeholder outline-none transition-colors hover:border-white hover:text-white'
+          className='rbn:inline-flex rbn:w-6 rbn:h-6 rbn:cursor-pointer rbn:items-center rbn:justify-center rbn:rounded-sm rbn:border rbn:border-dashed rbn:border-secondary-dark-gray rbn:text-graph-input-placeholder rbn:outline-none rbn:transition-colors rbn:hover:border-white rbn:hover:text-white'
         >
-          <Plus className='w-3 h-3' />
+          <Plus className='rbn:w-3 rbn:h-3' />
         </button>
       )}
     </div>

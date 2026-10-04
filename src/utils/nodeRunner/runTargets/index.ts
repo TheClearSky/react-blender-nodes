@@ -38,6 +38,11 @@ export type {
   FunctionImplementations,
   ExecutionContext,
 } from '../types';
+// The run LIFECYCLE stream named by `useNodeRunner`'s `options.onRunEvent` and
+// by `FullGraphProps.onRunEvent` — surfaced for the same reason
+// `RecorderWarning` is: a consumer cannot write the handler without naming the
+// type it receives.
+export type { RunEvent } from '../types';
 // Recorded value + error types named by `ExecutionStepRecord.inputValues` /
 // `outputValues` / `error` — surfaced so consumers can annotate helpers against the
 // recorded IR (e.g. per-node-type preview components, `NodePreviewProps`).

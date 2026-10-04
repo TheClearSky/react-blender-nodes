@@ -463,12 +463,16 @@ function applyPlan<
       // touching `imported`. (The merged dataTypes/typeOfNodes still alias the
       // live type definitions by design, so immer freezes them — harmless today
       // as nothing mutates those schemas, only compares identity.)
-      const { history: _history, ...rest } = imported;
+      const { history, ...rest } = imported;
       // `imported.userZones` (root) and each `subtree.userZones` (in typeOfNodes)
       // ride UNCHANGED — they are authored, never rehydrated. Only the DERIVED
       // `zones`/`zoneIndex` (root and per-subtree) are rebuilt.
       return {
         ...rest,
+        // A restore of this editor's own earlier state keeps its undo/redo
+        // (the patches describe exactly this state); anything else starts
+        // with an empty history.
+        ...(plan.preserveHistory && history ? { history } : {}),
         typeOfNodes: rehydratedTypeOfNodes,
         zones: rehydrated.zones,
         zoneIndex: rehydrated.zoneIndex,
@@ -626,12 +630,17 @@ function applyPlan<
         { x: 500, y: 0 },
       );
 
-      const numberOfExistingGroups = typedKeys(draft.typeOfNodes).filter(
-        (key) => draft.typeOfNodes[key].subtree,
-      ).length;
+      // The first free "Node Group N". Counting every group type instead
+      // numbered a consumer's first group after its built-in groups (an app
+      // shipping 40 instrument groups got "Node Group 41").
+      const takenNames = new Set(
+        typedKeys(draft.typeOfNodes).map((key) => draft.typeOfNodes[key].name),
+      );
+      let groupNumber = 1;
+      while (takenNames.has(`Node Group ${groupNumber}`)) groupNumber += 1;
 
       const nodeGroupType = {
-        name: 'Node Group ' + (numberOfExistingGroups + 1).toString(),
+        name: `Node Group ${groupNumber}`,
         headerColor: '#344621',
         ...groupNodeContextMenu,
         inputs: [],
@@ -1025,6 +1034,20 @@ function applyPlan<
       if (plan.updates.headerColor !== undefined) {
         nodeTypeDef.headerColor = plan.updates.headerColor;
       }
+      if (plan.updates.description !== undefined) {
+        if (plan.updates.description === '') delete nodeTypeDef.description;
+        else nodeTypeDef.description = plan.updates.description;
+      }
+      if (plan.updates.locationInContextMenu !== undefined) {
+        // [] = the top level of Add Node, the same as no location at all.
+        if (plan.updates.locationInContextMenu.length === 0) {
+          delete nodeTypeDef.locationInContextMenu;
+        } else {
+          nodeTypeDef.locationInContextMenu = [
+            ...plan.updates.locationInContextMenu,
+          ];
+        }
+      }
 
       const newInputs = plan.updates.inputs as
         | typeof nodeTypeDef.inputs
@@ -1190,6 +1213,10 @@ function applyPlan<
         ...(plan.name !== undefined ? { name: plan.name } : {}),
         ...(plan.color !== undefined ? { color: plan.color } : {}),
       };
+      if (plan.description !== undefined) {
+        if (plan.description === '') delete updated.description;
+        else updated.description = plan.description;
+      }
       setCurrentUserZonesToState(draft, {
         ...existing,
         [plan.zoneId]: updated,
@@ -1531,6 +1558,16 @@ function applyPlan<
       const targetNode = customNameView.nodes.find((n) => n.id === plan.nodeId);
       if (!targetNode) return;
       targetNode.data.customName = plan.customName;
+      return;
+    }
+
+    case 'UPDATE_NODE_DESCRIPTION': {
+      const view = getCurrentNodesAndEdgesFromState(draft);
+      for (const node of view.nodes) {
+        if (!plan.nodeIds.includes(node.id)) continue;
+        if (plan.description === undefined) delete node.data.description;
+        else node.data.description = plan.description;
+      }
       return;
     }
 

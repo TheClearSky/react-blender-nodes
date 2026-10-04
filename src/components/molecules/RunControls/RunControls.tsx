@@ -108,21 +108,21 @@ function ActionButton({
       disabled={disabled}
       title={title}
       className={cn(
-        'btn-press flex items-center justify-center transition-all duration-100',
+        'btn-press rbn:flex rbn:items-center rbn:justify-center rbn:transition-all rbn:duration-100',
         isPlay
-          ? 'h-8 w-8 rounded-md bg-primary-blue text-white shadow-[0_0_12px_var(--color-runner-play-button-glow)]'
-          : 'h-7 w-7 rounded',
-        disabled && 'cursor-not-allowed opacity-30',
+          ? 'rbn:h-8 rbn:w-8 rbn:rounded-md rbn:bg-primary-blue rbn:text-white rbn:shadow-[0_0_12px_var(--color-runner-play-button-glow)]'
+          : 'rbn:h-7 rbn:w-7 rbn:rounded',
+        disabled && 'rbn:cursor-not-allowed rbn:opacity-30',
         !disabled &&
           !active &&
           !isPlay &&
-          'hover:bg-primary-dark-gray hover:text-white',
-        !disabled && isPlay && 'hover:brightness-110',
+          'rbn:hover:bg-primary-dark-gray rbn:hover:text-white',
+        !disabled && isPlay && 'rbn:hover:brightness-110',
         active &&
           !isPlay &&
-          'bg-primary-blue shadow-[0_0_8px_var(--color-runner-active-button-glow)]',
+          'rbn:bg-primary-blue rbn:shadow-[0_0_8px_var(--color-runner-active-button-glow)]',
         !disabled &&
-          'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-blue',
+          'rbn:focus-visible:outline-none rbn:focus-visible:ring-1 rbn:focus-visible:ring-primary-blue',
         isPlay
           ? theme?.runControls?.playButton
           : theme?.runControls?.actionButton,
@@ -188,26 +188,26 @@ function RunControls({
   return (
     <div
       className={cn(
-        'flex h-11 w-full items-center gap-2 border-b border-secondary-dark-gray bg-runner-toolbar-bg px-3',
+        'rbn:flex rbn:h-11 rbn:w-full rbn:items-center rbn:gap-2 rbn:border-b rbn:border-secondary-dark-gray rbn:bg-runner-toolbar-bg rbn:px-3',
         theme?.runControls?.container,
       )}
     >
       {/* Status indicator — label hides below `@max-[832px]`, leaving just the dot */}
-      <div className='flex w-[140px] @max-[832px]/runnerpanel:w-auto items-center gap-2.5'>
-        <div className='relative flex items-center justify-center'>
+      <div className='rbn:flex rbn:w-[140px] rbn:@max-[832px]/runnerpanel:w-auto rbn:items-center rbn:gap-2.5'>
+        <div className='rbn:relative rbn:flex rbn:items-center rbn:justify-center'>
           <div
             className={cn(
-              'h-2.5 w-2.5 rounded-full transition-colors duration-200',
+              'rbn:h-2.5 rbn:w-2.5 rbn:rounded-full rbn:transition-colors rbn:duration-200',
               statusConfig.color,
-              statusConfig.pulse && 'animate-pulse',
-              statusConfig.pulse && 'shadow-[0_0_8px_currentColor]',
+              statusConfig.pulse && 'rbn:animate-pulse',
+              statusConfig.pulse && 'rbn:shadow-[0_0_8px_currentColor]',
               theme?.runControls?.statusDot,
             )}
           />
           {statusConfig.pulse && (
             <div
               className={cn(
-                'absolute h-2.5 w-2.5 animate-ping rounded-full opacity-50',
+                'rbn:absolute rbn:h-2.5 rbn:w-2.5 rbn:animate-ping rbn:rounded-full rbn:opacity-50',
                 statusConfig.color,
                 theme?.runControls?.statusDot,
               )}
@@ -216,7 +216,7 @@ function RunControls({
         </div>
         <span
           className={cn(
-            'text-[14px] text-primary-white @max-[832px]/runnerpanel:hidden',
+            'rbn:text-[14px] rbn:text-primary-white rbn:@max-[832px]/runnerpanel:hidden',
             theme?.runControls?.statusLabel,
           )}
         >
@@ -226,15 +226,15 @@ function RunControls({
 
       <div
         className={cn(
-          'mx-3 h-6 w-px bg-secondary-dark-gray @max-[832px]/runnerpanel:hidden',
+          'rbn:mx-3 rbn:h-6 rbn:w-px rbn:bg-secondary-dark-gray rbn:@max-[832px]/runnerpanel:hidden',
           theme?.runControls?.divider,
         )}
       />
 
       {/* Action buttons */}
-      <div className='flex items-center gap-3'>
+      <div className='rbn:flex rbn:items-center rbn:gap-3'>
         <ActionButton
-          icon={<Play className='h-3.5 w-3.5 fill-current' />}
+          icon={<Play className='rbn:h-3.5 rbn:w-3.5 rbn:fill-current' />}
           onClick={onRun}
           disabled={!canRun}
           active={runnerState === 'running'}
@@ -249,7 +249,7 @@ function RunControls({
             size='compact'
           >
             <SelectTrigger
-              className='w-[160px] @max-[832px]/runnerpanel:hidden'
+              className='rbn:w-[160px] rbn:@max-[832px]/runnerpanel:hidden'
               title='Choose run target'
             >
               <SelectValue placeholder='Run target' />
@@ -264,33 +264,39 @@ function RunControls({
           </Select>
         )}
         <ActionButton
-          icon={<Pause className='h-4 w-4 text-primary-white' />}
+          icon={<Pause className='rbn:h-4 rbn:w-4 rbn:text-primary-white' />}
           onClick={onPause}
           disabled={!canPause}
           title='Pause'
         />
         <ActionButton
-          icon={<SkipForward className='h-4 w-4 text-primary-white' />}
+          icon={
+            <SkipForward className='rbn:h-4 rbn:w-4 rbn:text-primary-white' />
+          }
           onClick={onStep}
           disabled={!canStep || !steppingAvailable}
           title='Step'
         />
         {onStepOver && (
           <ActionButton
-            icon={<CornerDownRight className='h-4 w-4 text-primary-white' />}
+            icon={
+              <CornerDownRight className='rbn:h-4 rbn:w-4 rbn:text-primary-white' />
+            }
             onClick={onStepOver}
             disabled={!canStepOver || !steppingAvailable}
             title='Step over (execute through the group the next step enters)'
           />
         )}
         <ActionButton
-          icon={<Square className='h-4 w-4 text-primary-white' />}
+          icon={<Square className='rbn:h-4 rbn:w-4 rbn:text-primary-white' />}
           onClick={onStop}
           disabled={!canStop}
           title='Stop'
         />
         <ActionButton
-          icon={<RotateCcw className='h-4 w-4 text-primary-white' />}
+          icon={
+            <RotateCcw className='rbn:h-4 rbn:w-4 rbn:text-primary-white' />
+          }
           onClick={onReset}
           disabled={!canReset}
           title='Reset'
@@ -299,14 +305,14 @@ function RunControls({
 
       <div
         className={cn(
-          'mx-3 h-6 w-px bg-secondary-dark-gray @max-[832px]/runnerpanel:hidden',
+          'rbn:mx-3 rbn:h-6 rbn:w-px rbn:bg-secondary-dark-gray rbn:@max-[832px]/runnerpanel:hidden',
           theme?.runControls?.divider,
         )}
       />
 
       {/* Mode toggle — inset pill (moves into the ⋯ menu below `@max-[832px]`) */}
       <Tooltip
-        className='@max-[832px]/runnerpanel:hidden'
+        className='rbn:@max-[832px]/runnerpanel:hidden'
         content='Instant runs the entire graph at once, then enables replay. Step-by-Step pauses after each node so you can inspect intermediate values.'
       >
         <ButtonToggle
@@ -320,11 +326,14 @@ function RunControls({
 
       {/* Max iterations — slider (moves into the ⋯ menu below `@max-[832px]`) */}
       <Tooltip
-        className='@max-[832px]/runnerpanel:hidden'
+        className='rbn:@max-[832px]/runnerpanel:hidden'
         content='Maximum loop iterations before the runner throws an error. Protects against infinite loops.'
       >
         <div
-          className={cn('ml-4', !canEdit && 'pointer-events-none opacity-50')}
+          className={cn(
+            'rbn:ml-4',
+            !canEdit && 'rbn:pointer-events-none rbn:opacity-50',
+          )}
         >
           <SliderNumberInput
             name='Max Loops'
@@ -352,7 +361,7 @@ function RunControls({
         canEdit={canEdit}
         canRun={canRun}
         steppingAvailable={steppingAvailable}
-        triggerClassName='@min-[832px]/runnerpanel:hidden @max-[832px]/runnerpanel:ml-auto'
+        triggerClassName='rbn:@min-[832px]/runnerpanel:hidden rbn:@max-[832px]/runnerpanel:ml-auto'
       />
     </div>
   );

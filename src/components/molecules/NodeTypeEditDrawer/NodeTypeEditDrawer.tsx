@@ -6,6 +6,7 @@ import { cn } from '@/utils';
 import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
 import { useSlideAnimation } from '@/hooks/useSlideAnimation';
 import { PopoverColorPicker } from '@/components/molecules/ColorPicker/PopoverColorPicker';
+import { PathChipsInput } from '@/components/molecules/PathChipsInput';
 import { InputOutputReorderSection } from './InputOutputReorderSection';
 import { HandleSummaryModal, type GetNeighborhood } from './HandleSummaryModal';
 import { DeletionReviewModal } from './DeletionReviewModal';
@@ -35,7 +36,11 @@ type HandleDirection = 'input' | 'output';
 
 type SaveUpdates = {
   name?: string;
+  /** Trimmed; '' clears it. */
+  description?: string;
   headerColor?: string;
+  /** Add-menu folders, outermost first; `[]` = top level of Add Node. */
+  locationInContextMenu?: string[];
   inputs?: (TypeOfInput | TypeOfInputPanel)[];
   outputs?: TypeOfInput[];
   /** Handles to delete (cascading their edges). Applied before the reorder. */
@@ -47,6 +52,13 @@ type NodeTypeEditDrawerProps = {
   onClose: () => void;
   nodeTypeId: string | null;
   nodeTypeName: string | null;
+  /** The group's in-app description (shown behind the ⓘ on its title). */
+  nodeTypeDescription?: string | null;
+  /** Where the group sits in the Add menu (its `locationInContextMenu`).
+   *  When given (even `[]`), the drawer shows a Menu Path field. */
+  nodeTypeLocationInContextMenu?: readonly string[] | null;
+  /** Existing Add-menu folders directly under a path (suggestions). */
+  getMenuFolderSuggestions?: (parentPath: readonly string[]) => string[];
   nodeTypeHeaderColor: string | null;
   nodeTypeInputs: (TypeOfInput | TypeOfInputPanel)[] | null;
   nodeTypeOutputs: TypeOfInput[] | null;
@@ -92,6 +104,9 @@ function NodeTypeEditDrawer({
   onClose,
   nodeTypeId,
   nodeTypeName,
+  nodeTypeDescription = null,
+  nodeTypeLocationInContextMenu = null,
+  getMenuFolderSuggestions,
   nodeTypeHeaderColor,
   nodeTypeInputs,
   nodeTypeOutputs,
@@ -108,6 +123,16 @@ function NodeTypeEditDrawer({
   });
 
   const [localName, setLocalName] = useState('');
+  const [localDescription, setLocalDescription] = useState('');
+  const [localMenuPath, setLocalMenuPath] = useState<string[]>([]);
+  // A string key, so a fresh array with the same folders does not reset an
+  // in-progress edit.
+  const menuPathKey = nodeTypeLocationInContextMenu?.join('\u0000') ?? null;
+  useEffect(() => {
+    if (isOpen) {
+      setLocalMenuPath(menuPathKey ? menuPathKey.split('\u0000') : []);
+    }
+  }, [isOpen, menuPathKey]);
   const [localHeaderColor, setLocalHeaderColor] = useState<string | null>(null);
   const [localInputs, setLocalInputs] = useState<
     DragListItem<InputAdditionalProps>[]
@@ -123,6 +148,7 @@ function NodeTypeEditDrawer({
   useEffect(() => {
     if (isOpen) {
       if (nodeTypeName !== null) setLocalName(nodeTypeName);
+      setLocalDescription(nodeTypeDescription ?? '');
       setLocalHeaderColor(nodeTypeHeaderColor);
       setLocalInputs(
         nodeTypeInputs
@@ -142,6 +168,7 @@ function NodeTypeEditDrawer({
   }, [
     isOpen,
     nodeTypeName,
+    nodeTypeDescription,
     nodeTypeHeaderColor,
     nodeTypeInputs,
     nodeTypeOutputs,
@@ -198,6 +225,13 @@ function NodeTypeEditDrawer({
     const updates: SaveUpdates = {};
     const trimmedName = localName.trim();
     if (trimmedName !== nodeTypeName) updates.name = trimmedName;
+    if (menuPathKey !== null && localMenuPath.join('\u0000') !== menuPathKey) {
+      updates.locationInContextMenu = localMenuPath;
+    }
+    const trimmedDescription = localDescription.trim();
+    if (trimmedDescription !== (nodeTypeDescription ?? '')) {
+      updates.description = trimmedDescription;
+    }
     if (localHeaderColor !== null && localHeaderColor !== nodeTypeHeaderColor) {
       updates.headerColor = localHeaderColor;
     }
@@ -240,24 +274,24 @@ function NodeTypeEditDrawer({
   if (!mounted) return null;
 
   return (
-    <div className='absolute right-0 top-0 bottom-0 w-[320px] z-20 overflow-hidden pointer-events-none'>
+    <div className='rbn:absolute rbn:right-0 rbn:top-0 rbn:bottom-0 rbn:w-[320px] rbn:z-20 rbn:overflow-hidden rbn:pointer-events-none'>
       <div
         ref={ref}
         style={style}
         className={cn(
-          'w-full h-full pointer-events-auto flex flex-col bg-graph-elevated-surface-bg border-l border-secondary-dark-gray',
+          'rbn:w-full rbn:h-full rbn:pointer-events-auto rbn:flex rbn:flex-col rbn:bg-graph-elevated-surface-bg rbn:border-l rbn:border-secondary-dark-gray',
           theme?.drawer?.container,
         )}
       >
         <div
           className={cn(
-            'flex items-center justify-between border-b border-secondary-dark-gray px-3 py-2.5',
+            'rbn:flex rbn:items-center rbn:justify-between rbn:border-b rbn:border-secondary-dark-gray rbn:px-3 rbn:py-2.5',
             theme?.drawer?.header,
           )}
         >
           <span
             className={cn(
-              'text-primary-white text-[16px] leading-[16px] font-main truncate',
+              'rbn:text-primary-white rbn:text-[16px] rbn:leading-[16px] rbn:font-main rbn:truncate',
               theme?.drawer?.title,
             )}
           >
@@ -267,24 +301,24 @@ function NodeTypeEditDrawer({
             size='small'
             onClick={onClose}
             className={cn(
-              'bg-transparent border-none hover:bg-primary-gray p-1',
+              'rbn:bg-transparent rbn:border-none rbn:hover:bg-primary-gray rbn:p-1',
               theme?.drawer?.closeButton,
             )}
           >
-            <X className='w-[18px] h-[18px]' />
+            <X className='rbn:w-[18px] rbn:h-[18px]' />
           </Button>
         </div>
 
         <div
           className={cn(
-            'flex-1 overflow-y-auto p-3 flex flex-col gap-3',
+            'rbn:flex-1 rbn:overflow-y-auto rbn:p-3 rbn:flex rbn:flex-col rbn:gap-3',
             theme?.drawer?.content,
           )}
         >
-          <div className='flex flex-col gap-1'>
+          <div className='rbn:flex rbn:flex-col rbn:gap-1'>
             <label
               className={cn(
-                'text-primary-white text-sm font-main',
+                'rbn:text-primary-white rbn:text-sm rbn:font-main',
                 theme?.drawer?.label,
               )}
             >
@@ -296,15 +330,57 @@ function NodeTypeEditDrawer({
               value={localName}
               onChange={setLocalName}
               allowOnlyNumbers={false}
-              className={cn('w-full', theme?.node?.inputField)}
+              className={cn('rbn:w-full', theme?.node?.inputField)}
             />
           </div>
 
+          <div className='rbn:flex rbn:flex-col rbn:gap-1'>
+            <label
+              htmlFor='rbn-node-type-description'
+              className={cn(
+                'rbn:text-primary-white rbn:text-sm rbn:font-main',
+                theme?.drawer?.label,
+              )}
+            >
+              Description
+            </label>
+            <textarea
+              id='rbn-node-type-description'
+              placeholder='What this does — shown behind the ⓘ on its title'
+              value={localDescription}
+              onChange={(event) => setLocalDescription(event.target.value)}
+              className='rbn:w-full rbn:min-h-[64px] rbn:resize-y rbn:rounded rbn:border rbn:border-secondary-dark-gray rbn:bg-primary-black rbn:px-2 rbn:py-1.5 rbn:text-[13px] rbn:leading-snug rbn:text-primary-white rbn:outline-none rbn:focus:border-primary-blue'
+            />
+          </div>
+
+          {menuPathKey !== null && (
+            <div className='rbn:flex rbn:flex-col rbn:gap-1'>
+              <label
+                htmlFor='rbn-node-type-menu-path'
+                className={cn(
+                  'rbn:text-primary-white rbn:text-sm rbn:font-main',
+                  theme?.drawer?.label,
+                )}
+              >
+                Menu Path
+              </label>
+              <PathChipsInput
+                id='rbn-node-type-menu-path'
+                value={localMenuPath}
+                onChange={setLocalMenuPath}
+                getSuggestions={getMenuFolderSuggestions}
+                previewRoot='Add Node'
+                previewLeaf={localName.trim() || undefined}
+                emptyPathHint='top level of Add Node'
+              />
+            </div>
+          )}
+
           {localHeaderColor !== null && (
-            <div className='flex flex-col gap-1'>
+            <div className='rbn:flex rbn:flex-col rbn:gap-1'>
               <label
                 className={cn(
-                  'text-primary-white text-sm font-main',
+                  'rbn:text-primary-white rbn:text-sm rbn:font-main',
                   theme?.drawer?.label,
                 )}
               >
@@ -354,20 +430,20 @@ function NodeTypeEditDrawer({
           )}
 
           {deleted.length > 0 && (
-            <div className='flex flex-col gap-1.5'>
+            <div className='rbn:flex rbn:flex-col rbn:gap-1.5'>
               <label
                 className={cn(
-                  'text-primary-white text-sm font-main',
+                  'rbn:text-primary-white rbn:text-sm rbn:font-main',
                   theme?.drawer?.label,
                 )}
               >
                 Deleted ({deleted.length})
               </label>
-              <div className='flex flex-col gap-1'>
+              <div className='rbn:flex rbn:flex-col rbn:gap-1'>
                 {deleted.map((entry) => (
                   <div
                     key={entry.item.id}
-                    className='flex items-center gap-1.5 px-2 py-1 rounded bg-primary-gray/40'
+                    className='rbn:flex rbn:items-center rbn:gap-1.5 rbn:px-2 rbn:py-1 rbn:rounded rbn:bg-primary-gray/40'
                   >
                     {(entry.item.additionalProperties?.color ||
                       entry.item.additionalProperties?.shape) && (
@@ -378,32 +454,32 @@ function NodeTypeEditDrawer({
                         className={theme?.node?.handleShape}
                       />
                     )}
-                    <span className='truncate text-primary-white/70 line-through text-[13px]'>
+                    <span className='rbn:truncate rbn:text-primary-white/70 rbn:line-through rbn:text-[13px]'>
                       {entry.item.name}
                     </span>
                     {entry.item.additionalProperties?.dataType && (
-                      <span className='text-secondary-light-gray text-[12px] truncate shrink-0'>
+                      <span className='rbn:text-secondary-light-gray rbn:text-[12px] rbn:truncate rbn:shrink-0'>
                         {entry.item.additionalProperties.dataType}
                       </span>
                     )}
-                    <span className='text-[10px] text-primary-white/40 shrink-0'>
+                    <span className='rbn:text-[10px] rbn:text-primary-white/40 rbn:shrink-0'>
                       {entry.direction}
                     </span>
                     <button
                       type='button'
                       title='Show connections that will break'
                       onClick={() => setSummaryFor(entry)}
-                      className='ml-auto shrink-0 p-1 rounded hover:bg-primary-gray text-secondary-light-gray hover:text-primary-white transition-colors'
+                      className='rbn:ml-auto rbn:shrink-0 rbn:p-1 rbn:rounded rbn:hover:bg-primary-gray rbn:text-secondary-light-gray rbn:hover:text-primary-white rbn:transition-colors'
                     >
-                      <Info className='w-3.5 h-3.5' />
+                      <Info className='rbn:w-3.5 rbn:h-3.5' />
                     </button>
                     <button
                       type='button'
                       title='Restore this handle'
                       onClick={() => restoreDeleted(entry)}
-                      className='shrink-0 p-1 rounded hover:bg-primary-gray text-secondary-light-gray hover:text-primary-white transition-colors'
+                      className='rbn:shrink-0 rbn:p-1 rbn:rounded rbn:hover:bg-primary-gray rbn:text-secondary-light-gray rbn:hover:text-primary-white rbn:transition-colors'
                     >
-                      <Undo2 className='w-3.5 h-3.5' />
+                      <Undo2 className='rbn:w-3.5 rbn:h-3.5' />
                     </button>
                   </div>
                 ))}
@@ -414,7 +490,7 @@ function NodeTypeEditDrawer({
 
         <div
           className={cn(
-            'border-t border-secondary-dark-gray px-3 py-2 flex gap-2',
+            'rbn:border-t rbn:border-secondary-dark-gray rbn:px-3 rbn:py-2 rbn:flex rbn:gap-2',
             theme?.drawer?.footer,
           )}
         >

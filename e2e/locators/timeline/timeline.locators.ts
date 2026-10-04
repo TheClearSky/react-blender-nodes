@@ -1,4 +1,4 @@
-import type { Page, Locator } from '@playwright/test';
+﻿import type { Page, Locator } from '@playwright/test';
 
 /**
  * Locators for the ExecutionTimeline below the runner toolbar.
@@ -27,12 +27,12 @@ function getTimelineBlock(page: Page, stepIndex: number): Locator {
  * overall iteration count, not by which loop it belongs to.
  */
 function getAllLoopIterationBlocks(page: Page): Locator {
-  return page.locator('div.bg-timeline-loop-accent\\/60');
+  return page.locator('div.rbn\\:bg-timeline-loop-accent\\/60');
 }
 
 /** Total duration number+unit text in the timeline toolbar (e.g. "2.80ms"). */
 function getTotalDurationText(page: Page): Locator {
-  return page.locator('span.tabular-nums').first();
+  return page.locator('span.rbn\\:tabular-nums').first();
 }
 
 /** Step count span (e.g. "12 steps"). */

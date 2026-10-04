@@ -5,6 +5,7 @@ import {
   getAllHandles,
   getHandleByName,
   getHandleByIndex,
+  getNodeTitle,
 } from '../../locators/node/node.locators';
 import { addLogicGate } from '../../helpers/addNode';
 import { attemptConnectionByHandles } from '../../actions/node/connection.actions';
@@ -37,8 +38,7 @@ async function findGroupBoundaryNodeIds(page: import('@playwright/test').Page) {
   let groupInputId: string | undefined;
   let groupOutputId: string | undefined;
   for (const id of allIds) {
-    const node = page.locator(`.react-flow__node[data-id="${id}"]`);
-    const text = await node.locator('p').first().textContent();
+    const text = await getNodeTitle(page, id).textContent();
     if (text === 'Group Input') groupInputId = id;
     if (text === 'Group Output') groupOutputId = id;
   }

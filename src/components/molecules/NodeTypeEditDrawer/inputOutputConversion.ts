@@ -14,7 +14,41 @@ type InputAdditionalProps = {
   color?: string;
   /** Data-type shape for the editor swatch (display-only; never round-trips). */
   shape?: HandleShape;
+  // The rest of TypeOfInput, CARRIED through the editor untouched (the editor
+  // round-trip used to drop every field it did not list — `defaultValue` was
+  // silently lost on every Save). `description` is also edited here.
+  defaultValue?: string | number | boolean;
+  description?: string;
+  min?: number;
+  max?: number;
+  step?: number;
 };
+
+/** The TypeOfInput fields the editor carries through as-is. */
+const CARRIED = ['defaultValue', 'description', 'min', 'max', 'step'] as const;
+
+function carriedFrom(input: TypeOfInput): Partial<InputAdditionalProps> {
+  const out: Partial<InputAdditionalProps> = {};
+  for (const key of CARRIED) {
+    if (input[key] !== undefined)
+      (out as Record<string, unknown>)[key] = input[key];
+  }
+  return out;
+}
+
+function carriedTo(
+  props: InputAdditionalProps | undefined,
+): Partial<TypeOfInput> {
+  const out: Partial<TypeOfInput> = {};
+  for (const key of CARRIED) {
+    const value = props?.[key];
+    // A blank description is "no description".
+    if (value === undefined || (key === 'description' && value === ''))
+      continue;
+    (out as Record<string, unknown>)[key] = value;
+  }
+  return out;
+}
 
 /** The visual (color + shape) resolved for a data type, for the editor swatch. */
 type HandleVisual = { color?: string; shape?: HandleShape };
@@ -38,6 +72,7 @@ function typeOfInputsToDragListItems(
             dataType: subInput.dataType,
             allowInput: subInput.allowInput,
             maxConnections: subInput.maxConnections,
+            ...carriedFrom(subInput),
             ...resolveVisual?.(subInput.dataType),
           },
         })),
@@ -50,6 +85,7 @@ function typeOfInputsToDragListItems(
         dataType: input.dataType,
         allowInput: input.allowInput,
         maxConnections: input.maxConnections,
+        ...carriedFrom(input),
         ...resolveVisual?.(input.dataType),
       },
     };
@@ -72,6 +108,7 @@ function dragListItemsToTypeOfInputs(
           ...(subItem.additionalProperties?.maxConnections !== undefined && {
             maxConnections: subItem.additionalProperties.maxConnections,
           }),
+          ...carriedTo(subItem.additionalProperties),
         })),
       } satisfies TypeOfInputPanel;
     }
@@ -84,6 +121,7 @@ function dragListItemsToTypeOfInputs(
       ...(item.additionalProperties?.maxConnections !== undefined && {
         maxConnections: item.additionalProperties.maxConnections,
       }),
+      ...carriedTo(item.additionalProperties),
     } satisfies TypeOfInput;
   });
 }
@@ -99,6 +137,7 @@ function typeOfOutputsToDragListItems(
       dataType: output.dataType,
       allowInput: output.allowInput,
       maxConnections: output.maxConnections,
+      ...carriedFrom(output),
       ...resolveVisual?.(output.dataType),
     },
   }));
@@ -116,6 +155,7 @@ function dragListItemsToTypeOfOutputs(
     ...(item.additionalProperties?.maxConnections !== undefined && {
       maxConnections: item.additionalProperties.maxConnections,
     }),
+    ...carriedTo(item.additionalProperties),
   }));
 }
 

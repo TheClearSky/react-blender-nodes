@@ -64,9 +64,9 @@ function ExpandableConnectionMiniMap({
   const showInlineToggle = inlineToggle && !!wholeTree;
 
   return (
-    <div className='flex flex-col gap-2'>
+    <div className='rbn:flex rbn:flex-col rbn:gap-2'>
       {showInlineToggle && (
-        <div className='flex shrink-0 justify-end'>
+        <div className='rbn:flex rbn:shrink-0 rbn:justify-end'>
           <ButtonToggle
             size='small'
             value={view}
@@ -76,7 +76,7 @@ function ExpandableConnectionMiniMap({
         </div>
       )}
 
-      <div className='relative'>
+      <div className='rbn:relative'>
         {/* key on `view` (only when the inline toggle is active) so switching
             datasets remounts the map and re-runs fitView at the new bounds. */}
         <ConnectionMiniMap
@@ -89,9 +89,9 @@ function ExpandableConnectionMiniMap({
           type='button'
           aria-label='Expand'
           onClick={() => setExpanded(true)}
-          className='absolute top-1 right-1 z-10 rounded bg-primary-gray/80 p-1 text-primary-white/80 hover:text-primary-white hover:bg-primary-gray transition-colors focus:outline-none'
+          className='rbn:absolute rbn:top-1 rbn:right-1 rbn:z-10 rbn:rounded rbn:bg-primary-gray/80 rbn:p-1 rbn:text-primary-white/80 rbn:hover:text-primary-white rbn:hover:bg-primary-gray rbn:transition-colors rbn:focus:outline-none'
         >
-          <Maximize2 className='w-3.5 h-3.5' />
+          <Maximize2 className='rbn:w-3.5 rbn:h-3.5' />
         </button>
       </div>
 
@@ -122,12 +122,12 @@ function ExpandableConnectionMiniMap({
           <ModalCloseButton />
           <ModalBody
             className={cn(
-              'p-2 min-h-0 flex flex-col gap-2',
+              'rbn:p-2 rbn:min-h-0 rbn:flex rbn:flex-col rbn:gap-2',
               theme?.modal?.body,
             )}
           >
             {wholeTree && (
-              <div className='flex shrink-0 justify-end'>
+              <div className='rbn:flex rbn:shrink-0 rbn:justify-end'>
                 <ButtonToggle
                   size='small'
                   value={view}
@@ -138,7 +138,7 @@ function ExpandableConnectionMiniMap({
             )}
             {/* key on `view` so switching datasets remounts the map and re-runs
                 fitView at the new node set's bounds. */}
-            <div className='min-h-0 flex-1'>
+            <div className='rbn:min-h-0 rbn:flex-1'>
               <ConnectionMiniMap
                 key={view}
                 neighborhood={activeData}

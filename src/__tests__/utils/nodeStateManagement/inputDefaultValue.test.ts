@@ -4,6 +4,7 @@
 // node type can declare its own defaults instead of the consumer seeding them
 // via UPDATE_INPUT_VALUE after every add.
 import { describe, it, expect } from 'vitest';
+import { z } from 'zod';
 import { constructNodeOfType } from '@/utils/nodeStateManagement/nodes/constructAndModifyNodes';
 import {
   makeDataTypeWithAutoInfer,
@@ -82,5 +83,57 @@ describe('constructNodeOfType — TypeOfInput.defaultValue seeding', () => {
   it('ignores a default whose type mismatches the underlying type', () => {
     // A string default on a number input must not become the number value.
     expect(findInput(node, 'Mismatched')?.value).toBeUndefined();
+  });
+});
+
+describe('constructNodeOfType — defaultValue on a complex data type', () => {
+  // A consumer knob on a complex type (e.g. a numeric "signal" knob whose
+  // schema accepts a number) used to drop its default entirely.
+  const complexTypes = {
+    knob: makeDataTypeWithAutoInfer({
+      name: 'Knob',
+      underlyingType: 'complex',
+      complexSchema: z.number().finite(),
+      color: '#facc15',
+      allowInput: true,
+    }),
+  } as const;
+  const complexNodes = {
+    fx: makeTypeOfNodeWithAutoInfer<keyof typeof complexTypes, 'fx'>({
+      name: 'Fx',
+      headerColor: '#be185d',
+      inputs: [
+        { name: 'Amount', dataType: 'knob', defaultValue: 60 },
+        { name: 'Rejected', dataType: 'knob', defaultValue: 'nope' },
+        { name: 'Unset', dataType: 'knob' },
+      ],
+      outputs: [],
+    }),
+  } as const;
+  type FxState = State<keyof typeof complexTypes, 'fx'>;
+  const node = constructNodeOfType<keyof typeof complexTypes, 'fx'>(
+    complexTypes as unknown as FxState['dataTypes'],
+    'fx',
+    complexNodes as unknown as FxState['typeOfNodes'],
+    'node-2',
+    { x: 0, y: 0 },
+  );
+  const valueOf = (name: string) =>
+    (
+      node.data.inputs?.find(
+        (input) => !('inputs' in input) && input.name === name,
+      ) as { value?: unknown } | undefined
+    )?.value;
+
+  it('seeds a default the schema accepts', () => {
+    expect(valueOf('Amount')).toBe(60);
+  });
+
+  it('ignores a default the schema rejects', () => {
+    expect(valueOf('Rejected')).toBeUndefined();
+  });
+
+  it('stays unset when no default is declared', () => {
+    expect(valueOf('Unset')).toBeUndefined();
   });
 });

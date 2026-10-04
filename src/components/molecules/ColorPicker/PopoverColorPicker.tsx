@@ -124,7 +124,7 @@ function PopoverColorPicker({
   const previewColor = formatColor(internalColor, 'rgb');
 
   const isSmall = size === 'small';
-  const triggerSize = isSmall ? 'w-6 h-6' : 'w-10 h-10';
+  const triggerSize = isSmall ? 'rbn:w-6 rbn:h-6' : 'rbn:w-10 rbn:h-10';
   const pickerWidth = isSmall ? 'w-[220px]' : 'w-[280px]';
 
   const popoverContent = (
@@ -141,7 +141,7 @@ function PopoverColorPicker({
         style={transitionStyles}
         className={cn(
           pickerWidth,
-          'rounded-lg border border-secondary-dark-gray bg-graph-elevated-surface-bg p-2 shadow-lg',
+          'rbn:rounded-lg rbn:border rbn:border-secondary-dark-gray rbn:bg-graph-elevated-surface-bg rbn:p-2 rbn:shadow-lg',
           theme?.colorPicker?.popover,
         )}
       >
@@ -150,11 +150,13 @@ function PopoverColorPicker({
           onValueChange={handleValueChange}
           defaultFormat={defaultFormat}
         >
-          <ColorPickerArea className='w-full aspect-square' />
+          <ColorPickerArea className='rbn:w-full rbn:aspect-square' />
           <ColorPickerHue />
           {showAlpha && <ColorPickerAlpha />}
-          <div className='flex items-center gap-1.5'>
-            <ColorPickerPreview className={isSmall ? 'w-5 h-5' : 'w-8 h-8'} />
+          <div className='rbn:flex rbn:items-center rbn:gap-1.5'>
+            <ColorPickerPreview
+              className={isSmall ? 'rbn:w-5 rbn:h-5' : 'rbn:w-8 rbn:h-8'}
+            />
             <ColorPickerCssInput size={size} />
             <ColorPickerEyeDropper size={size} />
           </div>
@@ -166,16 +168,16 @@ function PopoverColorPicker({
   );
 
   return (
-    <div className={cn('relative inline-flex', className)}>
+    <div className={cn('rbn:relative rbn:inline-flex', className)}>
       <button
         ref={refs.setReference}
         type='button'
         {...getReferenceProps()}
         className={cn(
           triggerSize,
-          'rounded-md border border-secondary-dark-gray cursor-pointer',
-          'outline-none focus-visible:ring-1 focus-visible:ring-white',
-          'overflow-hidden transition-shadow hover:shadow-md',
+          'rbn:rounded-md rbn:border rbn:border-secondary-dark-gray rbn:cursor-pointer',
+          'rbn:outline-none rbn:focus-visible:ring-1 rbn:focus-visible:ring-white',
+          'rbn:overflow-hidden rbn:transition-shadow rbn:hover:shadow-md',
           triggerClassName,
         )}
         style={{ backgroundColor: previewColor }}

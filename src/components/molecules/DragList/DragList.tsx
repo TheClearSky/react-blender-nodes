@@ -57,16 +57,16 @@ function InlineGhost<T extends Record<string, unknown>>({
   const content = renderContent ? (
     renderContent(item, depth)
   ) : (
-    <span className='truncate text-primary-white/60'>{item.name}</span>
+    <span className='rbn:truncate rbn:text-primary-white/60'>{item.name}</span>
   );
 
   return (
     <div
       data-slot='drag-list-ghost'
       className={cn(
-        'flex items-center gap-2 px-2.5 py-2 rounded-md',
-        'text-[14px] leading-[14px] font-main',
-        'pointer-events-none opacity-80',
+        'rbn:flex rbn:items-center rbn:gap-2 rbn:px-2.5 rbn:py-2 rbn:rounded-md',
+        'rbn:text-[14px] rbn:leading-[14px] rbn:font-main',
+        'rbn:pointer-events-none rbn:opacity-80',
         theme?.dragList?.ghost,
       )}
       style={{
@@ -74,7 +74,7 @@ function InlineGhost<T extends Record<string, unknown>>({
         marginLeft: depth * indentationPerLevel,
       }}
     >
-      <div className='flex-1 min-w-0'>{content}</div>
+      <div className='rbn:flex-1 rbn:min-w-0'>{content}</div>
     </div>
   );
 }
@@ -102,19 +102,19 @@ function FloatingDragPreview<T extends Record<string, unknown>>({
   const content = renderContent ? (
     renderContent(item, 0)
   ) : (
-    <span className='truncate text-primary-white'>{item.name}</span>
+    <span className='rbn:truncate rbn:text-primary-white'>{item.name}</span>
   );
 
   return createPortal(
     <div
       data-slot='drag-list-floating-preview'
       className={cn(
-        'fixed z-[9999] pointer-events-none',
-        'flex items-center gap-2 px-2.5 py-2 rounded-md',
-        'bg-primary-dark-gray border border-secondary-dark-gray',
-        'text-[14px] leading-[14px] font-main',
-        'shadow-lg shadow-black/40',
-        'opacity-90',
+        'rbn:fixed rbn:z-[9999] rbn:pointer-events-none',
+        'rbn:flex rbn:items-center rbn:gap-2 rbn:px-2.5 rbn:py-2 rbn:rounded-md',
+        'rbn:bg-primary-dark-gray rbn:border rbn:border-secondary-dark-gray',
+        'rbn:text-[14px] rbn:leading-[14px] rbn:font-main',
+        'rbn:shadow-lg rbn:shadow-black/40',
+        'rbn:opacity-90',
         theme?.dragList?.preview,
       )}
       style={{
@@ -123,9 +123,9 @@ function FloatingDragPreview<T extends Record<string, unknown>>({
         width,
       }}
     >
-      <div className='flex-1 min-w-0'>{content}</div>
-      <div className='shrink-0 text-secondary-light-gray'>
-        <GripVertical className='w-4 h-4' />
+      <div className='rbn:flex-1 rbn:min-w-0'>{content}</div>
+      <div className='rbn:shrink-0 rbn:text-secondary-light-gray'>
+        <GripVertical className='rbn:w-4 rbn:h-4' />
       </div>
     </div>,
     document.body,
@@ -320,7 +320,10 @@ function DragList<T extends Record<string, unknown> = Record<string, never>>({
         };
 
         elements.push(
-          <div key={`children-${item.id}`} className='flex flex-col gap-0.5'>
+          <div
+            key={`children-${item.id}`}
+            className='rbn:flex rbn:flex-col rbn:gap-0.5'
+          >
             {draggedItem &&
               isDropTargetAt(currentPath, 'inside', dropTarget) && (
                 <InlineGhost
@@ -363,11 +366,11 @@ function DragList<T extends Record<string, unknown> = Record<string, never>>({
     <div
       ref={containerRef}
       data-slot='drag-list'
-      className={cn('flex flex-col gap-0.5', className)}
+      className={cn('rbn:flex rbn:flex-col rbn:gap-0.5', className)}
     >
       {renderItems(items, [], 0)}
       {items.length === 0 && (
-        <div className='text-[14px] text-secondary-light-gray text-center py-6 font-main'>
+        <div className='rbn:text-[14px] rbn:text-secondary-light-gray rbn:text-center rbn:py-6 rbn:font-main'>
           No items
         </div>
       )}

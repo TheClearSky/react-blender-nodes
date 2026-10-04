@@ -25,9 +25,18 @@ import { importGraphState } from '@/utils/importExport/stateImport';
 
 // Explicit `mainReducer<…>` type args everywhere (generic-widening trap, feature-dev §4).
 
+// The LIBRARY defaults are both ON. A consumer wanting a different default seeds
+// the (persisted) field on the documents it installs — the sound app does — so
+// these tests pin the fallback for an ABSENT/malformed field; a stored boolean
+// always wins, whichever way it points.
+
 describe('getRunnerViewPreferences (accessor)', () => {
   it('defaults both fields to true when the field is absent', () => {
     expect(getRunnerViewPreferences({})).toEqual({
+      autoScroll: true,
+      followIntoGroups: true,
+    });
+    expect(DEFAULT_RUNNER_VIEW_PREFERENCES).toEqual({
       autoScroll: true,
       followIntoGroups: true,
     });
@@ -55,6 +64,10 @@ describe('getRunnerViewPreferences (accessor)', () => {
     expect(getRunnerViewPreferences({})).not.toBe(
       DEFAULT_RUNNER_VIEW_PREFERENCES,
     );
+  });
+
+  it('the shared default is FROZEN — the accessor reads it, so a mutation would move every default', () => {
+    expect(Object.isFrozen(DEFAULT_RUNNER_VIEW_PREFERENCES)).toBe(true);
   });
 });
 
@@ -208,7 +221,7 @@ describe('runnerViewPreferences import back-compat', () => {
     });
   });
 
-  it('round-trips a seeded { autoScroll:false, followIntoGroups:false } (present booleans, no warning)', () => {
+  it('round-trips a seeded { autoScroll:false, followIntoGroups:false } as a PRESENT field — a consumer-seeded OFF survives export/import', () => {
     const result = importGraphState(
       jsonWithPreferences({ autoScroll: false, followIntoGroups: false }),
       importOptions,
@@ -216,6 +229,7 @@ describe('runnerViewPreferences import back-compat', () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.warnings).toEqual([]);
+    expect('runnerViewPreferences' in result.data).toBe(true);
     expect(result.data.runnerViewPreferences).toEqual({
       autoScroll: false,
       followIntoGroups: false,

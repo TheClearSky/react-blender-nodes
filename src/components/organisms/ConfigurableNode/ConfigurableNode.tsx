@@ -9,6 +9,7 @@ import {
   type HTMLAttributes,
   useCallback,
   useContext,
+  useMemo,
   useState,
 } from 'react';
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
@@ -18,8 +19,18 @@ import {
   type HandleShape,
 } from './SupportingSubcomponents/ContextAwareHandle';
 import { ContextAwareInput } from './SupportingSubcomponents/ContextAwareInput';
+import {
+  liveHandleColor,
+  liveHandleShape,
+} from '@/utils/nodeStateManagement/handles/liveHandleVisual';
 import { InputConnectionOrderControl } from './SupportingSubcomponents/InputConnectionOrderControl';
 import { EditableNodeTitle } from './SupportingSubcomponents/EditableNodeTitle';
+import { InfoHint } from '../../atoms/InfoHint/InfoHint';
+import {
+  buildSocketDocs,
+  socketDocKey,
+  SocketDocsContext,
+} from './SupportingSubcomponents/socketDocs';
 import {
   ContextAwareNodeHeaderActions,
   type NodeHeaderActionDefinition,
@@ -168,6 +179,7 @@ type ConfigurableNodeOutput<
  *
  * Groups multiple inputs together in a collapsible panel for better organization.
  */
+
 type ConfigurableNodeInputPanel<
   UnderlyingType extends SupportedUnderlyingTypes = SupportedUnderlyingTypes,
   ComplexSchemaType extends UnderlyingType extends 'complex'
@@ -212,6 +224,9 @@ type ConfigurableNodeProps<
    *  `node.data`; absent = expanded). Only rendered when a `nodePreviews`
    *  component is registered for this node type. */
   previewCollapsed?: boolean;
+  /** This node's own in-app description (loops carry theirs here), shown
+   *  behind the title's ⓘ ahead of its node type's description. */
+  description?: string;
   /** Background color of the node header */
   headerColor?: string;
   /** Array of inputs and input panels */
@@ -265,6 +280,10 @@ const RenderInputView = forwardRef<
   RenderInputProps & { isConnected: boolean }
 >(({ input, isCurrentlyInsideReactFlow, hide = false, isConnected }, ref) => {
   const theme = useGraphTheme();
+  const socketDocs = useContext(SocketDocsContext);
+  const socketDescription = socketDocs.get(
+    socketDocKey('in', input.name, input.dataType?.dataTypeUniqueId),
+  )?.description;
   // Determine if we should show the input component or just the label
   const shouldShowInput = input.allowInput && !isConnected;
 
@@ -272,9 +291,9 @@ const RenderInputView = forwardRef<
     <div
       ref={ref}
       className={cn(
-        'text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row py-3',
-        hide && 'h-0 overflow-hidden py-0',
-        shouldShowInput && 'py-1',
+        'rbn:group/socket rbn:text-primary-white rbn:text-[27px] rbn:leading-[27px] rbn:font-main rbn:relative rbn:px-6 rbn:flex rbn:flex-row rbn:py-3',
+        hide && 'rbn:h-0 rbn:overflow-hidden rbn:py-0',
+        shouldShowInput && 'rbn:py-1',
         theme?.node?.inputRow,
       )}
     >
@@ -282,26 +301,33 @@ const RenderInputView = forwardRef<
         type='target'
         position={Position.Left}
         id={input.id}
-        color={input.handleColor}
-        shape={input.handleShape}
+        color={liveHandleColor(input)}
+        shape={liveHandleShape(input)}
         maxConnections={input.maxConnections}
         isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
       />
-      <div className='flex-1 flex items-center gap-3 w-full'>
+      <div className='rbn:flex-1 rbn:flex rbn:items-center rbn:gap-3 rbn:w-full'>
         {/* Fan-in reorder badges (self-hides for <2 connections; RF-only). */}
         {isCurrentlyInsideReactFlow && (
           <InputConnectionOrderControl handleId={input.id} />
         )}
         {!shouldShowInput && (
-          <div className='truncate'>{input.name || '\u200B'}</div>
+          <div className='rbn:truncate'>{input.name || '\u200B'}</div>
         )}
         {shouldShowInput && (
-          <div className='flex-1 w-full'>
+          <div className='rbn:flex-1 rbn:w-full'>
             <ContextAwareInput
               input={input}
               isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
             />
           </div>
+        )}
+        {socketDescription && (
+          <InfoHint
+            text={socketDescription}
+            label={`About ${input.name}`}
+            className='rbn:hidden rbn:group-hover/socket:inline-flex rbn:group-focus-within/socket:inline-flex'
+          />
         )}
       </div>
     </div>
@@ -356,21 +382,34 @@ type RenderOutputProps<
 const RenderOutput = forwardRef<HTMLDivElement, RenderOutputProps>(
   ({ output, isCurrentlyInsideReactFlow }, ref) => {
     const theme = useGraphTheme();
+    const socketDocs = useContext(SocketDocsContext);
+    const socketDescription = socketDocs.get(
+      socketDocKey('out', output.name, output.dataType?.dataTypeUniqueId),
+    )?.description;
     return (
       <div
         ref={ref}
         className={cn(
-          'text-primary-white text-[27px] leading-[27px] font-main relative px-6 flex flex-row justify-end py-3',
+          'rbn:group/socket rbn:text-primary-white rbn:text-[27px] rbn:leading-[27px] rbn:font-main rbn:relative rbn:px-6 rbn:flex rbn:flex-row rbn:items-center rbn:justify-end rbn:gap-3 rbn:py-3',
           theme?.node?.outputRow,
         )}
       >
-        <div className='truncate text-right'>{output.name || '\u200B'}</div>
+        {socketDescription && (
+          <InfoHint
+            text={socketDescription}
+            label={`About ${output.name}`}
+            className='rbn:hidden rbn:group-hover/socket:inline-flex rbn:group-focus-within/socket:inline-flex'
+          />
+        )}
+        <div className='rbn:truncate rbn:text-right'>
+          {output.name || '\u200B'}
+        </div>
         <ContextAwareHandle
           type='source'
           position={Position.Right}
           id={output.id}
-          color={output.handleColor}
-          shape={output.handleShape}
+          color={liveHandleColor(output)}
+          shape={liveHandleShape(output)}
           maxConnections={output.maxConnections}
           isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
         />
@@ -403,7 +442,7 @@ const RenderInputPanel = forwardRef<HTMLDivElement, RenderInputPanelProps>(
   ({ panel, isCurrentlyInsideReactFlow, isOpen, onToggle }, ref) => {
     const theme = useGraphTheme();
     return (
-      <div ref={ref} className='flex flex-col'>
+      <div ref={ref} className='rbn:flex rbn:flex-col'>
         {/* Panel header with toggle button - same spacing as regular inputs */}
         <Button
           onClick={(e) => {
@@ -412,24 +451,24 @@ const RenderInputPanel = forwardRef<HTMLDivElement, RenderInputPanelProps>(
             onToggle();
           }}
           className={cn(
-            'bg-transparent border-none hover:bg-primary-gray rounded-none justify-start',
+            'rbn:bg-transparent rbn:border-none rbn:hover:bg-primary-gray rbn:rounded-none rbn:justify-start',
             theme?.node?.panelHeader,
           )}
         >
           {/* Arrow on the left */}
           {isOpen ? (
-            <ChevronUpIcon className='w-6 h-6 shrink-0 mr-2' />
+            <ChevronUpIcon className='rbn:w-6 rbn:h-6 rbn:shrink-0 rbn:mr-2' />
           ) : (
-            <ChevronDownIcon className='w-6 h-6 shrink-0 mr-2' />
+            <ChevronDownIcon className='rbn:w-6 rbn:h-6 rbn:shrink-0 rbn:mr-2' />
           )}
-          <span className='truncate'>{panel.name}</span>
+          <span className='rbn:truncate'>{panel.name}</span>
         </Button>
 
         {/* Panel content - only render if open */}
         <div
           className={cn(
-            'flex flex-col bg-graph-node-panel-content-bg',
-            !isOpen && 'h-0 overflow-hidden',
+            'rbn:flex rbn:flex-col rbn:bg-graph-node-panel-content-bg',
+            !isOpen && 'rbn:h-0 rbn:overflow-hidden',
             theme?.node?.panelContent,
           )}
         >
@@ -540,6 +579,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       runnerVisualState,
       runnerErrors,
       runnerWarnings,
+      description,
       ...props
     },
     ref,
@@ -555,6 +595,22 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       !!nodeTypeUniqueId &&
       !!fullGraphContext?.allProps?.state?.typeOfNodes?.[nodeTypeUniqueId]
         ?.subtree;
+
+    // In-app docs, read LIVE from the node type (never copied onto the
+    // instance), so editing a type's docs updates every node of it at once.
+    const typeOfThisNode = nodeTypeUniqueId
+      ? fullGraphContext?.allProps?.state?.typeOfNodes?.[nodeTypeUniqueId]
+      : undefined;
+    const socketDocs = useMemo(
+      () => buildSocketDocs(typeOfThisNode),
+      [typeOfThisNode],
+    );
+    // The node's own description (loops carry theirs) wins over its type's.
+    const rawDescription = description ?? typeOfThisNode?.description;
+    const nodeDescription =
+      typeof rawDescription === 'string' && rawDescription.trim() !== ''
+        ? rawDescription
+        : undefined;
 
     // Custom names are for STANDARD nodes only — system/structural nodes (graph &
     // group I/O, loops, switches, groups) are excluded. The same predicate gates the
@@ -663,7 +719,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
         label: 'Open node group',
         icon: SquareMousePointerIcon,
         iconClassName:
-          'shrink-0 w-7 h-7 aspect-square cursor-pointer hover:opacity-80',
+          'rbn:shrink-0 rbn:w-7 rbn:h-7 rbn:aspect-square rbn:cursor-pointer rbn:hover:opacity-80',
         action: {
           type: actionTypesMap.OPEN_NODE_GROUP,
           payload: { nodeId: id ?? '' },
@@ -705,8 +761,8 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       <div
         tabIndex={0}
         className={cn(
-          'flex flex-col gap-0 rounded-md w-max border-[1.5px] border-transparent focus:border-white',
-          'in-[.selected]:border-white', //in-[.selected]:text-white is handled by the parent (inside react flow)
+          'rbn:group/node rbn:flex rbn:flex-col rbn:gap-0 rbn:rounded-md rbn:w-max rbn:border-[1.5px] rbn:border-transparent rbn:focus:border-white',
+          'rbn:in-[.selected]:border-white', //in-[.selected]:text-white is handled by the parent (inside react flow)
           theme?.node?.container,
           className,
         )}
@@ -715,7 +771,7 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
       >
         <div
           className={cn(
-            'text-primary-white text-left text-[27px] leading-[27px] font-main px-4 transition-all rounded-t-md truncate flex justify-between items-center',
+            'rbn:text-primary-white rbn:text-left rbn:text-[27px] rbn:leading-[27px] rbn:font-main rbn:px-4 rbn:transition-all rbn:rounded-t-md rbn:truncate rbn:flex rbn:justify-between rbn:items-center',
             theme?.node?.header,
           )}
           style={{
@@ -727,66 +783,83 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
             customName={supportsCustomName ? customName : undefined}
             isEditable={isCustomNameEditable}
             onCommit={handleCustomNameCommit}
-            className={cn('min-w-0', theme?.node?.headerTitle)}
+            className={cn('rbn:min-w-0', theme?.node?.headerTitle)}
           />
-          {fullGraphContext?.allProps?.state?.enableDebugMode && (
-            <p className='ml-3 shrink-0 py-2'>{id}</p>
+          {nodeDescription && (
+            <InfoHint
+              text={nodeDescription}
+              label={`About ${displayName}`}
+              className='rbn:ml-3 rbn:hidden rbn:group-hover/node:inline-flex rbn:group-focus-within/node:inline-flex'
+            />
           )}
-          <div className='ml-auto flex items-center gap-3'>
+          {fullGraphContext?.allProps?.state?.enableDebugMode && (
+            <p className='rbn:ml-3 rbn:shrink-0 rbn:py-2'>{id}</p>
+          )}
+          <div className='rbn:ml-auto rbn:flex rbn:items-center rbn:gap-3'>
             <ContextAwareNodeHeaderActions
               actions={headerActions}
               isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
             />
           </div>
         </div>
-        <div
-          className={cn(
-            'min-h-[50px] rounded-b-md bg-primary-dark-gray',
-            theme?.node?.body,
-          )}
-        >
-          {isCurrentlyInsideReactFlow && (
-            <NodeResizerWithMoreControls {...nodeResizerProps} />
-          )}
+        <SocketDocsContext.Provider value={socketDocs}>
           <div
-            className={cn('flex flex-col py-4', theme?.node?.outputsSection)}
+            className={cn(
+              'rbn:min-h-[50px] rbn:rounded-b-md rbn:bg-primary-dark-gray',
+              theme?.node?.body,
+            )}
           >
-            {outputs.map((output) => (
-              <RenderOutput
-                key={output.id}
-                output={output}
-                isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
-              />
-            ))}
+            {isCurrentlyInsideReactFlow && (
+              <NodeResizerWithMoreControls {...nodeResizerProps} />
+            )}
+            <div
+              className={cn(
+                'rbn:flex rbn:flex-col rbn:py-4',
+                theme?.node?.outputsSection,
+              )}
+            >
+              {outputs.map((output) => (
+                <RenderOutput
+                  key={output.id}
+                  output={output}
+                  isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+                />
+              ))}
+            </div>
+            <div
+              className={cn(
+                'rbn:flex rbn:flex-col rbn:py-4',
+                theme?.node?.inputsSection,
+              )}
+            >
+              {inputs.map((input) => {
+                // Check if this is a panel or a regular input
+                if ('inputs' in input) {
+                  // This is an InputPanel
+                  const isOpen = openPanels.has(input.id);
+                  return (
+                    <RenderInputPanel
+                      key={input.id}
+                      panel={input}
+                      isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+                      isOpen={isOpen}
+                      onToggle={() => togglePanel(input.id)}
+                    />
+                  );
+                } else {
+                  // This is a regular Input
+                  return (
+                    <RenderInput
+                      key={input.id}
+                      input={input}
+                      isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
+                    />
+                  );
+                }
+              })}
+            </div>
           </div>
-          <div className={cn('flex flex-col py-4', theme?.node?.inputsSection)}>
-            {inputs.map((input) => {
-              // Check if this is a panel or a regular input
-              if ('inputs' in input) {
-                // This is an InputPanel
-                const isOpen = openPanels.has(input.id);
-                return (
-                  <RenderInputPanel
-                    key={input.id}
-                    panel={input}
-                    isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
-                    isOpen={isOpen}
-                    onToggle={() => togglePanel(input.id)}
-                  />
-                );
-              } else {
-                // This is a regular Input
-                return (
-                  <RenderInput
-                    key={input.id}
-                    input={input}
-                    isCurrentlyInsideReactFlow={isCurrentlyInsideReactFlow}
-                  />
-                );
-              }
-            })}
-          </div>
-        </div>
+        </SocketDocsContext.Provider>
       </div>
     );
 
@@ -810,10 +883,10 @@ const ConfigurableNode = forwardRef<HTMLDivElement, ConfigurableNodeProps>(
     return (
       <div
         className={cn(
-          'flex flex-col',
+          'rbn:flex rbn:flex-col',
           // Inside ReactFlow the RF node div owns the width; standalone the node
           // content does. Either way the panel matches the node's width below.
-          isCurrentlyInsideReactFlow ? 'w-full' : 'w-max',
+          isCurrentlyInsideReactFlow ? 'rbn:w-full' : 'rbn:w-max',
         )}
       >
         <NodePreviewPanel

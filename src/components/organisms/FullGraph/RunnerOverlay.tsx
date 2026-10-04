@@ -1,5 +1,4 @@
 import { useCallback, useRef, useMemo, useEffect } from 'react';
-import { Play } from 'lucide-react';
 import { z } from 'zod';
 import { useReactFlow } from '@xyflow/react';
 import {
@@ -8,8 +7,7 @@ import {
   type NodeRunnerState,
 } from './FullGraphState';
 import { useRecordingViewState } from './RecordingViewStateContext';
-import { useGraphTheme } from '@/utils/theme/GraphThemeContext';
-import { cn } from '@/utils';
+import type { GraphRunnerHandle } from './runnerHandle';
 import type { ExecutionRecord } from '@/utils/nodeRunner/types';
 import {
   useNodeRunner,
@@ -55,10 +53,12 @@ function RunnerOverlay<
   children,
   onExecutionRecordRef,
   loadRecordRef,
+  runnerRef,
   runTargets,
   defaultRunTargetId,
   rootInputs,
   onRecorderWarning,
+  onRunEvent,
   dispatch,
 }: {
   state: FullGraphProps<
@@ -86,6 +86,8 @@ function RunnerOverlay<
   >;
   children: React.ReactNode;
   onExecutionRecordRef?: React.RefObject<(() => ExecutionRecord | null) | null>;
+  /** Consumer-owned ref that receives the imperative runner handle. */
+  runnerRef?: React.RefObject<GraphRunnerHandle | null>;
   loadRecordRef?: React.RefObject<
     | ((
         record: ExecutionRecord,
@@ -114,6 +116,14 @@ function RunnerOverlay<
     UnderlyingType,
     ComplexSchemaType
   >['onRecorderWarning'];
+  /** Run lifecycle stream — see `FullGraphProps.onRunEvent`. Passed straight
+   *  through with the same ref/trampoline semantics as `onRecorderWarning`. */
+  onRunEvent?: FullGraphProps<
+    DataTypeUniqueId,
+    NodeTypeUniqueId,
+    UnderlyingType,
+    ComplexSchemaType
+  >['onRunEvent'];
 }) {
   const {
     executionRecord: controlledRecord,
@@ -138,7 +148,7 @@ function RunnerOverlay<
     // emit time — `options` never enters a dependency array, so neither the
     // object's identity nor an inline `onRecorderWarning` can restart a run
     // or re-create the runner (RE-01).
-    options: { onRecorderWarning },
+    options: { onRecorderWarning, onRunEvent },
   });
   // Stepping (pause/step) is available only for an execute target that provides
   // `runStepwise` — the built-in default does; artifact targets do not.
@@ -157,7 +167,6 @@ function RunnerOverlay<
 
   const { getNode, setCenter, getViewport } = useReactFlow();
   const panelRef = useRef<HTMLDivElement>(null);
-  const theme = useGraphTheme();
 
   // Per-node PREVIEW registry (consumer `nodePreviews`). When empty, the value
   // derivation below is skipped so idle / no-preview graphs pay zero cost and the
@@ -171,8 +180,6 @@ function RunnerOverlay<
     selectedStepIndex,
     setSelectedStepIndex,
     edgeValuesAnimated,
-    isRunnerPanelOpen,
-    setIsRunnerPanelOpen,
     getViewState,
     restoreViewState,
   } = viewState;
@@ -241,8 +248,9 @@ function RunnerOverlay<
     return path;
   }, [openedNodeGroupStack]);
 
-  // ── Follow into groups (D2: default ON; scrub-clicks + stepping + autoplay
-  // all move `currentStepIndex`, so ONE head-driven effect covers them all).
+  // ── Follow into groups (library default ON — `DEFAULT_RUNNER_VIEW_PREFERENCES`;
+  // a document may store its own value. Scrub-clicks + stepping + autoplay all
+  // move `currentStepIndex`, so ONE head-driven effect covers them all).
   // When the head step's instancePath differs from the open scope, sync the
   // `openedNodeGroupStack` via non-undoable OPEN/CLOSE_NODE_GROUP dispatches,
   // then center the head node once the new scope has rendered. Toggle OFF
@@ -408,6 +416,24 @@ function RunnerOverlay<
     }
   }, [runner.runnerState, runner.run, runner.resume]);
 
+  // Expose the imperative runner handle (`FullGraphProps.runnerRef`) so an
+  // application can start a run on its own schedule. `handleRun` is the SAME
+  // function the panel's Run button calls, so the two can never disagree about
+  // resume-versus-restart. The getter reads `runner.runnerState` through the
+  // effect's closure, which is refreshed on every state change by the deps.
+  useEffect(() => {
+    if (!runnerRef) return;
+    runnerRef.current = {
+      run: handleRun,
+      stop: runner.stop,
+      reset: runner.reset,
+      getRunnerState: () => runner.runnerState,
+    };
+    return () => {
+      runnerRef.current = null;
+    };
+  }, [runnerRef, handleRun, runner.stop, runner.reset, runner.runnerState]);
+
   // Reset selection when a new run starts or on reset
   useEffect(() => {
     if (runner.runnerState === 'compiling' || runner.runnerState === 'idle') {
@@ -526,22 +552,8 @@ function RunnerOverlay<
         onNavigateToNode={handleNavigateToNode}
         panelRef={panelRef}
       />
-
-      {/* Toggle button to reopen runner panel */}
-      {!isRunnerPanelOpen && (
-        <button
-          type='button'
-          onClick={() => setIsRunnerPanelOpen(true)}
-          className={cn(
-            'btn-press absolute bottom-4 left-1/2 z-10 flex max-w-[60vw] -translate-x-1/2 items-center gap-2 rounded-lg border border-secondary-dark-gray/60 bg-secondary-black/90 px-4 py-2 text-[12px] font-medium text-primary-white shadow-xl backdrop-blur-sm transition-colors hover:bg-primary-dark-gray',
-            theme?.runnerToggleButton,
-          )}
-          title='Open runner panel'
-        >
-          <Play className='h-3.5 w-3.5 shrink-0' />
-          <span className='truncate'>Runner</span>
-        </button>
-      )}
+      {/* The floating "Runner" reopen button now lives in `BottomDrawerButtons`
+          (FullGraph root), beside any consumer drawers' buttons. */}
     </RunnerContext.Provider>
   );
 }

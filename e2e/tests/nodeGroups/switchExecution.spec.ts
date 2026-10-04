@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+﻿import { test, expect } from '@playwright/test';
 import { navigateToStory } from '../../actions/graph/graphCanvas.actions';
 import {
   getAllNodes,
@@ -8,6 +8,7 @@ import {
   getAllHandles,
   getHandleByName,
   getHandleByIndex,
+  getNodeTitle,
 } from '../../locators/node/node.locators';
 import { addBitInput, addBitOutput } from '../../helpers/addNode';
 import { attemptConnectionByHandles } from '../../actions/node/connection.actions';
@@ -41,8 +42,7 @@ async function addSwitchViaContextMenu(
   let switchStartId = '';
   let switchEndId = '';
   for (const id of newIds) {
-    const node = page.locator(`.react-flow__node[data-id="${id}"]`);
-    const text = await node.locator('p').first().textContent();
+    const text = await getNodeTitle(page, id).textContent();
     if (text === 'Switch Start') switchStartId = id;
     if (text === 'Switch End') switchEndId = id;
   }
@@ -52,7 +52,7 @@ async function addSwitchViaContextMenu(
   return { switchStartId, switchEndId };
 }
 
-test.describe('Switch execution — basic flow', () => {
+test.describe('Switch execution â€” basic flow', () => {
   test('SE1: ADD_SWITCH creates bound pair with correct handles', async ({
     page,
   }) => {
@@ -75,7 +75,7 @@ test.describe('Switch execution — basic flow', () => {
     expect(await getAllHandles(page, switchEndId, 'source').count()).toBe(1);
   });
 
-  test('SE2: BitInput → SwitchStart infer, inference propagates across pair', async ({
+  test('SE2: BitInput â†’ SwitchStart infer, inference propagates across pair', async ({
     page,
   }) => {
     await navigateToStory(page, STORY_EMPTY_RUNNER);
@@ -86,7 +86,7 @@ test.describe('Switch execution — basic flow', () => {
     });
     const bitInputId = await addBitInput(page, { x: 100, y: 300 });
 
-    // Connect BitInput Out → SwitchStart infer input (first target handle)
+    // Connect BitInput Out â†’ SwitchStart infer input (first target handle)
     const result = await attemptConnectionByHandles(
       page,
       getHandleByName(page, bitInputId, HANDLE_GATE_OUT, 'source'),
@@ -94,7 +94,7 @@ test.describe('Switch execution — basic flow', () => {
       getHandleByIndex(page, switchStartId, 'target', 0),
       switchStartId,
     );
-    expectConnectionLanded(result, 'SE2: BitInput→SwitchStart');
+    expectConnectionLanded(result, 'SE2: BitInputâ†’SwitchStart');
 
     // After inference: SwitchStart inputs = 3 (inferred + condition + template)
     expect(await getAllHandles(page, switchStartId, 'target').count()).toBe(3);
@@ -109,7 +109,7 @@ test.describe('Switch execution — basic flow', () => {
   test('SE3: Simple switch graph runs without errors', async ({ page }) => {
     await navigateToStory(page, STORY_EMPTY_RUNNER);
 
-    // Build: BitInput → SwitchStart → SwitchEnd → BitOutput
+    // Build: BitInput â†’ SwitchStart â†’ SwitchEnd â†’ BitOutput
     const { switchStartId, switchEndId } = await addSwitchViaContextMenu(page, {
       x: 400,
       y: 300,
@@ -124,7 +124,7 @@ test.describe('Switch execution — basic flow', () => {
       consoleLogs.push(`[${msg.type()}] ${text}`);
     });
 
-    // Connect BitInput → SwitchStart infer input
+    // Connect BitInput â†’ SwitchStart infer input
     const c1 = await attemptConnectionByHandles(
       page,
       getHandleByName(page, bitInputId, HANDLE_GATE_OUT, 'source'),
@@ -159,7 +159,7 @@ test.describe('Switch execution — basic flow', () => {
       endOutputCount,
     );
 
-    // Connect SwitchStart true output → SwitchEnd true input (direct passthrough)
+    // Connect SwitchStart true output â†’ SwitchEnd true input (direct passthrough)
     // After inference: SwitchStart source = [bind(0), trueInferred(1), trueTemplate(2), falseInferred(3), falseTemplate(4)]
     // After inference: SwitchEnd target = [bind(0), trueInferred(1), trueTemplate(2), falseInferred(3), falseTemplate(4)]
     const c3 = await attemptConnectionByHandles(
@@ -185,7 +185,7 @@ test.describe('Switch execution — basic flow', () => {
     );
     expectConnectionLanded(c3, 'SE3: c3 true passthrough');
 
-    // Connect SwitchStart false output → SwitchEnd false input (direct passthrough)
+    // Connect SwitchStart false output â†’ SwitchEnd false input (direct passthrough)
     const c4 = await attemptConnectionByHandles(
       page,
       getHandleByIndex(page, switchStartId, 'source', 3),
@@ -195,7 +195,7 @@ test.describe('Switch execution — basic flow', () => {
     );
     expectConnectionLanded(c4, 'SE3: c4 false passthrough');
 
-    // Connect SwitchEnd output → BitOutput "In"
+    // Connect SwitchEnd output â†’ BitOutput "In"
     const c2 = await attemptConnectionByHandles(
       page,
       getHandleByIndex(page, switchEndId, 'source', 0),
@@ -203,14 +203,14 @@ test.describe('Switch execution — basic flow', () => {
       getHandleByName(page, bitOutputId, HANDLE_IN, 'target'),
       bitOutputId,
     );
-    expectConnectionLanded(c2, 'SE3: c2 SwitchEnd→BitOutput');
+    expectConnectionLanded(c2, 'SE3: c2 SwitchEndâ†’BitOutput');
 
     // Run the graph
     await clickRun(page);
     // Wait for any terminal state
     await page.waitForTimeout(3000);
     const runnerState = await page
-      .locator('.bg-runner-toolbar-bg span')
+      .locator('.rbn\\:bg-runner-toolbar-bg span')
       .first()
       .textContent();
     console.log('Runner state:', runnerState);

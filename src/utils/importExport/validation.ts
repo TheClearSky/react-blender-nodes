@@ -975,6 +975,13 @@ function coerceUserZones(
         continue;
       }
       if (typeof zone.name !== 'string') zone.name = 'Zone';
+      // Optional docs: only a non-blank string survives.
+      if (
+        typeof zone.description !== 'string' ||
+        zone.description.trim() === ''
+      ) {
+        delete zone.description;
+      }
       // Canonicalize the color to the stored lowercase-hex form so a no-change
       // recolor of an imported zone compares equal; unparseable → default.
       zone.color =

@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import type { ExecutionStep, GroupExecutionScope } from '../types';
 import { createGraphError } from '../errors';
 import { ValueStore, qualifiedId } from '../valueStore';
+import type { MinimalNodeData } from '../valueStore';
 import { hasKey } from '../groupCompiler';
 import type { ExecutionEnv, NodeInfo } from './executionHelpers';
 import {
@@ -17,6 +18,26 @@ import {
 } from './executionHelpers';
 import { executeStandardNode } from './executeStandardNode';
 import { executeOneStep } from './executeOneStep';
+
+/**
+ * The value typed on a group node's outer input (flat or inside a panel), if
+ * that input accepts typed values and has one. `undefined` otherwise — the
+ * inner nodes then fall back to their own defaults as before.
+ */
+function typedOuterInputValue(
+  data: MinimalNodeData | undefined,
+  handleId: string,
+): unknown {
+  for (const item of data?.inputs ?? []) {
+    const candidates = 'inputs' in item ? item.inputs : [item];
+    for (const input of candidates) {
+      if (input.id !== handleId) continue;
+      const withValue = input as { allowInput?: boolean; value?: unknown };
+      return withValue.allowInput === true ? withValue.value : undefined;
+    }
+  }
+  return undefined;
+}
 
 // ─────────────────────────────────────────────────────
 // Execute a group scope
@@ -189,6 +210,18 @@ async function executeGroupScope<
         );
         // Set as GroupInput's output in the scoped store
         scopedStore.set(groupInputNodeId, innerHandleId, value);
+      } else {
+        // Nothing wired to it: the value TYPED on the group node's own input
+        // flows inside, exactly as an ordinary node's knob does. Without this
+        // a group could expose no working knob at all — the typed value was
+        // dropped and every inner node wired to the boundary read undefined.
+        const typed = typedOuterInputValue(
+          env.nodeInfoMap.get(groupNodeId)?.data,
+          outerHandleId,
+        );
+        if (typed !== undefined) {
+          scopedStore.set(groupInputNodeId, innerHandleId, typed);
+        }
       }
     }
   }

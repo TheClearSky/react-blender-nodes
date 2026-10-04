@@ -26,10 +26,10 @@ function Badge({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
     <span
       className={cn(
-        'rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider',
+        'rbn:rounded rbn:px-1.5 rbn:py-0.5 rbn:text-[11px] rbn:font-semibold rbn:uppercase rbn:tracking-wider',
         ok
-          ? 'bg-emerald-500/15 text-emerald-400'
-          : 'bg-red-500/15 text-red-400',
+          ? 'rbn:bg-emerald-500/15 rbn:text-emerald-400'
+          : 'rbn:bg-red-500/15 rbn:text-red-400',
       )}
     >
       {children}
@@ -49,44 +49,44 @@ function PopoverContent({
   backgroundColor: string;
 }) {
   return (
-    <div className='flex flex-col gap-1.5 text-left max-w-[220px]'>
-      <div className='flex items-center justify-between gap-2'>
-        <div className='text-[11px] font-semibold uppercase tracking-wider text-graph-input-placeholder'>
+    <div className='rbn:flex rbn:flex-col rbn:gap-1.5 rbn:text-left rbn:max-w-[220px]'>
+      <div className='rbn:flex rbn:items-center rbn:justify-between rbn:gap-2'>
+        <div className='rbn:text-[11px] rbn:font-semibold rbn:uppercase rbn:tracking-wider rbn:text-graph-input-placeholder'>
           {title}
         </div>
-        <div className='flex shrink-0 overflow-hidden rounded border border-secondary-dark-gray'>
+        <div className='rbn:flex rbn:shrink-0 rbn:overflow-hidden rbn:rounded rbn:border rbn:border-secondary-dark-gray'>
           <span
-            className='block w-3.5 h-3.5'
+            className='rbn:block rbn:w-3.5 rbn:h-3.5'
             style={{ background: foregroundColor }}
           />
           <span
-            className='block w-3.5 h-3.5'
+            className='rbn:block rbn:w-3.5 rbn:h-3.5'
             style={{ background: backgroundColor }}
           />
         </div>
       </div>
-      <ul className='flex flex-col gap-1'>
+      <ul className='rbn:flex rbn:flex-col rbn:gap-1'>
         {rows.map((row) => (
-          <li key={row.label} className='flex items-start gap-1.5'>
+          <li key={row.label} className='rbn:flex rbn:items-start rbn:gap-1.5'>
             <span
               className={cn(
-                'mt-0.5 inline-flex w-3 h-3 shrink-0 items-center justify-center rounded-full',
+                'rbn:mt-0.5 rbn:inline-flex rbn:w-3 rbn:h-3 rbn:shrink-0 rbn:items-center rbn:justify-center rbn:rounded-full',
                 row.ok
-                  ? 'bg-emerald-500/20 text-emerald-400'
-                  : 'bg-red-500/20 text-red-400',
+                  ? 'rbn:bg-emerald-500/20 rbn:text-emerald-400'
+                  : 'rbn:bg-red-500/20 rbn:text-red-400',
               )}
             >
               {row.ok ? (
-                <Check className='w-2 h-2' />
+                <Check className='rbn:w-2 rbn:h-2' />
               ) : (
-                <X className='w-2 h-2' />
+                <X className='rbn:w-2 rbn:h-2' />
               )}
             </span>
-            <div className='flex flex-col'>
-              <span className='text-[11px] font-medium leading-tight'>
+            <div className='rbn:flex rbn:flex-col'>
+              <span className='rbn:text-[11px] rbn:font-medium rbn:leading-tight'>
                 {row.label}
               </span>
-              <span className='text-[10px] leading-snug text-graph-input-placeholder'>
+              <span className='rbn:text-[10px] rbn:leading-snug rbn:text-graph-input-placeholder'>
                 {row.detail}
               </span>
             </div>
@@ -161,14 +161,14 @@ function ColorPickerContrastReadout({
   const bodyContent = (
     <>
       {(showLabel || showValue) && (
-        <div className='flex items-center gap-1'>
+        <div className='rbn:flex rbn:items-center rbn:gap-1'>
           {showLabel && (
-            <span className='text-graph-input-placeholder'>
+            <span className='rbn:text-graph-input-placeholder'>
               {active === 'wcag' ? 'WCAG' : 'APCA'}
             </span>
           )}
           {showValue && (
-            <span className='font-mono font-medium text-primary-white'>
+            <span className='rbn:font-mono rbn:font-medium rbn:text-primary-white'>
               {active === 'wcag'
                 ? `${contrast.wcag.toFixed(2)}:1`
                 : `Lc ${contrast.apca.toFixed(1)}`}
@@ -177,20 +177,20 @@ function ColorPickerContrastReadout({
         </div>
       )}
       {showBadges && active === 'wcag' && (
-        <div className='flex items-center gap-0.5'>
+        <div className='rbn:flex rbn:items-center rbn:gap-0.5'>
           <Badge ok={contrast.wcagLevel.aaNormal}>AA</Badge>
           <Badge ok={contrast.wcagLevel.aaaNormal}>AAA</Badge>
         </div>
       )}
       {showBadges && active !== 'wcag' && (
-        <div className='flex items-center gap-0.5'>
+        <div className='rbn:flex rbn:items-center rbn:gap-0.5'>
           <Badge ok={apcaAbs >= 60}>
             {apcaAbs >= 75 ? 'headline' : apcaAbs >= 60 ? 'body' : 'fail'}
           </Badge>
         </div>
       )}
       {togglable && (
-        <span className='ml-auto text-graph-input-placeholder'>⇅</span>
+        <span className='rbn:ml-auto rbn:text-graph-input-placeholder'>⇅</span>
       )}
     </>
   );
@@ -209,8 +209,9 @@ function ColorPickerContrastReadout({
       <div
         onClick={togglable ? cycle : undefined}
         className={cn(
-          'flex w-full items-center gap-2 rounded-md border border-secondary-dark-gray px-2 py-1.5 text-[13px]',
-          togglable && 'cursor-pointer hover:bg-primary-gray transition-colors',
+          'rbn:flex rbn:w-full rbn:items-center rbn:gap-2 rbn:rounded-md rbn:border rbn:border-secondary-dark-gray rbn:px-2 rbn:py-1.5 rbn:text-[13px]',
+          togglable &&
+            'rbn:cursor-pointer rbn:hover:bg-primary-gray rbn:transition-colors',
           className,
         )}
       >

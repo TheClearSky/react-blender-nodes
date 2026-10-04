@@ -52,7 +52,7 @@ function createSwitchMenuItem<
     {
       id: 'add-switch',
       label: 'Add Switch',
-      icon: createElement(GitBranchIcon, { className: 'w-4 h-4' }),
+      icon: createElement(GitBranchIcon, { className: 'rbn:w-4 rbn:h-4' }),
       onClick: () => {
         dispatch({
           type: actionTypesMap.ADD_SWITCH,

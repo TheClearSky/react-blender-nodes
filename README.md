@@ -52,7 +52,7 @@ on it, and a full application shows what it can do.
              └───────────────────┬──────────────────────────┘
                                  ▼
      ┌────────────────────────────────────────────────────────────┐
-     │  react-blender-nodes-sound  ·  AGPL-3.0  ·  app            │
+     │  nodestra  ·  AGPL-3.0  ·  app                             │
      │                  T H E   A P P L I C A T I O N             │
      ├────────────────────────────────────────────────────────────┤
      │  Here the nodes ARE the audio graph (Tone.js / Web Audio): │
@@ -813,6 +813,10 @@ interface FullGraphProps {
   inputComponents?: InputComponentRegistry;
   /** Whether to listen for Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo/redo keyboard shortcuts. Defaults to true. */
   enableUndoRedoShortcuts?: boolean;
+  /** Consumer bottom drawers rendered with the runner panel's chrome, each with a floating open button beside the runner's; at most ONE bottom drawer (runner included) is open at a time. */
+  bottomDrawers?: ReadonlyArray<GraphBottomDrawer>;
+  /** Fires whenever the open bottom drawer changes: 'runner' (RUNNER_DRAWER_ID), a consumer id, or null for all closed. */
+  onOpenDrawerChange?: (openDrawerId: string | null) => void;
 }
 ```
 

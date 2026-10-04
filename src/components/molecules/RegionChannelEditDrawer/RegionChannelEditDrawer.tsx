@@ -51,8 +51,16 @@ type RegionChannelEditDrawerProps<TLevel extends RegionChannelLevel> = {
   getListItemName: (level: TLevel, index: number) => string;
   /** Label for a level in the "Deleted" section. */
   getDeletedLabel: (level: TLevel) => string;
-  /** Save the kept (reordered/renamed) channels and the channels to delete. */
-  onSave: (keptLevels: TLevel[], deletedLevels: TLevel[]) => void;
+  /** Save the kept (reordered/renamed) channels and the channels to delete,
+   *  plus the (trimmed) description when `initialDescription` is given. */
+  onSave: (
+    keptLevels: TLevel[],
+    deletedLevels: TLevel[],
+    description?: string,
+  ) => void;
+  /** The region's current in-app description. When given (even `''`), the
+   *  drawer shows a Description field and passes its value to `onSave`. */
+  initialDescription?: string;
   /** Compute the connections a channel deletion would break (from live state).
    *  When omitted, channel deletion is disabled. */
   getChannelBlastRadius?: (level: TLevel) => HandleBlastRadius;
@@ -86,6 +94,7 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
   onSave,
   getChannelBlastRadius,
   getNeighborhood,
+  initialDescription,
 }: RegionChannelEditDrawerProps<TLevel>) {
   const theme = useGraphTheme();
   const { mounted, ref, style } = useSlideAnimation(isOpen, {
@@ -98,6 +107,8 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
   const [deletedLevels, setDeletedLevels] = useState<TLevel[]>([]);
   const [summaryFor, setSummaryFor] = useState<TLevel | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [localDescription, setLocalDescription] = useState('');
+  const describable = initialDescription !== undefined;
 
   const deletionsEnabled = !!getChannelBlastRadius;
   const neighborhood = getNeighborhood ?? EMPTY_NEIGHBORHOOD;
@@ -110,6 +121,12 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
       setReviewOpen(false);
     }
   }, [isOpen, initialLevels]);
+  // Separate from the levels reset so a description change elsewhere (undo)
+  // re-seeds the field without discarding staged channel edits.
+  useEffect(() => {
+    if (isOpen) setLocalDescription(initialDescription ?? '');
+  }, [isOpen, initialDescription]);
+  const descriptionToSave = describable ? localDescription.trim() : undefined;
 
   const levelsToItems = (
     levels: TLevel[],
@@ -174,7 +191,7 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
       setReviewOpen(true); // commit happens on review confirm
       return;
     }
-    onSave(localLevels, []);
+    onSave(localLevels, [], descriptionToSave);
     onClose();
   };
 
@@ -185,31 +202,31 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
     const keptDeleted = deletedLevels.filter((_, index) =>
       includedTargets.includes(reviewBlastRadii[index]?.target),
     );
-    onSave(localLevels, keptDeleted);
+    onSave(localLevels, keptDeleted, descriptionToSave);
     onClose();
   };
 
   if (!mounted) return null;
 
   return (
-    <div className='absolute right-0 top-0 bottom-0 w-[320px] z-20 overflow-hidden pointer-events-none'>
+    <div className='rbn:absolute rbn:right-0 rbn:top-0 rbn:bottom-0 rbn:w-[320px] rbn:z-20 rbn:overflow-hidden rbn:pointer-events-none'>
       <div
         ref={ref}
         style={style}
         className={cn(
-          'w-full h-full pointer-events-auto flex flex-col bg-graph-elevated-surface-bg border-l border-secondary-dark-gray',
+          'rbn:w-full rbn:h-full rbn:pointer-events-auto rbn:flex rbn:flex-col rbn:bg-graph-elevated-surface-bg rbn:border-l rbn:border-secondary-dark-gray',
           theme?.drawer?.container,
         )}
       >
         <div
           className={cn(
-            'flex items-center justify-between border-b border-secondary-dark-gray px-3 py-2.5',
+            'rbn:flex rbn:items-center rbn:justify-between rbn:border-b rbn:border-secondary-dark-gray rbn:px-3 rbn:py-2.5',
             theme?.drawer?.header,
           )}
         >
           <span
             className={cn(
-              'text-primary-white text-[16px] leading-[16px] font-main truncate',
+              'rbn:text-primary-white rbn:text-[16px] rbn:leading-[16px] rbn:font-main rbn:truncate',
               theme?.drawer?.title,
             )}
           >
@@ -219,23 +236,44 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
             size='small'
             onClick={onClose}
             className={cn(
-              'bg-transparent border-none hover:bg-primary-gray p-1',
+              'rbn:bg-transparent rbn:border-none rbn:hover:bg-primary-gray rbn:p-1',
               theme?.drawer?.closeButton,
             )}
           >
-            <X className='w-[18px] h-[18px]' />
+            <X className='rbn:w-[18px] rbn:h-[18px]' />
           </Button>
         </div>
 
         <div
           className={cn(
-            'flex-1 overflow-y-auto p-3 flex flex-col gap-3',
+            'rbn:flex-1 rbn:overflow-y-auto rbn:p-3 rbn:flex rbn:flex-col rbn:gap-3',
             theme?.drawer?.content,
           )}
         >
+          {describable && (
+            <div className='rbn:flex rbn:flex-col rbn:gap-1'>
+              <label
+                htmlFor='rbn-region-description'
+                className={cn(
+                  'rbn:text-primary-white rbn:text-sm rbn:font-main',
+                  theme?.drawer?.label,
+                )}
+              >
+                Description
+              </label>
+              <textarea
+                id='rbn-region-description'
+                placeholder='What this does — shown behind the ⓘ on its titles'
+                value={localDescription}
+                onChange={(event) => setLocalDescription(event.target.value)}
+                className='rbn:w-full rbn:min-h-[64px] rbn:resize-y rbn:rounded rbn:border rbn:border-secondary-dark-gray rbn:bg-primary-black rbn:px-2 rbn:py-1.5 rbn:text-[13px] rbn:leading-snug rbn:text-primary-white rbn:outline-none rbn:focus:border-primary-blue'
+              />
+            </div>
+          )}
+
           <label
             className={cn(
-              'text-primary-white text-sm font-main',
+              'rbn:text-primary-white rbn:text-sm rbn:font-main',
               theme?.drawer?.label,
             )}
           >
@@ -263,7 +301,7 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
           ) : (
             <div
               className={cn(
-                'text-secondary-light-gray text-sm py-2 text-center',
+                'rbn:text-secondary-light-gray rbn:text-sm rbn:py-2 rbn:text-center',
                 theme?.drawer?.emptyState,
               )}
             >
@@ -272,20 +310,20 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
           )}
 
           {deletedLevels.length > 0 && (
-            <div className='flex flex-col gap-1.5'>
+            <div className='rbn:flex rbn:flex-col rbn:gap-1.5'>
               <label
                 className={cn(
-                  'text-primary-white text-sm font-main',
+                  'rbn:text-primary-white rbn:text-sm rbn:font-main',
                   theme?.drawer?.label,
                 )}
               >
                 Deleted ({deletedLevels.length})
               </label>
-              <div className='flex flex-col gap-1'>
+              <div className='rbn:flex rbn:flex-col rbn:gap-1'>
                 {deletedLevels.map((level) => (
                   <div
                     key={level.id}
-                    className='flex items-center gap-1.5 px-2 py-1 rounded bg-primary-gray/40'
+                    className='rbn:flex rbn:items-center rbn:gap-1.5 rbn:px-2 rbn:py-1 rbn:rounded rbn:bg-primary-gray/40'
                   >
                     <HandleShapeSwatch
                       shape={level.dataTypeShape}
@@ -293,24 +331,24 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
                       size={14}
                       className={theme?.node?.handleShape}
                     />
-                    <span className='truncate text-primary-white/70 line-through text-[13px]'>
+                    <span className='rbn:truncate rbn:text-primary-white/70 rbn:line-through rbn:text-[13px]'>
                       {getDeletedLabel(level)}
                     </span>
                     <button
                       type='button'
                       title='Show connections that will break'
                       onClick={() => setSummaryFor(level)}
-                      className='ml-auto shrink-0 p-1 rounded hover:bg-primary-gray text-secondary-light-gray hover:text-primary-white transition-colors'
+                      className='rbn:ml-auto rbn:shrink-0 rbn:p-1 rbn:rounded rbn:hover:bg-primary-gray rbn:text-secondary-light-gray rbn:hover:text-primary-white rbn:transition-colors'
                     >
-                      <Info className='w-3.5 h-3.5' />
+                      <Info className='rbn:w-3.5 rbn:h-3.5' />
                     </button>
                     <button
                       type='button'
                       title='Restore this channel'
                       onClick={() => restoreDeleted(level)}
-                      className='shrink-0 p-1 rounded hover:bg-primary-gray text-secondary-light-gray hover:text-primary-white transition-colors'
+                      className='rbn:shrink-0 rbn:p-1 rbn:rounded rbn:hover:bg-primary-gray rbn:text-secondary-light-gray rbn:hover:text-primary-white rbn:transition-colors'
                     >
-                      <Undo2 className='w-3.5 h-3.5' />
+                      <Undo2 className='rbn:w-3.5 rbn:h-3.5' />
                     </button>
                   </div>
                 ))}
@@ -321,7 +359,7 @@ function RegionChannelEditDrawer<TLevel extends RegionChannelLevel>({
 
         <div
           className={cn(
-            'border-t border-secondary-dark-gray px-3 py-2 flex gap-2',
+            'rbn:border-t rbn:border-secondary-dark-gray rbn:px-3 rbn:py-2 rbn:flex rbn:gap-2',
             theme?.drawer?.footer,
           )}
         >

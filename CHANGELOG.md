@@ -1,5 +1,415 @@
 # Changelog
 
+## 0.0.15 — 2026-10-05
+
+### Added: a node group's Add-menu path is editable, and groups are marked in the menu
+
+- The node-group editor has a **Menu Path** field — new exported molecule
+  `PathChipsInput`: one chip per folder (type + Enter, `/` or `›`; paste `A/B`
+  for two; Backspace removes the last; double-click renames; drag reorders; ×
+  removes). Typed names allow letters, digits and single spaces; "Existing here"
+  suggests the live menu's folders at that depth, which are kept exactly as
+  named (e.g. `Filter & EQ`). A preview shows `Add Node ▸ … ▸ <group name>`; an
+  empty path = top level.
+- `UPDATE_NODE_TYPE` takes `updates.locationInContextMenu` (names trimmed,
+  blanks dropped; `[]` removes the key). `menuFolderSuggestions` is exported
+  from the context-menu module.
+- The Add Node menu marks node GROUPS with lucide's `SquaresExclude` (two
+  overlapping squares); plain rows in the same folder get an aligned blank.
+  `FullGraph` `addMenuGroupIcon` swaps the icon, or `false` turns the mark off.
+
+### Added: in-app docs — optional descriptions behind an ⓘ
+
+- **Node types** (`TypeOfNode.description`): hovering a node shows an ⓘ beside
+  its title. Read live from the type, so editing it updates every instance. Node
+  groups get a Description field in the node-type edit drawer
+  (`UPDATE_NODE_TYPE` `updates.description`; `''` clears).
+- **Node instances** (`node.data.description`, new action
+  `UPDATE_NODE_DESCRIPTION { nodeIds, description }`, blank clears). An
+  instance's own description wins over its type's. Loops use this: the Edit Loop
+  drawer has a Description field that writes all three loop nodes.
+- **User zones** (`Zone.description`, via `UPDATE_USER_ZONE { description }`;
+  `''` clears): the ⓘ always shows beside the zone name, and the hovered label
+  has a describe button (a popover, committed once on close). Import drops a
+  non-string or blank zone description.
+- **Sockets** (`TypeOfInput.description`): hovering a socket row shows an ⓘ
+  beside its name. Editable per socket in the node-type edit drawer.
+- `TypeOfInput` also takes `min` / `max` / `step`, used by a number socket's
+  inline slider.
+- Registered input components (`InputComponentProps`) also receive the socket's
+  `min` / `max` / `step` when the node type declares them.
+- New atom `InfoHint` — takes the colour of the text beside it, no hover style;
+  the node/socket ⓘ are `display:none` until their parent is hovered (or focused
+  within), so a hidden ⓘ takes no space. `Popover` (internal) takes
+  `onOpenChange`; `RegionChannelEditDrawer` takes `initialDescription` and
+  passes the description as `onSave`'s third argument.
+
+### Fixed: `defaultValue` was dropped on complex data types
+
+- `constructNodeOfType` copied `TypeOfInput.defaultValue` only for number,
+  string and boolean data types, so a knob on a complex type (for example a
+  numeric "signal" type) always started unset. It is now copied when the data
+  type's `complexSchema` accepts it.
+
+### Changed: a number slider with a whole-number `step` shows whole numbers
+
+- A socket declaring `step: 1` (e.g. a 0–100 % knob) reads `40`, not `40.0000`.
+
+### Fixed: a node group's typed input values never reached inside the group
+
+- An outer group input with nothing wired to it passed nothing to the group's
+  inside, so the value typed on the group node was ignored. The runner now
+  passes the typed value through to the matching group-input handle (a wired
+  input still wins).
+
+### Fixed: saving in the node-type edit drawer dropped socket fields it did not list
+
+- `defaultValue` (and now `description`, `min`, `max`, `step`) survive the
+  editor round-trip.
+
+### Changed: socket shapes and colours follow their data type live
+
+- A handle's shape AND colour (and its edges' colour) are read from its data
+  type at render (the copies saved on a node instance were used before), so
+  changing a data type's `shape` or `color` updates saved graphs too. Helpers
+  `liveHandleShape` / `liveHandleColor` in
+  `utils/nodeStateManagement/handles/liveHandleVisual.ts`.
+
+### Fixed: a new node group was numbered after the consumer's own groups
+
+- `ADD_NODE_GROUP` counted every group type, so an app shipping 40 built-in
+  groups named the first user group "Node Group 41". It now takes the first free
+  "Node Group N".
+
+### Added: `SliderNumberInput` `increment`
+
+- The exact change for one chevron click. Without it the chevrons still move 10%
+  of `step`.
+
+### Added: `FullGraphContextMenu` is exported
+
+- The graph's own right-click menu (floating-ui placement at a viewport point,
+  outside-click/Escape dismissal, fade) can now be used outside the graph —
+  `<FullGraphContextMenu isOpen position={{ x, y }} onClose items />` with the
+  same `ContextMenuItem[]` the graph uses.
+
+### Changed: `SliderNumberInput size='small'` text is 12px (was 10px, 11px while typing)
+
+- The compact field sits in toolbars and menus beside 12–13px labels and
+  buttons, and at 10px it read as a different, smaller control. Both branches
+  (the slider face and the typed field) are now 12px; the height is unchanged.
+
+### Fixed: edges vanished after a state replace that kept node ids but changed handle ids
+
+- React Flow caches handle positions by node id and only re-measures on resize.
+  Swapping in a graph whose nodes had the SAME ids but different handle ids (two
+  independent builds of one demo — node ids fixed, handle ids random) left every
+  edge unrenderable: all nodes shown, zero edges, and a console full of React
+  Flow error #008. `FullGraph` now diffs each rendered node's handle ids and
+  calls `updateNodeInternals` for exactly the nodes whose handles changed —
+  which also covers undo/redo across a handle edit. React Flow still logs #008
+  once for the frame before the re-measure; the edges draw on the next frame.
+
+### Added: `REPLACE_STATE` can keep undo/redo — `payload.preserveHistory`
+
+- `dispatch({ type: REPLACE_STATE, payload: { state, preserveHistory: true } })`
+  keeps `state.history` instead of dropping it. It is for RESTORING a state this
+  same editor produced earlier (a tabbed consumer switching back to a tab whose
+  in-memory state it kept), where the history's patches describe that state
+  exactly. The default stays `false`: an import never inherits a history that
+  does not describe it.
+
+### Changed — **BREAKING (CSS)**: every utility is namespaced `rbn:`, and preflight is no longer shipped
+
+- **All classes this library renders now carry an `rbn:` prefix** — `rbn:flex`,
+  `rbn:bg-primary-gray`, `rbn:hover:text-primary-white`.
+
+  The problem this fixes is not cosmetic. A library and its consumer both ship a
+  Tailwind stylesheet declaring the same class names, and which one wins is
+  decided by the ORDER the sheets happen to load — not by specificity, and not
+  by anything the consumer can control. Measured in a real consumer before the
+  change: the app's own `.border` (emitted late in the app's sheet) beat this
+  library's `.border-b-0`, putting a bottom border back on the runner drawer;
+  and a `@min-[832px]/runnerpanel:hidden` / `@max-…` pair could both apply at
+  once. Both are verified fixed.
+
+  **What breaks:** anything that named one of our class names from outside — a
+  consumer stylesheet targeting `.text-primary-white`, an e2e selector, a
+  `GraphTheme` slot using a descendant variant. Descendant variants must now
+  name the prefixed class WITH the colon escaped:
+  `rbn:[&_.rbn\:text-primary-white]:text-zinc-900` (and in a TS string the
+  backslash is doubled). Getting that wrong compiles cleanly and silently
+  matches nothing.
+
+  **What does NOT break: the theme VARIABLE names.** Every publicly nameable
+  token was moved out of `@theme` into a plain `@layer theme` block first,
+  precisely so `prefix()` could not rename it — a `@theme` variable becomes
+  `--rbn-color-…` and would have broken `root`-slot overrides, `var()` in inline
+  styles and SVG attributes, and consumer stylesheets, all silently.
+  `--color-graph-menu-bg` is still `--color-graph-menu-bg`.
+
+  `cn()` reconciles the namespaces, so a consumer's unprefixed `bg-red-500`
+  still beats our `rbn:bg-primary-gray` — the prefixes are stripped before
+  `tailwind-merge` sees them and restored afterwards.
+
+  The timeline plugin uses `rbnt:` on purpose: a shared prefix would put
+  `.rbn\:flex` in both sheets again and recreate the same bug. The two are
+  provably disjoint, since `[class*='rbn:']` does not match `rbnt:flex`.
+
+- **Preflight is no longer part of the shipped stylesheet.** The bundled
+  `@import 'tailwindcss'` is split into `theme.css` + `utilities.css`, because
+  `prefix()` cannot namespace preflight — its selectors are element names, not
+  classes. Until now this stylesheet shipped `*,::before,::after{margin:0;…}`
+  and `html{line-height:1.5;…}` into every page that loaded it, flattening the
+  consumer's own headings, lists and links.
+
+  The resets the library actually depends on are re-declared in an `@layer base`
+  block scoped to `[class*='rbn:']`, which after the prefix migration matches
+  every element the library styles by construction. Verified with both library
+  sheets loaded: a plain `<h1>` is still 32 px bold, a `<ul>` keeps its disc and
+  40 px indent, an `<a>` is still underlined UA blue.
+
+  Deliberately NOT carried over, because the library does not render the
+  element: `a`, `table`, `b/strong`, `code/kbd/pre`, `small`, `sub/sup`, `abbr`,
+  `hr`, `progress`, `summary`, the `::-webkit-datetime-edit-*` family and
+  `::file-selector-button`.
+
+  Preflight is not only a courtesy reset, though — parts of it were load-bearing
+  for this library's OWN markup, and dropping it took those away too. Three
+  rules had to be re-declared scoped after measurement: `font-family` (without
+  it every panel and button computed to `"Times New Roman"`), `line-height: 1.5`
+  (56 elements per story — every `text-[…px]` span and every button — collapsed
+  to `normal`), and the heading reset (`atoms/Accordion/Accordion.tsx` renders
+  Radix's `Accordion.Header`, which emits an `<h3>`, so every accordion section
+  header came back UA-bold at 1.17em). In the form-element block,
+  `line-height: 1.5` must follow `font: inherit`, because `font` is a shorthand
+  that resets line-height to `inherit` — which resolved to the root's 1.5 under
+  real preflight and to `normal` without it.
+
+  One site escaped the codemod: `ExecutionTimeline`'s overflow-menu trigger kept
+  a bare `@min-[832px]/runnerpanel:hidden`. Under `prefix(rbn)` an unprefixed
+  utility emits NO rule, so the timeline's ⋯ menu stayed visible at wide widths
+  while its `RunControls` twin (correctly prefixed) hid — caught by e2e `G8`,
+  invisible to type-checking and lint. An AST scan of every class-list position
+  in both packages, with the Tailwind compiler as the oracle, confirms it was
+  the only one; the four remaining unprefixed tokens (`btn-press`,
+  `timeline-block`, `node-runner-scrollbar`, `timeline-scrollbar`) are vanilla
+  CSS rules this library authors, not utilities.
+
+  Completion was mechanically verified, not eyeballed, in two ways. The compiled
+  rule set with the prefix (prefix stripped) is IDENTICAL to the rule set
+  without it — 1085 selectors on both sides. And `npm run audit:preflight`
+  (`scripts/audit-preflight-dependency.ts`) renders one story per component,
+  injects the real `preflight.css`, and diffs computed styles, failing on any
+  difference that lands on library markup: **27 components, 0 regressions.** Run
+  it after touching the scoped `@layer base` block — it found all three of the
+  misses above, none of which was visible in a consuming app, since an app ships
+  its own preflight and masks them.
+
+### Fixed — a finished run could overwrite a newer one, and `reset()` did not stay reset
+
+- Nothing in `useNodeRunner` carried run identity past an `await`. Two
+  consequences, both reachable without any exotic timing:
+  - `finalizeRun` read the run id at call time, so a **superseded** run's
+    completion was announced as the **live** run's `run:completed` — before that
+    run had executed a step — and the live run's own completion was then
+    swallowed. A consumer stamping "this graph has been run" on that event
+    marked a graph fresh that had never run.
+  - `stop()` and `reset()` only aborted a signal. The in-flight run kept going
+    and its `finalizeRun` re-wrote the execution record, the node visual states
+    and the runner state **after** the reset had cleared them — so a consumer
+    that cancelled a run before swapping the graph got the old run's record
+    back, painted over the new graph.
+
+  Every writer that resumes after an `await` now carries the id of the run it
+  belongs to and writes nothing once that run is no longer current — including
+  inside the step-by-step drain loops, where the generator and the continue-flag
+  are shared by the whole hook rather than by one run.
+
+  One behaviour is deliberately preserved: a run ended by an explicit `stop()`
+  still installs its final record when it drains, because `'errored'` exists so
+  the user can see how far the run got. It changes neither the runner state nor
+  the event stream. A `reset()` still discards it.
+
+### Added — `run:aborted` gains `'failed'`, and both halt events gain `initiator`
+
+- `RunAbortReason` is now `'stopped' | 'superseded' | 'failed'`. Previously a
+  run that could not produce a record — the graph did not compile, or the run
+  target threw — emitted **nothing at all**, so a consumer waiting for a
+  terminal event waited forever. `'failed'` is distinct from `'stopped'` on
+  purpose: a consumer that treats a halt as "stay halted" must not do that
+  because someone mis-wired a node.
+- `stop()` and `reset()` (and `GraphRunnerHandle.stop` / `.reset`) take an
+  optional `{ initiator: 'user' | 'consumer' }`, surfaced on `run:aborted` and
+  `run:reset`. An application that switches its own auto-run off when the user
+  halts a run needs to not do that when IT halts the run — to replace the
+  project, say. Both arrive on the same channel with the same reason, so the
+  host has to say which. Defaults to `'user'`; every existing call site is
+  unaffected.
+
+### Added — `onRunEvent`: a run lifecycle channel distinct from the record setter
+
+- `FullGraph` gains an `onRunEvent` prop (and `useNodeRunner` an
+  `options.onRunEvent`) emitting `RunEvent`: `run:started` / `run:completed` /
+  `run:aborted` / `run:reset`, the first three carrying a monotonic `runId`.
+
+  `onExecutionRecordChange` is the controlled record SETTER. It fires with
+  `null` when a run starts, when `reset()` clears the record, and when the
+  consumer loads a different project — three unrelated events arriving as one
+  indistinguishable callback. Anything that needs to know "which graph produced
+  the record I am holding", or "did the user just press Reset", was guessing.
+
+  `run:started` is emitted **synchronously before the run's first `await`**, so
+  a consumer can snapshot its own fingerprint of the graph at exactly the
+  instant the run consumes it and stamp it on the matching `run:completed`. That
+  is deliberate: it means the library computes no hash of its own, and consumers
+  that never subscribe pay nothing at all. Every started run terminates with
+  exactly one `run:completed` or `run:aborted` for its `runId`; starting a run
+  while one is still open first aborts the old id with `reason: 'superseded'`,
+  so a consumer's pending map cannot leak.
+
+### Fixed — `Input` wrote a value into every untouched field on any click
+
+- `Input` committed its value from a `document`-level `mousedown` listener
+  (`useClickedOutside`) **regardless of whether that input was ever focused**.
+  Since every instance attaches its own listener, one click anywhere on the page
+  made every mounted `Input` commit at once. For an EMPTY number field the
+  committed value was `convertStringToNumber('') === 0`, so a click also turned
+  "unset" into a real `0`.
+
+  In a graph editor that is one `UPDATE_INPUT_VALUE` per unset numeric input per
+  click. Measured in a consumer before the fix: a single click on an unrelated
+  toolbar button wrote `null -> 0` into a node input, and 31 of 76 inputs were
+  unset and therefore armed to do the same. Consumers that render an empty box
+  as "auto" (use the implementation default) silently lost that state, and
+  anything watching the graph for changes — autosave, a dirty flag, an auto-run
+  trigger — fired on every click.
+
+  Two guards, both narrow:
+  - the outside-click commit now runs only while the input is actually focused
+    (it is still needed there: a canvas that calls `preventDefault()` on
+    mousedown suppresses the browser's focus change, so `onBlur` never fires and
+    this is the only commit path);
+  - an empty number field cancels instead of committing, which is what
+    `handleSettingValueFromTemporaryValue`'s contract already said it did.
+
+  Typing a value and clicking away still commits exactly as before.
+
+### Changed — themeable tokens are declared in plain CSS, not in `@theme`
+
+- The 40 themeable component tokens (`--color-graph-*`, `--color-timeline-*`,
+  `--color-runner-*`, `--color-inspector-*`, `--color-edge-value-pill-*`,
+  `--color-drag-list-*`, …) are now declared in a plain
+  `@layer theme { :root, :host { … } }` block, with `@theme inline` holding an
+  indirection (`--color-x: var(--color-x)`) that generates the utilities. Values
+  are byte-identical and the public names are unchanged, so every documented
+  theming mechanism behaves exactly as before — verified in a browser:
+  `[--color-graph-menu-bg:#f5f5f5]` on an ancestor still retints a descendant's
+  `bg-graph-menu-bg`.
+
+  The reason is forward-looking: a Tailwind `prefix()` renames every `@theme`
+  variable, which would have silently broken all three public mechanisms at once
+  — `root`-slot variable overrides, `var(--color-…)` in JSX inline styles and
+  SVG attributes, and a consumer setting the variable from their own stylesheet.
+  Declaring them outside `@theme` makes the public names immune.
+
+- **One behaviour change: opacity-modified utilities on these tokens lose their
+  standalone alpha.** Because Tailwind no longer sees a literal value for an
+  indirected token, it cannot precompute an 8-digit hex, so nine utilities move
+  from e.g. `background-color:#54545466` to `background-color:var(--color-…)`
+  plus a `color-mix(in oklab, … 40%, transparent)` declaration inside an
+  `@supports` guard. Browsers with `color-mix` (Chrome 111 / Safari 16.2 /
+  Firefox 113, all 2023) render them exactly as before; older ones render the
+  colour fully opaque.
+
+  The nine, across 13 call sites in 7 files: `bg-primary-gray/40` and `/80`,
+  `bg-timeline-loop-accent/60` and `/80`, `border-timeline-loop-accent/30`,
+  `bg-timeline-switch-accent/60` and `/80`, `border-timeline-switch-accent/30`,
+  `bg-inspector-skipped/30`. Most are in the runner — the timeline's loop and
+  switch blocks and the step inspector — plus the connection minimap and three
+  edit drawers.
+
+### Changed — Tailwind 4.1.13 → 4.3.3
+
+- `tailwindcss` and `@tailwindcss/vite` both move to `^4.3.3` (they must move
+  together: the Vite plugin pins the compiler exactly, so bumping only
+  `tailwindcss` leaves a nested 4.1.13 doing the actual compiling). This aligns
+  the host with the timeline plugin and the sound app, which were already there.
+
+  Two of the changes are user-visible in the shipped `style.css`, because they
+  are in Tailwind's preflight, which this stylesheet carries:
+  - the global `font-family` fallback changes from
+    `ui-sans-serif, system-ui, sans-serif, …` to
+    `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, …`;
+  - `:-moz-focusring` narrows to `:-moz-focusring:where(:not(iframe))`.
+
+  Everything else is identical: the rule-header sequence is unchanged at 1635
+  entries with that single `:-moz-focusring` difference.
+
+### Added
+
+- `FIRST_PARTY_PREFIXES` is exported from the package root: the Tailwind
+  prefixes `cn` reconciles before merging, **longest-first**
+  (`['rbnt', 'rbn']`). The ORDER is part of the contract — `rbnt` must be tried
+  before `rbn` or a `rbnt:` class would be stripped to `t:`. Exported so a
+  class-rewriting codemod and the stylesheet gate share one definition rather
+  than re-declaring it.
+
+- `SliderNumberInput` `ariaLabel?: string`: the full, spoken name for the
+  control, applied to BOTH of its branches — as the name of a `role='group'`
+  wrapper while it is a slider, and as the `aria-label` of the text field once
+  it is clicked into. `name` stays the SHORT on-screen label (`dur`, `min`, `t`)
+  that keeps the control narrow. Without this the text field — the one state
+  where a screen-reader user is actually committing a value — named itself by
+  its 3-character placeholder.
+
+  Prefer it over wrapping the control in a `<label>`. A `<label>` binds to its
+  first labelable descendant, which here is the DECREMENT CHEVRON, and Chromium
+  then propagates `:hover` to that chevron from anywhere inside the label — so
+  the left chevron lit up while the pointer was over the middle. Measured, and
+  proved by reparenting: identical markup outside a `<label>` behaves correctly.
+
+- `FullGraph` `bottomDrawers` prop (`GraphBottomDrawer[]`, type exported):
+  consumer bottom drawers rendered with the runner panel's chrome (slide-up
+  drawer, resize handle, header with a close `X`), each with a floating open
+  button beside the runner's. At most ONE bottom drawer — the runner included —
+  is open at a time; an open drawer's header carries a switcher button for each
+  of the others. Works with or without `functionImplementations`. Ids are unique
+  and `'runner'` is reserved (`RUNNER_DRAWER_ID` is exported). Per drawer:
+  `keepMounted` (default `true` — content keeps its state while closed) and
+  `defaultHeight` (initial body height, 80–600 px).
+- `FullGraph` `onOpenDrawerChange?: (openDrawerId: string | null) => void`:
+  fires whenever the open bottom drawer changes (`'runner'`, a consumer id, or
+  `null` for all closed); not on mount.
+
+- `FullGraph` `runnerRef?: RefObject<GraphRunnerHandle | null>` (type exported):
+  an imperative handle on the runner — `run()` (resumes when paused, exactly
+  what the panel's Run button does), `stop()`, `reset()`, `getRunnerState()`.
+  Before this, nothing outside `FullGraph` could start a run: the Run button was
+  the only entry point, and neither `execute` nor `useNodeRunner` is published.
+  Populated only while a runner exists (`functionImplementations` given); `null`
+  otherwise.
+- `Input` now forwards a documented set of native `<input>` attributes to the
+  element — `id`, `name`, `title`, `style`, `disabled`, `readOnly`, `autoFocus`,
+  `tabIndex`, `autoComplete`, `spellCheck`, `inputMode`, the four `aria-*`
+  naming/validity attributes and `data-testid` (type `ForwardedInputProps`).
+  Consumers can now label and size the field; before, an `aria-label` was a type
+  error. `value`/`onChange`/`size`/`type` and the focus/key handlers stay owned
+  by the component.
+
+### Changed
+
+- The floating "Runner" reopen button is now rendered by the bottom-drawer
+  chrome at the `FullGraph` root (`div[data-slot="bottom-drawer-buttons"]` → one
+  button per drawer, `data-testid="bottom-drawer-open-runner"`), not by
+  `RunnerOverlay`. Same text, icon, tooltip and `runnerToggleButton` theme slot;
+  the icon is now wrapped in a sizing `<span>`.
+- `runnerPanel.*` and `runnerToggleButton` theme slots style every bottom drawer
+  and floating button, not only the runner's.
+- Internal: `RecordingViewStateProvider` must be rendered inside a
+  `BottomDrawerProvider` (its `isRunnerPanelOpen` is derived from the shared
+  open-drawer id). Only `FullGraph` and the isolated stories render it.
+
 ## 0.0.14 — 2026-09-06
 
 No code changes since 0.0.13.

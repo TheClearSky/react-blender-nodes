@@ -45,16 +45,16 @@ function TimelineBlock({
       placement='top'
       content={<BlockTooltipContent step={step} />}
       className={cn(
-        'timeline-block absolute cursor-pointer rounded-[2px]',
+        'timeline-block rbn:absolute rbn:cursor-pointer rbn:rounded-[2px]',
         statusBlockClass[step.status],
-        isSelected && 'z-10 ring-1 ring-white ring-offset-0',
+        isSelected && 'rbn:z-10 rbn:ring-1 rbn:ring-white rbn:ring-offset-0',
         !isSelected &&
           isSnapped &&
           !isNearestDragTarget &&
-          'z-10 ring-2 ring-primary-blue ring-offset-0 shadow-[0_0_12px_var(--color-timeline-snap-glow)]',
+          'rbn:z-10 rbn:ring-2 rbn:ring-primary-blue rbn:ring-offset-0 rbn:shadow-[0_0_12px_var(--color-timeline-snap-glow)]',
         !isSelected &&
           isNearestDragTarget &&
-          'z-10 ring-1 ring-white/70 ring-offset-0 brightness-125 shadow-[0_0_20px_var(--color-timeline-drag-target-glow)]',
+          'rbn:z-10 rbn:ring-1 rbn:ring-white/70 rbn:ring-offset-0 rbn:brightness-125 rbn:shadow-[0_0_20px_var(--color-timeline-drag-target-glow)]',
         theme?.timeline?.block,
       )}
       style={{
@@ -80,14 +80,14 @@ function TimelineBlock({
     >
       {showLabel && (
         <span
-          className='flex items-center px-2 text-[12px] font-normal text-timeline-hover-text drop-shadow-sm select-none'
+          className='rbn:flex rbn:items-center rbn:px-2 rbn:text-[12px] rbn:font-normal rbn:text-timeline-hover-text rbn:drop-shadow-sm rbn:select-none'
           style={{ height: `${subRowHeight}px` }}
         >
           <NodeIdentityLabel
             typeName={step.nodeTypeName}
             customName={step.customName}
             protect='custom'
-            className='min-w-0'
+            className='rbn:min-w-0'
           />
         </span>
       )}

@@ -81,8 +81,8 @@ function EditableNodeTitle({
   return (
     <div
       className={cn(
-        'flex min-w-0 py-2',
-        isEditable && 'nodrag nopan cursor-text',
+        'rbn:flex rbn:min-w-0 rbn:py-2',
+        isEditable && 'nodrag nopan rbn:cursor-text',
         className,
       )}
       onDoubleClick={
@@ -106,7 +106,7 @@ function EditableNodeTitle({
       data-slot='node-title'
     >
       {editing ? (
-        <span className='flex min-w-0 flex-1 items-baseline'>
+        <span className='rbn:flex rbn:min-w-0 rbn:flex-1 rbn:items-baseline'>
           <Input
             ref={inputRef}
             allowOnlyNumbers={false}
@@ -119,17 +119,17 @@ function EditableNodeTitle({
             // title's inherited size instead of shrinking on double-click. Same-group
             // arbitrary VALUES (not `[font-size:…]` arbitrary properties) so tailwind-merge
             // actually drops the atom's `text-[16px]`/`leading-[16px]`.
-            className='nodrag nopan h-auto w-full min-w-0 border-0 bg-transparent px-0 text-primary-white text-[length:inherit] leading-[inherit]'
+            className='nodrag nopan rbn:h-auto rbn:w-full rbn:min-w-0 rbn:border-0 rbn:bg-transparent rbn:px-0 rbn:text-primary-white rbn:text-[length:inherit] rbn:leading-[inherit]'
           />
           {/* dimmed type suffix mirrors the static `Custom : Type` display so it's
               clear which node is being named. */}
-          <span className='shrink-0 truncate pl-1.5 opacity-75'>{`: ${typeName}`}</span>
+          <span className='rbn:shrink-0 rbn:truncate rbn:pl-1.5 rbn:opacity-75'>{`: ${typeName}`}</span>
         </span>
       ) : (
         <NodeIdentityLabel
           typeName={typeName}
           customName={customName}
-          className='min-w-0 flex-1'
+          className='rbn:min-w-0 rbn:flex-1'
         />
       )}
     </div>

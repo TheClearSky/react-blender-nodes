@@ -292,13 +292,14 @@ used across the entire codebase, see
 
 ### Modifying the Runner Panel UI
 
-| Doc                                                               | Why                                      |
-| ----------------------------------------------------------------- | ---------------------------------------- |
-| [nodeRunnerPanelDoc.md](./ui/nodeRunnerPanelDoc.md)               | Drawer layout, resize, slide animation   |
-| [runControlsDoc.md](./ui/runControlsDoc.md)                       | Transport bar buttons, mode toggle       |
-| [executionTimelineDoc.md](./ui/executionTimelineDoc.md)           | Multi-track timeline, zoom/pan, scrubber |
-| [executionStepInspectorDoc.md](./ui/executionStepInspectorDoc.md) | Step detail display                      |
-| [runnerHookDoc.md](./runner/runnerHookDoc.md)                     | Hook API the panel consumes              |
+| Doc                                                               | Why                                                                                            |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [nodeRunnerPanelDoc.md](./ui/nodeRunnerPanelDoc.md)               | Runner drawer content (its chrome lives in `BottomDrawerShell`)                                |
+| [fullGraphDoc.md › Bottom drawers](./ui/fullGraphDoc.md)          | `bottomDrawers` prop, shared `BottomDrawerShell` (layout, resize, slide), one-open-drawer rule |
+| [runControlsDoc.md](./ui/runControlsDoc.md)                       | Transport bar buttons, mode toggle                                                             |
+| [executionTimelineDoc.md](./ui/executionTimelineDoc.md)           | Multi-track timeline, zoom/pan, scrubber                                                       |
+| [executionStepInspectorDoc.md](./ui/executionStepInspectorDoc.md) | Step detail display                                                                            |
+| [runnerHookDoc.md](./runner/runnerHookDoc.md)                     | Hook API the panel consumes                                                                    |
 
 ### Adding a New Input Component
 
@@ -483,9 +484,12 @@ src/
 |   |   |   +-- graphStore.ts         createGraphStore (external Redux-style store)
 |   |   |   +-- FullGraphState.ts     useFullGraph (useSyncExternalStore)
 |   |   |   +-- historyTypes.ts       HistoryEntry/Config, isUndoable, recordInHistory
+|   |   |   +-- bottomDrawers.ts      GraphBottomDrawer type + one-open-drawer pure helpers
+|   |   |   +-- BottomDrawer*.tsx     Provider (open id), Buttons (floating), Switchers, ConsumerBottomDrawer
 |   |   +-- ConfigurableNode/         Node rendering
-|   |   +-- NodeRunnerPanel/          Runner UI panel
+|   |   +-- NodeRunnerPanel/          Runner UI panel (renders through BottomDrawerShell)
 |   +-- molecules/
+|   |   +-- BottomDrawerShell/        Shared bottom-drawer chrome (runner + consumer drawers)
 |   |   +-- ContextMenu/              Right-click menu
 |   |   +-- LoopEditDrawer/           Loop data-channel editor
 |   |   +-- SwitchEditDrawer/         Switch data-channel editor

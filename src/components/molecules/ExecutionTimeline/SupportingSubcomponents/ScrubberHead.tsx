@@ -9,18 +9,18 @@ function ScrubberHead({
   isDragging: boolean;
 }) {
   return (
-    <div className='flex flex-col items-center'>
+    <div className='rbn:flex rbn:flex-col rbn:items-center'>
       <div
         className={cn(
-          'rounded px-1.5 py-0.5 font-mono text-[11px] text-white whitespace-nowrap',
+          'rbn:rounded rbn:px-1.5 rbn:py-0.5 rbn:font-mono rbn:text-[11px] rbn:text-white rbn:whitespace-nowrap',
           isDragging
-            ? 'bg-timeline-scrubber-active'
-            : 'bg-runner-scrubber-blue',
+            ? 'rbn:bg-timeline-scrubber-active'
+            : 'rbn:bg-runner-scrubber-blue',
         )}
       >
         {formatTime(timeMs)}
       </div>
-      <div className='h-0 w-0 border-l-[4px] border-r-[4px] border-t-[4px] border-l-transparent border-r-transparent border-t-runner-scrubber-blue' />
+      <div className='rbn:h-0 rbn:w-0 rbn:border-l-[4px] rbn:border-r-[4px] rbn:border-t-[4px] rbn:border-l-transparent rbn:border-r-transparent rbn:border-t-runner-scrubber-blue' />
     </div>
   );
 }

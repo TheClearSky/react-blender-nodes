@@ -76,12 +76,12 @@ export const AdjustableParentWidthWithFullWidth = {
     return (
       <div
         className={cn(
-          'flex flex-col gap-2 border-5',
-          parentBorder ? 'border-red-900' : 'border-transparent',
+          'rbn:flex rbn:flex-col rbn:gap-2 rbn:border-5',
+          parentBorder ? 'rbn:border-red-900' : 'rbn:border-transparent',
         )}
         style={{ width: parentWidth }}
       >
-        <Input className='w-full' {...args} />
+        <Input className='rbn:w-full' {...args} />
       </div>
     );
   },

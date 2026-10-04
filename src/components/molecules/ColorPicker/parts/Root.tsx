@@ -19,7 +19,9 @@ function ColorPickerRoot({
   const state = useColorPicker(pickerProps);
   return (
     <ColorPickerContext.Provider value={state}>
-      <div className={cn('flex w-full flex-col gap-3', className)}>
+      <div
+        className={cn('rbn:flex rbn:w-full rbn:flex-col rbn:gap-3', className)}
+      >
         {children}
       </div>
     </ColorPickerContext.Provider>

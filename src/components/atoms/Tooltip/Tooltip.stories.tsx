@@ -22,7 +22,7 @@ const meta = {
   tags: ['autodocs'],
   decorators: [
     (Story) => (
-      <div className='flex min-h-[200px] items-center justify-center p-12'>
+      <div className='rbn:flex rbn:min-h-[200px] rbn:items-center rbn:justify-center rbn:p-12'>
         <Story />
       </div>
     ),
@@ -42,7 +42,9 @@ export const Default: Story = {
     content:
       'Automatically scroll the timeline and canvas to follow the selected step',
     children: (
-      <span className='text-[12px] text-primary-white'>Auto-scroll</span>
+      <span className='rbn:text-[12px] rbn:text-primary-white'>
+        Auto-scroll
+      </span>
     ),
   },
 };
@@ -53,8 +55,8 @@ export const WithoutInfoIcon: Story = {
     content: 'Total execution duration',
     infoIcon: false,
     children: (
-      <span className='flex items-center gap-1 text-[12px] text-primary-white'>
-        <Timer className='h-3.5 w-3.5' />
+      <span className='rbn:flex rbn:items-center rbn:gap-1 rbn:text-[12px] rbn:text-primary-white'>
+        <Timer className='rbn:h-3.5 rbn:w-3.5' />
         42.50ms
       </span>
     ),
@@ -71,7 +73,9 @@ export const PlacementTop: Story = {
     content: 'I appear on top',
     placement: 'top',
     children: (
-      <span className='text-[12px] text-primary-white'>Hover me (top)</span>
+      <span className='rbn:text-[12px] rbn:text-primary-white'>
+        Hover me (top)
+      </span>
     ),
   },
 };
@@ -82,7 +86,9 @@ export const PlacementRight: Story = {
     content: 'I appear on the right',
     placement: 'right',
     children: (
-      <span className='text-[12px] text-primary-white'>Hover me (right)</span>
+      <span className='rbn:text-[12px] rbn:text-primary-white'>
+        Hover me (right)
+      </span>
     ),
   },
 };
@@ -95,12 +101,12 @@ export const PlacementRight: Story = {
 export const RichContent: Story = {
   args: {
     content: (
-      <div className='space-y-1.5'>
-        <div className='flex items-center gap-1.5 font-semibold'>
-          <AlertTriangle className='h-3.5 w-3.5 text-status-warning' />
+      <div className='rbn:space-y-1.5'>
+        <div className='rbn:flex rbn:items-center rbn:gap-1.5 rbn:font-semibold'>
+          <AlertTriangle className='rbn:h-3.5 rbn:w-3.5 rbn:text-status-warning' />
           Warning
         </div>
-        <div className='text-[11px] text-secondary-light-gray'>
+        <div className='rbn:text-[11px] rbn:text-secondary-light-gray'>
           This loop exceeded the maximum iteration count. Check your exit
           condition.
         </div>
@@ -108,7 +114,9 @@ export const RichContent: Story = {
     ),
     maxWidth: 280,
     children: (
-      <span className='text-[12px] text-status-warning'>Loop error</span>
+      <span className='rbn:text-[12px] rbn:text-status-warning'>
+        Loop error
+      </span>
     ),
   },
 };
@@ -117,20 +125,22 @@ export const RichContent: Story = {
 export const StructuredContent: Story = {
   args: {
     content: (
-      <div className='space-y-1'>
+      <div className='rbn:space-y-1'>
         <div>
-          <span className='font-semibold'>Execution</span> — Shows only
+          <span className='rbn:font-semibold'>Execution</span> — Shows only
           computation time with pauses removed.
         </div>
         <div>
-          <span className='font-semibold'>Wall Clock</span> — Shows real elapsed
-          time including pauses.
+          <span className='rbn:font-semibold'>Wall Clock</span> — Shows real
+          elapsed time including pauses.
         </div>
       </div>
     ),
     maxWidth: 260,
     infoIcon: true,
-    children: <span className='text-[12px] text-primary-white'>Time mode</span>,
+    children: (
+      <span className='rbn:text-[12px] rbn:text-primary-white'>Time mode</span>
+    ),
   },
 };
 
@@ -143,7 +153,7 @@ export const IconTrigger: Story = {
   args: {
     content: 'Zoom in',
     infoIcon: false,
-    children: <Zap className='h-4 w-4 text-primary-white' />,
+    children: <Zap className='rbn:h-4 rbn:w-4 rbn:text-primary-white' />,
   },
 };
 
@@ -153,8 +163,8 @@ export const IconWithText: Story = {
     content: 'Total number of executed steps',
     infoIcon: false,
     children: (
-      <span className='flex items-center gap-1 font-mono text-[12px] text-primary-white'>
-        <Layers className='h-3.5 w-3.5' />
+      <span className='rbn:flex rbn:items-center rbn:gap-1 rbn:font-mono rbn:text-[12px] rbn:text-primary-white'>
+        <Layers className='rbn:h-3.5 rbn:w-3.5' />
         48 steps
       </span>
     ),
@@ -173,8 +183,8 @@ export const NarrowWidth: Story = {
     maxWidth: 160,
     infoIcon: false,
     children: (
-      <span className='flex items-center gap-1 font-mono text-[12px] text-primary-white'>
-        <Zap className='h-3.5 w-3.5' />
+      <span className='rbn:flex rbn:items-center rbn:gap-1 rbn:font-mono rbn:text-[12px] rbn:text-primary-white'>
+        <Zap className='rbn:h-3.5 rbn:w-3.5' />
         JIT 2.3ms
       </span>
     ),
@@ -188,7 +198,9 @@ export const WideWidth: Story = {
       'This is a much wider tooltip that can contain more detailed explanations without wrapping too aggressively. Useful for complex features that need more context.',
     maxWidth: 360,
     children: (
-      <span className='text-[12px] text-primary-white'>Hover for details</span>
+      <span className='rbn:text-[12px] rbn:text-primary-white'>
+        Hover for details
+      </span>
     ),
   },
 };

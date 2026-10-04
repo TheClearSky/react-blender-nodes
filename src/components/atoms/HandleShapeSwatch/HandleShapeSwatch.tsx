@@ -11,10 +11,10 @@ const createBorderedClipPath = (
   borderWidth: number = 2,
 ) => {
   return (
-    <div className={cn('relative', className)}>
+    <div className={cn('rbn:relative', className)}>
       {/* Border layer - slightly larger container */}
       <div
-        className='absolute'
+        className='rbn:absolute'
         style={{
           top: -borderWidth,
           left: -borderWidth,
@@ -26,7 +26,7 @@ const createBorderedClipPath = (
       />
       {/* Main shape layer - ensure it has full dimensions */}
       <div
-        className='absolute inset-0'
+        className='rbn:absolute rbn:inset-0'
         style={{
           backgroundColor: color,
           clipPath: clipPath,
@@ -42,8 +42,8 @@ const renderHandleShape = (
   color: string = '#A1A1A1',
   className?: string,
 ) => {
-  const baseClassesThickBorder = 'border-2 border-black';
-  const baseClassesThinBorder = 'border-1 border-black';
+  const baseClassesThickBorder = 'rbn:border-2 rbn:border-black';
+  const baseClassesThinBorder = 'rbn:border-1 rbn:border-black';
   const colorStyle = { backgroundColor: color };
 
   switch (shape) {
@@ -51,7 +51,7 @@ const renderHandleShape = (
       return (
         <div
           className={cn(
-            'w-6 h-6 rounded-full',
+            'rbn:w-6 rbn:h-6 rbn:rounded-full',
             baseClassesThickBorder,
             className,
           )}
@@ -62,7 +62,7 @@ const renderHandleShape = (
     case handleShapesMap.square:
       return (
         <div
-          className={cn('w-6 h-6', baseClassesThickBorder, className)}
+          className={cn('rbn:w-6 rbn:h-6', baseClassesThickBorder, className)}
           style={colorStyle}
         />
       );
@@ -70,7 +70,7 @@ const renderHandleShape = (
     case handleShapesMap.rectangle:
       return (
         <div
-          className={cn('w-4 h-8', baseClassesThickBorder, className)}
+          className={cn('rbn:w-4 rbn:h-8', baseClassesThickBorder, className)}
           style={colorStyle}
         />
       );
@@ -79,14 +79,14 @@ const renderHandleShape = (
       return (
         <div
           className={cn(
-            'w-6 h-6 flex flex-col justify-center gap-0.5',
+            'rbn:w-6 rbn:h-6 rbn:flex rbn:flex-col rbn:justify-center rbn:gap-0.5',
             className,
           )}
         >
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className={cn('w-full h-2', baseClassesThinBorder)}
+              className={cn('rbn:w-full rbn:h-2', baseClassesThinBorder)}
               style={colorStyle}
             />
           ))}
@@ -95,11 +95,16 @@ const renderHandleShape = (
 
     case handleShapesMap.grid:
       return (
-        <div className={cn('w-6 h-6 grid grid-cols-2 gap-0.5', className)}>
+        <div
+          className={cn(
+            'rbn:w-6 rbn:h-6 rbn:grid rbn:grid-cols-2 rbn:gap-0.5',
+            className,
+          )}
+        >
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className={cn('w-full h-full', baseClassesThinBorder)}
+              className={cn('rbn:w-full rbn:h-full', baseClassesThinBorder)}
               style={colorStyle}
             />
           ))}
@@ -109,7 +114,11 @@ const renderHandleShape = (
     case handleShapesMap.diamond:
       return (
         <div
-          className={cn('w-6 h-6 rotate-45', baseClassesThickBorder, className)}
+          className={cn(
+            'rbn:w-6 rbn:h-6 rbn:rotate-45',
+            baseClassesThickBorder,
+            className,
+          )}
           style={colorStyle}
         />
       );
@@ -118,36 +127,36 @@ const renderHandleShape = (
       return createBorderedClipPath(
         'polygon(25% 0%, 75% 0%, 100% 100%, 0% 100%)',
         color,
-        cn('w-6 h-6', className),
+        cn('rbn:w-6 rbn:h-6', className),
       );
 
     case handleShapesMap.hexagon:
       return createBorderedClipPath(
         'polygon(-50% 50%,50% 100%,150% 50%,50% 0)',
         color,
-        cn('w-5 h-6', className),
+        cn('rbn:w-5 rbn:h-6', className),
       );
 
     case handleShapesMap.star:
       return createBorderedClipPath(
         'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
         color,
-        cn('w-6 h-6', className),
+        cn('rbn:w-6 rbn:h-6', className),
       );
 
     case handleShapesMap.cross:
       return (
-        <div className={cn('w-6 h-6 relative', className)}>
+        <div className={cn('rbn:w-6 rbn:h-6 rbn:relative', className)}>
           <div
             className={cn(
-              'absolute top-1/2 left-0 w-full h-2 -translate-y-1/2',
+              'rbn:absolute rbn:top-1/2 rbn:left-0 rbn:w-full rbn:h-2 rbn:-translate-y-1/2',
               baseClassesThinBorder,
             )}
             style={colorStyle}
           />
           <div
             className={cn(
-              'absolute left-1/2 top-0 w-2 h-full -translate-x-1/2',
+              'rbn:absolute rbn:left-1/2 rbn:top-0 rbn:w-2 rbn:h-full rbn:-translate-x-1/2',
               baseClassesThinBorder,
             )}
             style={colorStyle}
@@ -158,7 +167,7 @@ const renderHandleShape = (
     case handleShapesMap.zigzag:
       return (
         <div
-          className={cn('w-6 h-6', className)}
+          className={cn('rbn:w-6 rbn:h-6', className)}
           style={{
             ...colorStyle,
             width: 'calc(4px + 24px/(2*tan(90deg/2)))',
@@ -172,7 +181,7 @@ const renderHandleShape = (
     case handleShapesMap.sparkle:
       return (
         <div
-          className={cn('w-6 h-6', className)}
+          className={cn('rbn:w-6 rbn:h-6', className)}
           style={{
             ...colorStyle,
             mask: 'radial-gradient(#0000 71%, #000 72%) 10000% 10000%/99.5% 99.5%',
@@ -185,14 +194,14 @@ const renderHandleShape = (
       return createBorderedClipPath(
         'polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)',
         color,
-        cn('w-6 h-6', className),
+        cn('rbn:w-6 rbn:h-6', className),
       );
 
     default:
       return (
         <div
           className={cn(
-            'w-6 h-6 rounded-full',
+            'rbn:w-6 rbn:h-6 rbn:rounded-full',
             baseClassesThickBorder,
             className,
           )}
@@ -248,11 +257,11 @@ const HandleShapeSwatch = memo(function HandleShapeSwatch({
   return (
     <div
       data-slot='handle-shape-swatch'
-      className='relative flex shrink-0 items-center justify-center overflow-hidden'
+      className='rbn:relative rbn:flex rbn:shrink-0 rbn:items-center rbn:justify-center rbn:overflow-hidden'
       style={{ width: size, height: size }}
     >
       <div
-        className='flex items-center justify-center'
+        className='rbn:flex rbn:items-center rbn:justify-center'
         style={{ transform: `scale(${scale})` }}
       >
         {shapeElement}

@@ -106,16 +106,16 @@ const ConfigurableNodeReactFlowWrapper = forwardRef<
       fallback={({ error, reset }) => (
         <div
           data-slot='error-boundary-node'
-          className='flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-red-500/50 bg-zinc-900 p-4 text-zinc-300'
+          className='rbn:flex rbn:w-full rbn:flex-col rbn:items-center rbn:justify-center rbn:gap-2 rbn:rounded-lg rbn:border rbn:border-red-500/50 rbn:bg-zinc-900 rbn:p-4 rbn:text-zinc-300'
           style={{ minHeight: 80 }}
         >
-          <div className='flex items-center gap-1.5'>
-            <AlertTriangle className='h-4 w-4 text-red-400' />
-            <span className='text-xs font-medium text-red-400'>
+          <div className='rbn:flex rbn:items-center rbn:gap-1.5'>
+            <AlertTriangle className='rbn:h-4 rbn:w-4 rbn:text-red-400' />
+            <span className='rbn:text-xs rbn:font-medium rbn:text-red-400'>
               Render Error
             </span>
           </div>
-          <p className='text-center text-[10px] text-zinc-500'>
+          <p className='rbn:text-center rbn:text-[10px] rbn:text-zinc-500'>
             {data.customName
               ? `${data.customName} : ${data.name ?? 'Node'}`
               : (data.name ?? 'Node')}{' '}
@@ -124,7 +124,7 @@ const ConfigurableNodeReactFlowWrapper = forwardRef<
           <button
             type='button'
             onClick={reset}
-            className='mt-1 rounded border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400 transition-colors hover:bg-zinc-700'
+            className='rbn:mt-1 rbn:rounded rbn:border rbn:border-zinc-700 rbn:bg-zinc-800 rbn:px-2 rbn:py-0.5 rbn:text-[10px] rbn:text-zinc-400 rbn:transition-colors rbn:hover:bg-zinc-700'
           >
             Retry
           </button>
@@ -141,7 +141,7 @@ const ConfigurableNodeReactFlowWrapper = forwardRef<
       <ConfigurableNode
         isCurrentlyInsideReactFlow={true}
         id={id}
-        className='w-full'
+        className='rbn:w-full'
         {...data}
         runnerVisualState={nodeRunnerState?.visualState}
         runnerErrors={nodeRunnerState?.errors}

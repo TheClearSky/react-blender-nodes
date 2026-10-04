@@ -27,7 +27,9 @@ function formatNumber(value: number, precision: number): string {
 }
 
 function Divider() {
-  return <div className='w-px self-stretch bg-secondary-dark-gray' />;
+  return (
+    <div className='rbn:w-px rbn:self-stretch rbn:bg-secondary-dark-gray' />
+  );
 }
 
 function HexField({
@@ -75,9 +77,11 @@ function HexField({
         }
       }}
       className={cn(
-        'min-w-0 flex-1 bg-transparent outline-none font-mono text-primary-white',
-        size === 'small' ? 'px-2 text-[13px]' : 'px-2 text-[20px]',
-        error && 'text-red-500',
+        'rbn:min-w-0 rbn:flex-1 rbn:bg-transparent rbn:outline-none rbn:font-mono rbn:text-primary-white',
+        size === 'small'
+          ? 'rbn:px-2 rbn:text-[13px]'
+          : 'rbn:px-2 rbn:text-[20px]',
+        error && 'rbn:text-red-500',
       )}
     />
   );
@@ -117,7 +121,7 @@ function ChannelField({
   };
 
   return (
-    <label className='relative inline-flex h-full min-w-0 flex-1 items-center'>
+    <label className='rbn:relative rbn:inline-flex rbn:h-full rbn:min-w-0 rbn:flex-1 rbn:items-center'>
       <input
         type='text'
         inputMode='decimal'
@@ -150,12 +154,14 @@ function ChannelField({
           }
         }}
         className={cn(
-          'w-full min-w-0 bg-transparent text-center outline-none tabular-nums text-primary-white font-mono',
-          size === 'small' ? 'px-1 text-[13px]' : 'px-1.5 text-[20px]',
+          'rbn:w-full rbn:min-w-0 rbn:bg-transparent rbn:text-center rbn:outline-none rbn:tabular-nums rbn:text-primary-white rbn:font-mono',
+          size === 'small'
+            ? 'rbn:px-1 rbn:text-[13px]'
+            : 'rbn:px-1.5 rbn:text-[20px]',
         )}
       />
       {channel.suffix && (
-        <span className='pointer-events-none pr-1 text-graph-input-placeholder text-[12px]'>
+        <span className='rbn:pointer-events-none rbn:pr-1 rbn:text-graph-input-placeholder rbn:text-[12px]'>
           {channel.suffix}
         </span>
       )}
@@ -189,14 +195,16 @@ function ColorPickerChannelInput({
   return (
     <div
       className={cn(
-        'flex items-stretch rounded-md border border-secondary-dark-gray bg-primary-black font-mono',
-        isSmall ? 'h-[28px] text-[13px]' : 'h-[44px] text-[20px]',
+        'rbn:flex rbn:items-stretch rbn:rounded-md rbn:border rbn:border-secondary-dark-gray rbn:bg-primary-black rbn:font-mono',
+        isSmall
+          ? 'rbn:h-[28px] rbn:text-[13px]'
+          : 'rbn:h-[44px] rbn:text-[20px]',
         className,
       )}
     >
       {showFormat && (
         <>
-          <div className='shrink-0 w-fit'>
+          <div className='rbn:shrink-0 rbn:w-fit'>
             <Select
               value={format}
               onValueChange={(value) => {
@@ -204,7 +212,7 @@ function ColorPickerChannelInput({
               }}
               size='compact'
             >
-              <SelectTrigger className='font-mono uppercase tracking-wide border-0 rounded-none bg-transparent h-full w-fit'>
+              <SelectTrigger className='rbn:font-mono rbn:uppercase rbn:tracking-wide rbn:border-0 rbn:rounded-none rbn:bg-transparent rbn:h-full rbn:w-fit'>
                 <SelectValue placeholder='fmt' />
               </SelectTrigger>
               <SelectContent>

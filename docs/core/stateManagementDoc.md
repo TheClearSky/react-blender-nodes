@@ -250,9 +250,12 @@ is generic over four type parameters:
 - **`runnerViewPreferences?: { autoScroll: boolean; followIntoGroups: boolean }`**
   — document-level runner-panel view preferences (auto-scroll the
   timeline/canvas to the active step; follow the scrub head into group
-  instances). Persisted on export and forwarded on import like `userZones` (not
-  stripped, not rehydrated); GLOBAL/root-only. Toggled by the non-undoable
-  `UPDATE_RUNNER_VIEW_PREFERENCE` action.
+  instances). Both default **ON** when the field is absent
+  (`getRunnerViewPreferences`, per-field); a consumer wanting a different
+  default seeds the field on the documents it installs. Persisted on export and
+  forwarded on import like `userZones` (not stripped, not rehydrated);
+  GLOBAL/root-only. Toggled by the non-undoable `UPDATE_RUNNER_VIEW_PREFERENCE`
+  action.
 
 ---
 

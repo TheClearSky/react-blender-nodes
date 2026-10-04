@@ -407,6 +407,9 @@ type UseNodeRunnerParams = {
      *  handler runs with the LATEST render's closure, not the one from when
      *  the run started. `FullGraph` exposes the same callback as a prop. */
     onRecorderWarning?: (warning: RecorderWarning) => void;
+    /** Run LIFECYCLE stream — see "Run lifecycle events" below. Read from a
+     *  ref at emit time, same as `onRecorderWarning`. */
+    onRunEvent?: (event: RunEvent) => void;
   };
   /** Controlled execution record. When provided (even null), useNodeRunner
    *  treats the record as controlled and reads it instead of internal state. */
@@ -435,6 +438,71 @@ type UseNodeRunnerParams = {
   at mount, the hook starts in `'completed'` with visual states/errors computed
   at the last step
   (`computeVisualStatesAtStep(record, Math.max(0, steps.length - 1))`).
+
+### Run lifecycle events (`options.onRunEvent`)
+
+`onExecutionRecordChange` is the controlled record **setter**, not a lifecycle
+signal. It fires with `null` when a run starts, when `reset()` clears the
+record, and when a consumer loads a different project — three unrelated events
+that arrive as one indistinguishable callback. A consumer that tries to answer
+"what graph did the record I am holding actually come from?" from that channel
+alone is guessing, and reads `state` at the wrong moment.
+
+`options.onRunEvent` (`src/utils/nodeRunner/types.ts` › `RunEvent`) is the
+lifecycle channel:
+
+```typescript
+type RunAbortReason = 'stopped' | 'superseded' | 'failed';
+type RunHaltInitiator = 'user' | 'consumer';
+
+type RunEvent =
+  | { kind: 'run:started'; runId: number }
+  | { kind: 'run:completed'; runId: number }
+  | {
+      kind: 'run:aborted';
+      runId: number;
+      reason: RunAbortReason;
+      initiator?: RunHaltInitiator;
+    }
+  | { kind: 'run:reset'; initiator?: RunHaltInitiator };
+```
+
+Guarantees:
+
+- `runId` is monotonic within a hook instance, minted by `beginRun()`.
+- `run:started` is emitted **synchronously, before the run's first `await`** —
+  at that instant the graph is exactly what the run is about to compile, so a
+  consumer can snapshot a fingerprint/signature there and stamp it on the
+  matching `run:completed`. The host therefore computes no fingerprint of its
+  own and consumers that do not subscribe pay nothing.
+- **Every started run terminates with exactly one `run:completed` or
+  `run:aborted` carrying its OWN `runId`.** A terminal event is always emitted
+  against the run that produced it, never against whatever run happens to be
+  current — including from a `catch` block reached long after the run was
+  superseded. The three ways a run ends without a record all emit `run:aborted`:
+  `'superseded'` (a newer run replaced it), `'stopped'` (`stop()` / `reset()`),
+  and `'failed'` (the graph did not compile, or the run target threw).
+- **`'failed'` is deliberately distinct from `'stopped'`.** A consumer that
+  treats a halt as "the user wants this to stay halted" — switching off an
+  auto-run, say — must not do that when a mis-wired graph merely failed to
+  compile.
+- **`initiator` says WHO asked**, on the two halt events. `'user'` (the default)
+  means a person pressed Stop or Reset; `'consumer'` means the application
+  called `stop()` / `reset()` itself, e.g. because it is replacing the whole
+  project. Without it the two are indistinguishable on this channel.
+- **A run that is no longer current writes nothing.** Once a run is superseded,
+  stopped or reset, its remaining `await`s cannot set the execution record, the
+  runner state or the visual states — so a `reset()` stays reset. One deliberate
+  exception: a run ended by an explicit `stop()` still installs its final record
+  when it drains, because `'errored'` exists precisely so the user can see how
+  far the run got; it changes neither the runner state nor the event stream.
+- `run:reset` is emitted by `reset()` even when no run is in flight, and is
+  preceded by `run:aborted` (`reason: 'stopped'`) if one was.
+- Like `onRecorderWarning`, the callback is read from a ref at emit time: a new
+  inline function each render is safe and never restarts a run, but the handler
+  runs with the LATEST render's closure.
+
+`FullGraph` exposes the same callback as the `onRunEvent` prop.
 
 ---
 

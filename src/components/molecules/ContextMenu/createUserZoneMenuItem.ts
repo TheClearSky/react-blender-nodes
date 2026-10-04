@@ -77,7 +77,7 @@ function createUserZoneMenuItem<
   // (runtime zone color ⇒ inline style, per the styling rules).
   const zoneDotIcon = (zone: Zone) =>
     createElement('span', {
-      className: 'inline-block h-2.5 w-2.5 rounded-full',
+      className: 'rbn:inline-block rbn:h-2.5 rbn:w-2.5 rbn:rounded-full',
       style: { backgroundColor: zone.color },
     });
 
@@ -87,7 +87,7 @@ function createUserZoneMenuItem<
     items.push({
       id: 'create-user-zone',
       label: 'Create Zone from Selection',
-      icon: createElement(SquareDashedIcon, { className: 'w-4 h-4' }),
+      icon: createElement(SquareDashedIcon, { className: 'rbn:w-4 rbn:h-4' }),
       onClick: () => {
         dispatch({
           type: actionTypesMap.ADD_USER_ZONE,
@@ -102,7 +102,7 @@ function createUserZoneMenuItem<
     items.push({
       id: 'add-selection-to-user-zone',
       label: 'Add Selection to Zone',
-      icon: createElement(PlusIcon, { className: 'w-4 h-4' }),
+      icon: createElement(PlusIcon, { className: 'rbn:w-4 rbn:h-4' }),
       subItems: zones.map((zone) => ({
         id: `add-to-user-zone-${zone.id}`,
         label: zoneLabel(zone),
@@ -119,7 +119,7 @@ function createUserZoneMenuItem<
     items.push({
       id: 'remove-selection-from-user-zone',
       label: 'Remove Selection from Zone',
-      icon: createElement(MinusIcon, { className: 'w-4 h-4' }),
+      icon: createElement(MinusIcon, { className: 'rbn:w-4 rbn:h-4' }),
       subItems: zones.map((zone) => ({
         id: `remove-from-user-zone-${zone.id}`,
         label: zoneLabel(zone),
@@ -143,7 +143,7 @@ function createUserZoneMenuItem<
     items.push({
       id: 'delete-user-zone',
       label: 'Delete Zone',
-      icon: createElement(Trash2Icon, { className: 'w-4 h-4' }),
+      icon: createElement(Trash2Icon, { className: 'rbn:w-4 rbn:h-4' }),
       subItems: zones.map((zone) => ({
         id: `delete-user-zone-${zone.id}`,
         label: zoneLabel(zone),

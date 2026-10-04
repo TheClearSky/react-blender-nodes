@@ -25,6 +25,7 @@ import type {
   ExecutionStepRecord,
 } from '@/utils/nodeRunner/types';
 import { useRecordingViewState } from '@/components/organisms/FullGraph/RecordingViewStateContext';
+import { DEFAULT_RUNNER_VIEW_PREFERENCES } from '@/utils/nodeStateManagement/runnerViewPreferences';
 import { SliderNumberInput } from '@/components/molecules/SliderNumberInput/SliderNumberInput';
 import { Tooltip } from '@/components/atoms/Tooltip';
 import { ButtonToggle } from '@/components/molecules/ButtonToggle';
@@ -270,35 +271,35 @@ function ExecutionTimeline({
     return (
       <div
         className={cn(
-          'flex h-full flex-col bg-runner-toolbar-bg',
+          'rbn:flex rbn:h-full rbn:flex-col rbn:bg-runner-toolbar-bg',
           theme?.timeline?.container,
         )}
       >
         {/* Header */}
         <div
           className={cn(
-            'flex h-12 items-center justify-between bg-runner-toolbar-bg px-4',
+            'rbn:flex rbn:h-12 rbn:items-center rbn:justify-between rbn:bg-runner-toolbar-bg rbn:px-4',
             theme?.timeline?.toolbar,
           )}
         >
-          <div className='flex items-center gap-2 text-[14px] text-primary-white'>
-            <ChevronRight className='h-3 w-3 text-secondary-light-gray' />
+          <div className='rbn:flex rbn:items-center rbn:gap-2 rbn:text-[14px] rbn:text-primary-white'>
+            <ChevronRight className='rbn:h-3 rbn:w-3 rbn:text-secondary-light-gray' />
             Timeline
           </div>
         </div>
-        <div className='flex-1 p-4 pt-0'>
+        <div className='rbn:flex-1 rbn:p-4 rbn:pt-0'>
           <div
             className={cn(
-              'flex h-full flex-col items-center justify-center gap-2 rounded-md border border-runner-timeline-box-border bg-runner-timeline-box-bg',
+              'rbn:flex rbn:h-full rbn:flex-col rbn:items-center rbn:justify-center rbn:gap-2 rbn:rounded-md rbn:border rbn:border-runner-timeline-box-border rbn:bg-runner-timeline-box-bg',
               theme?.timeline?.trackArea,
             )}
           >
-            <div className='flex items-center gap-1.5'>
-              <div className='h-1.5 w-6 rounded-full bg-secondary-dark-gray' />
-              <div className='h-1.5 w-10 rounded-full bg-secondary-dark-gray' />
-              <div className='h-1.5 w-4 rounded-full bg-secondary-dark-gray' />
+            <div className='rbn:flex rbn:items-center rbn:gap-1.5'>
+              <div className='rbn:h-1.5 rbn:w-6 rbn:rounded-full rbn:bg-secondary-dark-gray' />
+              <div className='rbn:h-1.5 rbn:w-10 rbn:rounded-full rbn:bg-secondary-dark-gray' />
+              <div className='rbn:h-1.5 rbn:w-4 rbn:rounded-full rbn:bg-secondary-dark-gray' />
             </div>
-            <span className='text-[11px] text-secondary-light-gray'>
+            <span className='rbn:text-[11px] rbn:text-secondary-light-gray'>
               No execution record to display
             </span>
           </div>
@@ -310,55 +311,55 @@ function ExecutionTimeline({
   return (
     <div
       className={cn(
-        'flex h-full flex-col bg-runner-toolbar-bg',
+        'rbn:flex rbn:h-full rbn:flex-col rbn:bg-runner-toolbar-bg',
         theme?.timeline?.container,
       )}
     >
       {/* Header — toolbar-middle */}
       <div
         className={cn(
-          'flex h-12 items-center justify-between px-4',
+          'rbn:flex rbn:h-12 rbn:items-center rbn:justify-between rbn:px-4',
           theme?.timeline?.toolbar,
         )}
       >
-        <div className='flex items-center gap-3'>
+        <div className='rbn:flex rbn:items-center rbn:gap-3'>
           <button
             type='button'
             onClick={() => setIsCollapsed(!isCollapsed)}
             className={cn(
-              'btn-press flex items-center gap-2 rounded px-1.5 py-1 text-[14px] text-primary-white transition-colors hover:bg-primary-dark-gray/50',
+              'btn-press rbn:flex rbn:items-center rbn:gap-2 rbn:rounded rbn:px-1.5 rbn:py-1 rbn:text-[14px] rbn:text-primary-white rbn:transition-colors rbn:hover:bg-primary-dark-gray/50',
               theme?.timeline?.toolbarButton,
             )}
           >
             <span
               className={cn(
-                'transition-transform duration-150',
-                !isCollapsed && 'rotate-90',
+                'rbn:transition-transform rbn:duration-150',
+                !isCollapsed && 'rbn:rotate-90',
               )}
             >
-              <ChevronRight className='h-3 w-3 text-secondary-light-gray' />
+              <ChevronRight className='rbn:h-3 rbn:w-3 rbn:text-secondary-light-gray' />
             </span>
             Timeline
           </button>
 
           {/* Step navigation: |< < ▶/■ > >| */}
-          <div className='flex items-center gap-2'>
-            <div className='flex items-center'>
+          <div className='rbn:flex rbn:items-center rbn:gap-2'>
+            <div className='rbn:flex rbn:items-center'>
               {/* Go to start */}
               <button
                 type='button'
                 disabled={!canGoPrev}
                 onClick={goToStart}
                 className={cn(
-                  'btn-press rounded-l-md border border-secondary-dark-gray/80 px-1 py-0.5 transition-colors',
+                  'btn-press rbn:rounded-l-md rbn:border rbn:border-secondary-dark-gray/80 rbn:px-1 rbn:py-0.5 rbn:transition-colors',
                   canGoPrev
-                    ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
-                    : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                    ? 'rbn:bg-primary-dark-gray rbn:text-primary-white rbn:hover:bg-primary-blue/80'
+                    : 'rbn:bg-secondary-black rbn:text-secondary-dark-gray rbn:pointer-events-none',
                   theme?.timeline?.navButton,
                 )}
                 title='Go to first step'
               >
-                <ChevronsLeft className='h-3.5 w-3.5' />
+                <ChevronsLeft className='rbn:h-3.5 rbn:w-3.5' />
               </button>
               {/* Previous step */}
               <button
@@ -366,15 +367,15 @@ function ExecutionTimeline({
                 disabled={!canGoPrev}
                 onClick={goToPrevStep}
                 className={cn(
-                  'btn-press border border-l-0 border-secondary-dark-gray/80 px-1 py-0.5 transition-colors',
+                  'btn-press rbn:border rbn:border-l-0 rbn:border-secondary-dark-gray/80 rbn:px-1 rbn:py-0.5 rbn:transition-colors',
                   canGoPrev
-                    ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
-                    : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                    ? 'rbn:bg-primary-dark-gray rbn:text-primary-white rbn:hover:bg-primary-blue/80'
+                    : 'rbn:bg-secondary-black rbn:text-secondary-dark-gray rbn:pointer-events-none',
                   theme?.timeline?.navButton,
                 )}
                 title='Previous step'
               >
-                <ChevronLeft className='h-3.5 w-3.5' />
+                <ChevronLeft className='rbn:h-3.5 rbn:w-3.5' />
               </button>
               {/* Autoplay toggle */}
               <button
@@ -382,20 +383,20 @@ function ExecutionTimeline({
                 disabled={!record || record.steps.length === 0}
                 onClick={toggleAutoplay}
                 className={cn(
-                  'btn-press border border-l-0 border-secondary-dark-gray/80 px-1.5 py-0.5 transition-colors',
+                  'btn-press rbn:border rbn:border-l-0 rbn:border-secondary-dark-gray/80 rbn:px-1.5 rbn:py-0.5 rbn:transition-colors',
                   isAutoplaying
-                    ? 'bg-primary-blue text-white hover:bg-primary-blue/80'
+                    ? 'rbn:bg-primary-blue rbn:text-white rbn:hover:bg-primary-blue/80'
                     : record && record.steps.length > 0
-                      ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
-                      : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                      ? 'rbn:bg-primary-dark-gray rbn:text-primary-white rbn:hover:bg-primary-blue/80'
+                      : 'rbn:bg-secondary-black rbn:text-secondary-dark-gray rbn:pointer-events-none',
                   theme?.timeline?.navButton,
                 )}
                 title={isAutoplaying ? 'Stop autoplay' : 'Autoplay'}
               >
                 {isAutoplaying ? (
-                  <Square className='h-3 w-3' />
+                  <Square className='rbn:h-3 rbn:w-3' />
                 ) : (
-                  <Play className='h-3.5 w-3.5' />
+                  <Play className='rbn:h-3.5 rbn:w-3.5' />
                 )}
               </button>
               {/* Next step */}
@@ -404,15 +405,15 @@ function ExecutionTimeline({
                 disabled={!canGoNext}
                 onClick={goToNextStep}
                 className={cn(
-                  'btn-press border border-l-0 border-secondary-dark-gray/80 px-1 py-0.5 transition-colors',
+                  'btn-press rbn:border rbn:border-l-0 rbn:border-secondary-dark-gray/80 rbn:px-1 rbn:py-0.5 rbn:transition-colors',
                   canGoNext
-                    ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
-                    : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                    ? 'rbn:bg-primary-dark-gray rbn:text-primary-white rbn:hover:bg-primary-blue/80'
+                    : 'rbn:bg-secondary-black rbn:text-secondary-dark-gray rbn:pointer-events-none',
                   theme?.timeline?.navButton,
                 )}
                 title='Next step'
               >
-                <ChevronRight className='h-3.5 w-3.5' />
+                <ChevronRight className='rbn:h-3.5 rbn:w-3.5' />
               </button>
               {/* Go to end */}
               <button
@@ -420,21 +421,21 @@ function ExecutionTimeline({
                 disabled={!canGoNext}
                 onClick={goToEnd}
                 className={cn(
-                  'btn-press rounded-r-md border border-l-0 border-secondary-dark-gray/80 px-1 py-0.5 transition-colors',
+                  'btn-press rbn:rounded-r-md rbn:border rbn:border-l-0 rbn:border-secondary-dark-gray/80 rbn:px-1 rbn:py-0.5 rbn:transition-colors',
                   canGoNext
-                    ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
-                    : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                    ? 'rbn:bg-primary-dark-gray rbn:text-primary-white rbn:hover:bg-primary-blue/80'
+                    : 'rbn:bg-secondary-black rbn:text-secondary-dark-gray rbn:pointer-events-none',
                   theme?.timeline?.navButton,
                 )}
                 title='Go to last step'
               >
-                <ChevronsRight className='h-3.5 w-3.5' />
+                <ChevronsRight className='rbn:h-3.5 rbn:w-3.5' />
               </button>
             </div>
 
             {/* Step over / step out — replay jumps over the instancePath depth
                 of the flat step list (group-aware debugger navigation). */}
-            <div className='flex items-center'>
+            <div className='rbn:flex rbn:items-center'>
               <button
                 type='button'
                 data-testid='timeline-step-over'
@@ -444,15 +445,15 @@ function ExecutionTimeline({
                   stepOverTargetIndex !== null && onScrubTo(stepOverTargetIndex)
                 }
                 className={cn(
-                  'btn-press rounded-l-md border border-secondary-dark-gray/80 px-1 py-0.5 transition-colors',
+                  'btn-press rbn:rounded-l-md rbn:border rbn:border-secondary-dark-gray/80 rbn:px-1 rbn:py-0.5 rbn:transition-colors',
                   stepOverTargetIndex !== null
-                    ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
-                    : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                    ? 'rbn:bg-primary-dark-gray rbn:text-primary-white rbn:hover:bg-primary-blue/80'
+                    : 'rbn:bg-secondary-black rbn:text-secondary-dark-gray rbn:pointer-events-none',
                   theme?.timeline?.navButton,
                 )}
                 title='Step over (skip past the group/structure the next step descends into)'
               >
-                <CornerDownRight className='h-3.5 w-3.5' />
+                <CornerDownRight className='rbn:h-3.5 rbn:w-3.5' />
               </button>
               <button
                 type='button'
@@ -463,21 +464,21 @@ function ExecutionTimeline({
                   stepOutTargetIndex !== null && onScrubTo(stepOutTargetIndex)
                 }
                 className={cn(
-                  'btn-press rounded-r-md border border-l-0 border-secondary-dark-gray/80 px-1 py-0.5 transition-colors',
+                  'btn-press rbn:rounded-r-md rbn:border rbn:border-l-0 rbn:border-secondary-dark-gray/80 rbn:px-1 rbn:py-0.5 rbn:transition-colors',
                   stepOutTargetIndex !== null
-                    ? 'bg-primary-dark-gray text-primary-white hover:bg-primary-blue/80'
-                    : 'bg-secondary-black text-secondary-dark-gray pointer-events-none',
+                    ? 'rbn:bg-primary-dark-gray rbn:text-primary-white rbn:hover:bg-primary-blue/80'
+                    : 'rbn:bg-secondary-black rbn:text-secondary-dark-gray rbn:pointer-events-none',
                   theme?.timeline?.navButton,
                 )}
                 title='Step out (jump to the first step after the enclosing group scope)'
               >
-                <CornerRightUp className='h-3.5 w-3.5' />
+                <CornerRightUp className='rbn:h-3.5 rbn:w-3.5' />
               </button>
             </div>
 
             {/* Autoplay interval (moves into the ⋯ menu below `@max-[832px]`) */}
             <Tooltip
-              className='@max-[832px]/runnerpanel:hidden'
+              className='rbn:@max-[832px]/runnerpanel:hidden'
               content='Seconds between each step during autoplay. Drag or click to adjust (0.5s–30s).'
             >
               <SliderNumberInput
@@ -493,58 +494,61 @@ function ExecutionTimeline({
 
             {/* Auto-scroll toggle (moves into the ⋯ menu below `@max-[832px]`) */}
             <Tooltip
-              className='@max-[832px]/runnerpanel:hidden'
+              className='rbn:@max-[832px]/runnerpanel:hidden'
               content='Automatically scroll the timeline and canvas to follow the selected step'
             >
-              <label className='flex cursor-pointer items-center gap-1 text-[12px] text-secondary-light-gray select-none'>
+              <label className='rbn:flex rbn:cursor-pointer rbn:items-center rbn:gap-1 rbn:text-[12px] rbn:text-secondary-light-gray rbn:select-none'>
                 <input
                   type='checkbox'
                   checked={autoScroll}
                   onChange={(e) => setAutoScroll(e.target.checked)}
-                  className='h-3 w-3 cursor-pointer rounded-sm accent-primary-blue'
+                  className='rbn:h-3 rbn:w-3 rbn:cursor-pointer rbn:rounded-sm rbn:accent-primary-blue'
                 />
-                <span className='text-primary-white'>Auto-scroll</span>
+                <span className='rbn:text-primary-white'>Auto-scroll</span>
               </label>
             </Tooltip>
 
             {/* Follow-into-groups toggle (only when the host provides it) */}
             {onFollowIntoGroupsChange && (
               <Tooltip
-                className='@max-[832px]/runnerpanel:hidden'
+                className='rbn:@max-[832px]/runnerpanel:hidden'
                 content='Open/close group scopes so the canvas follows the scrub head into the group instance that executed'
               >
-                <label className='flex cursor-pointer items-center gap-1 text-[12px] text-secondary-light-gray select-none'>
+                <label className='rbn:flex rbn:cursor-pointer rbn:items-center rbn:gap-1 rbn:text-[12px] rbn:text-secondary-light-gray rbn:select-none'>
                   <input
                     type='checkbox'
                     data-testid='follow-into-groups'
                     aria-label='Follow into groups'
-                    checked={followIntoGroups ?? true}
+                    checked={
+                      followIntoGroups ??
+                      DEFAULT_RUNNER_VIEW_PREFERENCES.followIntoGroups
+                    }
                     onChange={(e) => onFollowIntoGroupsChange(e.target.checked)}
-                    className='h-3 w-3 cursor-pointer rounded-sm accent-primary-blue'
+                    className='rbn:h-3 rbn:w-3 rbn:cursor-pointer rbn:rounded-sm rbn:accent-primary-blue'
                   />
-                  <span className='text-primary-white'>Follow groups</span>
+                  <span className='rbn:text-primary-white'>Follow groups</span>
                 </label>
               </Tooltip>
             )}
           </div>
         </div>
 
-        <div className='flex items-center gap-3'>
+        <div className='rbn:flex rbn:items-center rbn:gap-3'>
           {/* Secondary controls collapse into the ⋯ menu below `@max-[832px]`. */}
-          <div className='flex items-center gap-3 @max-[832px]/runnerpanel:hidden'>
+          <div className='rbn:flex rbn:items-center rbn:gap-3 rbn:@max-[832px]/runnerpanel:hidden'>
             {/* Time mode toggle — only visible when pause data exists */}
             {hasPauseData && (
               <Tooltip
                 content={
-                  <div className='space-y-1.5 text-[12px] leading-relaxed text-primary-white'>
+                  <div className='rbn:space-y-1.5 rbn:text-[12px] rbn:leading-relaxed rbn:text-primary-white'>
                     <div>
-                      <span className='font-semibold'>Execution</span> — Shows
-                      only computation time with pauses removed. Best for
+                      <span className='rbn:font-semibold'>Execution</span> —
+                      Shows only computation time with pauses removed. Best for
                       step-by-step mode.
                     </div>
                     <div>
-                      <span className='font-semibold'>Wall Clock</span> — Shows
-                      real elapsed time including pauses between steps.
+                      <span className='rbn:font-semibold'>Wall Clock</span> —
+                      Shows real elapsed time including pauses between steps.
                     </div>
                   </div>
                 }
@@ -559,19 +563,19 @@ function ExecutionTimeline({
             )}
 
             {/* Duration / step count / compilation info */}
-            <div className='flex items-center gap-2 font-mono text-[12px] text-primary-white'>
+            <div className='rbn:flex rbn:items-center rbn:gap-2 rbn:font-mono rbn:text-[12px] rbn:text-primary-white'>
               <Tooltip content='Total execution duration'>
-                <span className='flex items-center gap-1'>
-                  <Timer className='h-3.5 w-3.5' />
-                  <span className='tabular-nums'>
+                <span className='rbn:flex rbn:items-center rbn:gap-1'>
+                  <Timer className='rbn:h-3.5 rbn:w-3.5' />
+                  <span className='rbn:tabular-nums'>
                     {adjustedTotalDuration.toFixed(2)}ms
                   </span>
                 </span>
               </Tooltip>
               <span>&middot;</span>
               <Tooltip content='Total number of executed steps'>
-                <span className='flex items-center gap-1'>
-                  <Layers className='h-3.5 w-3.5' />
+                <span className='rbn:flex rbn:items-center rbn:gap-1'>
+                  <Layers className='rbn:h-3.5 rbn:w-3.5' />
                   <span>{record.steps.length} steps</span>
                 </span>
               </Tooltip>
@@ -579,8 +583,8 @@ function ExecutionTimeline({
                 <>
                   <span>&middot;</span>
                   <Tooltip content='JIT warmup time — absorbed before execution to ensure accurate step timings'>
-                    <span className='flex items-center gap-1'>
-                      <Zap className='h-3.5 w-3.5' />
+                    <span className='rbn:flex rbn:items-center rbn:gap-1'>
+                      <Zap className='rbn:h-3.5 rbn:w-3.5' />
                       <span>JIT {record.warmupDuration.toFixed(1)}ms</span>
                     </span>
                   </Tooltip>
@@ -593,34 +597,34 @@ function ExecutionTimeline({
               type='button'
               onClick={() => zoomBy(1.5)}
               className={cn(
-                'btn-press text-primary-white transition-colors hover:text-primary-blue',
+                'btn-press rbn:text-primary-white rbn:transition-colors rbn:hover:text-primary-blue',
                 theme?.timeline?.toolbarButton,
               )}
               title='Zoom In'
             >
-              <ZoomIn className='h-4 w-4' />
+              <ZoomIn className='rbn:h-4 rbn:w-4' />
             </button>
             <button
               type='button'
               onClick={() => zoomBy(1 / 1.5)}
               className={cn(
-                'btn-press text-primary-white transition-colors hover:text-primary-blue',
+                'btn-press rbn:text-primary-white rbn:transition-colors rbn:hover:text-primary-blue',
                 theme?.timeline?.toolbarButton,
               )}
               title='Zoom Out'
             >
-              <ZoomOut className='h-4 w-4' />
+              <ZoomOut className='rbn:h-4 rbn:w-4' />
             </button>
             <button
               type='button'
               onClick={fitToView}
               className={cn(
-                'btn-press text-primary-white transition-colors hover:text-primary-blue',
+                'btn-press rbn:text-primary-white rbn:transition-colors rbn:hover:text-primary-blue',
                 theme?.timeline?.toolbarButton,
               )}
               title='Fit to View'
             >
-              <Maximize2 className='h-4 w-4' />
+              <Maximize2 className='rbn:h-4 rbn:w-4' />
             </button>
           </div>
           <TimelineToolbarOverflowMenu
@@ -637,32 +641,32 @@ function ExecutionTimeline({
             totalDurationMs={adjustedTotalDuration}
             stepCount={record.steps.length}
             warmupDurationMs={record.warmupDuration}
-            triggerClassName='@min-[832px]/runnerpanel:hidden'
+            triggerClassName='rbn:@min-[832px]/runnerpanel:hidden'
           />
         </div>
       </div>
 
       {/* Accordion body — padded container for the timeline box */}
       {!isCollapsed && (
-        <div className='min-h-0 flex-1 px-4 pb-4'>
+        <div className='rbn:min-h-0 rbn:flex-1 rbn:px-4 rbn:pb-4'>
           <div
             className={cn(
-              'flex h-full flex-col overflow-hidden rounded-md border border-runner-timeline-box-border bg-runner-timeline-box-bg',
+              'rbn:flex rbn:h-full rbn:flex-col rbn:overflow-hidden rbn:rounded-md rbn:border rbn:border-runner-timeline-box-border rbn:bg-runner-timeline-box-bg',
               theme?.timeline?.trackArea,
             )}
           >
             {/* Scrollable timeline content */}
             <div
               ref={scrollContainerRef}
-              className='timeline-scrollbar min-h-0 flex-1 overflow-x-auto overflow-y-auto'
+              className='timeline-scrollbar rbn:min-h-0 rbn:flex-1 rbn:overflow-x-auto rbn:overflow-y-auto'
               onMouseDown={handlePanStart}
             >
               <div
-                className='relative flex min-h-full flex-col'
+                className='rbn:relative rbn:flex rbn:min-h-full rbn:flex-col'
                 style={{ minWidth: `${contentWidth}px` }}
               >
                 {/* Sticky ruler + scrubber head — stays visible when scrolling down */}
-                <div className='sticky top-0 z-20'>
+                <div className='rbn:sticky rbn:top-0 rbn:z-20'>
                   <TimeRuler
                     timeScale={timeScale}
                     contentWidth={contentWidth}
@@ -672,14 +676,14 @@ function ExecutionTimeline({
 
                   {/* Scrubber head anchored in ruler — sticks with it */}
                   <div
-                    className='pointer-events-none absolute inset-y-0'
+                    className='rbn:pointer-events-none rbn:absolute rbn:inset-y-0'
                     style={{
                       left: `${scrubberPx}px`,
                       transition: isSnapping ? 'left 150ms ease-out' : 'none',
                     }}
                   >
                     <div
-                      className='pointer-events-auto absolute left-1/2 -translate-x-1/2 cursor-ew-resize'
+                      className='rbn:pointer-events-auto rbn:absolute rbn:left-1/2 rbn:-translate-x-1/2 rbn:cursor-ew-resize'
                       style={{ top: '2px' }}
                       onMouseDown={handleScrubberMouseDown}
                     >
@@ -694,7 +698,7 @@ function ExecutionTimeline({
                 {/* Tracks area with grid lines */}
                 <div
                   ref={tracksContainerRef}
-                  className='relative'
+                  className='rbn:relative'
                   style={{ minHeight: '120px' }}
                 >
                   <TimelineGrid
@@ -702,7 +706,7 @@ function ExecutionTimeline({
                     contentWidth={contentWidth}
                     totalDuration={totalDuration}
                   />
-                  <div className='pt-3'>
+                  <div className='rbn:pt-3'>
                     {segments.map((segment, segIdx) => {
                       if (segment.kind === 'flat') {
                         return (
@@ -803,7 +807,7 @@ function ExecutionTimeline({
 
                 {/* ── Full-height scrubber line overlay ── */}
                 <div
-                  className='pointer-events-none absolute inset-y-0 z-[15]'
+                  className='rbn:pointer-events-none rbn:absolute rbn:inset-y-0 rbn:z-[15]'
                   style={{
                     left: `${scrubberPx}px`,
                     transition: isSnapping ? 'left 150ms ease-out' : 'none',
@@ -812,13 +816,13 @@ function ExecutionTimeline({
                 >
                   {/* Invisible hit area for dragging */}
                   <div
-                    className='pointer-events-auto absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-1/2 cursor-ew-resize'
+                    className='rbn:pointer-events-auto rbn:absolute rbn:left-1/2 rbn:top-0 rbn:bottom-0 rbn:w-0.5 rbn:-translate-x-1/2 rbn:cursor-ew-resize'
                     onMouseDown={handleScrubberMouseDown}
                   />
 
                   {/* Vertical line */}
                   <div
-                    className='pointer-events-none absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2'
+                    className='rbn:pointer-events-none rbn:absolute rbn:left-1/2 rbn:top-0 rbn:bottom-0 rbn:w-px rbn:-translate-x-1/2'
                     style={{
                       backgroundColor: isDraggingScrubber
                         ? 'var(--color-timeline-scrubber-line-active)'

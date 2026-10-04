@@ -34,7 +34,7 @@ export const Playground: Story = {
   },
   render: (args) => (
     <Select {...args}>
-      <SelectTrigger className='w-[330px]'>
+      <SelectTrigger className='rbn:w-[330px]'>
         <SelectValue placeholder='Select a fruit' />
       </SelectTrigger>
       <SelectContent>
@@ -64,13 +64,13 @@ export const Controlled: Story = {
     };
 
     return (
-      <div className='space-y-4'>
-        <div className='text-primary-white text-sm'>
+      <div className='rbn:space-y-4'>
+        <div className='rbn:text-primary-white rbn:text-sm'>
           Selected value:{' '}
-          <span className='font-semibold'>{value || 'None'}</span>
+          <span className='rbn:font-semibold'>{value || 'None'}</span>
         </div>
         <Select value={value ?? ''} onValueChange={handleValueChange}>
-          <SelectTrigger className='w-[200px]'>
+          <SelectTrigger className='rbn:w-[200px]'>
             <SelectValue placeholder='Select a theme' />
           </SelectTrigger>
           <SelectContent>
@@ -90,16 +90,16 @@ export const WithDeselect: Story = {
     const [value, setValue] = useState<string | undefined>(undefined);
 
     return (
-      <div className='space-y-4'>
-        <div className='text-primary-white text-sm'>
+      <div className='rbn:space-y-4'>
+        <div className='rbn:text-primary-white rbn:text-sm'>
           Selected value:{' '}
-          <span className='font-semibold'>{value || 'None'}</span>
-          <span className='ml-2 text-[#6B6B6B]'>
+          <span className='rbn:font-semibold'>{value || 'None'}</span>
+          <span className='rbn:ml-2 rbn:text-[#6B6B6B]'>
             (click the selected item to deselect)
           </span>
         </div>
         <Select value={value ?? ''} onValueChange={setValue} allowDeselect>
-          <SelectTrigger className='w-[250px]'>
+          <SelectTrigger className='rbn:w-[250px]'>
             <SelectValue placeholder='Select a gate mode' />
           </SelectTrigger>
           <SelectContent>
@@ -122,16 +122,16 @@ export const WithUnsupportedValue: Story = {
     const [value, setValue] = useState<string | undefined>('INVALID_MODE');
 
     return (
-      <div className='space-y-4'>
-        <div className='text-primary-white text-sm'>
+      <div className='rbn:space-y-4'>
+        <div className='rbn:text-primary-white rbn:text-sm'>
           Selected value:{' '}
-          <span className='font-semibold'>{value || 'None'}</span>
-          <span className='ml-2 text-[#6B6B6B]'>
+          <span className='rbn:font-semibold'>{value || 'None'}</span>
+          <span className='rbn:ml-2 rbn:text-[#6B6B6B]'>
             (value is not in the allowed list — shows red unsupported state)
           </span>
         </div>
         <Select value={value ?? ''} onValueChange={setValue} allowDeselect>
-          <SelectTrigger className='w-[300px]'>
+          <SelectTrigger className='rbn:w-[300px]'>
             <SelectValue
               placeholder='Select a mode'
               unsupportedLabel='unsupported'
@@ -155,7 +155,7 @@ export const WithGroups: Story = {
   },
   render: (args) => (
     <Select {...args}>
-      <SelectTrigger className='w-[280px]'>
+      <SelectTrigger className='rbn:w-[280px]'>
         <SelectValue placeholder='Select a timezone' />
       </SelectTrigger>
       <SelectContent>
@@ -189,7 +189,7 @@ export const WithSeparators: Story = {
   },
   render: (args) => (
     <Select {...args}>
-      <SelectTrigger className='w-[200px]'>
+      <SelectTrigger className='rbn:w-[200px]'>
         <SelectValue placeholder='Select an action' />
       </SelectTrigger>
       <SelectContent>
@@ -214,7 +214,7 @@ export const Disabled: Story = {
   },
   render: (args) => (
     <Select {...args}>
-      <SelectTrigger className='w-[180px]'>
+      <SelectTrigger className='rbn:w-[180px]'>
         <SelectValue placeholder='Disabled select' />
       </SelectTrigger>
       <SelectContent>
@@ -236,7 +236,7 @@ export const WithDefaultValue: Story = {
   },
   render: (args) => (
     <Select {...args}>
-      <SelectTrigger className='w-[180px]'>
+      <SelectTrigger className='rbn:w-[180px]'>
         <SelectValue placeholder='Select a fruit' />
       </SelectTrigger>
       <SelectContent>
@@ -272,16 +272,17 @@ export const AdjustableParentWidth = {
     return (
       <div
         className={cn(
-          'flex flex-col gap-4 border-2',
-          parentBorder ? 'border-red-900' : 'border-transparent',
+          'rbn:flex rbn:flex-col rbn:gap-4 rbn:border-2',
+          parentBorder ? 'rbn:border-red-900' : 'rbn:border-transparent',
         )}
         style={{ width: parentWidth }}
       >
-        <div className='text-primary-white text-sm'>
-          Parent width: <span className='font-semibold'>{parentWidth}px</span>
+        <div className='rbn:text-primary-white rbn:text-sm'>
+          Parent width:{' '}
+          <span className='rbn:font-semibold'>{parentWidth}px</span>
         </div>
         <Select onValueChange={fn()}>
-          <SelectTrigger className='w-full'>
+          <SelectTrigger className='rbn:w-full'>
             <SelectValue placeholder='Select with full width' />
           </SelectTrigger>
           <SelectContent>

@@ -26,7 +26,9 @@ function getDragListItemByName(page: Page, name: string): Locator {
  * The handle is the last child div with touch-none class.
  */
 function getDragHandle(item: Locator): Locator {
-  return item.locator('.touch-none');
+  // Library utilities are namespaced `rbn:`; the colon must be escaped in a
+  // CSS selector, and the backslash again in a JS string.
+  return item.locator('.rbn\\:touch-none');
 }
 
 /**

@@ -25,7 +25,7 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <div className='relative w-full h-[700px] bg-primary-black overflow-hidden'>
+      <div className='rbn:relative rbn:w-full rbn:h-[700px] rbn:bg-primary-black rbn:overflow-hidden'>
         <Story />
       </div>
     ),
@@ -55,12 +55,12 @@ function GraphInputTemplate() {
 
   return (
     <>
-      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+      <Button size='small' onClick={() => setIsOpen(true)} className='rbn:m-4'>
         Edit Graph Input
       </Button>
-      <div className='absolute top-0 right-0 m-4 text-primary-white text-xs font-main'>
-        <div className='font-medium mb-1'>runGraph signature:</div>
-        <div className='text-secondary-light-gray'>
+      <div className='rbn:absolute rbn:top-0 rbn:right-0 rbn:m-4 rbn:text-primary-white rbn:text-xs rbn:font-main'>
+        <div className='rbn:font-medium rbn:mb-1'>runGraph signature:</div>
+        <div className='rbn:text-secondary-light-gray'>
           runGraph({handles.map((h) => h.name).join(', ')})
         </div>
       </div>
@@ -92,12 +92,12 @@ function GraphOutputTemplate() {
 
   return (
     <>
-      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+      <Button size='small' onClick={() => setIsOpen(true)} className='rbn:m-4'>
         Edit Graph Output
       </Button>
-      <div className='absolute top-0 right-0 m-4 text-primary-white text-xs font-main'>
-        <div className='font-medium mb-1'>runGraph returns:</div>
-        <div className='text-secondary-light-gray'>
+      <div className='rbn:absolute rbn:top-0 rbn:right-0 rbn:m-4 rbn:text-primary-white rbn:text-xs rbn:font-main'>
+        <div className='rbn:font-medium rbn:mb-1'>runGraph returns:</div>
+        <div className='rbn:text-secondary-light-gray'>
           {`{ ${handles.map((h) => `${h.name}: …`).join(', ')} }`}
         </div>
       </div>
@@ -126,7 +126,7 @@ function EmptyGraphInputTemplate() {
 
   return (
     <>
-      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+      <Button size='small' onClick={() => setIsOpen(true)} className='rbn:m-4'>
         Edit Empty Graph Input
       </Button>
       <GraphIOEditDrawer
@@ -203,7 +203,7 @@ function GraphOutputWithReviewTemplate() {
 
   return (
     <>
-      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+      <Button size='small' onClick={() => setIsOpen(true)} className='rbn:m-4'>
         Edit Graph Output (with deletion review)
       </Button>
       <GraphIOEditDrawer
@@ -257,7 +257,7 @@ function ShapedGraphInputTemplate() {
 
   return (
     <>
-      <Button size='small' onClick={() => setIsOpen(true)} className='m-4'>
+      <Button size='small' onClick={() => setIsOpen(true)} className='rbn:m-4'>
         Edit Shaped Graph Input
       </Button>
       <GraphIOEditDrawer

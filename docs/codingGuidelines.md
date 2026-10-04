@@ -634,8 +634,10 @@ prop types from the parent's props type.
 **`&&` for show/hide:**
 
 ```typescript
-{!isRunnerPanelOpen && (
-  <button onClick={() => setIsRunnerPanelOpen(true)}>Runner</button>
+{drawer.icon !== undefined && (
+  <span className='flex h-3.5 w-3.5 shrink-0 items-center justify-center'>
+    {drawer.icon}
+  </span>
 )}
 ```
 

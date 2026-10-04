@@ -54,7 +54,7 @@ function BasicTemplate() {
           value=''
           onChange={() => {}}
           allowOnlyNumbers={false}
-          className='w-full'
+          className='rbn:w-full'
         />
       </PresetModal>
     </>
@@ -77,7 +77,7 @@ function WithCustomHeaderFooterTemplate() {
         open={open}
         onOpenChange={setOpen}
         header={
-          <ModalHeader className='bg-primary-dark-gray'>
+          <ModalHeader className='rbn:bg-primary-dark-gray'>
             <ModalTitle>Custom Header</ModalTitle>
           </ModalHeader>
         }
@@ -91,7 +91,7 @@ function WithCustomHeaderFooterTemplate() {
           </ModalFooter>
         }
       >
-        <p className='text-primary-white text-sm'>
+        <p className='rbn:text-primary-white rbn:text-sm'>
           This modal has custom header and footer JSX overrides.
         </p>
       </PresetModal>
@@ -125,7 +125,7 @@ function ConfirmationTemplate() {
           },
           {
             children: 'Delete',
-            className: 'bg-red-900 border-red-700 hover:bg-red-800',
+            className: 'rbn:bg-red-900 rbn:border-red-700 rbn:hover:bg-red-800',
             onClick: () => setOpen(false),
           },
         ]}
@@ -144,7 +144,7 @@ function FooterAlignmentTemplate() {
 
   return (
     <>
-      <div className='flex gap-2'>
+      <div className='rbn:flex rbn:gap-2'>
         {(['left', 'center', 'right'] as const).map((a) => (
           <Button
             key={a}
@@ -177,7 +177,7 @@ function FooterAlignmentTemplate() {
           },
         ]}
       >
-        <p className='text-primary-white text-sm'>
+        <p className='rbn:text-primary-white rbn:text-sm'>
           The footer buttons are aligned to the {align}.
         </p>
       </PresetModal>

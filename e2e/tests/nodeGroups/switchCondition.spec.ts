@@ -3,6 +3,7 @@ import { navigateToStory } from '../../actions/graph/graphCanvas.actions';
 import {
   getHandleByName,
   getHandleByIndex,
+  getNodeTitle,
 } from '../../locators/node/node.locators';
 import { addBitInput } from '../../helpers/addNode';
 import { attemptConnectionByHandles } from '../../actions/node/connection.actions';
@@ -32,8 +33,7 @@ async function addSwitchViaContextMenu(
   let switchStartId = '';
   let switchEndId = '';
   for (const id of newIds) {
-    const node = page.locator(`.react-flow__node[data-id="${id}"]`);
-    const text = await node.locator('p').first().textContent();
+    const text = await getNodeTitle(page, id).textContent();
     if (text === 'Switch Start') switchStartId = id;
     if (text === 'Switch End') switchEndId = id;
   }

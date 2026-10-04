@@ -42,6 +42,9 @@ type Zone = {
   name: string;
   /** CSS color for the zone frame polygon and label. */
   color: string;
+  /** Optional in-app documentation, shown behind an ⓘ beside the zone's name
+   *  (user zones). */
+  description?: string;
   /**
    * Member node IDs. For SYSTEM zones this is recomputed on every edge change;
    * for USER zones it is AUTHORED (never recomputed).

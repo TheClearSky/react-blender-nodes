@@ -48,13 +48,13 @@ const FullGraphNodeGroupSelector = ({
   return (
     <div
       className={cn(
-        'absolute top-0 left-0 scale-75 origin-top-left flex items-center gap-3 m-2 max-w-full',
+        'rbn:absolute rbn:top-0 rbn:left-0 rbn:scale-75 rbn:origin-top-left rbn:flex rbn:items-center rbn:gap-3 rbn:m-2 rbn:max-w-full',
         theme?.breadcrumbs?.container,
       )}
     >
       <Button
         className={cn(
-          'h-[44px] border-secondary-dark-gray bg-primary-black shrink-0',
+          'rbn:h-[44px] rbn:border-secondary-dark-gray rbn:bg-primary-black rbn:shrink-0',
           theme?.breadcrumbs?.backButton,
         )}
         disabled={!enableBackButton}
@@ -62,11 +62,11 @@ const FullGraphNodeGroupSelector = ({
       >
         <ArrowLeftIcon />
       </Button>
-      <div className='shrink-0 relative'>
+      <div className='rbn:shrink-0 rbn:relative'>
         <Select value={value} onValueChange={handleChange} renderInline>
           <SelectTrigger
             className={cn(
-              'hover:bg-primary-dark-gray w-fit',
+              'rbn:hover:bg-primary-dark-gray rbn:w-fit',
               theme?.select?.trigger,
               theme?.breadcrumbs?.selectTrigger,
             )}
@@ -75,18 +75,18 @@ const FullGraphNodeGroupSelector = ({
           </SelectTrigger>
           <SelectContent
             className={cn(
-              'w-[420px]',
+              'rbn:w-[420px]',
               theme?.select?.content,
               theme?.breadcrumbs?.selectContent,
             )}
           >
             <SelectItem
               value={ADD_NEW_GROUP_VALUE}
-              className={cn('pl-2', theme?.select?.item)}
+              className={cn('rbn:pl-2', theme?.select?.item)}
             >
-              <div className='flex items-center gap-2'>
-                <PlusIcon className='shrink-0' />
-                <span className='truncate'>Add New Node Group</span>
+              <div className='rbn:flex rbn:items-center rbn:gap-2'>
+                <PlusIcon className='rbn:shrink-0' />
+                <span className='rbn:truncate'>Add New Node Group</span>
               </div>
             </SelectItem>
             {nodeGroups.map((nodeGroup) => (
@@ -103,30 +103,33 @@ const FullGraphNodeGroupSelector = ({
       </div>
       <ScrollableButtonContainer
         orientation='horizontal'
-        className='relative flex-1 min-w-0'
+        className='rbn:relative rbn:flex-1 rbn:min-w-0'
         scrollAreaClassName={cn(
-          'text-[27px] leading-[27px] font-main whitespace-nowrap text-primary-white flex gap-2 items-center overflow-x-scroll no-scrollbar overflow-y-hidden',
+          'rbn:text-[27px] rbn:leading-[27px] rbn:font-main rbn:whitespace-nowrap rbn:text-primary-white rbn:flex rbn:gap-2 rbn:items-center rbn:overflow-x-scroll rbn:no-scrollbar rbn:overflow-y-hidden',
           theme?.breadcrumbs?.list,
         )}
       >
         {openedNodeGroupStack.map((nodeGroup, idx) => (
           <div
             key={nodeGroup.id}
-            className={cn('flex items-center gap-2', theme?.breadcrumbs?.item)}
+            className={cn(
+              'rbn:flex rbn:items-center rbn:gap-2',
+              theme?.breadcrumbs?.item,
+            )}
           >
             <div>{nodeGroup.name}</div>
             {idx < openedNodeGroupStack.length - 1 ? (
-              <ChevronRight className='shrink-0' />
+              <ChevronRight className='rbn:shrink-0' />
             ) : (
               onEditNodeType && (
                 <Button
                   className={cn(
-                    'bg-transparent border-none hover:bg-primary-gray shrink-0 h-[44px] w-[44px] p-0 flex items-center justify-center',
+                    'rbn:bg-transparent rbn:border-none rbn:hover:bg-primary-gray rbn:shrink-0 rbn:h-[44px] rbn:w-[44px] rbn:p-0 rbn:flex rbn:items-center rbn:justify-center',
                     theme?.breadcrumbs?.editButton,
                   )}
                   onClick={() => onEditNodeType(nodeGroup.nodeType)}
                 >
-                  <Pencil className='w-6 h-6' />
+                  <Pencil className='rbn:w-6 rbn:h-6' />
                 </Button>
               )
             )}

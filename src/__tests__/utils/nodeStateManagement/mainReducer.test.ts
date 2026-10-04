@@ -909,6 +909,46 @@ describe('REPLACE_STATE', () => {
     expect(next.typeOfNodes).toEqual(replacement.typeOfNodes);
     expect(next.nodes).toEqual(replacement.nodes);
   });
+
+  // A tabbed consumer restores a tab's in-memory state on switch-back; its
+  // undo/redo must come with it, but an import must never inherit a history
+  // that does not describe it.
+  const withHistory = (): State<TestDataTypeId, TestNodeTypeId> => ({
+    ...createTestState(),
+    history: {
+      undoStack: [
+        {
+          patches: [{ op: 'replace', path: ['viewport', 'zoom'], value: 2 }],
+          inversePatches: [
+            { op: 'replace', path: ['viewport', 'zoom'], value: 1 },
+          ],
+          actionType: 'SET_VIEWPORT',
+          timestamp: 1,
+        },
+      ],
+      redoStack: [],
+      config: {},
+      activeBatch: null,
+    },
+  });
+
+  it('drops the payload history by default (import)', () => {
+    const next = mainReducer(createTestState(), {
+      type: actionTypesMap.REPLACE_STATE,
+      payload: { state: withHistory() },
+    });
+    expect(next.history).toBeUndefined();
+  });
+
+  it('keeps the payload history with preserveHistory (restoring a session)', () => {
+    const replacement = withHistory();
+    const next = mainReducer(createTestState(), {
+      type: actionTypesMap.REPLACE_STATE,
+      payload: { state: replacement, preserveHistory: true },
+    });
+    expect(next.history?.undoStack).toHaveLength(1);
+    expect(next.history?.undoStack[0].actionType).toBe('SET_VIEWPORT');
+  });
 });
 
 // ====================================================================

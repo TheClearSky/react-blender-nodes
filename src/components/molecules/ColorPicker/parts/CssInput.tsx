@@ -52,11 +52,13 @@ function ColorPickerCssInput({
         }
       }}
       className={cn(
-        'rounded-md text-primary-white bg-primary-black font-mono',
-        'outline-none focus-visible:outline-none',
-        'border w-full placeholder:text-graph-input-placeholder',
-        error ? 'border-red-500' : 'border-secondary-dark-gray',
-        isSmall ? 'h-[28px] px-2.5 text-[13px]' : 'h-[44px] px-4 text-[22px]',
+        'rbn:rounded-md rbn:text-primary-white rbn:bg-primary-black rbn:font-mono',
+        'rbn:outline-none rbn:focus-visible:outline-none',
+        'rbn:border rbn:w-full rbn:placeholder:text-graph-input-placeholder',
+        error ? 'rbn:border-red-500' : 'rbn:border-secondary-dark-gray',
+        isSmall
+          ? 'rbn:h-[28px] rbn:px-2.5 rbn:text-[13px]'
+          : 'rbn:h-[44px] rbn:px-4 rbn:text-[22px]',
         className,
       )}
     />

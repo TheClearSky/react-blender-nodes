@@ -1,14 +1,14 @@
-import type { Page, Locator } from '@playwright/test';
+﻿import type { Page, Locator } from '@playwright/test';
 
 /**
  * Locators for the runner toolbar (RunControls) and max-loop input.
  *
  * The toolbar is the top bar of the runner drawer and carries the tailwind
- * class `bg-runner-toolbar-bg` — a custom theme color that is stable across
+ * class `bg-runner-toolbar-bg` â€” a custom theme color that is stable across
  * style refactors of content inside the toolbar.
  */
 
-const TOOLBAR_SELECTOR = '.bg-runner-toolbar-bg';
+const TOOLBAR_SELECTOR = '.rbn\\:bg-runner-toolbar-bg';
 
 function getRunnerToolbar(page: Page): Locator {
   return page.locator(TOOLBAR_SELECTOR);
@@ -29,9 +29,9 @@ function getRunnerStateLabel(page: Page): Locator {
     .first();
 }
 
-// ─────────────────────────────────────────────────────
-// Action buttons — each carries a title="<verb>" attribute
-// ─────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Action buttons â€” each carries a title="<verb>" attribute
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getRunButton(page: Page): Locator {
   // The run button carries title="Run" (no active target) or
@@ -57,9 +57,9 @@ function getResetButton(page: Page): Locator {
   return getRunnerToolbar(page).locator('button[title="Reset"]');
 }
 
-// ─────────────────────────────────────────────────────
-// Mode toggle — two buttons with exact text
-// ─────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Mode toggle â€” two buttons with exact text
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getModeToggleInstant(page: Page): Locator {
   return getRunnerToolbar(page).getByRole('button', {
@@ -75,9 +75,9 @@ function getModeToggleStepByStep(page: Page): Locator {
   });
 }
 
-// ─────────────────────────────────────────────────────
-// Max loop iterations — slider-style number input
-// ─────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Max loop iterations â€” slider-style number input
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getMaxLoopsDecrementButton(page: Page): Locator {
   return getRunnerToolbar(page).locator(
@@ -92,7 +92,7 @@ function getMaxLoopsIncrementButton(page: Page): Locator {
 }
 
 /**
- * The display button that reads "Max Loops N". Has no aria-label — the
+ * The display button that reads "Max Loops N". Has no aria-label â€” the
  * accessible name is built from its two inner spans (label + value), so we
  * locate it by role + name regex.
  */

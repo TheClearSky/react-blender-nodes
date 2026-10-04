@@ -31,20 +31,20 @@ type ButtonToggleProps<T extends string> = {
 
 const sizeConfig = {
   small: {
-    wrapper: 'rounded-sm border border-secondary-dark-gray/80',
-    button: 'px-2.5 py-0.5 text-[12px]',
-    divider: 'border-l border-secondary-dark-gray/50',
-    activeBg: 'bg-primary-blue text-white',
+    wrapper: 'rbn:rounded-sm rbn:border rbn:border-secondary-dark-gray/80',
+    button: 'rbn:px-2.5 rbn:py-0.5 rbn:text-[12px]',
+    divider: 'rbn:border-l rbn:border-secondary-dark-gray/50',
+    activeBg: 'rbn:bg-primary-blue rbn:text-white',
     inactiveBg:
-      'bg-graph-toggle-track-bg text-secondary-light-gray hover:bg-primary-dark-gray hover:text-primary-white',
+      'rbn:bg-graph-toggle-track-bg rbn:text-secondary-light-gray rbn:hover:bg-primary-dark-gray rbn:hover:text-primary-white',
   },
   normal: {
     wrapper:
-      'rounded-md border border-runner-timeline-box-border bg-runner-inset-bg p-[3px]',
-    button: 'rounded px-3.5 py-1 text-[13px]',
+      'rbn:rounded-md rbn:border rbn:border-runner-timeline-box-border rbn:bg-runner-inset-bg rbn:p-[3px]',
+    button: 'rbn:rounded rbn:px-3.5 rbn:py-1 rbn:text-[13px]',
     divider: '',
-    activeBg: 'bg-primary-blue text-white',
-    inactiveBg: 'bg-graph-toggle-track-bg text-secondary-light-gray',
+    activeBg: 'rbn:bg-primary-blue rbn:text-white',
+    inactiveBg: 'rbn:bg-graph-toggle-track-bg rbn:text-secondary-light-gray',
   },
 } as const;
 
@@ -68,8 +68,8 @@ function ButtonToggle<T extends string>({
   return (
     <div
       className={cn(
-        'flex overflow-hidden',
-        fullWidth && 'w-full',
+        'rbn:flex rbn:overflow-hidden',
+        fullWidth && 'rbn:w-full',
         cfg.wrapper,
         className,
       )}
@@ -81,21 +81,22 @@ function ButtonToggle<T extends string>({
           onClick={() => onChange(option.value)}
           disabled={disabled}
           className={cn(
-            'btn-press font-medium transition-all duration-100',
+            'btn-press rbn:font-medium rbn:transition-all rbn:duration-100',
             cfg.button,
             // fullWidth: equal segments, single-line labels (tighter padding so a
             // long label like "Step-by-Step" doesn't wrap). After cfg.button so
             // the px override wins.
-            fullWidth && 'flex-1 whitespace-nowrap px-1 text-center',
+            fullWidth &&
+              'rbn:flex-1 rbn:whitespace-nowrap rbn:px-1 rbn:text-center',
             idx > 0 && cfg.divider,
             value === option.value ? cfg.activeBg : cfg.inactiveBg,
             disabled &&
               value !== option.value &&
-              'cursor-not-allowed opacity-50',
+              'rbn:cursor-not-allowed rbn:opacity-50',
             !disabled &&
               value !== option.value &&
               size === 'normal' &&
-              'hover:text-primary-white',
+              'rbn:hover:text-primary-white',
             // Theme overrides LAST so they win per-property over EVERY default
             // above (incl. the size==='normal' hover:text-primary-white).
             value === option.value ? activeClassName : inactiveClassName,

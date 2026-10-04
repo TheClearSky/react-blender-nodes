@@ -156,15 +156,15 @@ function ColorPickerArea({
     <div
       ref={containerRef}
       className={cn(
-        'relative cursor-crosshair select-none touch-none overflow-hidden rounded-sm',
+        'rbn:relative rbn:cursor-crosshair rbn:select-none rbn:touch-none rbn:overflow-hidden rbn:rounded-sm',
         className,
       )}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
     >
-      <canvas ref={canvasRef} className='block w-full h-full' />
+      <canvas ref={canvasRef} className='rbn:block rbn:w-full rbn:h-full' />
       <div
-        className='absolute w-3.5 h-3.5 rounded-full border-2 border-white shadow-[0_0_0_1.5px_rgba(0,0,0,0.6)] pointer-events-none -translate-x-1/2 -translate-y-1/2'
+        className='rbn:absolute rbn:w-3.5 rbn:h-3.5 rbn:rounded-full rbn:border-2 rbn:border-white rbn:shadow-[0_0_0_1.5px_rgba(0,0,0,0.6)] rbn:pointer-events-none rbn:-translate-x-1/2 rbn:-translate-y-1/2'
         style={{
           left: `${beadX * 100}%`,
           top: `${beadY * 100}%`,

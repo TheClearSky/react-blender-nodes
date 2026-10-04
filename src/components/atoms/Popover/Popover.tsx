@@ -31,6 +31,8 @@ type PopoverProps = {
   triggerClassName?: string;
   /** Classes merged onto the floating content surface. */
   contentClassName?: string;
+  /** Called when the popover opens or closes (e.g. commit a draft on close). */
+  onOpenChange?: (open: boolean) => void;
 };
 
 /**
@@ -67,8 +69,13 @@ function Popover({
   placement = 'top-end',
   triggerClassName,
   contentClassName,
+  onOpenChange,
 }: PopoverProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpenState] = useState(false);
+  const setIsOpen = (open: boolean) => {
+    setIsOpenState(open);
+    onOpenChange?.(open);
+  };
   const theme = useGraphTheme();
 
   const { refs, floatingStyles, context } = useFloating({
@@ -103,7 +110,7 @@ function Popover({
         aria-label={triggerLabel}
         {...getReferenceProps()}
         className={cn(
-          'btn-press flex shrink-0 items-center justify-center rounded p-1.5 text-secondary-light-gray transition-colors hover:bg-primary-dark-gray hover:text-primary-white',
+          'btn-press rbn:flex rbn:shrink-0 rbn:items-center rbn:justify-center rbn:rounded rbn:p-1.5 rbn:text-secondary-light-gray rbn:transition-colors rbn:hover:bg-primary-dark-gray rbn:hover:text-primary-white',
           triggerClassName,
         )}
       >
@@ -120,7 +127,7 @@ function Popover({
               data-slot='popover'
               style={transitionStyles}
               className={cn(
-                'flex min-w-[200px] flex-col gap-2 rounded-lg border border-secondary-dark-gray bg-graph-elevated-surface-bg p-2 shadow-lg',
+                'rbn:flex rbn:min-w-[200px] rbn:flex-col rbn:gap-2 rbn:rounded-lg rbn:border rbn:border-secondary-dark-gray rbn:bg-graph-elevated-surface-bg rbn:p-2 rbn:shadow-lg',
                 theme?.popover?.surface,
                 contentClassName,
               )}

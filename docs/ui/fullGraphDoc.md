@@ -121,13 +121,19 @@ FullGraph (outer)                          FullGraph.tsx › FullGraph
         |     +-- NodePreviewRegistryContext.Provider (nodePreviews)
         |           +-- InputComponentRegistryContext.Provider (inputComponents)
         |
-        +-- [conditional] RecordingViewStateProvider   RecordingViewStateProvider.tsx › RecordingViewStateProvider
-        |     +-- ErrorBoundary (runner)
-        |     +-- RunnerOverlay                        RunnerOverlay.tsx › RunnerOverlay
-        |           +-- useNodeRunner()    (compile, execute, replay, record)
-        |           +-- RunnerContext.Provider (nodeRunnerStates, selectedStepRecord,
-        |           |                            edgeValuesAnimated, nodePreviewValues)
-        |           +-- NodeRunnerPanel    (transport, timeline, inspector)
+        +-- BottomDrawerProvider (always)              BottomDrawerProvider.tsx › BottomDrawerProvider
+        |     |                                        (the ONE open-drawer id; runner + consumer drawers)
+        |     +-- [conditional] RecordingViewStateProvider   RecordingViewStateProvider.tsx › RecordingViewStateProvider
+        |     |     +-- ErrorBoundary (runner)
+        |     |     +-- RunnerOverlay                        RunnerOverlay.tsx › RunnerOverlay
+        |     |           +-- useNodeRunner()    (compile, execute, replay, record)
+        |     |           +-- RunnerContext.Provider (nodeRunnerStates, selectedStepRecord,
+        |     |           |                            edgeValuesAnimated, nodePreviewValues)
+        |     |           +-- NodeRunnerPanel    (transport, timeline, inspector; BottomDrawerShell chrome)
+        |     +-- ConsumerBottomDrawer × N                 ConsumerBottomDrawer.tsx › ConsumerBottomDrawer
+        |     |     +-- ErrorBoundary (drawer) > consumer `content`
+        |     +-- BottomDrawerButtons                      BottomDrawerButtons.tsx › BottomDrawerButtons
+        |           (floating open buttons while every drawer is closed)
         |
         +-- graphContent (shared between runner and non-runner modes)
         |     +-- ReactFlow               (core graph renderer; key=reactFlowKey)
@@ -239,9 +245,12 @@ FullGraph (outer)                          FullGraph.tsx › FullGraph
 |  |  |  | breadcrumb / edit    |  | LoopEditDrawer                | | | |
 |  |  |  +----------------------+  | SwitchEditDrawer              | | | |
 |  |  |                            +-------------------------------+ | | |
-|  |  |  +-- RunnerOverlay (conditional) -----------------------+   | | |
-|  |  |  | RecordingViewStateProvider + ErrorBoundary           |   | | |
-|  |  |  | useNodeRunner / RunnerContext / NodeRunnerPanel       |   | | |
+|  |  |  +-- BottomDrawerProvider (one open-drawer id) ----------+   | | |
+|  |  |  | RunnerOverlay (conditional):                          |   | | |
+|  |  |  |   RecordingViewStateProvider + ErrorBoundary          |   | | |
+|  |  |  |   useNodeRunner / RunnerContext / NodeRunnerPanel      |   | | |
+|  |  |  | ConsumerBottomDrawer × N (bottomDrawers prop)         |   | | |
+|  |  |  | BottomDrawerButtons (floating, all closed)            |   | | |
 |  |  |  +------------------------------------------------------+   | | |
 |  |  +--------------------------------------------------------------+ | |
 |  +--------------------------------------------------------------------+ |
@@ -315,6 +324,11 @@ Defined at `src/components/organisms/FullGraph/FullGraph.tsx` ›
 - Installs a `keydown` listener for undo/redo (gated by
   `enableUndoRedoShortcuts`)
 - Batches drag moves into a single undo entry via `BEGIN_BATCH` / `END_BATCH`
+- Wraps the runner block, the consumer `bottomDrawers` and the floating drawer
+  buttons in `BottomDrawerProvider`
+  (`src/components/organisms/FullGraph/BottomDrawerProvider.tsx` ›
+  `BottomDrawerProvider`) — the ONE open-drawer id behind "at most one bottom
+  drawer open at a time" (see [Bottom drawers](#bottom-drawers-bottomdrawers))
 - Conditionally wraps graph content in `RecordingViewStateProvider` →
   `ErrorBoundary` → `RunnerOverlay` when `functionImplementations` is provided
 - Renders `<FileInputElements />` plus the three edit drawers
@@ -338,8 +352,11 @@ Defined at `src/components/organisms/FullGraph/RunnerOverlay.tsx` ›
 - Provides `RunnerContext` with
   `{ nodeRunnerStates, selectedStepRecord, edgeValuesAnimated, nodePreviewValues }`
 - Renders `NodeRunnerPanel` with all runner controls, plus a "navigate to node"
-  callback (`setCenter`) and a floating "Runner" reopen button when the panel is
-  closed
+  callback (`setCenter`). The floating "Runner" reopen button is no longer
+  rendered here: it is one of the bottom-drawer buttons
+  (`src/components/organisms/FullGraph/BottomDrawerButtons.tsx` ›
+  `BottomDrawerButtons`), rendered by `FullGraph` beside any consumer drawers'
+  buttons while every drawer is closed
 - Exposes the execution-record getter and `loadRecord` to the parent via the
   `onExecutionRecordRef` / `loadRecordRef` refs (used by import/export); the
   record getter merges the current `viewState` (run mode, max loop iterations,
@@ -363,6 +380,7 @@ Defined at `src/components/organisms/FullGraph/FullGraph.tsx` ›
 | `executionRecord`          | `ExecutionRecord \| null`                      | No       | Controlled execution record. When provided, the runner uses it instead of internal state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `onExecutionRecordChange`  | `(record: ExecutionRecord \| null) => void`    | No       | Called whenever the record changes (run completes, reset, load, etc.)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `onRecorderWarning`        | `(warning: RecorderWarning) => void`           | No       | Recorder BOOKKEEPING diagnostics — the four `recorderWarningKinds` (`orphan-promoted`, `orphan-dropped`, `unclosed-scope`, `key-collision`). Never graph errors: they do not enter `record.errors`, and a run that emits them still produces a usable record; a healthy run emits none. Registering this SILENCES the recorder's dev-only `console.warn` fallback — you own the channel once you take it. Captured by ref at emit time, so a new inline function each render is safe, but the handler runs with the LATEST render's closure. Threaded through `RunnerOverlay` → `useNodeRunner` → the executor's run context. See `docs/runner/executionRecordingDoc.md` › Recorder warnings. |
+| `onRunEvent`               | `(event: RunEvent) => void`                    | No       | Run LIFECYCLE stream: `run:started` / `run:completed` / `run:aborted` / `run:reset`, the first three carrying a monotonic `runId`. Needed because `onExecutionRecordChange` is the controlled record SETTER — it fires identically for a run starting, a reset, a load and a run finishing, so it cannot tell them apart. `run:started` is emitted SYNCHRONOUSLY before the run's first `await`, so a consumer can snapshot the exact graph a run consumed and stamp it on the matching `run:completed`. See `docs/runner/runnerHookDoc.md` › Run lifecycle events                                                                                                                            |
 | `onGraphEvent`             | `(event: GraphEvent<D,N,U,C>) => void`         | No       | Unified observability stream for UI-layer lifecycle events (see below)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `inputComponents`          | `InputComponentRegistry<D>`                    | No       | Registry of custom input components keyed by `DataTypeUniqueId` (for `unsupportedDirectly` types)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `nodePreviews`             | `NodePreviewRegistry<N>`                       | No       | Registry of per-node-type preview components keyed by `NodeTypeUniqueId`, rendered on top of the node (outside the status border) and fed live / at-step runner values (see [Node Previews](nodePreviewDoc.md))                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -370,12 +388,122 @@ Defined at `src/components/organisms/FullGraph/FullGraph.tsx` ›
 | `rootInputs`               | `Record<string, unknown>`                      | No       | Values seeded into the root Graph Input on run, keyed by handle **name** OR stable handle **id** (id is rename-proof). Mirrors codegen's `runGraph` params                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `allowRootIORename`        | `boolean`                                      | No       | Root I/O renames on connect (group parity) + editor rename. **Defaults to `true`** (behavior change — see Root I/O contract stability). `false` keeps names stable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `allowRootIOStructureEdit` | `boolean`                                      | No       | Root I/O grows a blank spare on connect + editor add/delete. **Defaults to `true`**. `false` freezes the root handle count                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `bottomDrawers`            | `ReadonlyArray<GraphBottomDrawer>`             | No       | Consumer bottom drawers rendered with the runner panel's chrome, each with a floating open button beside the runner's; at most ONE bottom drawer (runner included) is open at a time. Works with or without `functionImplementations`. Keep the array identity stable. See [Bottom drawers](#bottom-drawers-bottomdrawers)                                                                                                                                                                                                                                                                                                                                                                    |
 
 The four generic type parameters default to: `DataTypeUniqueId = string`,
 `NodeTypeUniqueId = string`, `UnderlyingType = SupportedUnderlyingTypes`, and
 `ComplexSchemaType = never` (it is only a `z.ZodType` when `UnderlyingType`
 extends `'complex'`). Consumers only supply them for stricter type safety;
 `useFullGraph<MyDataTypeId, MyNodeTypeId>(…)` is the common form.
+
+### Bottom drawers (`bottomDrawers`)
+
+The runner panel is a **bottom drawer**: a panel that slides up from the bottom
+of the graph, has a three-dot resize handle and a header row ending in a close
+`X`, and is reopened from a floating button at the bottom-centre of the canvas.
+`bottomDrawers` lets a consumer register drawers of its own with exactly that
+chrome — a value timeline, a console, a scratchpad — and the host applies one
+rule to all of them, the runner included: **at most one bottom drawer is open at
+a time**.
+
+```
+ FullGraph root (relative)
+ └─ BottomDrawerProvider                         openDrawerId: 'runner' | <id> | null
+     drawers = [runner?, ...bottomDrawers]       (runner first, only with functionImplementations)
+     │
+     ├─ RecordingViewStateProvider                isRunnerPanelOpen ≡ openDrawerId === 'runner'
+     │   └─ RunnerOverlay → NodeRunnerPanel ──► BottomDrawerShell  [handle][RunControls … (switchers) X][body]
+     │
+     ├─ ConsumerBottomDrawer × N ───────────────► BottomDrawerShell  [handle][icon Label … (switchers) X][content]
+     │
+     └─ BottomDrawerButtons                       openDrawerId === null → [▶ Runner] [〰 Timeline] … (floating)
+```
+
+- **Type.** `src/components/organisms/FullGraph/bottomDrawers.ts` ›
+  `GraphBottomDrawer` =
+  `{ id, label, icon?, title?, content, keepMounted?, defaultHeight? }`. `id`
+  must be unique and may not be `'runner'` (reserved — `RUNNER_DRAWER_ID`); a
+  reserved or duplicated id is dropped with a dev-only `console.error`
+  (`sanitizeBottomDrawers`). `label` is the button text, the drawer's header
+  title and the switcher label; `title` is the open button's tooltip (default
+  `Open <label>`); `icon` is optional (an SVG is sized to 14px).
+- **One open id.** `BottomDrawerProvider` owns `openDrawerId`. Opening any
+  drawer replaces it; the runner panel's `isRunnerPanelOpen` /
+  `setIsRunnerPanelOpen` are DERIVED views of it in `RecordingViewStateProvider`
+  (`setIsRunnerPanelOpen(false)` while a consumer drawer is open leaves that
+  drawer alone — `nextOpenDrawerIdForRunner`; the updater form is resolved by
+  `resolveRunnerOpenAction`). An id that is no longer registered reads as closed
+  (`resolveOpenDrawerId`) and is then forgotten, so re-registering that drawer
+  later does not pop it open. Removing a drawer from `bottomDrawers` while it is
+  open unmounts it at once (no exit slide).
+- **Switchers.** An open drawer's header carries one compact button per OTHER
+  drawer (`src/components/organisms/FullGraph/BottomDrawerSwitchers.tsx` ›
+  `BottomDrawerSwitchers`, `data-testid="bottom-drawer-switch-<id>"`), so the
+  user goes Runner → Timeline in one click. The floating buttons
+  (`data-testid="bottom-drawer-open-<id>"`) show only while everything is
+  closed. Switchers in the RUNNER's header share the row with `RunControls`,
+  whose wide layout needs ~672 px of the panel's 832 px breakpoint: one switcher
+  fits, two or more can crowd it between ~832 and ~900 px — keep labels short
+  (each switcher is capped at 9 rem and truncates).
+- **Shell.** `src/components/molecules/BottomDrawerShell/BottomDrawerShell.tsx`
+  › `BottomDrawerShell` is the runner panel's chrome extracted: clip wrapper,
+  `useSlideAnimation`, `useResizeHandle` (220 px, 80–600), header
+  `[header][headerActions][X]`, height-bound body. The runner panel renders
+  through it with `data-slot="runner-panel"` and its `@container/runnerpanel`
+  name unchanged; consumer drawers get `data-slot="bottom-drawer"` and
+  `data-drawer-id="<id>"`, and their `content` sits in a scrollable box inside
+  its own `ErrorBoundary`, whose FALLBACK renders
+  `data-slot="error-boundary-drawer"` (a "<label> error" message + Retry).
+- **Lifecycle (`keepMounted`, default `true`).** A consumer drawer's `content`
+  stays MOUNTED while closed — the shell hides the whole drawer with the
+  `hidden` attribute after the exit slide and parks it at the hidden transform
+  so the next open still animates — so zoom, scroll position, selection and
+  half-typed fields survive closing, reopening and switching to the runner and
+  back. Set `keepMounted: false` for heavy content that should release its
+  resources when closed; it then mounts on open and unmounts after the close
+  animation, exactly like the runner's own timeline (which always unmounts; its
+  state lives in context).
+- **`defaultHeight`.** Initial body height in px (clamped to the shell's 80–600;
+  the runner uses 220). The user can still drag the handle; the height persists
+  across open/close per drawer.
+- **Default open.** The runner opens by default when it is registered — at
+  mount, or later if `functionImplementations` arrives after mount while nothing
+  else is open (`BottomDrawerProvider`'s `defaultOpenDrawerId`); consumer
+  drawers start closed. A loaded recording whose `viewState.panelOpen` is `true`
+  opens the runner (closing a consumer drawer).
+- **Navigate-to-node offset.** The runner's "centre this node" callback offsets
+  for the RUNNER panel's height only; with a consumer drawer open instead (e.g.
+  follow-into-groups firing during a run while the timeline is open) the centred
+  node can land under that drawer. Known, deferred.
+- **Theme.** The `runnerPanel.container` / `resizeHandle` / `closeButton` slots
+  and `runnerToggleButton` style every bottom drawer and every floating button,
+  not only the runner's — one slot family, so a themed runner and a themed
+  consumer drawer match (see [Theming](themingDoc.md)).
+- **Identity.** Pass a module-level constant or a `useMemo`'d array, as with
+  `inputComponents`: the drawer chrome re-renders when the array changes.
+- **Uncontrolled, observable.** There is no `openDrawerId` prop yet; the open
+  drawer is internal state.
+  `onOpenDrawerChange?: (openDrawerId: string | null) => void` fires whenever it
+  changes (`'runner'` — the exported `RUNNER_DRAWER_ID` — a consumer id, or
+  `null` for all closed), not on mount.
+
+```tsx
+const bottomDrawers: GraphBottomDrawer[] = [
+  {
+    id: 'timeline',
+    label: 'Timeline',
+    icon: <Activity />,
+    content: <CurveTimeline />,
+  },
+];
+
+<FullGraph
+  state={state}
+  dispatch={dispatch}
+  functionImplementations={impls}
+  bottomDrawers={bottomDrawers}
+/>;
+```
 
 ### Root I/O contract stability
 
@@ -473,7 +601,8 @@ Defined at `src/components/organisms/FullGraph/FullGraphState.ts` ›
 // carries a nodeId chain), RunnerOverlay filters both the visual states and
 // nodePreviewValues to steps whose `instancePath` equals that chain — and the
 // "Follow groups" timeline toggle — a document-level graph-`State` preference
-// (`runnerViewPreferences.followIntoGroups`, persisted, default ON) — dispatches
+// (`runnerViewPreferences.followIntoGroups`, persisted, library default ON;
+// a document may store its own value) — dispatches
 // non-undoable OPEN/CLOSE_NODE_GROUP to keep the open scope synced to the
 // scrub head's instance path.
 type RunnerContextValue = {
@@ -878,10 +1007,15 @@ RunnerOverlay
 
 ### Panel toggle button
 
-When the panel is closed (`isRunnerPanelOpen === false` in
-`RecordingViewStateContext`), a floating "Runner" button with a `Play` icon
-appears at the bottom-center of the graph; clicking it reopens the panel
-(`src/components/organisms/FullGraph/RunnerOverlay.tsx` › `RunnerOverlay`).
+When EVERY bottom drawer is closed (`openDrawerId === null` in the bottom-drawer
+context — for the runner, `isRunnerPanelOpen === false`), a row of floating
+buttons appears at the bottom-center of the graph, one per registered drawer
+with the runner's "Runner" (`Play` icon, tooltip `Open runner panel`) first;
+clicking one opens that drawer
+(`src/components/organisms/FullGraph/BottomDrawerButtons.tsx` ›
+`BottomDrawerButtons`, rendered by `FullGraph`, not by `RunnerOverlay`). While a
+drawer is open, its header carries a switcher per OTHER drawer instead. See
+[Bottom drawers](#bottom-drawers-bottomdrawers).
 
 ### Navigate-to-node
 
@@ -962,8 +1096,14 @@ FullGraph wraps its tree in `ErrorBoundary`
   fallback so a runner crash doesn't take down the canvas
   (`src/components/organisms/FullGraph/FullGraph.tsx` ›
   `FullGraphWithReactFlowProvider`)
+- A **per-drawer** boundary around each consumer `bottomDrawers` entry's
+  `content` — renders a "<label> error" fallback
+  (`data-slot="error-boundary-drawer"`) inside the drawer body, so the drawer
+  chrome (X, switchers) stays operable and the graph is untouched
+  (`src/components/organisms/FullGraph/ConsumerBottomDrawer.tsx` ›
+  `ConsumerBottomDrawer`)
 
-Both log to `console.error` via `onError`.
+All three log to `console.error` via `onError`.
 
 ---
 

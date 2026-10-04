@@ -17,7 +17,7 @@ function ColorPickerPreview({ className }: ColorPickerPreviewProps) {
   return (
     <div
       className={cn(
-        'relative shrink-0 overflow-hidden rounded-sm border border-secondary-dark-gray',
+        'rbn:relative rbn:shrink-0 rbn:overflow-hidden rbn:rounded-sm rbn:border rbn:border-secondary-dark-gray',
         className,
       )}
       style={{
@@ -26,11 +26,11 @@ function ColorPickerPreview({ className }: ColorPickerPreviewProps) {
       }}
     >
       <div
-        className='absolute inset-0'
+        className='rbn:absolute rbn:inset-0'
         style={{ background: backgroundColor }}
       />
       <div
-        className='absolute inset-0'
+        className='rbn:absolute rbn:inset-0'
         style={{ background: foregroundColor }}
       />
     </div>

@@ -19,7 +19,7 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <div className='flex justify-center items-center min-h-screen p-8'>
+      <div className='rbn:flex rbn:justify-center rbn:items-center rbn:min-h-screen rbn:p-8'>
         <Story />
       </div>
     ),
@@ -34,18 +34,18 @@ type Story = StoryObj<typeof meta>;
 /** A mock node for wrapping inside the indicator */
 function MockNode({ label = 'AND Gate' }: { label?: string }) {
   return (
-    <div className='flex flex-col gap-0 rounded-md w-max border-[1.5px] border-transparent'>
-      <div className='text-primary-white text-left text-[27px] leading-[27px] font-main px-4 py-2 rounded-t-md bg-[#C44536]'>
+    <div className='rbn:flex rbn:flex-col rbn:gap-0 rbn:rounded-md rbn:w-max rbn:border-[1.5px] rbn:border-transparent'>
+      <div className='rbn:text-primary-white rbn:text-left rbn:text-[27px] rbn:leading-[27px] rbn:font-main rbn:px-4 rbn:py-2 rbn:rounded-t-md rbn:bg-[#C44536]'>
         {label}
       </div>
-      <div className='min-h-[50px] rounded-b-md bg-primary-dark-gray px-6 py-4'>
-        <div className='text-primary-white text-[27px] leading-[27px] font-main'>
+      <div className='rbn:min-h-[50px] rbn:rounded-b-md rbn:bg-primary-dark-gray rbn:px-6 rbn:py-4'>
+        <div className='rbn:text-primary-white rbn:text-[27px] rbn:leading-[27px] rbn:font-main'>
           Bit 1
         </div>
-        <div className='text-primary-white text-[27px] leading-[27px] font-main'>
+        <div className='rbn:text-primary-white rbn:text-[27px] rbn:leading-[27px] rbn:font-main'>
           Bit 2
         </div>
-        <div className='text-primary-white text-[27px] leading-[27px] font-main text-right'>
+        <div className='rbn:text-primary-white rbn:text-[27px] rbn:leading-[27px] rbn:font-main rbn:text-right'>
           Output
         </div>
       </div>
@@ -206,10 +206,13 @@ export const AllStates: Story = {
     const mockWarnings = ['Missing function implementation for "customNode"'];
 
     return (
-      <div className='flex flex-wrap gap-8'>
+      <div className='rbn:flex rbn:flex-wrap rbn:gap-8'>
         {states.map((state) => (
-          <div key={state} className='flex flex-col items-center gap-2'>
-            <span className='text-primary-white text-[14px] font-main uppercase tracking-wider'>
+          <div
+            key={state}
+            className='rbn:flex rbn:flex-col rbn:items-center rbn:gap-2'
+          >
+            <span className='rbn:text-primary-white rbn:text-[14px] rbn:font-main rbn:uppercase rbn:tracking-wider'>
               {state}
             </span>
             <NodeStatusIndicator
@@ -257,16 +260,16 @@ export const InteractiveCycler: Story = {
     ];
 
     return (
-      <div className='flex flex-col items-center gap-4'>
-        <span className='text-primary-white text-[18px] font-main'>
+      <div className='rbn:flex rbn:flex-col rbn:items-center rbn:gap-4'>
+        <span className='rbn:text-primary-white rbn:text-[18px] rbn:font-main'>
           Current state:{' '}
-          <span className='text-primary-blue font-semibold'>
+          <span className='rbn:text-primary-blue rbn:font-semibold'>
             {currentState}
           </span>
         </span>
         <button
           onClick={() => setIndex((prev) => (prev + 1) % states.length)}
-          className='px-4 py-2 bg-primary-blue text-primary-white rounded-md cursor-pointer text-[14px] font-main'
+          className='rbn:px-4 rbn:py-2 rbn:bg-primary-blue rbn:text-primary-white rbn:rounded-md rbn:cursor-pointer rbn:text-[14px] rbn:font-main'
         >
           Next State &rarr;
         </button>

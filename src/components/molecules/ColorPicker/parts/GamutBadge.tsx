@@ -21,12 +21,16 @@ function ColorPickerGamutBadge({
     <div
       title={`Color in ${label} color space`}
       className={cn(
-        'inline-flex cursor-default items-center gap-1.5 rounded-md border border-secondary-dark-gray px-2 py-1 text-[13px]',
+        'rbn:inline-flex rbn:cursor-default rbn:items-center rbn:gap-1.5 rbn:rounded-md rbn:border rbn:border-secondary-dark-gray rbn:px-2 rbn:py-1 rbn:text-[13px]',
         className,
       )}
     >
-      {showLabel && <span className='text-graph-input-placeholder'>Gamut</span>}
-      <span className='font-mono font-medium text-primary-white'>{label}</span>
+      {showLabel && (
+        <span className='rbn:text-graph-input-placeholder'>Gamut</span>
+      )}
+      <span className='rbn:font-mono rbn:font-medium rbn:text-primary-white'>
+        {label}
+      </span>
     </div>
   );
 }

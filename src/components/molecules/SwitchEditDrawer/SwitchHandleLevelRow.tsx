@@ -81,13 +81,13 @@ function SwitchHandleLevelRow({
       onRenameAll={renameAll}
     >
       {HANDLE_GROUPS.map(({ label, keys }) => (
-        <div key={label} className='flex flex-col gap-1'>
-          <span className='text-secondary-light-gray text-[11px] font-main'>
+        <div key={label} className='rbn:flex rbn:flex-col rbn:gap-1'>
+          <span className='rbn:text-secondary-light-gray rbn:text-[11px] rbn:font-main'>
             {label}
           </span>
           {keys.map(({ label: handleLabel, key }) => (
-            <div key={key} className='flex items-center gap-1.5'>
-              <span className='text-secondary-light-gray text-[11px] w-14 shrink-0'>
+            <div key={key} className='rbn:flex rbn:items-center rbn:gap-1.5'>
+              <span className='rbn:text-secondary-light-gray rbn:text-[11px] rbn:w-14 rbn:shrink-0'>
                 {handleLabel}
               </span>
               <Input
@@ -96,7 +96,10 @@ function SwitchHandleLevelRow({
                 onChange={(value: string) => handleSingleNameChange(key, value)}
                 allowOnlyNumbers={false}
                 liveUpdate
-                className={cn('flex-1 min-w-0', theme?.node?.inputField)}
+                className={cn(
+                  'rbn:flex-1 rbn:min-w-0',
+                  theme?.node?.inputField,
+                )}
               />
             </div>
           ))}

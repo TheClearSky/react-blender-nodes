@@ -1,5 +1,5 @@
-import { PlusIcon } from 'lucide-react';
-import { createElement, type ActionDispatch } from 'react';
+import { PlusIcon, SquaresExcludeIcon } from 'lucide-react';
+import { createElement, type ActionDispatch, type ReactNode } from 'react';
 import type { ContextMenuItem } from './ContextMenu';
 import { typedKeys } from '@/utils/typedKeys';
 import type {
@@ -60,7 +60,18 @@ type CreateNodeContextMenuProps<
    *  add entry is hidden once placed). */
   rootGraphInputExists?: boolean;
   rootGraphOutputExists?: boolean;
+  /** Marks node GROUPS in the menu (a type with a `subtree`). Defaults to the
+   *  lucide `SquaresExclude` (two overlapping squares); `false` = no mark. */
+  groupIcon?: ReactNode | false;
 };
+
+/** The default group mark: lucide `SquaresExclude` (Deepak, 2026-09-28). */
+function defaultGroupIcon(): ReactNode {
+  return createElement(SquaresExcludeIcon, {
+    className: 'rbn:w-3 rbn:h-3',
+    'aria-label': 'Node group',
+  });
+}
 
 // ── Internal tree-building types ──
 
@@ -69,6 +80,7 @@ type MenuTreeLeaf = {
   item: ContextMenuItem;
   priority: number;
   insertionIndex: number;
+  isGroup: boolean;
 };
 
 type MenuTreeFolder = {
@@ -104,13 +116,30 @@ function sortTreeLevel(children: MenuTreeNode[]): void {
   }
 }
 
-function treeToMenuItems(children: MenuTreeNode[]): ContextMenuItem[] {
+function treeToMenuItems(
+  children: MenuTreeNode[],
+  groupIcon: ReactNode | false,
+): ContextMenuItem[] {
   const items: ContextMenuItem[] = [];
+  // In a folder holding any group, plain rows get an icon-sized blank so
+  // every label lines up.
+  const marksGroups =
+    groupIcon !== false &&
+    children.some((child) => child.kind === 'leaf' && child.isGroup);
   for (const child of children) {
     if (child.kind === 'leaf') {
-      items.push(child.item);
+      items.push(
+        marksGroups
+          ? {
+              ...child.item,
+              icon: child.isGroup
+                ? groupIcon
+                : createElement('span', { 'aria-hidden': true }),
+            }
+          : child.item,
+      );
     } else {
-      const subItems = treeToMenuItems(child.children);
+      const subItems = treeToMenuItems(child.children, groupIcon);
       if (subItems.length > 0) {
         items.push({
           id: `folder-${child.label}`,
@@ -149,6 +178,7 @@ function createNodeContextMenu<
   isAtRootScope = false,
   rootGraphInputExists = false,
   rootGraphOutputExists = false,
+  groupIcon = defaultGroupIcon(),
 }: CreateNodeContextMenuProps<
   DataTypeUniqueId,
   NodeTypeUniqueId,
@@ -215,6 +245,7 @@ function createNodeContextMenu<
       },
       priority,
       insertionIndex: i,
+      isGroup: nodeType.subtree !== undefined,
     };
 
     if (location.length === 0) {
@@ -242,7 +273,7 @@ function createNodeContextMenu<
   sortTreeLevel(root);
 
   // Convert tree to ContextMenuItem[]
-  const nodeSubItems = treeToMenuItems(root);
+  const nodeSubItems = treeToMenuItems(root, groupIcon);
 
   // Root-only Graph I/O placement. The boundary node types are hidden from the
   // normal listing (above), so surface them here as single-instance entries.
@@ -283,11 +314,34 @@ function createNodeContextMenu<
     {
       id: 'add-node',
       label: 'Add Node',
-      icon: createElement(PlusIcon, { className: 'w-4 h-4' }),
+      icon: createElement(PlusIcon, { className: 'rbn:w-4 rbn:h-4' }),
       subItems: [...graphIoSubItems, ...nodeSubItems],
     },
   ];
 }
 
-export { createNodeContextMenu };
+/**
+ * The Add-menu folders directly under `parentPath` (distinct, in first-seen
+ * order) — for a menu-path picker's suggestions. Types hidden from the menu
+ * are skipped, so only folders a visitor can actually see are offered.
+ */
+function menuFolderSuggestions(
+  typeOfNodes: Record<string, { locationInContextMenu?: string[] }>,
+  parentPath: readonly string[],
+  hidden?: Partial<Record<string, true>>,
+): string[] {
+  const found: string[] = [];
+  for (const [id, type] of Object.entries(typeOfNodes)) {
+    if (hidden?.[id]) continue;
+    const location = type.locationInContextMenu ?? [];
+    if (location.length <= parentPath.length) continue;
+    if (!parentPath.every((segment, index) => location[index] === segment))
+      continue;
+    const next = location[parentPath.length];
+    if (!found.includes(next)) found.push(next);
+  }
+  return found;
+}
+
+export { createNodeContextMenu, menuFolderSuggestions };
 export type { CreateNodeContextMenuProps };

@@ -13,12 +13,79 @@ Key packages (`tailwindcss`, `@tailwindcss/vite`, and `tw-animate-css` are
 
 | Package                    | Role                                      | Version | Dependency type   |
 | -------------------------- | ----------------------------------------- | ------- | ----------------- |
-| `tailwindcss`              | Utility-first CSS framework (v4)          | ^4.1.12 | `devDependencies` |
-| `@tailwindcss/vite`        | Vite plugin for Tailwind v4               | ^4.1.13 | `devDependencies` |
+| `tailwindcss`              | Utility-first CSS framework (v4)          | ^4.3.3  | `devDependencies` |
+| `@tailwindcss/vite`        | Vite plugin for Tailwind v4               | ^4.3.3  | `devDependencies` |
 | `clsx`                     | Conditional class string builder          | ^2.1.1  | `dependencies`    |
 | `tailwind-merge`           | Deduplicates conflicting Tailwind classes | ^3.3.1  | `dependencies`    |
 | `class-variance-authority` | Variant-based component styling           | ^0.7.1  | `dependencies`    |
 | `tw-animate-css`           | Animation utilities for Tailwind          | ^1.3.8  | `devDependencies` |
+
+## Every utility is namespaced `rbn:`
+
+**All utilities this library emits carry the `rbn:` prefix** — `rbn:flex`,
+`rbn:bg-primary-gray`, `rbn:hover:text-primary-white`. That is not cosmetic. A
+library and its consumer both ship a Tailwind sheet declaring the same class
+names, and which one wins is decided by the ORDER the stylesheets happen to
+load, not by specificity and not by anything the consumer controls. Measured in
+a real consumer before the prefix: an app's plain `.border` (emitted late in the
+app's own sheet) beat this library's `.border-b-0`, putting a bottom border back
+on the runner drawer.
+
+Three consequences worth knowing:
+
+- **Variable names are NOT prefixed.** Every publicly nameable token lives in a
+  plain `@layer theme` block, outside `@theme`, so `prefix()` cannot rename it.
+  `--color-graph-menu-bg` is still `--color-graph-menu-bg`. See
+  `docs/ui/themingDoc.md`.
+- **A selector naming one of our classes must use the prefixed, escaped name**:
+  `[&_.rbn\:text-primary-white]`, and `'…rbn\\:…'` in a TypeScript string.
+- **`cn` reconciles both namespaces.** It strips `rbnt:` then `rbn:`
+  (longest-first — the order is the contract) before handing tokens to
+  `tailwind-merge`, so a consumer's unprefixed `bg-red-500` and our
+  `rbn:bg-primary-gray` are recognised as the same group and the consumer's
+  class wins. `FIRST_PARTY_PREFIXES` is exported for tooling that needs the same
+  list.
+
+The timeline plugin uses `rbnt:`, deliberately a different prefix: a shared one
+would put `.rbn\:flex` in both sheets and recreate the very ordering bug this
+removes. The namespaces are provably disjoint — `[class*='rbn:']` does not match
+`rbnt:flex`, because after `n` comes `t`, not `:`.
+
+## Preflight is NOT shipped
+
+The bundled `@import 'tailwindcss'` is split so preflight is left out:
+
+```css
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme) source('../src');
+@import 'tailwindcss/utilities.css' layer(utilities) source('../src');
+```
+
+`prefix()` cannot namespace preflight, because its selectors are element names
+rather than classes — so the bundled reset used to ship
+`*,::before,::after{margin:0;…}` and `html{line-height:1.5}` into every page
+that loaded this stylesheet, flattening the consumer's own headings, lists and
+links. The rules this library actually depends on are re-declared in an
+`@layer base` block scoped to `[class*='rbn:']`, which after the prefix
+migration matches every element the library styles BY CONSTRUCTION. Verified:
+with both library sheets loaded, a plain `<h1>` is still 32 px bold, a `<ul>`
+still has its disc and 40 px indent, and an `<a>` is still underlined UA blue.
+
+The other half of that decision is easy to miss: preflight was also carrying
+rules the library itself needed. `font-family` and `line-height: 1.5` sat on
+`html`, and the heading reset mattered because `atoms/Accordion/Accordion.tsx`
+renders Radix's `Accordion.Header` — an `<h3>`. All three had to be re-declared
+scoped. One ordering trap lives in the form-element block: `line-height` must be
+declared AFTER `font: inherit`, since `font` is a shorthand that resets
+line-height to `inherit` — harmless when the root carried 1.5, wrong once
+nothing does.
+
+Do not verify a change to that block in a consuming app: an app ships its own
+preflight and masks exactly this class of regression. Run
+`npm run audit:preflight` (`scripts/audit-preflight-dependency.ts`), which
+renders one story per component, injects the real `preflight.css`, and fails on
+any computed-style difference that lands on library markup. Preflight is the
+oracle, so there are no expectations to keep up to date.
 
 Styling architecture:
 
@@ -26,8 +93,13 @@ Styling architecture:
 +-----------------------------------------------------+
 |                  src/index.css                       |
 |  +-----------------------------------------------+  |
-|  | @import 'tailwindcss'                         |  |
+|  | @import 'tailwindcss/theme.css'    (no         |  |
+|  | @import 'tailwindcss/utilities.css' preflight) |  |
 |  | @import 'tw-animate-css'                      |  |
+|  | @theme prefix(rbn) {}   <-- namespaces every   |  |
+|  |                             emitted utility    |  |
+|  | @layer base { [class*='rbn:'] … }  <-- scoped  |  |
+|  |                             preflight subset   |  |
 |  +-----------------------------------------------+  |
 |  | @theme inline { ... }   <-- color tokens,     |  |
 |  |                             fonts, animations  |  |
@@ -143,27 +215,45 @@ primary  secondary primary  secondary primary  secondary primary  primary
                    -gray    -gray              -gray     -gray
 ```
 
-### Themeable component tokens (plain `@theme static` block)
+### Themeable component tokens (plain `@layer theme` block)
 
-A second, plain (non-`inline`) `@theme static` block in `src/index.css` declares
-the themeable component tokens (`--color-graph-menu-bg`,
-`--color-graph-elevated-surface-bg`, `--color-timeline-loop-accent`,
-`--color-graph-scrollbar-thumb`, the `--color-edge-value-pill-*` family, and
-friends — generic surface tokens carry the `graph-` namespace so they cannot
-collide with a consumer app's own `--color-*` theme tokens, since the block
-compiles into `:root` of the shipped stylesheet). Because the block is not
-`inline`, its generated utilities reference `var()` at runtime, so a
-`GraphTheme` root slot can recolor them with arbitrary-property classes like
-`[--color-graph-menu-bg:#f5f5f5]`. `static` forces every variable to be emitted
-even when it is referenced only from JS string literals (inline styles, SVG
-attributes) — never rely on the source scanner to keep a token alive.
+A plain `@layer theme { :root, :host { … } }` block in `src/index.css` — NOT a
+`@theme` block — declares the themeable component tokens
+(`--color-graph-menu-bg`, `--color-graph-elevated-surface-bg`,
+`--color-timeline-loop-accent`, `--color-graph-scrollbar-thumb`, the
+`--color-edge-value-pill-*` family, and friends — generic surface tokens carry
+the `graph-` namespace so they cannot collide with a consumer app's own
+`--color-*` theme tokens, since the block compiles into `:root` of the shipped
+stylesheet).
 
-For the `@theme inline` block above, the distinction is finer: the generated
-UTILITIES inline the hex and are therefore not var-driven, but the VARIABLES are
-still emitted at `:root` — so `var()`-consuming sites (inline-style gradients,
-SVG attributes) do respond to overrides of inline tokens. Themes restyle
-inline-token utilities via appended slot classes instead. See
-[themingDoc.md](../ui/themingDoc.md).
+**Why a plain `@layer theme` block and not `@theme`:** `prefix(rbn)` renames
+every variable declared inside a `@theme` block to `--rbn-*`. That would
+silently break all three public naming mechanisms at once — a `root`-slot
+override writing `[--color-graph-menu-bg:#f5f5f5]`, a `var(--color-…)` in a JSX
+inline style or SVG attribute, and a consumer setting the variable from their
+own stylesheet — because the class and the `var()` are literals the prefix does
+not follow. Declaring them outside `@theme` makes the public names immune.
+`@layer theme` keeps them in the right cascade layer, so consumer CSS written
+outside any layer still wins.
+
+A companion `@theme inline { --color-x: var(--color-x); }` block turns each of
+those into a utility. `inline` is REQUIRED: it makes the utility inline the
+VALUE, and the value is `var(--public-name)`, so the utility reads the public
+name and a runtime override lands. Declaring the alias the other way round
+(`--rbn-x: var(--x)` on `:root`) compiles but is broken — custom-property
+substitution happens at the element carrying the declaration, so an override set
+on a DESCENDANT could never feed back up.
+
+**One behavioural cost:** because Tailwind no longer sees a literal value for an
+indirected token, it cannot precompute an 8-digit hex for an opacity modifier,
+so `bg-primary-gray/40` compiles to a `color-mix(… 40%, transparent)` inside an
+`@supports` guard instead. Browsers with `color-mix` (Chrome 111 / Safari 16.2 /
+Firefox 113, all 2023) render identically; older ones render the colour fully
+opaque.
+
+The second `@theme inline` block holds the core palette, whose utilities inline
+the hex and are deliberately not themeable. Themes restyle those via appended
+slot classes instead. See [themingDoc.md](../ui/themingDoc.md).
 
 ## cn() Helper (clsx + tailwind-merge)
 

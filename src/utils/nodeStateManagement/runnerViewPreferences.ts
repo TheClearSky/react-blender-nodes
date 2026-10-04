@@ -25,9 +25,14 @@ export type RunnerViewPreferences = {
 export type RunnerViewPreferenceKey = keyof RunnerViewPreferences;
 
 /**
- * Canonical defaults (both ON). Frozen: the accessor never returns this by reference
- * (it builds a fresh object), but freezing makes any accidental mutation throw and
- * keeps a stable identity should it ever be read directly.
+ * Canonical defaults (both ON). These are the LIBRARY defaults, read whenever a
+ * document does not carry the field; a consumer that wants a different default
+ * seeds `runnerViewPreferences` on the documents it installs (the field is
+ * persisted, so a seeded value survives export/import).
+ *
+ * Frozen: the accessor never returns this by reference (it builds a fresh
+ * object), but freezing makes any accidental mutation throw and keeps a stable
+ * identity should it ever be read directly.
  */
 export const DEFAULT_RUNNER_VIEW_PREFERENCES: Readonly<RunnerViewPreferences> =
   Object.freeze({ autoScroll: true, followIntoGroups: true });
@@ -49,10 +54,10 @@ export function getRunnerViewPreferences(state: {
     autoScroll:
       typeof preferences?.autoScroll === 'boolean'
         ? preferences.autoScroll
-        : true,
+        : DEFAULT_RUNNER_VIEW_PREFERENCES.autoScroll,
     followIntoGroups:
       typeof preferences?.followIntoGroups === 'boolean'
         ? preferences.followIntoGroups
-        : true,
+        : DEFAULT_RUNNER_VIEW_PREFERENCES.followIntoGroups,
   };
 }

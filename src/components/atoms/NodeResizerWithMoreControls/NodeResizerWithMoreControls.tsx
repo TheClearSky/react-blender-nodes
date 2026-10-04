@@ -111,8 +111,10 @@ function NodeResizerWithMoreControls({
         <NodeResizeControl
           key={position}
           className={cn(
-            '!border-none',
-            position === 'left' || position === 'right' ? '!w-4' : '!h-4',
+            'rbn:!border-none',
+            position === 'left' || position === 'right'
+              ? 'rbn:!w-4'
+              : 'rbn:!h-4',
             lineClassName,
           )}
           style={lineStyle}

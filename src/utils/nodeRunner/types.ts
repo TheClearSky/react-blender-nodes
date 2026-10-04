@@ -21,6 +21,61 @@ const runnerStates = [
 type RunnerState = (typeof runnerStates)[number];
 
 // ─────────────────────────────────────────────────────
+// Run lifecycle (observable stream, discriminated on `kind`)
+// ─────────────────────────────────────────────────────
+
+/**
+ * What the runner just did, as a stream a consumer can act on.
+ *
+ * `onExecutionRecordChange` cannot answer this. It IS the controlled record
+ * setter, so it fires with the same shape when a run starts (`null`), when a
+ * reset happens (`null`), when a record is loaded, and when a run finishes —
+ * a consumer cannot tell those apart. Anything that needs to know WHICH
+ * happened has to be told separately: to stamp "this is the graph that was
+ * actually run", to stop an auto-run loop when the user presses Reset, or to
+ * discard work belonging to a run that has since been superseded.
+ *
+ * `runId` increments once per run and is stable across that run's events, so a
+ * late event from a superseded run is identifiable rather than being applied to
+ * whatever is current. Pair `'run:started'` with the matching
+ * `'run:completed'` / `'run:aborted'`; ignore any id you are not tracking.
+ */
+/** Why a run ended without a final record.
+ *  - `stopped` — `stop()` or `reset()` was called.
+ *  - `superseded` — another run replaced it.
+ *  - `failed` — it could not produce one: the graph did not compile, or the
+ *    run target threw. Distinct from `stopped` on purpose: a consumer that
+ *    treats a halt as "the user wants this to stay halted" must NOT do that
+ *    when a mis-wired graph simply failed to compile. */
+type RunAbortReason = 'stopped' | 'superseded' | 'failed';
+
+/** WHO asked for a halt, when something asked.
+ *  - `user` (the default) — a person pressed Stop or Reset.
+ *  - `consumer` — the application called `stop()`/`reset()` itself, e.g.
+ *    because it is replacing the whole project out from under the run.
+ *  A consumer that disables its own auto-run on a user halt must not disable
+ *  it on its own halt; without this it cannot tell, because both arrive on the
+ *  same channel with the same reason. */
+type RunHaltInitiator = 'user' | 'consumer';
+
+type RunEvent =
+  /** A fresh execution is about to begin. The graph it will execute is the one
+   *  in `state` at the moment this fires — snapshot here, not on completion. */
+  | { kind: 'run:started'; runId: number }
+  /** The run finished and its record is final. */
+  | { kind: 'run:completed'; runId: number }
+  /** The run will never produce a final record. */
+  | {
+      kind: 'run:aborted';
+      runId: number;
+      reason: RunAbortReason;
+      /** Present only when `reason` is `'stopped'`. */
+      initiator?: RunHaltInitiator;
+    }
+  /** The runner was reset to idle. Not a run, and not the start of one. */
+  | { kind: 'run:reset'; initiator?: RunHaltInitiator };
+
+// ─────────────────────────────────────────────────────
 // Node Visual State (per-node UI indicator)
 // ─────────────────────────────────────────────────────
 
@@ -1022,6 +1077,9 @@ export {
 export type {
   // State machine
   RunnerState,
+  RunEvent,
+  RunAbortReason,
+  RunHaltInitiator,
   NodeVisualState,
   // Function implementation contract
   InputConnectionValue,

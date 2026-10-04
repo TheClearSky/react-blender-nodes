@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/atoms/Checkbox/Checkbox';
 import { useInputComponentRegistry } from '@/components/organisms/FullGraph/InputComponentRegistryContext';
 import { FullGraphContext } from '@/components/organisms/FullGraph/FullGraphState';
 import { actionTypesMap } from '@/utils/nodeStateManagement/mainReducer';
+import { socketDocKey, SocketDocsContext } from './socketDocs';
 
 type ReactFlowAwareInputProps = {
   input: ConfigurableNodeInput;
@@ -59,11 +60,30 @@ function StringSelectForNode({
   );
 }
 
+/** A socket's declared min/max/step (only the keys that are set). */
+function socketLimits(
+  socketDocs: ReadonlyMap<
+    string,
+    { min?: number; max?: number; step?: number }
+  >,
+  input: ConfigurableNodeInput,
+): { min?: number; max?: number; step?: number } {
+  const doc = socketDocs.get(
+    socketDocKey('in', input.name, input.dataType?.dataTypeUniqueId),
+  );
+  return {
+    ...(doc?.min !== undefined && { min: doc.min }),
+    ...(doc?.max !== undefined && { max: doc.max }),
+    ...(doc?.step !== undefined && { step: doc.step }),
+  };
+}
+
 const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
   const nodeId = useNodeId();
   const { allProps } = useContext(FullGraphContext);
   const inputComponentRegistry = useInputComponentRegistry();
   const theme = useGraphTheme();
+  const socketDocs = useContext(SocketDocsContext);
   const updateNodeValue = (newValue: unknown) => {
     if (!nodeId) return;
     allProps.dispatch({
@@ -99,28 +119,42 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
           updateNodeValue(newValue);
         }}
         allowOnlyNumbers={false}
-        className={cn('w-full', theme?.node?.inputField)}
+        className={cn('rbn:w-full', theme?.node?.inputField)}
       />
     );
   }
 
   if (input.type === 'number') {
+    // The node type's own limits for this socket (live — see socketDocs).
+    const limits = socketDocs.get(
+      socketDocKey('in', input.name, input.dataType?.dataTypeUniqueId),
+    );
     return (
       <SliderNumberInput
         name={input.name}
         value={input.value}
+        min={limits?.min}
+        max={limits?.max}
+        step={limits?.step}
+        // A whole-number step shows whole numbers (a 0–100 % knob reads
+        // "40", not "40.0000").
+        decimals={
+          limits?.step !== undefined && Number.isInteger(limits.step)
+            ? 0
+            : undefined
+        }
         onChange={(newValue) => {
           input.onChange?.(newValue);
           updateNodeValue(newValue);
         }}
-        className={cn('w-full', theme?.node?.inputField)}
+        className={cn('rbn:w-full', theme?.node?.inputField)}
       />
     );
   }
 
   if (input.type === 'boolean') {
     return (
-      <div className='flex items-center gap-2 w-full'>
+      <div className='rbn:flex rbn:items-center rbn:gap-2 rbn:w-full'>
         <Checkbox
           checked={input.value}
           onCheckedChange={(newValue) => {
@@ -131,7 +165,7 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
           }}
         />
         {/* No own color: inherits the row (inputRow slot recolors it in themes). */}
-        <p className='text-[27px] leading-[27px] font-main truncate'>
+        <p className='rbn:text-[27px] rbn:leading-[27px] rbn:font-main rbn:truncate'>
           {input.name}
         </p>
       </div>
@@ -141,6 +175,7 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
   if (input.type === 'unsupportedDirectly' && input.dataType) {
     const CustomComponent =
       inputComponentRegistry?.[input.dataType.dataTypeUniqueId];
+    const customLimits = socketLimits(socketDocs, input);
     if (CustomComponent) {
       return (
         <CustomComponent
@@ -151,6 +186,7 @@ const ReactFlowAwareInput = ({ input }: ReactFlowAwareInputProps) => {
           }}
           name={input.name}
           dataTypeId={input.dataType.dataTypeUniqueId}
+          {...customLimits}
         />
       );
     }
@@ -170,6 +206,7 @@ const ContextAwareInput = ({
 }: ContextAwareInputProps) => {
   const inputComponentRegistry = useInputComponentRegistry();
   const theme = useGraphTheme();
+  const socketDocs = useContext(SocketDocsContext);
 
   if (isCurrentlyInsideReactFlow) {
     return <ReactFlowAwareInput input={input} />;
@@ -209,7 +246,7 @@ const ContextAwareInput = ({
         value={input.value}
         onChange={input.onChange}
         allowOnlyNumbers={false}
-        className={cn('w-full', theme?.node?.inputField)}
+        className={cn('rbn:w-full', theme?.node?.inputField)}
       />
     );
   }
@@ -220,14 +257,14 @@ const ContextAwareInput = ({
         name={input.name}
         value={input.value}
         onChange={input.onChange}
-        className={cn('w-full', theme?.node?.inputField)}
+        className={cn('rbn:w-full', theme?.node?.inputField)}
       />
     );
   }
 
   if (input.type === 'boolean') {
     return (
-      <div className='flex items-center gap-2 w-full'>
+      <div className='rbn:flex rbn:items-center rbn:gap-2 rbn:w-full'>
         <Checkbox
           checked={input.value}
           onCheckedChange={(newValue) => {
@@ -237,7 +274,7 @@ const ContextAwareInput = ({
           }}
         />
         {/* No own color: inherits the row (inputRow slot recolors it in themes). */}
-        <p className='text-[27px] leading-[27px] font-main truncate'>
+        <p className='rbn:text-[27px] rbn:leading-[27px] rbn:font-main rbn:truncate'>
           {input.name}
         </p>
       </div>
@@ -247,6 +284,7 @@ const ContextAwareInput = ({
   if (input.type === 'unsupportedDirectly' && input.dataType) {
     const CustomComponent =
       inputComponentRegistry?.[input.dataType.dataTypeUniqueId];
+    const customLimits = socketLimits(socketDocs, input);
     if (CustomComponent) {
       return (
         <CustomComponent
@@ -256,6 +294,7 @@ const ContextAwareInput = ({
           }}
           name={input.name}
           dataTypeId={input.dataType.dataTypeUniqueId}
+          {...customLimits}
         />
       );
     }

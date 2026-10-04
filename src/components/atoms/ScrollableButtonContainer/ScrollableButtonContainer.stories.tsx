@@ -10,7 +10,8 @@ const meta = {
     showArrows: true,
     disabled: false,
     observeChildren: true,
-    className: 'text-[27px] leading-[27px] font-main text-primary-white',
+    className:
+      'rbn:text-[27px] rbn:leading-[27px] rbn:font-main rbn:text-primary-white',
   },
   tags: ['autodocs'],
 } satisfies Meta<typeof ScrollableButtonContainer>;
@@ -24,15 +25,17 @@ export const Playground: Story = {
   render: (args) => (
     <div
       className={cn(
-        'border border-red-600',
-        args.orientation === 'horizontal' ? 'w-[400px]' : 'h-[200px] w-fit',
+        'rbn:border rbn:border-red-600',
+        args.orientation === 'horizontal'
+          ? 'rbn:w-[400px]'
+          : 'rbn:h-[200px] rbn:w-fit',
       )}
     >
       <ScrollableButtonContainer {...args}>
         {Array.from({ length: 20 }).map((_, i) => (
           <div
             key={i}
-            className='px-3 py-2 rounded-md border border-secondary-dark-gray bg-primary-black'
+            className='rbn:px-3 rbn:py-2 rbn:rounded-md rbn:border rbn:border-secondary-dark-gray rbn:bg-primary-black'
           >
             Item {i + 1}
           </div>
@@ -61,8 +64,8 @@ export const HorizontalAdjustableWidth = {
   }) => (
     <div
       className={cn(
-        'border-2',
-        parentBorder ? 'border-red-900' : 'border-transparent',
+        'rbn:border-2',
+        parentBorder ? 'rbn:border-red-900' : 'rbn:border-transparent',
       )}
       style={{ width: parentWidth }}
     >
@@ -70,7 +73,7 @@ export const HorizontalAdjustableWidth = {
         {Array.from({ length: 15 }).map((_, i) => (
           <div
             key={i}
-            className='px-3 py-2 rounded-md border border-secondary-dark-gray bg-primary-black'
+            className='rbn:px-3 rbn:py-2 rbn:rounded-md rbn:border rbn:border-secondary-dark-gray rbn:bg-primary-black'
           >
             Long label item {i + 1}
           </div>
@@ -87,15 +90,17 @@ export const Vertical: Story = {
   render: (args) => (
     <div
       className={cn(
-        'border border-red-600',
-        args.orientation === 'horizontal' ? 'w-[400px]' : 'h-[200px] w-fit',
+        'rbn:border rbn:border-red-600',
+        args.orientation === 'horizontal'
+          ? 'rbn:w-[400px]'
+          : 'rbn:h-[200px] rbn:w-fit',
       )}
     >
       <ScrollableButtonContainer {...args}>
         {Array.from({ length: 20 }).map((_, i) => (
           <div
             key={i}
-            className='px-3 py-2 rounded-md border border-secondary-dark-gray bg-primary-black w-full'
+            className='rbn:px-3 rbn:py-2 rbn:rounded-md rbn:border rbn:border-secondary-dark-gray rbn:bg-primary-black rbn:w-full'
           >
             Row {i + 1}
           </div>
@@ -112,15 +117,17 @@ export const Disabled: Story = {
   render: (args) => (
     <div
       className={cn(
-        'border border-red-600',
-        args.orientation === 'horizontal' ? 'w-[400px]' : 'h-[200px] w-fit',
+        'rbn:border rbn:border-red-600',
+        args.orientation === 'horizontal'
+          ? 'rbn:w-[400px]'
+          : 'rbn:h-[200px] rbn:w-fit',
       )}
     >
       <ScrollableButtonContainer {...args}>
         {Array.from({ length: 12 }).map((_, i) => (
           <div
             key={i}
-            className='px-3 py-2 rounded-md border border-secondary-dark-gray bg-primary-black'
+            className='rbn:px-3 rbn:py-2 rbn:rounded-md rbn:border rbn:border-secondary-dark-gray rbn:bg-primary-black'
           >
             Disabled {i + 1}
           </div>

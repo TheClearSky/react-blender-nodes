@@ -9,13 +9,153 @@
    accent borders) from the STORYBOOK build, leaving the ThemedPlayground
    gallery unstyled. The few gallery utilities in the shipped CSS are an
    acceptable cost for the demo rendering correctly. */
-@import 'tailwindcss' source('../src');
+/* SPLIT, not the monolithic `@import 'tailwindcss'`, so PREFLIGHT is left out.
+   `prefix()` cannot namespace preflight — its selectors are element names, not
+   classes — so the bundled reset shipped `*,::before,::after{margin:0;…}` and
+   `html{line-height:1.5;…}` into every consumer page that loads this sheet,
+   flattening their headings, lists and links. The load-bearing resets are
+   re-declared below, scoped so they can only reach OUR markup. */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme) source('../src');
+@import 'tailwindcss/utilities.css' layer(utilities) source('../src');
 @import 'tw-animate-css';
+
+/* EVERY utility this library emits is namespaced `rbn:`.
+   Without it, a consumer's own Tailwind sheet and ours declare the same class
+   names, and which one wins is decided by the ORDER the two stylesheets happen
+   to load — not by specificity, and not by anything the consumer controls. It
+   was measured breaking three real cases in the sound app, including a
+   `border-b-0` that lost to our `border-b`.
+   `rbnt:` (the timeline plugin) stays disjoint from this: `[class*='rbn:']`
+   does not match `rbnt:flex`, because after `n` comes `t`, not `:`.
+   The theme VARIABLES are deliberately unaffected — every publicly nameable
+   token is declared in the plain `@layer theme` block below, outside `@theme`,
+   so `prefix()` cannot rename it. */
+@theme prefix(rbn) {
+}
+
+/* The preflight rules this library actually depends on, re-declared and SCOPED
+   to `[class*='rbn:']`.
+   The attribute scope rather than a `.rbn-root` class is deliberate: after the
+   prefix migration every element this library styles carries at least one
+   `rbn:` utility BY CONSTRUCTION, so the scope cannot be forgotten, and a bare
+   `<Button>` used with no wrapper still gets its resets. A root class would
+   break exactly that case.
+   Deliberately NOT carried over, because the library does not render the
+   element: `a`, `table`, `b/strong`, `code/kbd/pre`, `small`, `sub/sup`,
+   `abbr`, `hr`, `progress`, `summary`, the `::-webkit-datetime-edit-*` family,
+   the search/spin-button resets and `::file-selector-button`. Those are
+   precisely the rules that damage a consumer's own page.
+   WHAT IS IN HERE IS NOT GUESSWORK. An earlier version of this block dropped
+   `font-family`, `line-height` and the heading reset on the reasoning that we
+   either did not render the element or could not scope it without breaking
+   inheritance. Two of those three were WRONG, and the errors were invisible in
+   the sound app because that app ships its own preflight. They were found by
+   `scripts/audit-preflight-dependency.ts`, which renders one story per
+   component, injects the REAL preflight, and diffs computed styles — preflight
+   itself is the oracle. Run `npm run audit:preflight` after touching this
+   block; a grep or an eyeball will not catch this class of bug. */
+@layer base {
+  [class*='rbn:'],
+  [class*='rbn:']::before,
+  [class*='rbn:']::after {
+    box-sizing: border-box;
+    border: 0 solid;
+    margin: 0;
+    padding: 0;
+    /* Preflight set the sans stack on `html`; without a scoped replacement
+       every element that does not explicitly carry `font-main` inherited the
+       browser's default SERIF. Measured in Storybook (the library with no
+       consumer reset): `html`, the runner panel and its buttons all computed
+       to "Times New Roman". The app masked it, because the app ships its own
+       preflight — which is exactly why this had to be checked against the
+       library alone.
+       Declared on every scoped element rather than a root, for the same reason
+       the resets above are: there is no element guaranteed to be the root. It
+       is the library's OWN default font, so a scoped child re-inheriting it is
+       a no-op, and any explicit font utility still wins — utilities sit in a
+       later cascade layer than `base`. */
+    font-family: var(--font-main);
+    /* Preflight set this on `html` too. It was omitted at first on the theory
+       that re-declaring it per element would fight a parent's `leading-*`;
+       an audit that injects the REAL preflight and diffs computed styles
+       showed it changes 56 elements in the library's own subtree — buttons and
+       every `text-[…px]` span, which set a size but no leading. Utilities win
+       over `base`, so an explicit `leading-*` is unaffected; plain descendants
+       inherit from their nearest scoped ancestor. */
+    line-height: 1.5;
+  }
+
+  /* Preflight's `*` reset also gave border-box to elements that carry no class
+     of ours — unclassed layout wrappers and xyflow's internals. The audit
+     counted 56 of them. `:where()` keeps specificity at ZERO, so any rule a
+     consumer writes beats it; that is the point, since this is the one rule
+     here that can reach content a consumer passed in as `children`. */
+  :where([class*='rbn:'] *) {
+    box-sizing: border-box;
+  }
+  [class*='rbn:'] :where(p, ul, ol, menu, li, figure, blockquote, dl, dd) {
+    margin: 0;
+    padding: 0;
+  }
+  [class*='rbn:'] :where(ul, ol, menu) {
+    list-style: none;
+  }
+  /* Preflight removed the UA font-size/weight from headings. Dropping it let
+     the browser's defaults back in, and the library DOES render headings it
+     never styles as such: `atoms/Accordion/Accordion.tsx` wraps its trigger in
+     Radix's `Accordion.Header`, which emits an `<h3>` — so every accordion
+     section header came back bold and 1.17em. Found by
+     `scripts/audit-preflight-dependency.ts`, not by eye. */
+  :where(h1, h2, h3, h4, h5, h6)[class*='rbn:'],
+  [class*='rbn:'] :where(h1, h2, h3, h4, h5, h6) {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  [class*='rbn:'] :where(svg, canvas, img, video) {
+    display: block;
+    vertical-align: middle;
+  }
+  :where(button, input, select, optgroup, textarea)[class*='rbn:'],
+  [class*='rbn:'] :where(button, input, select, optgroup, textarea) {
+    font: inherit;
+    /* MUST come after `font: inherit`. `font` is a SHORTHAND: it resets
+       `line-height` to `inherit`, silently undoing the 1.5 set above. With
+       preflight that was harmless — `html` carried 1.5, so `inherit` resolved
+       to 1.5 — but we cannot style the root, so a control whose ancestors are
+       all unprefixed inherited `normal` instead. Caught by the audit on
+       `atoms-checkbox--playground`, as a lone 24px→normal difference. */
+    line-height: 1.5;
+    color: inherit;
+    background-color: transparent;
+    border-radius: 0;
+    border: 0 solid;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  /* Preflight also removes the default button appearance; without it a
+     `<button>` keeps the platform chrome that every control here overrides. */
+  :where(
+    button,
+    [type='button'],
+    [type='reset'],
+    [type='submit']
+  )[class*='rbn:'],
+  [class*='rbn:']
+    :where(button, [type='button'], [type='reset'], [type='submit']) {
+    -webkit-appearance: button;
+    appearance: button;
+    background-color: transparent;
+    background-image: none;
+  }
+}
 
 @custom-variant dark (&:is(.dark *));
 
 @utility no-scrollbar {
-  @apply [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+  /* An unprefixed `@apply` is a hard compile error once a prefix exists. */
+  @apply rbn:[scrollbar-width:none] rbn:[&::-webkit-scrollbar]:hidden;
 }
 
 /* Node runner status indicator animations */
@@ -115,60 +255,146 @@
   border-radius: 4px;
 }
 
-/* Themeable component tokens — plain (non-inline) @theme so generated
-   utilities reference var() and respond to runtime overrides like
-   [--color-graph-menu-bg:#f5f5f5] set by a GraphTheme root slot.
-   `static` forces every variable to be emitted even when it is referenced
-   only from JS string literals (inline styles, SVG attributes) — emission
-   must never depend on Tailwind's source scanner finding those literals. */
-@theme static {
-  --color-graph-scrollbar-thumb: #444444;
-  --color-timeline-scrollbar-thumb: #555555;
-  --color-timeline-scrollbar-track: #1a1a1a;
-  --color-timeline-scrollbar-track-webkit: #2c2c2c;
-  --color-timeline-ruler-border: #3a3a3a;
-  --color-timeline-tick: #555555;
-  --color-running-glow-strong: rgba(71, 114, 179, 0.45);
-  --color-running-glow-soft: rgba(71, 114, 179, 0.25);
-  --color-edge-value-pill-bg: #282828;
-  --color-edge-value-pill-border: #444444;
-  --color-edge-value-pill-text: #e6e6e6;
-  --color-timeline-loop-accent: #8c52d1;
-  --color-timeline-switch-accent: #d18c52;
-  --color-timeline-scrubber-active: #6a9be0;
-  --color-timeline-scrubber-line: rgba(74, 133, 255, 0.5);
-  --color-timeline-scrubber-line-active: rgba(74, 133, 255, 0.7);
-  --color-runner-muted-text: #9a9a9a;
-  --color-timeline-hover-text: #eeeeee;
-  --color-inspector-badge-completed-text: #e0f0e0;
-  --color-inspector-badge-errored-text: #f0e0e0;
-  --color-inspector-skipped: #888888;
-  --color-inspector-progress-track: #333333;
-  --color-runner-resize-handle-bg: #2b2b2b;
-  --color-runner-resize-handle-hover-bg: #353535;
-  --color-graph-menu-bg: #181818;
-  --color-graph-menu-item-hover-bg: #3f3f3f;
-  --color-graph-node-panel-content-bg: #272727;
-  --color-graph-elevated-surface-bg: #222222;
-  --color-graph-input-placeholder: #6b6b6b;
-  --color-drag-list-ghost-accent: #aaaaaa;
-  --color-drag-list-item-hover-bg: #383838;
-  --color-mini-map-bg: #1a1a1a;
-  --color-graph-toggle-track-bg: #1a1a1a;
-  /* Moved from the inline block (values unchanged) so their utilities are
-     var-driven and themes can re-anchor them per surface. */
-  --color-tooltip-bg: #181818;
-  --color-primary-gray: #545454; /*light button background*/
-  --color-runner-scrubber-blue: #4a85ff;
-  /* Accent glow shadows consumed via shadow-[..._var(--color-...)] classes. */
-  --color-timeline-snap-glow: rgba(71, 114, 179, 0.4);
-  --color-timeline-drag-target-glow: rgba(71, 114, 179, 0.7);
-  --color-runner-play-button-glow: rgba(74, 120, 194, 0.4);
-  --color-runner-active-button-glow: rgba(71, 114, 179, 0.5);
+/* PUBLIC, overridable component tokens.
+   Declared as PLAIN CSS, not inside `@theme`, because Tailwind's `prefix()`
+   renames every `@theme` variable to `--rbn-*` — which would silently break
+   all three things that name these publicly: a GraphTheme `root` slot writing
+   `[--color-graph-menu-bg:#f5f5f5]`, a `var(--color-…)` in a JSX inline style
+   or SVG attribute, and a consumer setting the variable from their own sheet.
+   Kept in `@layer theme` so consumer CSS outside any layer still wins.
+   Values are byte-identical to the block this replaced. */
+@layer theme {
+  :root,
+  :host {
+    --color-graph-scrollbar-thumb: #444444;
+    --color-timeline-scrollbar-thumb: #555555;
+    --color-timeline-scrollbar-track: #1a1a1a;
+    --color-timeline-scrollbar-track-webkit: #2c2c2c;
+    --color-timeline-ruler-border: #3a3a3a;
+    --color-timeline-tick: #555555;
+    --color-running-glow-strong: rgba(71, 114, 179, 0.45);
+    --color-running-glow-soft: rgba(71, 114, 179, 0.25);
+    --color-edge-value-pill-bg: #282828;
+    --color-edge-value-pill-border: #444444;
+    --color-edge-value-pill-text: #e6e6e6;
+    --color-timeline-loop-accent: #8c52d1;
+    --color-timeline-switch-accent: #d18c52;
+    --color-timeline-scrubber-active: #6a9be0;
+    --color-timeline-scrubber-line: rgba(74, 133, 255, 0.5);
+    --color-timeline-scrubber-line-active: rgba(74, 133, 255, 0.7);
+    --color-runner-muted-text: #9a9a9a;
+    --color-timeline-hover-text: #eeeeee;
+    --color-inspector-badge-completed-text: #e0f0e0;
+    --color-inspector-badge-errored-text: #f0e0e0;
+    --color-inspector-skipped: #888888;
+    --color-inspector-progress-track: #333333;
+    --color-runner-resize-handle-bg: #2b2b2b;
+    --color-runner-resize-handle-hover-bg: #353535;
+    --color-graph-menu-bg: #181818;
+    --color-graph-menu-item-hover-bg: #3f3f3f;
+    --color-graph-node-panel-content-bg: #272727;
+    --color-graph-elevated-surface-bg: #222222;
+    --color-graph-input-placeholder: #6b6b6b;
+    --color-drag-list-ghost-accent: #aaaaaa;
+    --color-drag-list-item-hover-bg: #383838;
+    --color-mini-map-bg: #1a1a1a;
+    --color-graph-toggle-track-bg: #1a1a1a;
+    /* Moved from the inline block (values unchanged) so their utilities are
+       var-driven and themes can re-anchor them per surface. */
+    --color-tooltip-bg: #181818;
+    --color-primary-gray: #545454; /*light button background*/
+    --color-runner-scrubber-blue: #4a85ff;
+    /* Accent glow shadows consumed via shadow-[..._var(--color-...)] classes. */
+    --color-timeline-snap-glow: rgba(71, 114, 179, 0.4);
+    --color-timeline-drag-target-glow: rgba(71, 114, 179, 0.7);
+    --color-runner-play-button-glow: rgba(74, 120, 194, 0.4);
+    --color-runner-active-button-glow: rgba(71, 114, 179, 0.5);
+    /* Moved here for `prefix(rbn)` (values unchanged). These are NOT part of
+       the documented themeable set, but each is named as a LITERAL somewhere a
+       prefix cannot follow — a `var()` in a JSX inline style or an SVG
+       attribute, or the light preset's `[--color-secondary-dark-gray:…]`
+       override. A literal keeps the old name while the declaration would have
+       been renamed to `--rbn-*`, so the reference would resolve to nothing and
+       the style would silently vanish. Found mechanically, not by eye. */
+    --font-main: 'DejaVu Sans', 'Roboto', sans-serif;
+    --color-secondary-dark-gray: #444444; /*dark button border*/
+    --color-primary-blue: #4772b3; /*slider blue*/
+    --color-status-completed: #4caf50;
+    --color-status-errored: #ff4444;
+    --color-status-warning: #ffa500;
+  }
+}
+
+/* The utilities for those tokens. `inline` is REQUIRED here: it makes each
+   utility inline the VALUE, and the value is `var(--public-name)`, so the
+   utility reads the public name and a runtime override lands. Declaring the
+   alias the other way round (`--rbn-x: var(--x)` on `:root`) compiles but is
+   broken: custom-property substitution happens at the element carrying the
+   declaration, so an override set on a DESCENDANT could never feed back up. */
+@theme inline {
+  --color-graph-scrollbar-thumb: var(--color-graph-scrollbar-thumb);
+  --color-timeline-scrollbar-thumb: var(--color-timeline-scrollbar-thumb);
+  --color-timeline-scrollbar-track: var(--color-timeline-scrollbar-track);
+  --color-timeline-scrollbar-track-webkit: var(
+    --color-timeline-scrollbar-track-webkit
+  );
+  --color-timeline-ruler-border: var(--color-timeline-ruler-border);
+  --color-timeline-tick: var(--color-timeline-tick);
+  --color-running-glow-strong: var(--color-running-glow-strong);
+  --color-running-glow-soft: var(--color-running-glow-soft);
+  --color-edge-value-pill-bg: var(--color-edge-value-pill-bg);
+  --color-edge-value-pill-border: var(--color-edge-value-pill-border);
+  --color-edge-value-pill-text: var(--color-edge-value-pill-text);
+  --color-timeline-loop-accent: var(--color-timeline-loop-accent);
+  --color-timeline-switch-accent: var(--color-timeline-switch-accent);
+  --color-timeline-scrubber-active: var(--color-timeline-scrubber-active);
+  --color-timeline-scrubber-line: var(--color-timeline-scrubber-line);
+  --color-timeline-scrubber-line-active: var(
+    --color-timeline-scrubber-line-active
+  );
+  --color-runner-muted-text: var(--color-runner-muted-text);
+  --color-timeline-hover-text: var(--color-timeline-hover-text);
+  --color-inspector-badge-completed-text: var(
+    --color-inspector-badge-completed-text
+  );
+  --color-inspector-badge-errored-text: var(
+    --color-inspector-badge-errored-text
+  );
+  --color-inspector-skipped: var(--color-inspector-skipped);
+  --color-inspector-progress-track: var(--color-inspector-progress-track);
+  --color-runner-resize-handle-bg: var(--color-runner-resize-handle-bg);
+  --color-runner-resize-handle-hover-bg: var(
+    --color-runner-resize-handle-hover-bg
+  );
+  --color-graph-menu-bg: var(--color-graph-menu-bg);
+  --color-graph-menu-item-hover-bg: var(--color-graph-menu-item-hover-bg);
+  --color-graph-node-panel-content-bg: var(--color-graph-node-panel-content-bg);
+  --color-graph-elevated-surface-bg: var(--color-graph-elevated-surface-bg);
+  --color-graph-input-placeholder: var(--color-graph-input-placeholder);
+  --color-drag-list-ghost-accent: var(--color-drag-list-ghost-accent);
+  --color-drag-list-item-hover-bg: var(--color-drag-list-item-hover-bg);
+  --color-mini-map-bg: var(--color-mini-map-bg);
+  --color-graph-toggle-track-bg: var(--color-graph-toggle-track-bg);
+  --color-tooltip-bg: var(--color-tooltip-bg);
+  --color-primary-gray: var(--color-primary-gray);
+  --color-runner-scrubber-blue: var(--color-runner-scrubber-blue);
+  --color-timeline-snap-glow: var(--color-timeline-snap-glow);
+  --color-timeline-drag-target-glow: var(--color-timeline-drag-target-glow);
+  --color-runner-play-button-glow: var(--color-runner-play-button-glow);
+  --color-runner-active-button-glow: var(--color-runner-active-button-glow);
+  --font-main: var(--font-main);
+  --color-secondary-dark-gray: var(--color-secondary-dark-gray);
+  --color-primary-blue: var(--color-primary-blue);
+  --color-status-completed: var(--color-status-completed);
+  --color-status-errored: var(--color-status-errored);
+  --color-status-warning: var(--color-status-warning);
 }
 
 @theme inline {
-  --font-main: 'DejaVu Sans', 'Roboto', sans-serif;
+  /* NOTE: `--font-main`, `--color-secondary-dark-gray`, `--color-primary-blue`
+     and the three `--color-status-*` tokens are NOT declared here — they are in
+     the plain `@layer theme` block above, because each is named as a literal
+     somewhere `prefix()` cannot follow. See the comment there. */
 
   --color-primary-white: #e6e6e6; /* text */
 
@@ -176,18 +402,12 @@
   --color-secondary-black: #282828; /* dark button background */
 
   --color-primary-dark-gray: #303030; /*node background, hover dark button*/
-  --color-secondary-dark-gray: #444444; /*dark button border*/
 
   --color-secondary-light-gray: #656565; /*light button non priority hover*/
   --color-secondary-light-gray-as-transparent-overlay-over-primary-gray: #ffffff1a; /*light button non priority hover as transparent overlay over primary gray*/
   --color-primary-light-gray: #797979; /*light button priority hover*/
   --color-primary-light-gray-as-transparent-overlay-over-primary-gray: #ffffff38; /*light button priority hover as transparent overlay over primary gray*/
 
-  --color-primary-blue: #4772b3; /*slider blue*/
-
-  --color-status-completed: #4caf50;
-  --color-status-errored: #ff4444;
-  --color-status-warning: #ffa500;
   --color-status-skipped: #555555;
 
   --color-runner-panel-bg: #222222;

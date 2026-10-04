@@ -131,6 +131,8 @@ export type ReplaceStatePlan = {
   kind: 'REPLACE_STATE';
   /** `State<D,N,U,C>` — generic, stored as `unknown` at this boundary. */
   state: unknown;
+  /** Keep the payload's `history` (see the action's `preserveHistory`). */
+  preserveHistory: boolean;
 };
 
 /**
@@ -170,6 +172,13 @@ export type UpdateNodeCustomNamePlan = {
   customName: string | undefined;
 };
 
+export type UpdateNodeDescriptionPlan = {
+  kind: 'UPDATE_NODE_DESCRIPTION';
+  nodeIds: string[];
+  /** Cleaned description (trimmed), or undefined to clear. */
+  description: string | undefined;
+};
+
 export type UpdateNodePreviewCollapsedPlan = {
   kind: 'UPDATE_NODE_PREVIEW_COLLAPSED';
   nodeId: string;
@@ -202,6 +211,8 @@ export type UpdateUserZonePlan = {
   name?: string;
   /** Cleaned color (invalid dropped); undefined = unchanged. */
   color?: string;
+  /** Trimmed description; '' clears it; undefined = unchanged. */
+  description?: string;
 };
 
 export type UpdateUserZoneMembersPlan = {
@@ -291,7 +302,11 @@ export type UpdateNodeTypePlan = {
   nodeTypeId: string;
   updates: {
     name?: string;
+    /** Trimmed description; '' clears it. */
+    description?: string;
     headerColor?: string;
+    /** Trimmed, non-empty folder names; `[]` = top level of Add Node. */
+    locationInContextMenu?: string[];
     /** Reordered/re-paneled inputs. Generic boundary — stored as `unknown[]`. */
     inputs?: unknown[];
     /** Reordered outputs. Generic boundary — stored as `unknown[]`. */
@@ -438,6 +453,7 @@ export type Plan =
   | UpdateNodesByReactFlowPlan
   | UpdateInputValuePlan
   | UpdateNodeCustomNamePlan
+  | UpdateNodeDescriptionPlan
   | UpdateNodePreviewCollapsedPlan
   | UpdateRunnerViewPreferencePlan
   | OpenNodeGroupPlan

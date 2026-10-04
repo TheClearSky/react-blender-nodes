@@ -18,7 +18,7 @@ function AccordionItem({
     <AccordionPrimitive.Item
       data-slot='accordion-item'
       className={cn(
-        'border-b border-secondary-dark-gray last:border-b-0',
+        'rbn:border-b rbn:border-secondary-dark-gray rbn:last:border-b-0',
         className,
       )}
       {...props}
@@ -32,17 +32,17 @@ function AccordionTrigger({
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Trigger>) {
   return (
-    <AccordionPrimitive.Header className='flex'>
+    <AccordionPrimitive.Header className='rbn:flex'>
       <AccordionPrimitive.Trigger
         data-slot='accordion-trigger'
         className={cn(
-          'flex flex-1 items-center gap-2 rounded-md py-2.5 px-4 text-left text-sm font-medium transition-all outline-none bg-runner-section-header-bg text-primary-white hover:no-underline focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&[data-state=open]>svg]:rotate-180',
+          'rbn:flex rbn:flex-1 rbn:items-center rbn:gap-2 rbn:rounded-md rbn:py-2.5 rbn:px-4 rbn:text-left rbn:text-sm rbn:font-medium rbn:transition-all rbn:outline-none rbn:bg-runner-section-header-bg rbn:text-primary-white rbn:hover:no-underline rbn:focus-visible:ring-[3px] rbn:focus-visible:ring-ring/50 rbn:disabled:pointer-events-none rbn:disabled:opacity-50 rbn:[&[data-state=open]>svg]:rotate-180',
           className,
         )}
         {...props}
       >
         <ChevronDownIcon
-          className='pointer-events-none size-4 shrink-0 text-secondary-light-gray transition-transform duration-200'
+          className='rbn:pointer-events-none rbn:size-4 rbn:shrink-0 rbn:text-secondary-light-gray rbn:transition-transform rbn:duration-200'
           strokeWidth={3}
         />
         {children}
@@ -59,10 +59,10 @@ function AccordionContent({
   return (
     <AccordionPrimitive.Content
       data-slot='accordion-content'
-      className='overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down'
+      className='rbn:overflow-hidden rbn:text-sm rbn:data-[state=closed]:animate-accordion-up rbn:data-[state=open]:animate-accordion-down'
       {...props}
     >
-      <div className={cn('pt-0 pb-4', className)}>{children}</div>
+      <div className={cn('rbn:pt-0 rbn:pb-4', className)}>{children}</div>
     </AccordionPrimitive.Content>
   );
 }

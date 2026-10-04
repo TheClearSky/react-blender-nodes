@@ -37,7 +37,7 @@ function BasicTemplate() {
           </ModalDescription>
         </ModalHeader>
         <ModalBody>
-          <p className='text-primary-white text-sm'>
+          <p className='rbn:text-primary-white rbn:text-sm'>
             Modal body content goes here. This area scrolls when content
             overflows.
           </p>
@@ -66,7 +66,7 @@ function SizesTemplate() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className='flex gap-2'>
+    <div className='rbn:flex rbn:gap-2'>
       {(['sm', 'md', 'lg'] as const).map((s) => (
         <Button
           key={s}
@@ -86,7 +86,7 @@ function SizesTemplate() {
             <ModalTitle>Size: {size.toUpperCase()}</ModalTitle>
           </ModalHeader>
           <ModalBody>
-            <p className='text-primary-white text-sm'>
+            <p className='rbn:text-primary-white rbn:text-sm'>
               This modal uses the &quot;{size}&quot; size variant.
             </p>
           </ModalBody>
@@ -122,11 +122,11 @@ function ScrollableTemplate() {
           </ModalDescription>
         </ModalHeader>
         <ModalBody>
-          <div className='flex flex-col gap-3'>
+          <div className='rbn:flex rbn:flex-col rbn:gap-3'>
             {Array.from({ length: 20 }, (_, index) => (
               <div
                 key={index}
-                className='bg-primary-dark-gray rounded-md p-3 text-primary-white text-sm'
+                className='rbn:bg-primary-dark-gray rbn:rounded-md rbn:p-3 rbn:text-primary-white rbn:text-sm'
               >
                 Item {index + 1}
               </div>

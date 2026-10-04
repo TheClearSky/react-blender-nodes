@@ -101,12 +101,15 @@ function Tooltip({
         ref={triggerRef as never}
         onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
-        className={cn('inline-flex items-center gap-1.5', className)}
+        className={cn(
+          'rbn:inline-flex rbn:items-center rbn:gap-1.5',
+          className,
+        )}
         style={style}
         {...triggerProps}
       >
         {infoIcon && (
-          <Info className='h-3.5 w-3.5 shrink-0 text-primary-white' />
+          <Info className='rbn:h-3.5 rbn:w-3.5 rbn:shrink-0 rbn:text-primary-white' />
         )}
         {children}
       </Tag>
@@ -119,7 +122,7 @@ function Tooltip({
             <div
               style={{ ...transitionStyles, maxWidth: `${maxWidth}px` }}
               className={cn(
-                'rounded-md border-[1.25px] border-primary-white/60 bg-tooltip-bg px-3 py-2 text-[12px] text-primary-white shadow-2xl backdrop-blur-sm',
+                'rbn:rounded-md rbn:border-[1.25px] rbn:border-primary-white/60 rbn:bg-tooltip-bg rbn:px-3 rbn:py-2 rbn:text-[12px] rbn:text-primary-white rbn:shadow-2xl rbn:backdrop-blur-sm',
                 theme?.tooltip?.content,
                 contentClassName,
               )}

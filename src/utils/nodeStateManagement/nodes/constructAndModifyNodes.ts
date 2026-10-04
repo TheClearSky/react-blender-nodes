@@ -160,6 +160,18 @@ function constructInputOrOutputOfType<
       },
     };
   } else {
+    // A complex type's default "matches" when its schema accepts it (a
+    // schema-less complex type takes it as is). Dropping it here left every
+    // consumer knob on a complex data type (e.g. a signal knob) unset.
+    const complexSchema = (
+      matchingDataTypeFromAllDataTypes as { complexSchema?: z.ZodType }
+    ).complexSchema;
+    const acceptedDefault =
+      providedDefaultValue !== undefined &&
+      (complexSchema === undefined ||
+        complexSchema.safeParse(providedDefaultValue).success)
+        ? providedDefaultValue
+        : undefined;
     return {
       id: generateRandomString(lengthOfIds),
       name: typeOfDataTypeInNode.name,
@@ -168,6 +180,7 @@ function constructInputOrOutputOfType<
       maxConnections: resultantMaxConnections,
       type: 'unsupportedDirectly' as const,
       handleShape: matchingDataTypeFromAllDataTypes.shape,
+      ...(acceptedDefault !== undefined && { value: acceptedDefault }),
       dataType: {
         dataTypeObject: matchingDataTypeFromAllDataTypes,
         dataTypeUniqueId: typeOfDataTypeInNode.dataType,

@@ -251,7 +251,7 @@ function useGraphImportExport<
           ref={importStateInputRef}
           type='file'
           accept='.json'
-          className='hidden'
+          className='rbn:hidden'
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (!file) return;
@@ -268,7 +268,7 @@ function useGraphImportExport<
           ref={importRecordingInputRef}
           type='file'
           accept='.json'
-          className='hidden'
+          className='rbn:hidden'
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (!file) return;

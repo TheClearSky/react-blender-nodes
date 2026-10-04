@@ -21,13 +21,13 @@ function createImportExportMenuItems({
     {
       id: 'import-export',
       label: 'Import/Export',
-      icon: createElement(ArrowDownUpIcon, { className: 'w-4 h-4' }),
+      icon: createElement(ArrowDownUpIcon, { className: 'rbn:w-4 rbn:h-4' }),
       separator: true,
       subItems: [
         {
           id: 'export-state',
           label: 'Export State',
-          icon: createElement(FileOutputIcon, { className: 'w-4 h-4' }),
+          icon: createElement(FileOutputIcon, { className: 'rbn:w-4 rbn:h-4' }),
           onClick: () => {
             onExportState();
             closeMenu();
@@ -36,7 +36,7 @@ function createImportExportMenuItems({
         {
           id: 'import-state',
           label: 'Import State',
-          icon: createElement(FileInputIcon, { className: 'w-4 h-4' }),
+          icon: createElement(FileInputIcon, { className: 'rbn:w-4 rbn:h-4' }),
           onClick: () => {
             onImportState();
             closeMenu();
@@ -45,7 +45,7 @@ function createImportExportMenuItems({
         {
           id: 'export-recording',
           label: 'Export Recording',
-          icon: createElement(FileOutputIcon, { className: 'w-4 h-4' }),
+          icon: createElement(FileOutputIcon, { className: 'rbn:w-4 rbn:h-4' }),
           separator: true,
           onClick: () => {
             onExportRecording();
@@ -55,7 +55,7 @@ function createImportExportMenuItems({
         {
           id: 'import-recording',
           label: 'Import Recording',
-          icon: createElement(FileInputIcon, { className: 'w-4 h-4' }),
+          icon: createElement(FileInputIcon, { className: 'rbn:w-4 rbn:h-4' }),
           onClick: () => {
             onImportRecording();
             closeMenu();

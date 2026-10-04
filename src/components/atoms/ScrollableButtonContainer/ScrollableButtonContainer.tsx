@@ -62,18 +62,18 @@ const ScrollableButtonContainer = forwardRef<
 
     const scrollDefaults =
       orientation === 'horizontal'
-        ? 'overflow-x-scroll overflow-y-hidden flex items-center gap-2 whitespace-nowrap'
-        : 'overflow-y-scroll overflow-x-hidden flex flex-col items-start gap-2';
+        ? 'rbn:overflow-x-scroll rbn:overflow-y-hidden rbn:flex rbn:items-center rbn:gap-2 rbn:whitespace-nowrap'
+        : 'rbn:overflow-y-scroll rbn:overflow-x-hidden rbn:flex rbn:flex-col rbn:items-start rbn:gap-2';
 
     return (
-      <div className={cn('relative w-full h-full', className)}>
+      <div className={cn('rbn:relative rbn:w-full rbn:h-full', className)}>
         {showStart && (
           <Button
             className={cn(
-              'h-[44px] border-secondary-dark-gray bg-primary-black absolute z-10',
+              'rbn:h-[44px] rbn:border-secondary-dark-gray rbn:bg-primary-black rbn:absolute rbn:z-10',
               orientation === 'horizontal'
-                ? 'left-0 top-1/2 -translate-y-1/2'
-                : 'top-0 left-1/2 -translate-x-1/2',
+                ? 'rbn:left-0 rbn:top-1/2 rbn:-translate-y-1/2'
+                : 'rbn:top-0 rbn:left-1/2 rbn:-translate-x-1/2',
             )}
             disabled={!showStart}
             onMouseDown={() => handleStartAutoScroll('start')}
@@ -89,7 +89,7 @@ const ScrollableButtonContainer = forwardRef<
           ref={listRef}
           aria-label={ariaLabel}
           className={cn(
-            'no-scrollbar w-full h-full',
+            'rbn:no-scrollbar rbn:w-full rbn:h-full',
             scrollDefaults,
             scrollAreaClassName,
           )}
@@ -99,10 +99,10 @@ const ScrollableButtonContainer = forwardRef<
         {showEnd && (
           <Button
             className={cn(
-              'h-[44px] border-secondary-dark-gray bg-primary-black absolute z-10',
+              'rbn:h-[44px] rbn:border-secondary-dark-gray rbn:bg-primary-black rbn:absolute rbn:z-10',
               orientation === 'horizontal'
-                ? 'right-0 top-1/2 -translate-y-1/2'
-                : 'bottom-0 left-1/2 -translate-x-1/2',
+                ? 'rbn:right-0 rbn:top-1/2 rbn:-translate-y-1/2'
+                : 'rbn:bottom-0 rbn:left-1/2 rbn:-translate-x-1/2',
             )}
             disabled={!showEnd}
             onMouseDown={() => handleStartAutoScroll('end')}

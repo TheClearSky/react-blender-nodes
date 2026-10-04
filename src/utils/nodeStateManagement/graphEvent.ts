@@ -423,6 +423,9 @@ function planToDetail<NodeTypeUniqueId extends string = string>(
       // applied + undoable); add an ActionDetail member here if the event stream
       // should later report renames specifically.
       return undefined;
+    case 'UPDATE_NODE_DESCRIPTION':
+      // Documentation only — no rich applied-event detail.
+      return undefined;
     case 'UPDATE_NODE_PREVIEW_COLLAPSED':
       // Canvas-only visibility toggle (persisted on node.data, undoable); no rich
       // applied-event detail. Explicit case (not folded into `default`) so the

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { navigateToStory } from '../../../actions/graph/graphCanvas.actions';
+import { getInspectorPanel } from '../../../locators/inspector/inspector.locators';
 import { STORY_WITH_RUNNER } from '../../../constants';
 
 // The runner panel reflows to its OWN container width via Tailwind container
@@ -66,9 +67,9 @@ test.describe('Runner UI — responsive (container-query) layout', () => {
     await page.locator('[data-step-index="0"]').click();
 
     // The inspector wrapper is the parent of the ExecutionStepInspector root.
-    const inspectorWrapper = page
-      .locator(`${PANEL} .animate-slide-in-right`)
-      .locator('xpath=..');
+    // Reuse the shared locator: the class is `rbn:animate-slide-in-right` since
+    // the prefix migration, and the colon needs escaping in a selector.
+    const inspectorWrapper = getInspectorPanel(page).locator('xpath=..');
     await expect(inspectorWrapper).toBeVisible();
     expect(
       await inspectorWrapper.evaluate((el) => getComputedStyle(el).position),

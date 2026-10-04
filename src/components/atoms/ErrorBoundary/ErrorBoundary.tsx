@@ -107,23 +107,23 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       return (
         <div
           data-slot='error-boundary'
-          className='flex flex-col items-center justify-center gap-3 rounded-md border border-red-500/50 bg-zinc-900 p-6 text-zinc-300'
+          className='rbn:flex rbn:flex-col rbn:items-center rbn:justify-center rbn:gap-3 rbn:rounded-md rbn:border rbn:border-red-500/50 rbn:bg-zinc-900 rbn:p-6 rbn:text-zinc-300'
         >
-          <AlertTriangle className='h-8 w-8 text-red-400' />
-          <div className='text-center'>
-            <p className='text-sm font-medium text-red-400'>
+          <AlertTriangle className='rbn:h-8 rbn:w-8 rbn:text-red-400' />
+          <div className='rbn:text-center'>
+            <p className='rbn:text-sm rbn:font-medium rbn:text-red-400'>
               Something went wrong
             </p>
-            <p className='mt-1 max-w-md text-xs text-zinc-500'>
+            <p className='rbn:mt-1 rbn:max-w-md rbn:text-xs rbn:text-zinc-500'>
               {error.message}
             </p>
           </div>
           <button
             type='button'
             onClick={this.reset}
-            className='mt-2 inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-zinc-700'
+            className='rbn:mt-2 rbn:inline-flex rbn:items-center rbn:gap-1.5 rbn:rounded-md rbn:border rbn:border-zinc-700 rbn:bg-zinc-800 rbn:px-3 rbn:py-1.5 rbn:text-xs rbn:text-zinc-300 rbn:transition-colors rbn:hover:bg-zinc-700'
           >
-            <RotateCcw className='h-3 w-3' />
+            <RotateCcw className='rbn:h-3 rbn:w-3' />
             Try Again
           </button>
         </div>
